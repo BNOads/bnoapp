@@ -194,29 +194,6 @@ export const NovoTreinamentoModal = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="duracao">Duração (em minutos)</Label>
-              <Input
-                id="duracao"
-                type="number"
-                value={formData.duracao}
-                onChange={(e) => handleInputChange("duracao", e.target.value)}
-                placeholder="Ex: 45"
-                min="1"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="url_conteudo">URL do Conteúdo</Label>
-              <Input
-                id="url_conteudo"
-                value={formData.url_conteudo}
-                onChange={(e) => handleInputChange("url_conteudo", e.target.value)}
-                placeholder="https://..."
-                type="url"
-              />
-            </div>
-          </div>
 
           <div className="flex justify-end space-x-3 pt-4">
             <Button

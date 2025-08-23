@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Header } from "@/components/Layout/Header";
 
 interface Aula {
   id: string;
@@ -135,7 +136,9 @@ export default function AulaDetalhes() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="min-h-screen bg-background">
+      <Header activeTab="treinamentos" onTabChange={() => {}} />
+      <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-6">
         <Button 
           variant="ghost" 
@@ -206,6 +209,7 @@ export default function AulaDetalhes() {
             </div>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );

@@ -7,9 +7,11 @@ import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoColaboradorModal } from "@/components/Colaboradores/NovoColaboradorModal";
 import { NovoClienteModal } from "@/components/Clientes/NovoClienteModal";
 import { NovoTreinamentoModal } from "@/components/Treinamentos/NovoTreinamentoModal";
+import { useRecentActivities } from "@/hooks/useRecentActivities";
 
 export const DashboardView = () => {
   const { canCreateContent } = useUserPermissions();
+  const { activities } = useRecentActivities();
   const [colaboradorModalOpen, setColaboradorModalOpen] = useState(false);
   const [clienteModalOpen, setClienteModalOpen] = useState(false);
   const [treinamentoModalOpen, setTreinamentoModalOpen] = useState(false);
@@ -44,12 +46,6 @@ export const DashboardView = () => {
     },
   ];
 
-  const recentActivities = [
-    { user: "Maria Silva", action: "Concluiu módulo de Facebook Ads", time: "2h atrás" },
-    { user: "João Santos", action: "Acessou painel do cliente XYZ", time: "4h atrás" },
-    { user: "Ana Costa", action: "Iniciou curso de Google Analytics", time: "6h atrás" },
-    { user: "Pedro Lima", action: "Completou avaliação mensal", time: "1d atrás" },
-  ];
 
   return (
     <div className="space-y-8">
@@ -148,7 +144,7 @@ export const DashboardView = () => {
             Atividade Recente
           </h3>
           <div className="space-y-4">
-            {recentActivities.map((activity, index) => (
+            {activities.map((activity, index) => (
               <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50">
                 <div className="bg-primary/10 p-2 rounded-lg">
                   <Clock className="h-4 w-4 text-primary" />

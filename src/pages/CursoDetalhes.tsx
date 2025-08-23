@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NovaAulaModal } from "@/components/Treinamentos/NovaAulaModal";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { Header } from "@/components/Layout/Header";
 
 interface Treinamento {
   id: string;
@@ -107,15 +108,17 @@ export default function CursoDetalhes() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="min-h-screen bg-background">
+      <Header activeTab="treinamentos" onTabChange={() => {}} />
+      <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-6">
         <Button 
           variant="ghost" 
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/treinamentos')}
           className="mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar
+          Voltar para Treinamentos
         </Button>
 
         <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 mb-6">
@@ -193,11 +196,6 @@ export default function CursoDetalhes() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    {aula.duracao && (
-                      <span className="text-sm text-muted-foreground">
-                        {Math.floor(aula.duracao / 60)}:{(aula.duracao % 60).toString().padStart(2, '0')}
-                      </span>
-                    )}
                     <Play className="w-5 h-5 text-primary" />
                   </div>
                 </div>
@@ -218,6 +216,7 @@ export default function CursoDetalhes() {
           }}
         />
       )}
+      </div>
     </div>
   );
 }

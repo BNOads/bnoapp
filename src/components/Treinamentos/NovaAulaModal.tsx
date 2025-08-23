@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,6 +20,7 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
     titulo: "",
     descricao: "",
     url_youtube: "",
+    tipo_conteudo: "video",
     ordem: 1,
     duracao: 0,
   });
@@ -68,6 +70,7 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
         titulo: "",
         descricao: "",
         url_youtube: "",
+        tipo_conteudo: "video",
         ordem: 1,
         duracao: 0,
       });
@@ -114,16 +117,37 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
           </div>
 
           <div>
-            <Label htmlFor="url_youtube">URL do YouTube</Label>
-            <Input
-              id="url_youtube"
-              type="url"
-              value={formData.url_youtube}
-              onChange={(e) => setFormData({ ...formData, url_youtube: e.target.value })}
-              placeholder="https://www.youtube.com/watch?v=..."
-              required
-            />
+            <Label htmlFor="tipo_conteudo">Tipo de Conteúdo</Label>
+            <Select
+              value={formData.tipo_conteudo}
+              onValueChange={(value) => setFormData({ ...formData, tipo_conteudo: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="video">Aula em Vídeo</SelectItem>
+                <SelectItem value="quiz">Quiz</SelectItem>
+                <SelectItem value="documento">Documento</SelectItem>
+                <SelectItem value="apresentacao">Apresentação</SelectItem>
+                <SelectItem value="exercicio">Exercício Prático</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+
+          {formData.tipo_conteudo === "video" && (
+            <div>
+              <Label htmlFor="url_youtube">URL do YouTube</Label>
+              <Input
+                id="url_youtube"
+                type="url"
+                value={formData.url_youtube}
+                onChange={(e) => setFormData({ ...formData, url_youtube: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=..."
+                required
+              />
+            </div>
+          )}
 
           <div>
             <Label htmlFor="duracao">Duração (em minutos)</Label>
