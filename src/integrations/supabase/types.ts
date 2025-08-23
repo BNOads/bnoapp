@@ -67,10 +67,11 @@ export type Database = {
           duracao: number | null
           id: string
           ordem: number
+          tipo_conteudo: string | null
           titulo: string
           treinamento_id: string
           updated_at: string
-          url_youtube: string
+          url_youtube: string | null
         }
         Insert: {
           ativo?: boolean
@@ -80,10 +81,11 @@ export type Database = {
           duracao?: number | null
           id?: string
           ordem?: number
+          tipo_conteudo?: string | null
           titulo: string
           treinamento_id: string
           updated_at?: string
-          url_youtube: string
+          url_youtube?: string | null
         }
         Update: {
           ativo?: boolean
@@ -93,10 +95,11 @@ export type Database = {
           duracao?: number | null
           id?: string
           ordem?: number
+          tipo_conteudo?: string | null
           titulo?: string
           treinamento_id?: string
           updated_at?: string
-          url_youtube?: string
+          url_youtube?: string | null
         }
         Relationships: [
           {
