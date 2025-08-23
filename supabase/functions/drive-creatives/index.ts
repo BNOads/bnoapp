@@ -38,7 +38,7 @@ serve(async (req) => {
       .from('creatives')
       .select(`
         *,
-        activated_user:profiles!creatives_activated_by_fkey(nome)
+        activated_user:profiles!activated_by(nome)
       `, { count: 'exact' })
       .eq('client_id', clientId)
       .eq('archived', false)
