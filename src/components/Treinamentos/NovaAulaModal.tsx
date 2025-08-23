@@ -155,7 +155,7 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
               id="duracao"
               type="number"
               value={formData.duracao}
-              onChange={(e) => setFormData({ ...formData, duracao: parseInt(e.target.value) * 60 })}
+              onChange={(e) => setFormData({ ...formData, duracao: parseInt(e.target.value) || 0 })}
               min="0"
             />
             <p className="text-sm text-muted-foreground mt-1">

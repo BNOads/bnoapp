@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, ExternalLink, Edit, Trash2, FileImage, Video, FileText, File } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -188,7 +189,7 @@ export const CriativosView = ({ clienteId }: CriativosViewProps) => {
         )}
       </div>
 
-      {/* Lista de Criativos */}
+      {/* Tabela de Criativos */}
       {loading ? (
         <div className="flex justify-center items-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -211,78 +212,91 @@ export const CriativosView = ({ clienteId }: CriativosViewProps) => {
           )}
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {criativosFiltrados.map((criativo) => (
-            <Card key={criativo.id} className="bg-card border border-border shadow-card hover:shadow-elegant transition-all duration-300">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-base sm:text-lg font-semibold text-foreground line-clamp-2">
-                      {criativo.nome}
-                    </CardTitle>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge className={`${getTipoColor(criativo.tipo_criativo)} text-xs`}>
-                        {getTipoIcon(criativo.tipo_criativo)}
-                        <span className="ml-1 capitalize">{criativo.tipo_criativo}</span>
-                      </Badge>
+        <div className="rounded-md border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Tags</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {criativosFiltrados.map((criativo) => (
+                <TableRow key={criativo.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center space-x-2">
+                      {getTipoIcon(criativo.tipo_criativo)}
+                      <span className="text-sm font-semibold text-foreground">
+                        {criativo.nome}
+                      </span>
                     </div>
-                  </div>
-                  {canCreateContent && (
-                    <div className="flex space-x-1 ml-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditClick(criativo)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteClick(criativo)}
-                        className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={`${getTipoColor(criativo.tipo_criativo)} text-xs`}>
+                      <span className="capitalize">{criativo.tipo_criativo}</span>
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1 max-w-48">
+                      {criativo.tags.slice(0, 3).map((tag, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                      {criativo.tags.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{criativo.tags.length - 3}
+                        </Badge>
+                      )}
                     </div>
-                  )}
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                {criativo.descricao && (
-                  <p className="text-sm text-muted-foreground line-clamp-3">
-                    {criativo.descricao}
-                  </p>
-                )}
-                
-                {criativo.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {criativo.tags.map((tag, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                
-                <div className="flex items-center justify-between pt-2 border-t border-border">
-                  <span className="text-xs text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="max-w-64">
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {criativo.descricao || '-'}
+                    </p>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
                     {formatarData(criativo.created_at)}
-                  </span>
-                  
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    onClick={() => window.open(criativo.link_externo, '_blank')}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    Abrir
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => window.open(criativo.link_externo, '_blank')}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Abrir
+                      </Button>
+                      {canCreateContent && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClick(criativo)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClick(criativo)}
+                            className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
