@@ -58,6 +58,56 @@ export type Database = {
           },
         ]
       }
+      aulas: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          duracao: number | null
+          id: string
+          ordem: number
+          titulo: string
+          treinamento_id: string
+          updated_at: string
+          url_youtube: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          duracao?: number | null
+          id?: string
+          ordem?: number
+          titulo: string
+          treinamento_id: string
+          updated_at?: string
+          url_youtube: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          duracao?: number | null
+          id?: string
+          ordem?: number
+          titulo?: string
+          treinamento_id?: string
+          updated_at?: string
+          url_youtube?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aulas_treinamento_id_fkey"
+            columns: ["treinamento_id"]
+            isOneToOne: false
+            referencedRelation: "treinamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           ativo: boolean
@@ -489,6 +539,54 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      progresso_aulas: {
+        Row: {
+          aula_id: string
+          concluido: boolean
+          created_at: string
+          id: string
+          tempo_assistido: number | null
+          treinamento_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aula_id: string
+          concluido?: boolean
+          created_at?: string
+          id?: string
+          tempo_assistido?: number | null
+          treinamento_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aula_id?: string
+          concluido?: boolean
+          created_at?: string
+          id?: string
+          tempo_assistido?: number | null
+          treinamento_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progresso_aulas_aula_id_fkey"
+            columns: ["aula_id"]
+            isOneToOne: false
+            referencedRelation: "aulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progresso_aulas_treinamento_id_fkey"
+            columns: ["treinamento_id"]
+            isOneToOne: false
+            referencedRelation: "treinamentos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reunioes: {
         Row: {

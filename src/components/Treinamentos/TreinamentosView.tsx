@@ -10,6 +10,7 @@ import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoTreinamentoModal } from "./NovoTreinamentoModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 export const TreinamentosView = () => {
   const { canCreateContent } = useUserPermissions();
@@ -17,6 +18,7 @@ export const TreinamentosView = () => {
   const [treinamentos, setTreinamentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const carregarTreinamentos = async () => {
     try {
@@ -250,39 +252,16 @@ export const TreinamentosView = () => {
                         </Badge>
                       </div>
 
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Duração:</span>
-                        <span className="font-medium">
-                          {formatarDuracao(treinamento.duracao)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Visualizações:</span>
-                        <span className="font-medium">
-                          {treinamento.visualizacoes || 0}
-                        </span>
-                      </div>
                     </div>
 
                     <div className="mt-6 space-y-2">
                       <Button 
                         className="w-full" 
                         variant="default"
-                        onClick={() => {
-                          if (treinamento.url_conteudo) {
-                            window.open(treinamento.url_conteudo, '_blank');
-                          } else {
-                            toast({
-                              title: "Link não disponível",
-                              description: "Este treinamento ainda não possui link de acesso.",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
+                        onClick={() => navigate(`/curso/${treinamento.id}`)}
                       >
                         <Play className="h-4 w-4 mr-2" />
-                        Acessar Treinamento
+                        Acessar Curso
                       </Button>
                     </div>
                   </div>

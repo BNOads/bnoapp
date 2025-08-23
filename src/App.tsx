@@ -8,6 +8,8 @@ import { ProtectedRoute } from "@/components/Auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import PainelCliente from "./pages/PainelCliente";
+import CursoDetalhes from "./pages/CursoDetalhes";
+import AulaDetalhes from "./pages/AulaDetalhes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +26,16 @@ const App = () => (
             <Route path="/painel/:clienteId" element={
               <ProtectedRoute>
                 <PainelCliente />
+              </ProtectedRoute>
+            } />
+            <Route path="/curso/:cursoId" element={
+              <ProtectedRoute>
+                <CursoDetalhes />
+              </ProtectedRoute>
+            } />
+            <Route path="/curso/:cursoId/aula/:aulaId" element={
+              <ProtectedRoute>
+                <AulaDetalhes />
               </ProtectedRoute>
             } />
             <Route path="/" element={
