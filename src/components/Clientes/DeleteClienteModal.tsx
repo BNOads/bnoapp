@@ -66,6 +66,10 @@ export const DeleteClienteModal = ({
     }
   };
 
+  if (!open || !cliente) {
+    return null;
+  }
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -76,7 +80,7 @@ export const DeleteClienteModal = ({
           </div>
           <AlertDialogDescription>
             Tem certeza que deseja excluir o painel do cliente{" "}
-            <span className="font-semibold">{cliente?.nome}</span>?
+            <span className="font-semibold">{cliente.nome}</span>?
             <br />
             <br />
             <span className="text-destructive font-medium">
