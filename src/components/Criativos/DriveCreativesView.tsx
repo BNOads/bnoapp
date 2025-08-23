@@ -205,12 +205,29 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
 
   const updateCreativeStatus = async (creativeId: string, newStatus: 'subir' | 'ativo' | 'inativo' | 'erro') => {
     try {
-      const { data, error } = await supabase.rpc('update_creative_status', {
-        creative_id: creativeId,
-        new_status: newStatus === 'ativo'
-      });
+      // Se o status não for 'ativo', precisamos limpar os dados de ativação
+      if (newStatus !== 'ativo') {
+        // Atualizar diretamente na tabela para limpar activated_at e activated_by
+        const { error: updateError } = await supabase
+          .from('creatives')
+          .update({
+            is_active: false,
+            activated_at: null,
+            activated_by: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', creativeId);
 
-      if (error) throw error;
+        if (updateError) throw updateError;
+      } else {
+        // Se for ativo, usar a função RPC
+        const { data, error } = await supabase.rpc('update_creative_status', {
+          creative_id: creativeId,
+          new_status: true
+        });
+
+        if (error) throw error;
+      }
 
       toast({
         title: "Status atualizado",
@@ -361,12 +378,12 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-32">Status</TableHead>
+                <TableHead className="w-32">Ativado em</TableHead>
                 <TableHead className="w-12">Tipo</TableHead>
                 <TableHead>Nome do Arquivo</TableHead>
                 <TableHead className="w-32">Pasta</TableHead>
                 <TableHead className="w-32">Formato</TableHead>
-                <TableHead className="w-32">Ativado em</TableHead>
-                <TableHead className="w-24">Tamanho</TableHead>
+                <TableHead className="w-32">Data Upload</TableHead>
                 <TableHead className="w-48">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -411,6 +428,26 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                       </SelectContent>
                     </Select>
                   </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {creative.activated_at ? (
+                      <div>
+                        <div>{new Date(creative.activated_at).toLocaleDateString('pt-BR')}</div>
+                        <div className="text-xs opacity-70">
+                          {new Date(creative.activated_at).toLocaleTimeString('pt-BR', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </div>
+                        {creative.activated_user?.nome && (
+                          <div className="text-xs opacity-60 mt-1">
+                            por {creative.activated_user.nome}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center">
                       {getTipoIcon(creative.mime_type)}
@@ -444,27 +481,15 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {creative.activated_at ? (
-                      <div>
-                        <div>{new Date(creative.activated_at).toLocaleDateString('pt-BR')}</div>
-                        <div className="text-xs opacity-70">
-                          {new Date(creative.activated_at).toLocaleTimeString('pt-BR', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </div>
-                        {creative.activated_user?.nome && (
-                          <div className="text-xs opacity-60 mt-1">
-                            por {creative.activated_user.nome}
-                          </div>
-                        )}
+                    <div>
+                      <div>{new Date(creative.modified_time).toLocaleDateString('pt-BR')}</div>
+                      <div className="text-xs opacity-70">
+                        {new Date(creative.modified_time).toLocaleTimeString('pt-BR', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
                       </div>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {creative.formatted_size}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
