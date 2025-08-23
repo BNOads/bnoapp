@@ -403,6 +403,24 @@ export type Database = {
           },
         ]
       }
+      master_emails: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       permissoes_dados_sensíveis: {
         Row: {
           ativo: boolean
@@ -590,6 +608,10 @@ export type Database = {
           telefone_contato: string
           telefone_proximo: string
         }[]
+      }
+      grant_master_access_to_email: {
+        Args: { _email: string }
+        Returns: undefined
       }
       has_sensitive_data_permission: {
         Args: {
