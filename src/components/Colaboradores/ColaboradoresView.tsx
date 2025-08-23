@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Search, Plus, User, Mail, Calendar, BookOpen, MoreVertical } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
@@ -186,6 +186,12 @@ export const ColaboradoresView = () => {
                 >
                   <div className="flex items-center space-x-4">
                     <Avatar className="h-12 w-12">
+                      {colaborador.avatar_url && (
+                        <AvatarImage 
+                          src={colaborador.avatar_url} 
+                          alt={colaborador.nome} 
+                        />
+                      )}
                       <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold">
                         {colaborador.nome.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
                       </AvatarFallback>

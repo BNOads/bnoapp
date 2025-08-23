@@ -1,7 +1,9 @@
 import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +19,7 @@ interface HeaderProps {
 
 export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
   const { user, signOut } = useAuth();
+  const { userData } = useCurrentUser();
   const navigate = useNavigate();
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -65,9 +68,22 @@ export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="flex items-center space-x-2">
-                  <User className="h-4 w-4" />
-                  <span className="hidden md:inline">
-                    {user?.email?.split('@')[0]}
+                  <Avatar className="h-8 w-8">
+                    {userData?.avatar_url && (
+                      <AvatarImage 
+                        src={userData.avatar_url} 
+                        alt={userData.nome || "Avatar"} 
+                      />
+                    )}
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                      {userData?.nome ? 
+                        userData.nome.split(' ').map(n => n[0]).join('').substring(0, 2) : 
+                        user?.email?.charAt(0).toUpperCase() || 'U'
+                      }
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="hidden md:inline text-sm">
+                    {userData?.nome?.split(' ')[0] || user?.email?.split('@')[0]}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
