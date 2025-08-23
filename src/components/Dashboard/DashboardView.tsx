@@ -10,57 +10,53 @@ import { NovoTreinamentoModal } from "@/components/Treinamentos/NovoTreinamentoM
 import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 export const DashboardView = () => {
-  const { canCreateContent } = useUserPermissions();
-  const { activities } = useRecentActivities();
-  const { stats, loading: statsLoading } = useDashboardStats();
+  const {
+    canCreateContent
+  } = useUserPermissions();
+  const {
+    activities
+  } = useRecentActivities();
+  const {
+    stats,
+    loading: statsLoading
+  } = useDashboardStats();
   const [colaboradorModalOpen, setColaboradorModalOpen] = useState(false);
   const [clienteModalOpen, setClienteModalOpen] = useState(false);
   const [treinamentoModalOpen, setTreinamentoModalOpen] = useState(false);
-  
-  const statsData = [
-    { 
-      title: "Colaboradores Ativos", 
-      value: statsLoading ? "..." : stats.colaboradoresAtivos.toString(), 
-      change: "+12%", 
-      icon: Users,
-      color: "text-primary"
-    },
-    { 
-      title: "Clientes Ativos", 
-      value: statsLoading ? "..." : stats.clientesAtivos.toString(), 
-      change: "+23%", 
-      icon: Calendar,
-      color: "text-primary-glow"
-    },
-    { 
-      title: "Treinamentos Concluídos", 
-      value: statsLoading ? "..." : stats.treinamentosConcluidos.toString(), 
-      change: "+8%", 
-      icon: BookOpen,
-      color: "text-secondary"
-    },
-    { 
-      title: "Taxa de Progresso", 
-      value: statsLoading ? "..." : `${stats.taxaProgresso}%`, 
-      change: "+5%", 
-      icon: TrendingUp,
-      color: "text-primary"
-    },
-  ];
-
-
-  return (
-    <div className="space-y-8">
+  const statsData = [{
+    title: "Colaboradores Ativos",
+    value: statsLoading ? "..." : stats.colaboradoresAtivos.toString(),
+    change: "+12%",
+    icon: Users,
+    color: "text-primary"
+  }, {
+    title: "Clientes Ativos",
+    value: statsLoading ? "..." : stats.clientesAtivos.toString(),
+    change: "+23%",
+    icon: Calendar,
+    color: "text-primary-glow"
+  }, {
+    title: "Treinamentos Concluídos",
+    value: statsLoading ? "..." : stats.treinamentosConcluidos.toString(),
+    change: "+8%",
+    icon: BookOpen,
+    color: "text-secondary"
+  }, {
+    title: "Taxa de Progresso",
+    value: statsLoading ? "..." : `${stats.taxaProgresso}%`,
+    change: "+5%",
+    icon: TrendingUp,
+    color: "text-primary"
+  }];
+  return <div className="space-y-8">
       {/* Header Section */}
       <div className="bg-gradient-primary rounded-2xl p-8 text-primary-foreground shadow-glow">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold mb-2">Bem-vindo à BNOads</h2>
-            <p className="text-primary-foreground/80 text-lg">
-              Gerencie sua equipe e acompanhe o progresso dos treinamentos
-            </p>
+            <h2 className="text-3xl font-bold mb-2">Bem-vindo à BNOads mito!</h2>
+            <p className="text-primary-foreground/80 text-lg">Aqui é a sua central de treinamentos e informações sobre a empresa</p>
           </div>
-          <BarChart3 className="h-16 w-16 opacity-80" />
+          
         </div>
       </div>
 
@@ -70,9 +66,8 @@ export const DashboardView = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsData.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index} className="p-6 bg-card border border-border hover:shadow-card transition-all duration-300 hover:border-primary/30">
+        const Icon = stat.icon;
+        return <Card key={index} className="p-6 bg-card border border-border hover:shadow-card transition-all duration-300 hover:border-primary/30">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground font-medium">
@@ -89,47 +84,33 @@ export const DashboardView = () => {
                   <Icon className={`h-6 w-6 ${stat.color}`} />
                 </div>
               </div>
-            </Card>
-          );
-        })}
+            </Card>;
+      })}
       </div>
 
       {/* Quick Actions & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Quick Actions - Visível apenas para admins */}
-        {canCreateContent && (
-          <Card className="p-6 bg-card border border-border shadow-card">
+        {canCreateContent && <Card className="p-6 bg-card border border-border shadow-card">
             <h3 className="text-xl font-semibold mb-6 text-foreground">
               Ações Rápidas
             </h3>
             <div className="space-y-4">
-              <Button 
-                variant="card" 
-                className="w-full justify-start h-auto p-4"
-                onClick={() => setColaboradorModalOpen(true)}
-              >
+              <Button variant="card" className="w-full justify-start h-auto p-4" onClick={() => setColaboradorModalOpen(true)}>
                 <Users className="h-5 w-5 text-primary mr-3" />
                 <div className="text-left">
                   <p className="font-medium">Cadastrar Colaborador</p>
                   <p className="text-sm text-muted-foreground">Adicionar novo membro à equipe</p>
                 </div>
               </Button>
-              <Button 
-                variant="card" 
-                className="w-full justify-start h-auto p-4"
-                onClick={() => setClienteModalOpen(true)}
-              >
+              <Button variant="card" className="w-full justify-start h-auto p-4" onClick={() => setClienteModalOpen(true)}>
                 <Calendar className="h-5 w-5 text-primary mr-3" />
                 <div className="text-left">
                   <p className="font-medium">Criar Painel Cliente</p>
                   <p className="text-sm text-muted-foreground">Gerar novo painel personalizado</p>
                 </div>
               </Button>
-              <Button 
-                variant="card" 
-                className="w-full justify-start h-auto p-4"
-                onClick={() => setTreinamentoModalOpen(true)}
-              >
+              <Button variant="card" className="w-full justify-start h-auto p-4" onClick={() => setTreinamentoModalOpen(true)}>
                 <BookOpen className="h-5 w-5 text-primary mr-3" />
                 <div className="text-left">
                   <p className="font-medium">Adicionar Treinamento</p>
@@ -137,8 +118,7 @@ export const DashboardView = () => {
                 </div>
               </Button>
             </div>
-          </Card>
-        )}
+          </Card>}
 
         {/* Recent Activity */}
         <Card className={`p-6 bg-card border border-border shadow-card ${!canCreateContent ? 'lg:col-span-2' : ''}`}>
@@ -146,8 +126,7 @@ export const DashboardView = () => {
             Atividade Recente
           </h3>
           <div className="space-y-4">
-            {activities.map((activity, index) => (
-              <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50">
+            {activities.map((activity, index) => <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50">
                 <div className="bg-primary/10 p-2 rounded-lg">
                   <Clock className="h-4 w-4 text-primary" />
                 </div>
@@ -162,25 +141,14 @@ export const DashboardView = () => {
                     {activity.time}
                   </p>
                 </div>
-              </div>
-            ))}
+              </div>)}
           </div>
         </Card>
       </div>
 
       {/* Modals */}
-      <NovoColaboradorModal 
-        open={colaboradorModalOpen}
-        onOpenChange={setColaboradorModalOpen}
-      />
-      <NovoClienteModal 
-        open={clienteModalOpen}
-        onOpenChange={setClienteModalOpen}
-      />
-      <NovoTreinamentoModal 
-        open={treinamentoModalOpen}
-        onOpenChange={setTreinamentoModalOpen}
-      />
-    </div>
-  );
+      <NovoColaboradorModal open={colaboradorModalOpen} onOpenChange={setColaboradorModalOpen} />
+      <NovoClienteModal open={clienteModalOpen} onOpenChange={setClienteModalOpen} />
+      <NovoTreinamentoModal open={treinamentoModalOpen} onOpenChange={setTreinamentoModalOpen} />
+    </div>;
 };
