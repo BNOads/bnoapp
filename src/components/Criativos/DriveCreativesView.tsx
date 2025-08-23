@@ -46,6 +46,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [syncing, setSyncing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<string>("todos");
+  const [selectedFolder, setSelectedFolder] = useState<string>("todas");
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
@@ -148,7 +149,23 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
 
   useEffect(() => {
     carregarCreatives();
-  }, [clienteId, pagination.page, selectedType, searchTerm]);
+  }, [clienteId, pagination.page, selectedType, selectedFolder, searchTerm]);
+
+  // Função para obter subpastas únicas
+  const getUniqueSubfolders = () => {
+    const folders = creatives
+      .map(creative => creative.folder_name || 'Raiz')
+      .filter((folder, index, arr) => arr.indexOf(folder) === index)
+      .sort();
+    return folders;
+  };
+
+  // Filtrar criativos localmente por subpasta se necessário
+  const filteredCreatives = selectedFolder === 'todas' 
+    ? creatives 
+    : creatives.filter(creative => 
+        (creative.folder_name || 'Raiz') === selectedFolder
+      );
 
   const getTipoIcon = (mimeType: string) => {
     if (mimeType?.startsWith('image/')) return <FileImage className="h-5 w-5" />;
@@ -311,6 +328,20 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
             <SelectItem value="documento">Documentos</SelectItem>
           </SelectContent>
         </Select>
+        
+        <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Filtrar por subpasta" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas as subpastas</SelectItem>
+            {getUniqueSubfolders().map((folder) => (
+              <SelectItem key={folder} value={folder}>
+                {folder}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Tabela de Criativos */}
@@ -318,7 +349,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         <div className="flex justify-center items-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
-      ) : creatives.length === 0 ? (
+      ) : filteredCreatives.length === 0 ? (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">
             Nenhum criativo encontrado. Clique em "Sincronizar" para carregar arquivos do Google Drive.
@@ -340,7 +371,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {creatives.map((creative) => (
+              {filteredCreatives.map((creative) => (
                 <TableRow key={creative.id} className="hover:bg-muted/50">
                   <TableCell>
                     <Select
