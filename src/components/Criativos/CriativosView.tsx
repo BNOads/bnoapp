@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, ExternalLink, Edit, Trash2, FileImage, Video, FileText, File } from "lucide-react";
+import { Search, Plus, ExternalLink, Edit, Trash2, FileImage, Video, FileText, File, Copy } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
@@ -118,6 +118,22 @@ export const CriativosView = ({ clienteId }: CriativosViewProps) => {
 
   const handleSuccess = () => {
     carregarCriativos();
+  };
+
+  const copyToClipboard = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast({
+        title: "Link copiado!",
+        description: "O link do criativo foi copiado para a área de transferência.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível copiar o link.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Filtrar por tag selecionada
@@ -264,6 +280,14 @@ export const CriativosView = ({ clienteId }: CriativosViewProps) => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => copyToClipboard(criativo.link_externo)}
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copiar
+                      </Button>
                       <Button 
                         variant="outline" 
                         size="sm"

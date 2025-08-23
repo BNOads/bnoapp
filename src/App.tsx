@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/Auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import PainelCliente from "./pages/PainelCliente";
+import CriativosCliente from "./pages/CriativosCliente";
 import CursoDetalhes from "./pages/CursoDetalhes";
 import AulaDetalhes from "./pages/AulaDetalhes";
 import Perfil from "./pages/Perfil";
@@ -26,6 +27,7 @@ function App() {
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/painel/:clienteId" element={<PainelCliente />} />
+              <Route path="/criativos/:clienteId" element={<CriativosCliente />} />
               <Route path="/curso/:cursoId" element={
                 <ProtectedRoute>
                   <CursoDetalhes />

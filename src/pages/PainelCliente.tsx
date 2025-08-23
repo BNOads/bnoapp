@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, ArrowLeft, LogIn, FileImage } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen } from "lucide-react";
+import { MessageCircle, ArrowLeft, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Layout/Header";
@@ -12,37 +12,16 @@ import { StatusCliente } from "@/components/Clientes/StatusCliente";
 import { GravacoesReunioes } from "@/components/Clientes/GravacoesReunioes";
 import { TarefasList } from "@/components/Clientes/TarefasList";
 import { LinksImportantes } from "@/components/Clientes/LinksImportantes";
-import { CriativosView } from "@/components/Criativos/CriativosView";
-import { useNavigate } from "react-router-dom";
 import type { User } from "@supabase/supabase-js";
-
-interface Cliente {
-  id: string;
-  nome: string;
-  categoria: string;
-  nicho: string;
-  status_cliente: string;
-  whatsapp_grupo_url: string;
-  observacoes: string;
-  created_at: string;
-  ultimo_acesso: string;
-}
-
-interface UltimasAtualizacoes {
-  id: string;
-  titulo: string;
-  tipo: string;
-  data: string;
-  descricao: string;
-}
 
 const PainelCliente = () => {
   const { clienteId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [ultimasAtualizacoes, setUltimasAtualizacoes] = useState<UltimasAtualizacoes[]>([]);
+  const [activeTab, setActiveTab] = useState('gravacoes');
+  const [cliente, setCliente] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [ultimasAtualizacoes, setUltimasAtualizacoes] = useState<any[]>([]);
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -110,7 +89,7 @@ const PainelCliente = () => {
       setCliente(data[0]);
       setLoading(false);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar dados do cliente:', error);
       toast({
         title: "Erro",
@@ -150,7 +129,7 @@ const PainelCliente = () => {
           .limit(3)
       ]);
 
-      const atualizacoes: UltimasAtualizacoes[] = [
+      const atualizacoes: any[] = [
         ...(interacoes.data || []).map(item => ({
           id: item.id,
           titulo: item.titulo,
@@ -332,76 +311,89 @@ const PainelCliente = () => {
               </Button>
             )}
           </div>
+          
+          <div className="container mx-auto p-6 max-w-7xl">
+            {/* Cards de Ação Rápida */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <Card className="hover:shadow-card transition-all duration-300 cursor-pointer group" onClick={() => setActiveTab('gravacoes')}>
+                <CardContent className="p-4 sm:p-6 text-center">
+                  <Video className="h-6 w-6 sm:h-8 sm:w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
+                  <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base">Gravações</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Ver reuniões gravadas</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="hover:shadow-card transition-all duration-300 cursor-pointer group" onClick={() => setActiveTab('links')}>
+                <CardContent className="p-4 sm:p-6 text-center">
+                  <Link2 className="h-6 w-6 sm:h-8 sm:w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
+                  <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base">Links</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Links importantes</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-card transition-all duration-300 cursor-pointer group" onClick={() => setActiveTab('tarefas')}>
+                <CardContent className="p-4 sm:p-6 text-center">
+                  <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
+                  <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base">Tarefas</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Acompanhar atividades</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-card transition-all duration-300 cursor-pointer group" onClick={() => navigate(`/criativos/${clienteId}`)}>
+                <CardContent className="p-4 sm:p-6 text-center">
+                  <FolderOpen className="h-6 w-6 sm:h-8 sm:w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
+                  <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base">Criativos</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Catálogo de materiais</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Navegação por Abas */}
+            <div className="flex flex-wrap gap-2 sm:gap-1 border-b border-border mb-6">
+              <Button
+                variant={activeTab === 'gravacoes' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTab('gravacoes')}
+                className="text-xs sm:text-sm"
+              >
+                <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Gravações</span>
+                <span className="sm:hidden">Vídeos</span>
+              </Button>
+              <Button
+                variant={activeTab === 'links' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTab('links')}
+                className="text-xs sm:text-sm"
+              >
+                <Link2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Links
+              </Button>
+              <Button
+                variant={activeTab === 'tarefas' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTab('tarefas')}
+                className="text-xs sm:text-sm"
+              >
+                <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Tarefas
+              </Button>
+            </div>
+
+            {/* Conteúdo das Abas */}
+            <div>
+              {activeTab === 'gravacoes' && <GravacoesReunioes clienteId={clienteId} />}
+              {activeTab === 'links' && <LinksImportantes clienteId={clienteId} />}
+              {activeTab === 'tarefas' && <TarefasList clienteId={clienteId} tipo="cliente" />}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Sidebar */}
       <div className="container mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Coluna Principal */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Status do Cliente */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Status do Cliente</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StatusCliente 
-                  status={cliente.status_cliente}
-                  dataAdmissao={cliente.created_at}
-                  ultimaAtualizacao={formatarTempoRelativo(cliente.ultimo_acesso || cliente.created_at)}
-                />
-                {cliente.observacoes && (
-                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                    <h4 className="font-semibold mb-2">Observações:</h4>
-                    <p className="text-sm text-muted-foreground">{cliente.observacoes}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Abas do Conteúdo */}
-            <Tabs defaultValue="gravacoes" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
-                <TabsTrigger value="gravacoes" className="text-xs sm:text-sm">
-                  <span className="hidden sm:inline">Gravações</span>
-                  <span className="sm:hidden">Grav</span>
-                </TabsTrigger>
-                <TabsTrigger value="tarefas" className="text-xs sm:text-sm">
-                  <span className="hidden sm:inline">Tarefas</span>
-                  <span className="sm:hidden">Task</span>
-                </TabsTrigger>
-                <TabsTrigger value="criativos" className="text-xs sm:text-sm">
-                  <FileImage className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">Criativos</span>
-                  <span className="sm:hidden">Criat</span>
-                </TabsTrigger>
-                <TabsTrigger value="links" className="text-xs sm:text-sm">
-                  <span className="hidden sm:inline">Links</span>
-                  <span className="sm:hidden">Link</span>
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="gravacoes" className="space-y-6 mt-6">
-                <GravacoesReunioes clienteId={cliente.id} />
-              </TabsContent>
-              
-              <TabsContent value="tarefas" className="space-y-6 mt-6">
-                <TarefasList clienteId={cliente.id} tipo="equipe" />
-                <TarefasList clienteId={cliente.id} tipo="cliente" />
-              </TabsContent>
-              
-              <TabsContent value="criativos" className="mt-6">
-                <CriativosView clienteId={cliente.id} />
-              </TabsContent>
-              
-              <TabsContent value="links" className="mt-6">
-                <LinksImportantes clienteId={cliente.id} />
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* Sidebar */}
+          <div className="lg:col-span-2"></div>
           <div className="space-y-8">
             {/* Últimas Atualizações */}
             <Card>
