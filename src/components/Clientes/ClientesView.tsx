@@ -117,6 +117,12 @@ export const ClientesView = () => {
     setDeleteModalOpen(true);
   };
 
+  const handleDeleteSuccess = () => {
+    setDeleteModalOpen(false);
+    setClienteToDelete(null);
+    carregarClientes();
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -383,11 +389,14 @@ export const ClientesView = () => {
       
       <DeleteClienteModal
         open={deleteModalOpen}
-        onOpenChange={setDeleteModalOpen}
-        cliente={clienteToDelete}
-        onSuccess={() => {
-          carregarClientes(); // Recarregar lista após excluir
+        onOpenChange={(open) => {
+          setDeleteModalOpen(open);
+          if (!open) {
+            setClienteToDelete(null);
+          }
         }}
+        cliente={clienteToDelete}
+        onSuccess={handleDeleteSuccess}
       />
       
       <ImportarClientesModal
