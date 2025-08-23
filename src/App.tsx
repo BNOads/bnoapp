@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import PainelCliente from "./pages/PainelCliente";
 import CursoDetalhes from "./pages/CursoDetalhes";
 import AulaDetalhes from "./pages/AulaDetalhes";
+import Perfil from "./pages/Perfil";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,11 @@ function App() {
               <Route path="/curso/:cursoId/aula/:aulaId" element={
                 <ProtectedRoute>
                   <AulaDetalhes />
+                </ProtectedRoute>
+              } />
+              <Route path="/perfil" element={
+                <ProtectedRoute>
+                  <Perfil />
                 </ProtectedRoute>
               } />
               <Route path="/" element={

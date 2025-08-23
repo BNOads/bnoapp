@@ -1,10 +1,12 @@
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/Auth/AuthContext";
+import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -15,6 +17,7 @@ interface HeaderProps {
 
 export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'colaboradores', label: 'Colaboradores', icon: Users },
@@ -69,6 +72,14 @@ export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={() => navigate('/perfil')}
+                  className="flex items-center space-x-2 cursor-pointer"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span>Meu Perfil</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={signOut}
                   className="flex items-center space-x-2 cursor-pointer"

@@ -180,6 +180,7 @@ export type Database = {
       colaboradores: {
         Row: {
           ativo: boolean
+          avatar_url: string | null
           created_at: string
           data_admissao: string | null
           data_nascimento: string | null
@@ -196,6 +197,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          avatar_url?: string | null
           created_at?: string
           data_admissao?: string | null
           data_nascimento?: string | null
@@ -212,6 +214,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          avatar_url?: string | null
           created_at?: string
           data_admissao?: string | null
           data_nascimento?: string | null
