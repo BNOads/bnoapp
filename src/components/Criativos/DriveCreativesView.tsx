@@ -371,7 +371,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                             minute: '2-digit' 
                           })}
                         </div>
-                        {creative.activated_user && (
+                        {creative.activated_user?.nome && (
                           <div className="text-xs opacity-60 mt-1">
                             por {creative.activated_user.nome}
                           </div>

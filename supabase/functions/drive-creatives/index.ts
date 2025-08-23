@@ -33,13 +33,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY')!
     );
     
-    // Construir query com informações do usuário que ativou
+    // Construir query sem join problemático por enquanto
     let query = supabase
       .from('creatives')
-      .select(`
-        *,
-        activated_user:profiles!activated_by(nome)
-      `, { count: 'exact' })
+      .select('*', { count: 'exact' })
       .eq('client_id', clientId)
       .eq('archived', false)
       .order('modified_time', { ascending: false });
