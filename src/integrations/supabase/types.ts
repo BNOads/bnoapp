@@ -127,7 +127,7 @@ export type Database = {
           tamanho_camisa: string | null
           tempo_plataforma: number | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           ativo?: boolean
@@ -143,7 +143,7 @@ export type Database = {
           tamanho_camisa?: string | null
           tempo_plataforma?: number | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           ativo?: boolean
@@ -159,7 +159,7 @@ export type Database = {
           tamanho_camisa?: string | null
           tempo_plataforma?: number | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -548,6 +548,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      treinamentos: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          duracao: number | null
+          id: string
+          nivel: string
+          tags: string[] | null
+          thumbnail_url: string | null
+          tipo: string
+          titulo: string
+          updated_at: string
+          url_conteudo: string | null
+          visualizacoes: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          duracao?: number | null
+          id?: string
+          nivel?: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          tipo?: string
+          titulo: string
+          updated_at?: string
+          url_conteudo?: string | null
+          visualizacoes?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          duracao?: number | null
+          id?: string
+          nivel?: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+          url_conteudo?: string | null
+          visualizacoes?: number | null
+        }
+        Relationships: []
       }
       uploads_clientes: {
         Row: {

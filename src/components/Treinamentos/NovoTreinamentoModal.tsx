@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/Auth/AuthContext";
 import { Loader2 } from "lucide-react";
 
 interface NovoTreinamentoModalProps {
@@ -32,6 +34,7 @@ export const NovoTreinamentoModal = ({
   onSuccess 
 }: NovoTreinamentoModalProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     titulo: "",
@@ -48,11 +51,23 @@ export const NovoTreinamentoModal = ({
     setLoading(true);
 
     try {
-      // Criar treinamento na base de dados (simulando uma tabela de treinamentos)
-      // Por enquanto, vamos simular o sucesso
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      console.log('Treinamento criado:', formData);
+      // Criar treinamento na base de dados
+      const { error } = await supabase
+        .from('treinamentos')
+        .insert({
+          titulo: formData.titulo,
+          descricao: formData.descricao || null,
+          tipo: formData.tipo,
+          categoria: formData.categoria,
+          nivel: formData.nivel,
+          duracao: formData.duracao ? parseInt(formData.duracao) : null,
+          url_conteudo: formData.url_conteudo || null,
+          created_by: user?.id,
+        });
+
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "Treinamento criado com sucesso!",

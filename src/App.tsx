@@ -7,6 +7,7 @@ import { AuthProvider } from "@/components/Auth/AuthContext";
 import { ProtectedRoute } from "@/components/Auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import PainelCliente from "./pages/PainelCliente";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,11 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/painel/:clienteId" element={
+              <ProtectedRoute>
+                <PainelCliente />
+              </ProtectedRoute>
+            } />
             <Route path="/" element={
               <ProtectedRoute>
                 <Index />
