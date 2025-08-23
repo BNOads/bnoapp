@@ -3,10 +3,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye } from "lucide-react";
+import { ExternalLink, Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
+import { DeleteClienteModal } from "./DeleteClienteModal";
+import { ImportarClientesModal } from "./ImportarClientesModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
@@ -15,6 +17,9 @@ import { useNavigate } from "react-router-dom";
 export const ClientesView = () => {
   const { canCreateContent } = useUserPermissions();
   const [modalOpen, setModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [clienteToDelete, setClienteToDelete] = useState<{id: string, nome: string} | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -107,6 +112,11 @@ export const ClientesView = () => {
     });
   };
 
+  const handleDeleteClick = (cliente: any) => {
+    setClienteToDelete({ id: cliente.id, nome: cliente.nome });
+    setDeleteModalOpen(true);
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -117,16 +127,28 @@ export const ClientesView = () => {
             Gerencie os painéis personalizados e acompanhe o acesso dos clientes
           </p>
         </div>
-        {canCreateContent && (
-          <Button 
-            variant="hero" 
-            size="lg"
-            onClick={() => setModalOpen(true)}
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Novo Painel
-          </Button>
-        )}
+        <div className="flex items-center space-x-2">
+          {canCreateContent && (
+            <>
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => setImportModalOpen(true)}
+              >
+                <Upload className="h-5 w-5 mr-2" />
+                Importar em Massa
+              </Button>
+              <Button 
+                variant="hero" 
+                size="lg"
+                onClick={() => setModalOpen(true)}
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Novo Painel
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Indicator para usuários não-admin */}
@@ -330,6 +352,17 @@ export const ClientesView = () => {
                         <Copy className="h-3 w-3 mr-1" />
                         Copiar Link
                       </Button>
+                      {canCreateContent && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeleteClick(cliente)}
+                          className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Excluir
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -339,12 +372,29 @@ export const ClientesView = () => {
         </div>
       </Card>
 
-      {/* Modal */}
+      {/* Modals */}
       <NovoClienteModal 
         open={modalOpen}
         onOpenChange={setModalOpen}
         onSuccess={() => {
           carregarClientes(); // Recarregar lista após criar
+        }}
+      />
+      
+      <DeleteClienteModal
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        cliente={clienteToDelete}
+        onSuccess={() => {
+          carregarClientes(); // Recarregar lista após excluir
+        }}
+      />
+      
+      <ImportarClientesModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        onSuccess={() => {
+          carregarClientes(); // Recarregar lista após importar
         }}
       />
     </div>
