@@ -37,27 +37,71 @@ export const DeleteClienteModal = ({
 
     try {
       setLoading(true);
+      console.log('Iniciando exclusão do cliente:', cliente.id, cliente.nome);
 
-      // Primeiro, excluir todas as tarefas associadas ao cliente
+      // Excluir todas as referências do cliente em cascata
+      console.log('Excluindo tarefas...');
       const { error: tarefasError } = await supabase
         .from('tarefas')
         .delete()
         .eq('cliente_id', cliente.id);
+      if (tarefasError) throw tarefasError;
 
-      if (tarefasError) {
-        throw tarefasError;
-      }
+      console.log('Excluindo gravações...');
+      const { error: gravacoesError } = await supabase
+        .from('gravacoes')
+        .delete()
+        .eq('cliente_id', cliente.id);
+      if (gravacoesError) throw gravacoesError;
+
+      console.log('Excluindo reuniões...');
+      const { error: reunioesError } = await supabase
+        .from('reunioes')
+        .delete()
+        .eq('cliente_id', cliente.id);
+      if (reunioesError) throw reunioesError;
+
+      console.log('Excluindo links importantes...');
+      const { error: linksError } = await supabase
+        .from('links_importantes')
+        .delete()
+        .eq('cliente_id', cliente.id);
+      if (linksError) throw linksError;
+
+      console.log('Excluindo uploads...');
+      const { error: uploadsError } = await supabase
+        .from('uploads_clientes')
+        .delete()
+        .eq('cliente_id', cliente.id);
+      if (uploadsError) throw uploadsError;
+
+      console.log('Excluindo documentos...');
+      const { error: documentosError } = await supabase
+        .from('documentos')
+        .delete()
+        .eq('cliente_id', cliente.id);
+      if (documentosError) throw documentosError;
+
+      console.log('Excluindo interações...');
+      const { error: interacoesError } = await supabase
+        .from('interacoes')
+        .delete()
+        .eq('cliente_id', cliente.id);
+      if (interacoesError) throw interacoesError;
 
       // Depois, excluir o cliente
+      console.log('Excluindo cliente...');
       const { error } = await supabase
         .from('clientes')
         .delete()
         .eq('id', cliente.id);
 
       if (error) {
+        console.error('Erro ao excluir cliente:', error);
         throw error;
       }
 
+      console.log('Cliente excluído com sucesso');
       toast({
         title: "Painel excluído",
         description: `O painel do cliente ${cliente.nome} foi excluído com sucesso.`,
