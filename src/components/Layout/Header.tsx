@@ -20,7 +20,7 @@ export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="bg-white p-2 rounded-xl shadow-glow">
+            <div className="p-2">
               <img src="/lovable-uploads/04b4bc6e-c3c0-4f8e-9819-9f578ec4da19.png" alt="BNOads Logo" className="h-10 w-10 object-contain" />
             </div>
             <div>
