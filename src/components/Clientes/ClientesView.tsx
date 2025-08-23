@@ -3,12 +3,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
 import { DeleteClienteModal } from "./DeleteClienteModal";
 import { ImportarClientesModal } from "./ImportarClientesModal";
+import { EditarClienteModal } from "./EditarClienteModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
@@ -19,7 +20,9 @@ export const ClientesView = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<{id: string, nome: string} | null>(null);
+  const [clienteToEdit, setClienteToEdit] = useState<any | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -120,6 +123,17 @@ export const ClientesView = () => {
   const handleDeleteSuccess = () => {
     setDeleteModalOpen(false);
     setClienteToDelete(null);
+    carregarClientes();
+  };
+
+  const handleEditClick = (cliente: any) => {
+    setClienteToEdit(cliente);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalOpen(false);
+    setClienteToEdit(null);
     carregarClientes();
   };
 
@@ -330,14 +344,14 @@ export const ClientesView = () => {
                         <Eye className="h-3 w-3 mr-1" />
                         Ver Painel
                       </Button>
-                      {cliente.link_painel && (
+                      {canCreateContent && (
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => window.open(cliente.link_painel, '_blank')}
+                          onClick={() => handleEditClick(cliente)}
                         >
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          Link Externo
+                          <Edit className="h-3 w-3 mr-1" />
+                          Editar
                         </Button>
                       )}
                       {cliente.pasta_drive_url && (
@@ -405,6 +419,18 @@ export const ClientesView = () => {
         onSuccess={() => {
           carregarClientes(); // Recarregar lista após importar
         }}
+      />
+      
+      <EditarClienteModal
+        open={editModalOpen}
+        onOpenChange={(open) => {
+          setEditModalOpen(open);
+          if (!open) {
+            setClienteToEdit(null);
+          }
+        }}
+        cliente={clienteToEdit}
+        onSuccess={handleEditSuccess}
       />
     </div>
   );
