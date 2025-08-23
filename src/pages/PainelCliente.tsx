@@ -21,7 +21,6 @@ const PainelCliente = () => {
   const [activeTab, setActiveTab] = useState('gravacoes');
   const [cliente, setCliente] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [ultimasAtualizacoes, setUltimasAtualizacoes] = useState<any[]>([]);
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -50,7 +49,6 @@ const PainelCliente = () => {
 
     if (clienteId) {
       carregarDadosCliente();
-      carregarUltimasAtualizacoes();
     } else {
       console.log('ClienteId não encontrado na URL');
       setLoading(false);
@@ -98,84 +96,6 @@ const PainelCliente = () => {
       });
       setLoading(false);
     }
-  };
-
-  const carregarUltimasAtualizacoes = async () => {
-    try {
-      // Apenas carregar se o usuário estiver autenticado
-      if (!isAuthenticated) {
-        setUltimasAtualizacoes([]);
-        return;
-      }
-      // Buscar diferentes tipos de atividades recentes
-      const [interacoes, tarefas, reunioes] = await Promise.all([
-        supabase
-          .from('interacoes')
-          .select('*')
-          .eq('cliente_id', clienteId)
-          .order('created_at', { ascending: false })
-          .limit(3),
-        supabase
-          .from('tarefas')
-          .select('*')
-          .eq('cliente_id', clienteId)
-          .order('created_at', { ascending: false })
-          .limit(3),
-        supabase
-          .from('reunioes')
-          .select('*')
-          .eq('cliente_id', clienteId)
-          .order('created_at', { ascending: false })
-          .limit(3)
-      ]);
-
-      const atualizacoes: any[] = [
-        ...(interacoes.data || []).map(item => ({
-          id: item.id,
-          titulo: item.titulo,
-          tipo: 'Interação',
-          data: item.created_at,
-          descricao: item.descricao || ''
-        })),
-        ...(tarefas.data || []).map(item => ({
-          id: item.id,
-          titulo: item.titulo,
-          tipo: 'Tarefa',
-          data: item.created_at,
-          descricao: item.descricao || ''
-        })),
-        ...(reunioes.data || []).map(item => ({
-          id: item.id,
-          titulo: item.titulo,
-          tipo: 'Reunião',
-          data: item.created_at,
-          descricao: item.descricao || ''
-        }))
-      ];
-
-      // Ordenar por data e pegar apenas as 5 mais recentes
-      atualizacoes.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-      setUltimasAtualizacoes(atualizacoes.slice(0, 5));
-
-    } catch (error) {
-      console.error('Erro ao carregar atualizações:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatarTempoRelativo = (data: string) => {
-    const agora = new Date();
-    const dataItem = new Date(data);
-    const diffMs = agora.getTime() - dataItem.getTime();
-    const diffHoras = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffHoras < 1) return 'Agora mesmo';
-    if (diffHoras < 24) return `${diffHoras}h atrás`;
-    if (diffDias === 1) return 'Ontem';
-    if (diffDias < 7) return `${diffDias} dias atrás`;
-    return dataItem.toLocaleDateString('pt-BR');
   };
 
   if (loading) {
@@ -348,87 +268,37 @@ const PainelCliente = () => {
               </Card>
             </div>
 
-            {/* Navegação por Abas */}
-            <div className="flex flex-wrap gap-2 sm:gap-1 border-b border-border mb-6">
-              <Button
-                variant={activeTab === 'gravacoes' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('gravacoes')}
-                className="text-xs sm:text-sm"
-              >
-                <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Gravações</span>
-                <span className="sm:hidden">Vídeos</span>
-              </Button>
-              <Button
-                variant={activeTab === 'links' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('links')}
-                className="text-xs sm:text-sm"
-              >
-                <Link2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                Links
-              </Button>
-              <Button
-                variant={activeTab === 'tarefas' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('tarefas')}
-                className="text-xs sm:text-sm"
-              >
-                <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                Tarefas
-              </Button>
-            </div>
 
-            {/* Conteúdo das Abas */}
-            <div>
-              {activeTab === 'gravacoes' && <GravacoesReunioes clienteId={clienteId} />}
-              {activeTab === 'links' && <LinksImportantes clienteId={clienteId} />}
-              {activeTab === 'tarefas' && <TarefasList clienteId={clienteId} tipo="cliente" />}
-            </div>
-          </div>
-        </div>
-      </div>
+            {/* Conteúdo Principal */}
+            <div className="space-y-8">
+              {/* Gravações */}
+              <div>
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <Video className="h-5 w-5 mr-2 text-primary" />
+                  Gravações e Reuniões
+                </h2>
+                <GravacoesReunioes clienteId={clienteId} />
+              </div>
 
-      {/* Sidebar */}
-      <div className="container mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2"></div>
-          <div className="space-y-8">
-            {/* Últimas Atualizações */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Últimas Atualizações</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {ultimasAtualizacoes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhuma atualização recente
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {ultimasAtualizacoes.map((atualizacao) => (
-                      <div key={atualizacao.id} className="border-l-2 border-primary/20 pl-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="font-semibold text-sm">{atualizacao.titulo}</h4>
-                          <Badge variant="outline" className="text-xs">
-                            {atualizacao.tipo}
-                          </Badge>
-                        </div>
-                        {atualizacao.descricao && (
-                          <p className="text-xs text-muted-foreground mb-2">
-                            {atualizacao.descricao}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                          {formatarTempoRelativo(atualizacao.data)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              {/* Links e Tarefas em duas colunas */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                  <h2 className="text-xl font-semibold mb-4 flex items-center">
+                    <Link2 className="h-5 w-5 mr-2 text-primary" />
+                    Links Importantes
+                  </h2>
+                  <LinksImportantes clienteId={clienteId} />
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold mb-4 flex items-center">
+                    <FileText className="h-5 w-5 mr-2 text-primary" />
+                    Tarefas
+                  </h2>
+                  <TarefasList clienteId={clienteId} tipo="cliente" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
