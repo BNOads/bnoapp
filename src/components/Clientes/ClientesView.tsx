@@ -140,30 +140,33 @@ export const ClientesView = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Painéis dos Clientes</h2>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Painéis dos Clientes</h2>
+          <p className="text-muted-foreground mt-1 text-sm lg:text-base">
             Gerencie os painéis personalizados e acompanhe o acesso dos clientes
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:space-x-2">
           {canCreateContent && (
             <>
               <Button 
                 variant="outline" 
-                size="lg"
+                size="sm"
+                className="sm:size-default lg:size-lg w-full sm:w-auto"
                 onClick={() => setImportModalOpen(true)}
               >
-                <Upload className="h-5 w-5 mr-2" />
-                Importar em Massa
+                <Upload className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                <span className="hidden sm:inline">Importar em Massa</span>
+                <span className="sm:hidden">Importar</span>
               </Button>
               <Button 
                 variant="hero" 
-                size="lg"
+                size="sm"
+                className="sm:size-default lg:size-lg w-full sm:w-auto"
                 onClick={() => setModalOpen(true)}
               >
-                <Plus className="h-5 w-5 mr-2" />
+                <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Novo Painel
               </Button>
             </>
@@ -175,57 +178,57 @@ export const ClientesView = () => {
       {!canCreateContent && <ViewOnlyBadge />}
 
       {/* Search */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar painéis de clientes..."
-            className="pl-10 bg-background border-border"
+            className="pl-10 bg-background border-border text-sm sm:text-base"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="shrink-0">
+        <Button variant="outline" className="shrink-0 w-full sm:w-auto">
           Filtros
         </Button>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-6 bg-card border border-border shadow-card">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <Card className="p-4 sm:p-6 bg-card border border-border shadow-card">
           <div className="flex items-center space-x-3">
-            <div className="bg-primary/10 p-3 rounded-xl">
-              <Calendar className="h-6 w-6 text-primary" />
+            <div className="bg-primary/10 p-2 sm:p-3 rounded-xl">
+              <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{clientes.length}</p>
-              <p className="text-sm text-muted-foreground">Total de Painéis</p>
+              <p className="text-xl sm:text-2xl font-bold text-foreground">{clientes.length}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total de Painéis</p>
             </div>
           </div>
         </Card>
-        <Card className="p-6 bg-card border border-border shadow-card">
+        <Card className="p-4 sm:p-6 bg-card border border-border shadow-card">
           <div className="flex items-center space-x-3">
-            <div className="bg-primary-glow/10 p-3 rounded-xl">
-              <Eye className="h-6 w-6 text-primary-glow" />
+            <div className="bg-primary-glow/10 p-2 sm:p-3 rounded-xl">
+              <Eye className="h-5 w-5 sm:h-6 sm:w-6 text-primary-glow" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-xl sm:text-2xl font-bold text-foreground">
                 {clientes.reduce((acc, cliente) => acc + (cliente.total_acessos || 0), 0)}
               </p>
-              <p className="text-sm text-muted-foreground">Total de Acessos</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total de Acessos</p>
             </div>
           </div>
         </Card>
-        <Card className="p-6 bg-card border border-border shadow-card">
+        <Card className="p-4 sm:p-6 bg-card border border-border shadow-card sm:col-span-2 lg:col-span-1">
           <div className="flex items-center space-x-3">
-            <div className="bg-secondary/10 p-3 rounded-xl">
-              <FileText className="h-6 w-6 text-secondary" />
+            <div className="bg-secondary/10 p-2 sm:p-3 rounded-xl">
+              <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-secondary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-xl sm:text-2xl font-bold text-foreground">
                 {clientes.filter(c => c.etapa_atual === 'ativo').length}
               </p>
-              <p className="text-sm text-muted-foreground">Painéis Ativos</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Painéis Ativos</p>
             </div>
           </div>
         </Card>
@@ -260,15 +263,15 @@ export const ClientesView = () => {
               {filteredItems.map((cliente) => (
                 <div
                   key={cliente.id}
-                  className="flex items-center justify-between p-6 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300"
+                  className="flex flex-col p-4 sm:p-6 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300"
                 >
                   <div className="flex-1">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h4 className="text-lg font-semibold text-foreground mb-1">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 space-y-2 sm:space-y-0">
+                      <div className="flex-1">
+                        <h4 className="text-base sm:text-lg font-semibold text-foreground mb-1">
                           {cliente.nome}
                         </h4>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
                           <span className="flex items-center">
                             <Calendar className="h-3 w-3 mr-1" />
                             {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
@@ -281,41 +284,41 @@ export const ClientesView = () => {
                           )}
                         </div>
                       </div>
-                      <Badge className={getStatusColor(cliente.etapa_atual)}>
+                      <Badge className={`${getStatusColor(cliente.etapa_atual)} text-xs shrink-0`}>
                         {getStatusLabel(cliente.etapa_atual)}
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
                       <div className="text-center">
-                        <p className="text-2xl font-bold text-foreground">
+                        <p className="text-lg sm:text-2xl font-bold text-foreground">
                           {cliente.progresso_etapa || 0}%
                         </p>
                         <p className="text-xs text-muted-foreground">Progresso</p>
-                        <div className="w-full bg-muted rounded-full h-2 mt-2">
+                        <div className="w-full bg-muted rounded-full h-1.5 sm:h-2 mt-2">
                           <div
-                            className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
+                            className="bg-gradient-primary h-1.5 sm:h-2 rounded-full transition-all duration-300"
                             style={{ width: `${cliente.progresso_etapa || 0}%` }}
                           />
                         </div>
                       </div>
 
                       <div className="text-center">
-                        <p className="text-lg font-semibold text-foreground">
+                        <p className="text-base sm:text-lg font-semibold text-foreground">
                           {cliente.total_acessos || 0}
                         </p>
                         <p className="text-xs text-muted-foreground">Total de Acessos</p>
                       </div>
 
                       <div className="text-center">
-                        <p className="text-sm font-medium text-foreground">
+                        <p className="text-xs sm:text-sm font-medium text-foreground">
                           {formatarDataAcesso(cliente.ultimo_acesso)}
                         </p>
                         <p className="text-xs text-muted-foreground">Último Acesso</p>
                       </div>
 
                       <div className="text-center">
-                        <p className="text-sm font-medium text-foreground">
+                        <p className="text-xs sm:text-sm font-medium text-foreground">
                           {cliente.funis_trabalhando?.length || 0}
                         </p>
                         <p className="text-xs text-muted-foreground">Funis Ativos</p>
@@ -335,54 +338,65 @@ export const ClientesView = () => {
                       </div>
                     )}
 
-                    <div className="flex space-x-2">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
                       <Button 
                         variant="default" 
                         size="sm"
+                        className="w-full sm:w-auto"
                         onClick={() => navigate(`/painel/${cliente.id}`)}
                       >
                         <Eye className="h-3 w-3 mr-1" />
-                        Ver Painel
+                        <span className="hidden sm:inline">Ver Painel</span>
+                        <span className="sm:hidden">Ver</span>
                       </Button>
-                      {canCreateContent && (
+                      <div className="flex flex-wrap gap-2">
+                        {canCreateContent && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="flex-1 sm:flex-none"
+                            onClick={() => handleEditClick(cliente)}
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            <span className="hidden sm:inline">Editar</span>
+                            <span className="sm:hidden">Edit</span>
+                          </Button>
+                        )}
+                        {cliente.pasta_drive_url && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="flex-1 sm:flex-none"
+                            onClick={() => window.open(cliente.pasta_drive_url, '_blank')}
+                          >
+                            <Link2 className="h-3 w-3 mr-1" />
+                            <span className="hidden sm:inline">Drive</span>
+                            <span className="sm:hidden">Dr</span>
+                          </Button>
+                        )}
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => handleEditClick(cliente)}
+                          className="flex-1 sm:flex-none"
+                          onClick={() => copyToClipboard(cliente.link_painel || '')}
                         >
-                          <Edit className="h-3 w-3 mr-1" />
-                          Editar
+                          <Copy className="h-3 w-3 mr-1" />
+                          <span className="hidden sm:inline">Copiar Link</span>
+                          <span className="sm:hidden">Copy</span>
                         </Button>
-                      )}
-                      {cliente.pasta_drive_url && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => window.open(cliente.pasta_drive_url, '_blank')}
-                        >
-                          <Link2 className="h-3 w-3 mr-1" />
-                          Drive
-                        </Button>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(cliente.link_painel || '')}
-                      >
-                        <Copy className="h-3 w-3 mr-1" />
-                        Copiar Link
-                      </Button>
-                      {canCreateContent && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDeleteClick(cliente)}
-                          className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Excluir
-                        </Button>
-                      )}
+                        {canCreateContent && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="flex-1 sm:flex-none text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                            onClick={() => handleDeleteClick(cliente)}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            <span className="hidden sm:inline">Excluir</span>
+                            <span className="sm:hidden">Del</span>
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
