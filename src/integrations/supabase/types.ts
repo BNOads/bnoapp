@@ -14,7 +14,455 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clientes: {
+        Row: {
+          ativo: boolean
+          categoria: Database["public"]["Enums"]["categoria_cliente"]
+          created_at: string
+          created_by: string | null
+          etapa_atual: string | null
+          funis_trabalhando: string[] | null
+          id: string
+          link_painel: string | null
+          nicho: string | null
+          nome: string
+          pasta_drive_url: string | null
+          progresso_etapa: number | null
+          total_acessos: number | null
+          ultimo_acesso: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria: Database["public"]["Enums"]["categoria_cliente"]
+          created_at?: string
+          created_by?: string | null
+          etapa_atual?: string | null
+          funis_trabalhando?: string[] | null
+          id?: string
+          link_painel?: string | null
+          nicho?: string | null
+          nome: string
+          pasta_drive_url?: string | null
+          progresso_etapa?: number | null
+          total_acessos?: number | null
+          ultimo_acesso?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: Database["public"]["Enums"]["categoria_cliente"]
+          created_at?: string
+          created_by?: string | null
+          etapa_atual?: string | null
+          funis_trabalhando?: string[] | null
+          id?: string
+          link_painel?: string | null
+          nicho?: string | null
+          nome?: string
+          pasta_drive_url?: string | null
+          progresso_etapa?: number | null
+          total_acessos?: number | null
+          ultimo_acesso?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      colaboradores: {
+        Row: {
+          ativo: boolean
+          cnpj: string | null
+          conta_bancaria: string | null
+          cpf: string | null
+          created_at: string
+          data_admissao: string | null
+          data_nascimento: string | null
+          email: string
+          endereco: string | null
+          estado_civil: Database["public"]["Enums"]["estado_civil"] | null
+          id: string
+          nivel_acesso: Database["public"]["Enums"]["nivel_acesso"]
+          nome: string
+          pix: string | null
+          progresso_treinamentos: Json | null
+          razao_social: string | null
+          rg: string | null
+          tamanho_camisa: string | null
+          telefone_contato: string | null
+          telefone_proximo: string | null
+          tempo_plataforma: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          cnpj?: string | null
+          conta_bancaria?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_admissao?: string | null
+          data_nascimento?: string | null
+          email: string
+          endereco?: string | null
+          estado_civil?: Database["public"]["Enums"]["estado_civil"] | null
+          id?: string
+          nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
+          nome: string
+          pix?: string | null
+          progresso_treinamentos?: Json | null
+          razao_social?: string | null
+          rg?: string | null
+          tamanho_camisa?: string | null
+          telefone_contato?: string | null
+          telefone_proximo?: string | null
+          tempo_plataforma?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          cnpj?: string | null
+          conta_bancaria?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_admissao?: string | null
+          data_nascimento?: string | null
+          email?: string
+          endereco?: string | null
+          estado_civil?: Database["public"]["Enums"]["estado_civil"] | null
+          id?: string
+          nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
+          nome?: string
+          pix?: string | null
+          progresso_treinamentos?: Json | null
+          razao_social?: string | null
+          rg?: string | null
+          tamanho_camisa?: string | null
+          telefone_contato?: string | null
+          telefone_proximo?: string | null
+          tempo_plataforma?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      documentos: {
+        Row: {
+          cliente_id: string | null
+          conteudo: string | null
+          created_at: string
+          created_by: string
+          id: string
+          tipo: string
+          titulo: string
+          updated_at: string
+          url_arquivo: string | null
+          versao: number | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          conteudo?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          tipo: string
+          titulo: string
+          updated_at?: string
+          url_arquivo?: string | null
+          versao?: number | null
+        }
+        Update: {
+          cliente_id?: string | null
+          conteudo?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+          url_arquivo?: string | null
+          versao?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gravacoes: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          created_by: string
+          descricao: string | null
+          duracao: number | null
+          id: string
+          reuniao_id: string | null
+          tags: string[] | null
+          thumbnail_url: string | null
+          titulo: string
+          updated_at: string
+          url_gravacao: string
+          visualizacoes: number | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          created_by: string
+          descricao?: string | null
+          duracao?: number | null
+          id?: string
+          reuniao_id?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          titulo: string
+          updated_at?: string
+          url_gravacao: string
+          visualizacoes?: number | null
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          created_by?: string
+          descricao?: string | null
+          duracao?: number | null
+          id?: string
+          reuniao_id?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          titulo?: string
+          updated_at?: string
+          url_gravacao?: string
+          visualizacoes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gravacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gravacoes_reuniao_id_fkey"
+            columns: ["reuniao_id"]
+            isOneToOne: false
+            referencedRelation: "reunioes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interacoes: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          created_by: string
+          data_interacao: string
+          descricao: string | null
+          documento_id: string | null
+          gravacao_id: string | null
+          id: string
+          metadados: Json | null
+          reuniao_id: string | null
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          created_by: string
+          data_interacao?: string
+          descricao?: string | null
+          documento_id?: string | null
+          gravacao_id?: string | null
+          id?: string
+          metadados?: Json | null
+          reuniao_id?: string | null
+          tipo: string
+          titulo: string
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          created_by?: string
+          data_interacao?: string
+          descricao?: string | null
+          documento_id?: string | null
+          gravacao_id?: string | null
+          id?: string
+          metadados?: Json | null
+          reuniao_id?: string | null
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interacoes_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interacoes_gravacao_id_fkey"
+            columns: ["gravacao_id"]
+            isOneToOne: false
+            referencedRelation: "gravacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interacoes_reuniao_id_fkey"
+            columns: ["reuniao_id"]
+            isOneToOne: false
+            referencedRelation: "reunioes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          email: string
+          id: string
+          nivel_acesso: Database["public"]["Enums"]["nivel_acesso"]
+          nome: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
+          nome: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
+          nome?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reunioes: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          created_by: string
+          data_hora: string
+          descricao: string | null
+          duracao: number | null
+          id: string
+          link_gravacao: string | null
+          link_meet: string | null
+          participantes: string[] | null
+          resumo_ia: string | null
+          status: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          created_by: string
+          data_hora: string
+          descricao?: string | null
+          duracao?: number | null
+          id?: string
+          link_gravacao?: string | null
+          link_meet?: string | null
+          participantes?: string[] | null
+          resumo_ia?: string | null
+          status?: string | null
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          created_by?: string
+          data_hora?: string
+          descricao?: string | null
+          duracao?: number | null
+          id?: string
+          link_gravacao?: string | null
+          link_meet?: string | null
+          participantes?: string[] | null
+          resumo_ia?: string | null
+          status?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reunioes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      uploads_clientes: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          id: string
+          nome_arquivo: string
+          tamanho_arquivo: number | null
+          tipo_arquivo: string | null
+          uploaded_by: string | null
+          url_drive: string | null
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          id?: string
+          nome_arquivo: string
+          tamanho_arquivo?: number | null
+          tipo_arquivo?: string | null
+          uploaded_by?: string | null
+          url_drive?: string | null
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          nome_arquivo?: string
+          tamanho_arquivo?: number | null
+          tipo_arquivo?: string | null
+          uploaded_by?: string | null
+          url_drive?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uploads_clientes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +471,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      categoria_cliente: "negocio_local" | "infoproduto"
+      estado_civil:
+        | "solteiro"
+        | "casado"
+        | "divorciado"
+        | "viuvo"
+        | "uniao_estavel"
+      nivel_acesso: "admin" | "gestor_trafego" | "cs" | "designer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +605,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      categoria_cliente: ["negocio_local", "infoproduto"],
+      estado_civil: [
+        "solteiro",
+        "casado",
+        "divorciado",
+        "viuvo",
+        "uniao_estavel",
+      ],
+      nivel_acesso: ["admin", "gestor_trafego", "cs", "designer"],
+    },
   },
 } as const
