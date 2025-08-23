@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Link2, ExternalLink, Plus, Globe, FileText, Video, Settings, FolderOpen, BarChart3, Trash2 } from "lucide-react";
+import { Link2, ExternalLink, Plus, Globe, FileText, Video, Settings, FolderOpen, BarChart3, Trash2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -36,6 +36,7 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
   const [links, setLinks] = useState<LinkImportante[]>([]);
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingDashboards, setLoadingDashboards] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showDashboardModal, setShowDashboardModal] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -59,6 +60,84 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
     loadClienteData();
     loadLinks();
   }, [clienteId]);
+
+  // Buscar dashboards automaticamente após carregar dados do cliente
+  useEffect(() => {
+    if (cliente?.nome) {
+      buscarDashboardsAutomaticos();
+    }
+  }, [cliente?.nome]);
+
+  const buscarDashboardsAutomaticos = async () => {
+    if (!cliente?.nome) return;
+    
+    try {
+      setLoadingDashboards(true);
+      
+      console.log('Buscando dashboards automaticamente para:', cliente.nome);
+      
+      const { data, error } = await supabase.functions.invoke('looker-studio-search', {
+        body: { clienteNome: cliente.nome }
+      });
+
+      if (error) {
+        console.error('Erro ao buscar dashboards:', error);
+        return;
+      }
+
+      console.log('Resultado da busca de dashboards:', data);
+
+      if (data?.success && data.dashboards && data.dashboards.length > 0) {
+        // Filtrar dashboards que já não estão na lista
+        const dashboardsExistentes = cliente.dashboards_looker || [];
+        const urlsExistentes = dashboardsExistentes.map((d: any) => d.url);
+        
+        const novosDashboards = data.dashboards.filter((dashboard: any) => 
+          !urlsExistentes.includes(dashboard.url)
+        );
+
+        if (novosDashboards.length > 0) {
+          // Adicionar novos dashboards automaticamente
+          const dashboardsAtualizados = [...dashboardsExistentes, ...novosDashboards];
+          
+          const { error: updateError } = await supabase
+            .from('clientes')
+            .update({ dashboards_looker: dashboardsAtualizados })
+            .eq('id', clienteId);
+
+          if (updateError) {
+            console.error('Erro ao atualizar dashboards:', updateError);
+          } else {
+            toast({
+              title: "Dashboards encontrados!",
+              description: `${novosDashboards.length} dashboard(s) do Looker Studio foram adicionados automaticamente.`,
+            });
+            // Recarregar dados do cliente
+            loadClienteData();
+          }
+        } else {
+          console.log('Nenhum dashboard novo encontrado');
+        }
+      }
+    } catch (error) {
+      console.error('Erro na busca automática de dashboards:', error);
+    } finally {
+      setLoadingDashboards(false);
+    }
+  };
+
+  const sincronizarDashboards = async () => {
+    if (!cliente?.nome) {
+      toast({
+        title: "Erro",
+        description: "Nome do cliente não encontrado",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    await buscarDashboardsAutomaticos();
+  };
 
   const loadClienteData = async () => {
     try {
@@ -334,9 +413,27 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
       <CardContent className="space-y-6">
         {/* Links Automáticos */}
         <div>
-          <h3 className="font-semibold text-sm text-muted-foreground mb-3 uppercase tracking-wide">
-            Links Automáticos
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Links Automáticos
+            </h3>
+            {isAuthenticated && (
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={sincronizarDashboards}
+                disabled={loadingDashboards}
+                className="text-xs"
+              >
+                {loadingDashboards ? (
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                )}
+                Sincronizar
+              </Button>
+            )}
+          </div>
           <div className="space-y-3">
             {/* Link do Google Drive */}
             {cliente?.pasta_drive_url && (
