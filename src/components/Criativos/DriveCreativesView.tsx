@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Creative {
   id: string;
@@ -27,6 +28,12 @@ interface Creative {
   folder_name: string;
   folder_path: string;
   parent_folder_id: string;
+  is_active: boolean;
+  activated_at: string | null;
+  activated_by: string | null;
+  activated_user?: {
+    nome: string;
+  };
 }
 
 interface DriveCreativesViewProps {
@@ -179,6 +186,35 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     });
   };
 
+  const toggleCreativeStatus = async (creativeId: string, currentStatus: boolean) => {
+    try {
+      const { data, error } = await supabase.rpc('update_creative_status', {
+        creative_id: creativeId,
+        new_status: !currentStatus
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Status atualizado",
+        description: typeof data === 'object' && data && 'message' in data 
+          ? String(data.message) 
+          : "Status do criativo atualizado com sucesso",
+      });
+
+      // Recarregar a lista para refletir as alterações
+      await carregarCreatives();
+
+    } catch (error: any) {
+      console.error('Erro ao atualizar status:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao atualizar status do criativo",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header com Status de Sincronização */}
@@ -278,8 +314,9 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                 <TableHead>Nome do Arquivo</TableHead>
                 <TableHead className="w-32">Pasta</TableHead>
                 <TableHead className="w-32">Formato</TableHead>
+                <TableHead className="w-20">No Ar</TableHead>
+                <TableHead className="w-32">Ativado em</TableHead>
                 <TableHead className="w-24">Tamanho</TableHead>
-                <TableHead className="w-32">Data Modificação</TableHead>
                 <TableHead className="w-48">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -318,11 +355,34 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                       {creative.type_display}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {creative.formatted_size}
+                  <TableCell>
+                    <Checkbox
+                      checked={creative.is_active}
+                      onCheckedChange={() => toggleCreativeStatus(creative.id, creative.is_active)}
+                    />
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {creative.formatted_date}
+                    {creative.activated_at ? (
+                      <div>
+                        <div>{new Date(creative.activated_at).toLocaleDateString('pt-BR')}</div>
+                        <div className="text-xs opacity-70">
+                          {new Date(creative.activated_at).toLocaleTimeString('pt-BR', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </div>
+                        {creative.activated_user && (
+                          <div className="text-xs opacity-60 mt-1">
+                            por {creative.activated_user.nome}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {creative.formatted_size}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
