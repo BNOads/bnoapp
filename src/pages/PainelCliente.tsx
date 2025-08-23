@@ -40,12 +40,23 @@ const PainelCliente = () => {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [ultimasAtualizacoes, setUltimasAtualizacoes] = useState<UltimasAtualizacoes[]>([]);
   const [loading, setLoading] = useState(true);
+  const [debugInfo, setDebugInfo] = useState<any>({});
 
   useEffect(() => {
-    console.log('PainelCliente useEffect - clienteId:', clienteId);
+    console.log('=== PAINEL CLIENTE DEBUG ===');
+    console.log('clienteId from useParams:', clienteId);
+    console.log('typeof clienteId:', typeof clienteId);
+    console.log('location.pathname:', window.location.pathname);
+    
+    setDebugInfo({
+      clienteId,
+      pathname: window.location.pathname,
+      params: { clienteId }
+    });
+
     if (clienteId) {
       carregarDadosCliente();
-      carregarUltimasAtualizacoes();
+      // carregarUltimasAtualizacoes();
     } else {
       console.log('ClienteId não encontrado na URL');
       setLoading(false);
@@ -53,38 +64,42 @@ const PainelCliente = () => {
   }, [clienteId]);
 
   const carregarDadosCliente = async () => {
-    console.log('Carregando dados do cliente:', clienteId);
+    console.log('=== CARREGAR DADOS CLIENTE ===');
+    console.log('Tentando carregar cliente com ID:', clienteId);
+    
     try {
+      // Primeiro vamos verificar se o usuário está autenticado
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      console.log('Usuario autenticado:', authData.user?.email, authError);
+      
       const { data, error } = await supabase
         .from('clientes')
         .select('*')
-        .eq('id', clienteId)
-        .maybeSingle();
+        .eq('id', clienteId);
 
-      console.log('Resultado da query cliente:', { data, error });
+      console.log('Query result:', { data, error, count: data?.length });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Erro na query:', error);
+        throw error;
+      }
       
-      if (!data) {
-        console.log('Cliente não encontrado no banco de dados');
+      if (!data || data.length === 0) {
+        console.log('Nenhum cliente encontrado com este ID');
         setCliente(null);
         setLoading(false);
         return;
       }
       
-      setCliente(data);
-
-      // Atualizar último acesso
-      await supabase
-        .from('clientes')
-        .update({ ultimo_acesso: new Date().toISOString() })
-        .eq('id', clienteId);
+      console.log('Cliente encontrado:', data[0]);
+      setCliente(data[0]);
+      setLoading(false);
 
     } catch (error) {
       console.error('Erro ao carregar dados do cliente:', error);
       toast({
         title: "Erro",
-        description: "Erro ao carregar dados do cliente",
+        description: `Erro ao carregar dados do cliente: ${error.message}`,
         variant: "destructive",
       });
       setLoading(false);
@@ -168,8 +183,19 @@ const PainelCliente = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header activeTab="clientes" onTabChange={(tab) => navigate(`/${tab}`)} />
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="container mx-auto px-6 py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p>Carregando cliente...</p>
+              <div className="mt-4 text-sm text-muted-foreground">
+                <p>Debug Info:</p>
+                <pre className="bg-muted p-2 rounded text-xs">
+                  {JSON.stringify(debugInfo, null, 2)}
+                </pre>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
