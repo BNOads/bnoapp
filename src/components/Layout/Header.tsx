@@ -30,24 +30,25 @@ export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
 
   return (
     <header className="bg-gradient-subtle border-b border-border shadow-card">
-      <div className="container mx-auto px-6 py-4">
+      <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-2">
-              <img src="/lovable-uploads/04b4bc6e-c3c0-4f8e-9819-9f578ec4da19.png" alt="BNOads Logo" className="h-12 w-12 object-contain rounded-lg" />
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="p-1 sm:p-2">
+              <img src="/lovable-uploads/04b4bc6e-c3c0-4f8e-9819-9f578ec4da19.png" alt="BNOads Logo" className="h-8 w-8 sm:h-12 sm:w-12 object-contain rounded-lg" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 BNOads
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
                 Sistema de Gestão Interno
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <nav className="flex space-x-2">
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex space-x-2">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -59,30 +60,58 @@ export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
                     className="flex items-center space-x-2"
                   >
                     <Icon className="h-4 w-4" />
-                    <span>{tab.label}</span>
+                    <span className="hidden xl:inline">{tab.label}</span>
                   </Button>
                 );
               })}
             </nav>
 
+            {/* Mobile Navigation */}
+            <div className="lg:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="flex items-center space-x-1">
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span className="sr-only">Menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={tab.id}
+                        onClick={() => onTabChange(tab.id)}
+                        className={`flex items-center space-x-2 ${activeTab === tab.id ? "bg-accent" : ""}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{tab.label}</span>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center space-x-2">
-                  <Avatar className="h-8 w-8">
+                <Button variant="ghost" size="sm" className="flex items-center space-x-1 sm:space-x-2 p-1 sm:p-2">
+                  <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
                     {userData?.avatar_url && (
                       <AvatarImage 
                         src={userData.avatar_url} 
                         alt={userData.nome || "Avatar"} 
                       />
                     )}
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs sm:text-sm">
                       {userData?.nome ? 
                         userData.nome.split(' ').map(n => n[0]).join('').substring(0, 2) : 
                         user?.email?.charAt(0).toUpperCase() || 'U'
                       }
                     </AvatarFallback>
                   </Avatar>
-                  <span className="hidden md:inline text-sm">
+                  <span className="hidden md:inline text-xs sm:text-sm">
                     {userData?.nome?.split(' ')[0] || user?.email?.split('@')[0]}
                   </span>
                 </Button>

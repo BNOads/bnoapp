@@ -71,12 +71,12 @@ export const ColaboradoresView = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Colaboradores</h2>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Colaboradores</h2>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Gerencie a equipe e acompanhe o progresso dos treinamentos
           </p>
         </div>
@@ -85,6 +85,7 @@ export const ColaboradoresView = () => {
             variant="hero" 
             size="lg"
             onClick={() => setModalOpen(true)}
+            className="w-full sm:w-auto"
           >
             <Plus className="h-5 w-5 mr-2" />
             Novo Colaborador
@@ -112,42 +113,42 @@ export const ColaboradoresView = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-6 bg-card border border-border shadow-card">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+        <Card className="p-4 sm:p-6 bg-card border border-border shadow-card">
           <div className="flex items-center space-x-3">
-            <div className="bg-primary/10 p-3 rounded-xl">
-              <User className="h-6 w-6 text-primary" />
+            <div className="bg-primary/10 p-2 sm:p-3 rounded-xl">
+              <User className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{colaboradores.length}</p>
-              <p className="text-sm text-muted-foreground">Total de Colaboradores</p>
+              <p className="text-xl sm:text-2xl font-bold text-foreground">{colaboradores.length}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total de Colaboradores</p>
             </div>
           </div>
         </Card>
-        <Card className="p-6 bg-card border border-border shadow-card">
+        <Card className="p-4 sm:p-6 bg-card border border-border shadow-card">
           <div className="flex items-center space-x-3">
-            <div className="bg-primary-glow/10 p-3 rounded-xl">
-              <BookOpen className="h-6 w-6 text-primary-glow" />
+            <div className="bg-primary-glow/10 p-2 sm:p-3 rounded-xl">
+              <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary-glow" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-xl sm:text-2xl font-bold text-foreground">
                 {colaboradores.filter(c => c.user_id).length * 12}
               </p>
-              <p className="text-sm text-muted-foreground">Treinamentos Concluídos</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Treinamentos Concluídos</p>
             </div>
           </div>
         </Card>
-        <Card className="p-6 bg-card border border-border shadow-card">
+        <Card className="p-4 sm:p-6 bg-card border border-border shadow-card">
           <div className="flex items-center space-x-3">
-            <div className="bg-secondary/10 p-3 rounded-xl">
-              <Calendar className="h-6 w-6 text-secondary" />
+            <div className="bg-secondary/10 p-2 sm:p-3 rounded-xl">
+              <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-secondary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-xl sm:text-2xl font-bold text-foreground">
                 {colaboradores.filter(c => c.user_id).length > 0 ? 
                   Math.round((colaboradores.filter(c => c.user_id).length / colaboradores.length) * 100) : 0}%
               </p>
-              <p className="text-sm text-muted-foreground">Taxa de Ativação</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Taxa de Ativação</p>
             </div>
           </div>
         </Card>
@@ -182,37 +183,37 @@ export const ColaboradoresView = () => {
               {filteredItems.map((colaborador) => (
                 <div
                   key={colaborador.id}
-                  className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300 space-y-4 sm:space-y-0"
                 >
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-12 w-12">
+                  <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                       {colaborador.avatar_url && (
                         <AvatarImage 
                           src={colaborador.avatar_url} 
                           alt={colaborador.nome} 
                         />
                       )}
-                      <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold">
+                      <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold text-sm">
                         {colaborador.nome.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <h4 className="font-semibold text-foreground">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-semibold text-foreground text-sm sm:text-base truncate">
                         {colaborador.nome}
                       </h4>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs sm:text-sm text-muted-foreground truncate">
                         {colaborador.nivel_acesso === 'admin' ? 'Administrador' : 
                          colaborador.nivel_acesso === 'gestor_trafego' ? 'Gestor de Tráfego' : 'Customer Success'}
                       </p>
-                      <div className="flex items-center space-x-4 mt-1">
-                        <div className="flex items-center space-x-1">
-                          <Mail className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-1">
+                        <div className="flex items-center space-x-1 min-w-0">
+                          <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <span className="text-xs text-muted-foreground truncate">
                             {colaborador.email}
                           </span>
                         </div>
                         <div className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                           <span className="text-xs text-muted-foreground">
                             {formatarData(colaborador.data_admissao)}
                           </span>
@@ -221,8 +222,8 @@ export const ColaboradoresView = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-6">
-                    <div className="text-center">
+                  <div className="flex items-center justify-between sm:justify-end space-x-3 sm:space-x-6">
+                    <div className="text-center hidden sm:block">
                       <p className="text-sm font-medium text-foreground">
                         {calcularProgresso()}%
                       </p>
@@ -235,7 +236,7 @@ export const ColaboradoresView = () => {
                       </div>
                     </div>
 
-                    <div className="text-center">
+                    <div className="text-center hidden sm:block">
                       <p className="text-sm font-medium text-foreground">
                         {colaborador.user_id ? Math.floor(Math.random() * 20) : 0}
                       </p>
@@ -246,7 +247,7 @@ export const ColaboradoresView = () => {
                       {getStatusLabel(colaborador.ativo, colaborador.user_id)}
                     </Badge>
 
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" className="flex-shrink-0">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </div>
