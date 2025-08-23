@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,78 +7,100 @@ import { ExternalLink, Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export const ClientesView = () => {
   const { canCreateContent } = useUserPermissions();
   const [modalOpen, setModalOpen] = useState(false);
-  const clientes = [
-    {
-      id: 1,
-      nome: "Loja Virtual ABC",
-      linkPainel: "https://bnoads.com/painel/abc123",
-      ultimoAcesso: "Hoje, 14:30",
-      status: "ativo",
-      reunioes: 8,
-      tarefas: 12,
-      documentos: 25
-    },
-    {
-      id: 2,
-      nome: "Consultoria XYZ",
-      linkPainel: "https://bnoads.com/painel/xyz456",
-      ultimoAcesso: "Ontem, 16:45",
-      status: "ativo",
-      reunioes: 15,
-      tarefas: 8,
-      documentos: 32
-    },
-    {
-      id: 3,
-      nome: "Empresa DEF",
-      linkPainel: "https://bnoads.com/painel/def789",
-      ultimoAcesso: "2 dias atrás",
-      status: "pausado",
-      reunioes: 5,
-      tarefas: 3,
-      documentos: 18
-    },
-    {
-      id: 4,
-      nome: "Startup GHI",
-      linkPainel: "https://bnoads.com/painel/ghi012",
-      ultimoAcesso: "3 dias atrás",
-      status: "ativo",
-      reunioes: 12,
-      tarefas: 15,
-      documentos: 28
-    },
-  ];
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const carregarClientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setClientes(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar clientes:', error);
+      toast({
+        title: "Erro ao carregar clientes",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    carregarClientes();
+  }, []);
+
+  const getStatusColor = (etapa: string) => {
+    switch (etapa) {
       case 'ativo':
         return 'bg-primary/10 text-primary border-primary/20';
-      case 'pausado':
+      case 'implantacao':
         return 'bg-secondary/10 text-secondary border-secondary/20';
+      case 'negociacao':
+        return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
+      case 'pausa':
+        return 'bg-gray-500/10 text-gray-600 border-gray-500/20';
       default:
         return 'bg-muted text-muted-foreground';
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
+  const getStatusLabel = (etapa: string) => {
+    switch (etapa) {
       case 'ativo':
         return 'Ativo';
-      case 'pausado':
-        return 'Pausado';
+      case 'implantacao':
+        return 'Implantação';
+      case 'negociacao':
+        return 'Negociação';
+      case 'pausa':
+        return 'Em Pausa';
+      case 'prospecção':
+        return 'Prospecção';
+      case 'apresentacao':
+        return 'Apresentação';
+      case 'contrato':
+        return 'Contrato';
       default:
-        return 'Inativo';
+        return 'Indefinido';
     }
+  };
+
+  const formatarDataAcesso = (data: string) => {
+    if (!data) return 'Nunca';
+    const agora = new Date();
+    const acesso = new Date(data);
+    const diff = agora.getTime() - acesso.getTime();
+    const horas = Math.floor(diff / (1000 * 60 * 60));
+    const dias = Math.floor(horas / 24);
+
+    if (horas < 1) return 'Agora há pouco';
+    if (horas < 24) return `${horas}h atrás`;
+    if (dias === 1) return '1 dia atrás';
+    return `${dias} dias atrás`;
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    // Add toast notification here
+    toast({
+      title: "Link copiado!",
+      description: "O link foi copiado para a área de transferência.",
+    });
   };
 
   return (
@@ -121,26 +143,28 @@ export const ClientesView = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6 bg-card border border-border shadow-card">
           <div className="flex items-center space-x-3">
             <div className="bg-primary/10 p-3 rounded-xl">
-              <ExternalLink className="h-6 w-6 text-primary" />
+              <Calendar className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">89</p>
-              <p className="text-sm text-muted-foreground">Painéis Ativos</p>
+              <p className="text-2xl font-bold text-foreground">{clientes.length}</p>
+              <p className="text-sm text-muted-foreground">Total de Painéis</p>
             </div>
           </div>
         </Card>
         <Card className="p-6 bg-card border border-border shadow-card">
           <div className="flex items-center space-x-3">
             <div className="bg-primary-glow/10 p-3 rounded-xl">
-              <Video className="h-6 w-6 text-primary-glow" />
+              <Eye className="h-6 w-6 text-primary-glow" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">245</p>
-              <p className="text-sm text-muted-foreground">Gravações</p>
+              <p className="text-2xl font-bold text-foreground">
+                {clientes.reduce((acc, cliente) => acc + (cliente.total_acessos || 0), 0)}
+              </p>
+              <p className="text-sm text-muted-foreground">Total de Acessos</p>
             </div>
           </div>
         </Card>
@@ -150,19 +174,10 @@ export const ClientesView = () => {
               <FileText className="h-6 w-6 text-secondary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">1,234</p>
-              <p className="text-sm text-muted-foreground">Documentos</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-6 bg-card border border-border shadow-card">
-          <div className="flex items-center space-x-3">
-            <div className="bg-accent/50 p-3 rounded-xl">
-              <Calendar className="h-6 w-6 text-accent-foreground" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">156</p>
-              <p className="text-sm text-muted-foreground">Reuniões</p>
+              <p className="text-2xl font-bold text-foreground">
+                {clientes.filter(c => c.etapa_atual === 'ativo').length}
+              </p>
+              <p className="text-sm text-muted-foreground">Painéis Ativos</p>
             </div>
           </div>
         </Card>
@@ -176,131 +191,137 @@ export const ClientesView = () => {
           </h3>
         </div>
         <div className="p-6">
-          <div className="space-y-4">
-            {clientes.map((cliente) => (
-              <div
-                key={cliente.id}
-                className="flex items-center justify-between p-6 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="bg-gradient-primary p-3 rounded-xl">
-                    <ExternalLink className="h-6 w-6 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground text-lg">
-                      {cliente.nome}
-                    </h4>
-                    <div className="flex items-center space-x-1 mt-1">
-                      <Link2 className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground font-mono">
-                        {cliente.linkPainel}
-                      </span>
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : clientes.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Nenhum painel de cliente encontrado.</p>
+              {canCreateContent && (
+                <Button 
+                  onClick={() => setModalOpen(true)}
+                  className="mt-4"
+                >
+                  Criar Primeiro Painel
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {clientes.map((cliente) => (
+                <div
+                  key={cliente.id}
+                  className="flex items-center justify-between p-6 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h4 className="text-lg font-semibold text-foreground mb-1">
+                          {cliente.nome}
+                        </h4>
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                          <span className="flex items-center">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
+                          </span>
+                          {cliente.nicho && (
+                            <span className="flex items-center">
+                              <FileText className="h-3 w-3 mr-1" />
+                              {cliente.nicho}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Badge className={getStatusColor(cliente.etapa_atual)}>
+                        {getStatusLabel(cliente.etapa_atual)}
+                      </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Último acesso: {cliente.ultimoAcesso}
-                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-foreground">
+                          {cliente.progresso_etapa || 0}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">Progresso</p>
+                        <div className="w-full bg-muted rounded-full h-2 mt-2">
+                          <div
+                            className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${cliente.progresso_etapa || 0}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-center">
+                        <p className="text-lg font-semibold text-foreground">
+                          {cliente.total_acessos || 0}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Total de Acessos</p>
+                      </div>
+
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-foreground">
+                          {formatarDataAcesso(cliente.ultimo_acesso)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Último Acesso</p>
+                      </div>
+
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-foreground">
+                          {cliente.funis_trabalhando?.length || 0}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Funis Ativos</p>
+                      </div>
+                    </div>
+
+                    {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs text-muted-foreground mb-2">Funis Trabalhando:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {cliente.funis_trabalhando.map((funil: string, index: number) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {funil}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex space-x-2">
+                      {cliente.link_painel && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.open(cliente.link_painel, '_blank')}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Acessar Painel
+                        </Button>
+                      )}
+                      {cliente.pasta_drive_url && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.open(cliente.pasta_drive_url, '_blank')}
+                        >
+                          <Link2 className="h-3 w-3 mr-1" />
+                          Drive
+                        </Button>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => copyToClipboard(cliente.link_painel || '')}
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copiar Link
+                      </Button>
+                    </div>
                   </div>
                 </div>
-
-                <div className="flex items-center space-x-6">
-                  {/* Stats */}
-                  <div className="flex space-x-4 text-center">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {cliente.reunioes}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Reuniões</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {cliente.tarefas}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Tarefas</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {cliente.documentos}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Docs</p>
-                    </div>
-                  </div>
-
-                  <Badge className={getStatusColor(cliente.status)}>
-                    {getStatusLabel(cliente.status)}
-                  </Badge>
-
-                  {/* Actions */}
-                  <div className="flex space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => copyToClipboard(cliente.linkPainel)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="default" size="sm">
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      {/* Example Client Panel Preview */}
-      <Card className="bg-gradient-subtle border border-border shadow-elegant">
-        <div className="p-6 border-b border-border">
-          <h3 className="text-lg font-semibold text-foreground">
-            Preview do Painel do Cliente
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Exemplo de como os clientes visualizam seus painéis personalizados
-          </p>
-        </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-4 bg-card/50 border border-border">
-              <div className="flex items-center space-x-2 mb-2">
-                <Video className="h-5 w-5 text-primary" />
-                <span className="font-medium text-foreground">Gravações</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Últimas reuniões e calls gravadas
-              </p>
-            </Card>
-            <Card className="p-4 bg-card/50 border border-border">
-              <div className="flex items-center space-x-2 mb-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <span className="font-medium text-foreground">Documentos</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Planilhas, relatórios e materiais
-              </p>
-            </Card>
-            <Card className="p-4 bg-card/50 border border-border">
-              <div className="flex items-center space-x-2 mb-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                <span className="font-medium text-foreground">Calendário</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Próximos encontros e eventos
-              </p>
-            </Card>
-            <Card className="p-4 bg-card/50 border border-border">
-              <div className="flex items-center space-x-2 mb-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <span className="font-medium text-foreground">Tarefas</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Lista de pendências e status
-              </p>
-            </Card>
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </Card>
 
@@ -309,7 +330,7 @@ export const ClientesView = () => {
         open={modalOpen}
         onOpenChange={setModalOpen}
         onSuccess={() => {
-          console.log('Cliente criado com sucesso!');
+          carregarClientes(); // Recarregar lista após criar
         }}
       />
     </div>
