@@ -301,6 +301,8 @@ export type Database = {
       }
       creatives: {
         Row: {
+          activated_at: string | null
+          activated_by: string | null
           archived: boolean | null
           client_id: string
           created_at: string
@@ -310,6 +312,7 @@ export type Database = {
           folder_path: string | null
           icon_link: string | null
           id: string
+          is_active: boolean | null
           link_direct: string | null
           link_web_view: string | null
           mime_type: string | null
@@ -320,6 +323,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          activated_at?: string | null
+          activated_by?: string | null
           archived?: boolean | null
           client_id: string
           created_at?: string
@@ -329,6 +334,7 @@ export type Database = {
           folder_path?: string | null
           icon_link?: string | null
           id?: string
+          is_active?: boolean | null
           link_direct?: string | null
           link_web_view?: string | null
           mime_type?: string | null
@@ -339,6 +345,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          activated_at?: string | null
+          activated_by?: string | null
           archived?: boolean | null
           client_id?: string
           created_at?: string
@@ -348,6 +356,7 @@ export type Database = {
           folder_path?: string | null
           icon_link?: string | null
           id?: string
+          is_active?: boolean | null
           link_direct?: string | null
           link_web_view?: string | null
           mime_type?: string | null
@@ -1017,6 +1026,10 @@ export type Database = {
       is_profile_owner: {
         Args: { _profile_user_id: string; _user_id: string }
         Returns: boolean
+      }
+      update_creative_status: {
+        Args: { creative_id: string; new_status: boolean }
+        Returns: Json
       }
     }
     Enums: {
