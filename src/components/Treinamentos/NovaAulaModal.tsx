@@ -20,7 +20,7 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
     titulo: "",
     descricao: "",
     url_youtube: "",
-    tipo_conteudo: "video",
+    tipo_conteudo: "video" as string,
     ordem: 1,
     duracao: 0,
   });
@@ -60,23 +60,34 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
       const proximaOrdem = ultimaAula ? ultimaAula.ordem + 1 : 1;
 
       // Preparar dados para inserção
-      const aulaData = {
-        titulo: formData.titulo,
-        descricao: formData.descricao,
+      const aulaData: any = {
+        titulo: formData.titulo.trim(),
+        descricao: formData.descricao?.trim() || null,
         tipo_conteudo: formData.tipo_conteudo,
         treinamento_id: treinamentoId,
         ordem: proximaOrdem,
         created_by: user.data.user.id,
-        duracao: formData.duracao,
-        // Só incluir url_youtube se for um vídeo
-        ...(formData.tipo_conteudo === "video" && { url_youtube: formData.url_youtube })
+        duracao: formData.duracao || null,
+        ativo: true
       };
+
+      // Só incluir url_youtube se for um vídeo e tiver valor
+      if (formData.tipo_conteudo === "video" && formData.url_youtube.trim()) {
+        aulaData.url_youtube = formData.url_youtube.trim();
+      } else if (formData.tipo_conteudo === "video") {
+        aulaData.url_youtube = null;
+      }
+
+      console.log('Dados para inserir:', aulaData);
 
       const { error } = await supabase
         .from('aulas')
         .insert([aulaData]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro do Supabase:', error);
+        throw error;
+      }
 
       toast({
         title: "Sucesso",
@@ -94,11 +105,11 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
 
       onClose();
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar aula:', error);
       toast({
         title: "Erro",
-        description: "Erro ao criar aula. Tente novamente.",
+        description: error.message || "Erro ao criar aula. Tente novamente.",
         variant: "destructive",
       });
     } finally {

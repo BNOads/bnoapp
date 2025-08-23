@@ -26,7 +26,7 @@ interface CalendarEvent {
 export const CalendarView = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentWeek, setCurrentWeek] = useState(new Date());
 
   // Configuração da API do Google Calendar
   const CALENDAR_ID = 'contato@bnoads.com.br';
@@ -35,15 +35,20 @@ export const CalendarView = () => {
     try {
       setLoading(true);
       
-      // Calcular data de início e fim para o mês atual
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      // Calcular início e fim da semana atual
+      const startOfWeek = new Date(currentWeek);
+      startOfWeek.setDate(currentWeek.getDate() - currentWeek.getDay()); // Domingo
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6); // Sábado
+      endOfWeek.setHours(23, 59, 59, 999);
       
       const { data, error } = await supabase.functions.invoke('google-calendar', {
         body: {
           calendarId: CALENDAR_ID,
-          timeMin: startOfMonth.toISOString(),
-          timeMax: endOfMonth.toISOString()
+          timeMin: startOfWeek.toISOString(),
+          timeMax: endOfWeek.toISOString()
         }
       });
 
@@ -87,7 +92,7 @@ export const CalendarView = () => {
 
   useEffect(() => {
     fetchEvents();
-  }, [currentDate]);
+  }, [currentWeek]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -113,16 +118,29 @@ export const CalendarView = () => {
     return eventDate.toDateString() === today.toDateString();
   };
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentDate(prev => {
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    setCurrentWeek(prev => {
       const newDate = new Date(prev);
       if (direction === 'prev') {
-        newDate.setMonth(newDate.getMonth() - 1);
+        newDate.setDate(newDate.getDate() - 7);
       } else {
-        newDate.setMonth(newDate.getMonth() + 1);
+        newDate.setDate(newDate.getDate() + 7);
       }
       return newDate;
     });
+  };
+
+  const getWeekRange = () => {
+    const startOfWeek = new Date(currentWeek);
+    startOfWeek.setDate(currentWeek.getDate() - currentWeek.getDay());
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    
+    return {
+      start: startOfWeek.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+      end: endOfWeek.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+    };
   };
 
   const groupEventsByDate = (events: CalendarEvent[]) => {
@@ -156,22 +174,19 @@ export const CalendarView = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigateMonth('prev')}
+            onClick={() => navigateWeek('prev')}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
-          <span className="text-lg font-medium min-w-[180px] text-center">
-            {currentDate.toLocaleDateString('pt-BR', { 
-              month: 'long', 
-              year: 'numeric' 
-            })}
+          <span className="text-lg font-medium min-w-[200px] text-center">
+            {getWeekRange().start} - {getWeekRange().end}
           </span>
           
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigateMonth('next')}
+            onClick={() => navigateWeek('next')}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -179,9 +194,9 @@ export const CalendarView = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentDate(new Date())}
+            onClick={() => setCurrentWeek(new Date())}
           >
-            Hoje
+            Esta Semana
           </Button>
         </div>
       </div>
@@ -204,7 +219,7 @@ export const CalendarView = () => {
             <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">Nenhum evento encontrado</h3>
             <p className="text-muted-foreground">
-              Não há eventos agendados para este mês.
+              Não há eventos agendados para esta semana.
             </p>
           </CardContent>
         </Card>
