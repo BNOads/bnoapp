@@ -70,6 +70,32 @@ export const NovoClienteModal = ({
         throw error;
       }
 
+      // Disparar webhook após criação bem-sucedida
+      try {
+        await fetch('https://automacao.bnoads.com.br/webhook-test/1c055879-2702-4588-b8bf-b22d18d7511e', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          mode: 'no-cors',
+          body: JSON.stringify({
+            evento: 'cliente_criado',
+            cliente: {
+              nome: formData.nome,
+              categoria: formData.categoria,
+              nicho: formData.nicho,
+              etapa_atual: formData.etapa_atual,
+              link_painel: linkPainel,
+            },
+            timestamp: new Date().toISOString(),
+            created_by: user?.id,
+          }),
+        });
+      } catch (webhookError) {
+        console.error('Erro ao disparar webhook:', webhookError);
+        // Não interrompe o fluxo se o webhook falhar
+      }
+
       toast({
         title: "Cliente criado com sucesso!",
         description: `${formData.nome} foi adicionado aos painéis.`,
