@@ -35,12 +35,12 @@ serve(async (req) => {
       )
     }
 
-    // Buscar cliente pelo nome
+    // Buscar cliente pelo nome ou aliases
     const { data: cliente, error: clienteError } = await supabase
       .from('clientes')
       .select('id, nome')
-      .ilike('nome', `%${nome}%`)
-      .single()
+      .or(`nome.ilike.%${nome}%,aliases.cs.{${nome}}`)
+      .maybeSingle()
 
     if (clienteError || !cliente) {
       return new Response(

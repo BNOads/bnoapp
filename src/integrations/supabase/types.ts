@@ -110,6 +110,7 @@ export type Database = {
       }
       clientes: {
         Row: {
+          aliases: string[] | null
           ativo: boolean
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at: string
@@ -131,6 +132,7 @@ export type Database = {
           whatsapp_grupo_url: string | null
         }
         Insert: {
+          aliases?: string[] | null
           ativo?: boolean
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
@@ -152,6 +154,7 @@ export type Database = {
           whatsapp_grupo_url?: string | null
         }
         Update: {
+          aliases?: string[] | null
           ativo?: boolean
           categoria?: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
