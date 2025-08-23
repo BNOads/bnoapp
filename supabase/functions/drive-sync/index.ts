@@ -24,14 +24,38 @@ function extractDriveFolderId(url: string): string | null {
   return null;
 }
 
-// Função para buscar arquivos do Google Drive com paginação
-async function listDriveFiles(folderId: string, pageToken?: string): Promise<any> {
+// Função para buscar pastas do Google Drive
+async function listDriveFolders(parentFolderId: string): Promise<any> {
   const API_KEY = Deno.env.get('GOOGLE_DRIVE_API_KEY');
   
   const params = new URLSearchParams({
     key: API_KEY!,
-    q: `'${folderId}' in parents and trashed=false`,
-    fields: 'nextPageToken,files(id,name,mimeType,webViewLink,iconLink,thumbnailLink,size,modifiedTime)',
+    q: `'${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'files(id,name)',
+    pageSize: '100'
+  });
+  
+  const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`);
+  
+  if (!response.ok) {
+    const error = await response.text();
+    console.error(`Google Drive API error (folders): ${response.status} - ${error}`);
+    throw new Error(`Google Drive API error: ${response.status} - ${error}`);
+  }
+  
+  const result = await response.json();
+  console.log('Pastas encontradas:', result.files?.length || 0);
+  return result;
+}
+
+// Função para buscar arquivos do Google Drive com paginação
+async function listDriveFiles(folderId: string, folderName = 'Raiz', folderPath = '', pageToken?: string): Promise<any> {
+  const API_KEY = Deno.env.get('GOOGLE_DRIVE_API_KEY');
+  
+  const params = new URLSearchParams({
+    key: API_KEY!,
+    q: `'${folderId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'nextPageToken,files(id,name,mimeType,webViewLink,iconLink,thumbnailLink,size,modifiedTime,parents)',
     pageSize: '100'
   });
   
@@ -51,8 +75,48 @@ async function listDriveFiles(folderId: string, pageToken?: string): Promise<any
   }
   
   const result = await response.json();
+  
+  // Adicionar informações da pasta aos arquivos
+  if (result.files) {
+    result.files = result.files.map((file: any) => ({
+      ...file,
+      folderName,
+      folderPath,
+      parentFolderId: folderId
+    }));
+  }
+  
   console.log('Resposta da API do Google Drive:', JSON.stringify(result, null, 2));
   return result;
+}
+
+// Função recursiva para buscar todos os arquivos incluindo subpastas
+async function getAllFilesRecursively(folderId: string, folderName = 'Raiz', folderPath = ''): Promise<any[]> {
+  let allFiles: any[] = [];
+  
+  // Buscar arquivos na pasta atual
+  let nextPageToken: string | undefined;
+  do {
+    const result = await listDriveFiles(folderId, folderName, folderPath, nextPageToken);
+    allFiles = allFiles.concat(result.files || []);
+    nextPageToken = result.nextPageToken;
+    
+    console.log(`Carregados ${result.files?.length || 0} arquivos da pasta "${folderName}". Total: ${allFiles.length}`);
+  } while (nextPageToken);
+  
+  // Buscar subpastas e seus arquivos recursivamente
+  const foldersResult = await listDriveFolders(folderId);
+  if (foldersResult.files && foldersResult.files.length > 0) {
+    for (const folder of foldersResult.files) {
+      const subFolderPath = folderPath ? `${folderPath}/${folder.name}` : folder.name;
+      console.log(`Buscando arquivos na subpasta: ${folder.name} (${folder.id})`);
+      
+      const subFolderFiles = await getAllFilesRecursively(folder.id, folder.name, subFolderPath);
+      allFiles = allFiles.concat(subFolderFiles);
+    }
+  }
+  
+  return allFiles;
 }
 
 // Função para fazer upsert de arquivos no banco
@@ -68,6 +132,9 @@ async function upsertCreatives(supabase: any, clientId: string, files: any[]) {
     thumbnail_link: file.thumbnailLink,
     file_size: file.size ? parseInt(file.size) : null,
     modified_time: file.modifiedTime,
+    folder_name: file.folderName || 'Raiz',
+    folder_path: file.folderPath || '',
+    parent_folder_id: file.parentFolderId,
     archived: false
   }));
   
@@ -169,19 +236,11 @@ serve(async (req) => {
     
     if (updateError) throw updateError;
     
-    // Buscar todos os arquivos da pasta com paginação
-    let allFiles: any[] = [];
-    let nextPageToken: string | undefined;
+    // Buscar todos os arquivos da pasta recursivamente (incluindo subpastas)
+    console.log('Iniciando busca recursiva de arquivos...');
+    const allFiles = await getAllFilesRecursively(folderId, 'Raiz', '');
     
-    do {
-      const result = await listDriveFiles(folderId, nextPageToken);
-      allFiles = allFiles.concat(result.files || []);
-      nextPageToken = result.nextPageToken;
-      
-      console.log(`Carregados ${result.files?.length || 0} arquivos. Total: ${allFiles.length}`);
-    } while (nextPageToken);
-    
-    console.log(`Total de arquivos encontrados: ${allFiles.length}`);
+    console.log(`Total de arquivos encontrados recursivamente: ${allFiles.length}`);
     
     // Fazer upsert dos arquivos
     const upsertedCount = await upsertCreatives(supabase, clientId, allFiles);

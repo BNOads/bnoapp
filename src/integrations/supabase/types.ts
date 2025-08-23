@@ -306,6 +306,8 @@ export type Database = {
           created_at: string
           file_id: string
           file_size: number | null
+          folder_name: string | null
+          folder_path: string | null
           icon_link: string | null
           id: string
           link_direct: string | null
@@ -313,6 +315,7 @@ export type Database = {
           mime_type: string | null
           modified_time: string | null
           name: string
+          parent_folder_id: string | null
           thumbnail_link: string | null
           updated_at: string
         }
@@ -322,6 +325,8 @@ export type Database = {
           created_at?: string
           file_id: string
           file_size?: number | null
+          folder_name?: string | null
+          folder_path?: string | null
           icon_link?: string | null
           id?: string
           link_direct?: string | null
@@ -329,6 +334,7 @@ export type Database = {
           mime_type?: string | null
           modified_time?: string | null
           name: string
+          parent_folder_id?: string | null
           thumbnail_link?: string | null
           updated_at?: string
         }
@@ -338,6 +344,8 @@ export type Database = {
           created_at?: string
           file_id?: string
           file_size?: number | null
+          folder_name?: string | null
+          folder_path?: string | null
           icon_link?: string | null
           id?: string
           link_direct?: string | null
@@ -345,6 +353,7 @@ export type Database = {
           mime_type?: string | null
           modified_time?: string | null
           name?: string
+          parent_folder_id?: string | null
           thumbnail_link?: string | null
           updated_at?: string
         }

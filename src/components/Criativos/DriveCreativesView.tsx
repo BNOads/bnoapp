@@ -24,6 +24,9 @@ interface Creative {
   type_display: string;
   formatted_size: string;
   formatted_date: string;
+  folder_name: string;
+  folder_path: string;
+  parent_folder_id: string;
 }
 
 interface DriveCreativesViewProps {
@@ -273,6 +276,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
               <TableRow>
                 <TableHead className="w-12">Tipo</TableHead>
                 <TableHead>Nome do Arquivo</TableHead>
+                <TableHead className="w-32">Pasta</TableHead>
                 <TableHead className="w-32">Formato</TableHead>
                 <TableHead className="w-24">Tamanho</TableHead>
                 <TableHead className="w-32">Data Modificação</TableHead>
@@ -303,6 +307,11 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                         {creative.name}
                       </span>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    <span className="truncate" title={creative.folder_path || creative.folder_name}>
+                      {creative.folder_name || 'Raiz'}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <Badge className={`${getTipoColor(creative.mime_type)} text-xs`}>
