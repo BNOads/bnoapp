@@ -20,11 +20,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
     
-    // Buscar clientes que têm drive_folder_id configurado
+    // Buscar clientes que têm drive_folder_id configurado OU pasta_drive_url configurada
     const { data: clientes, error } = await supabase
       .from('clientes')
       .select('id, nome, drive_folder_id, pasta_drive_url, auto_permission')
-      .not('drive_folder_id', 'is', null)
+      .or('drive_folder_id.not.is.null,pasta_drive_url.not.is.null')
       .eq('ativo', true);
     
     if (error) {
@@ -38,6 +38,12 @@ serve(async (req) => {
     for (const cliente of clientes || []) {
       try {
         console.log(`Sincronizando cliente: ${cliente.nome} (${cliente.id})`);
+        
+        // Verificar se tem URL válida do Drive
+        if (!cliente.pasta_drive_url || !cliente.pasta_drive_url.includes('drive.google.com')) {
+          console.log(`Cliente ${cliente.nome} não tem URL válida do Drive, pulando...`);
+          continue;
+        }
         
         // Chamar a função de sync para este cliente
         const syncResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/drive-sync`, {
