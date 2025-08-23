@@ -10,6 +10,7 @@ import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoTreinamentoModal } from "./NovoTreinamentoModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSearch } from "@/hooks/useSearch";
 import { useNavigate } from "react-router-dom";
 
 export const TreinamentosView = () => {
@@ -19,6 +20,7 @@ export const TreinamentosView = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { searchTerm, setSearchTerm, filteredItems } = useSearch(treinamentos, ['titulo', 'categoria', 'nivel']);
 
   const carregarTreinamentos = async () => {
     try {
@@ -133,6 +135,8 @@ export const TreinamentosView = () => {
           <Input
             placeholder="Buscar treinamentos..."
             className="pl-10 bg-background border-border"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <Button variant="outline" className="shrink-0">
@@ -202,7 +206,7 @@ export const TreinamentosView = () => {
           <div className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
-        ) : treinamentos.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <Card className="p-8 text-center">
             <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h4 className="text-lg font-semibold text-foreground mb-2">
@@ -220,7 +224,7 @@ export const TreinamentosView = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {treinamentos.map((treinamento) => {
+            {filteredItems.map((treinamento) => {
               const TipoIcon = getTipoIcon(treinamento.tipo);
               return (
                 <Card key={treinamento.id} className="overflow-hidden hover:shadow-card transition-all duration-300">

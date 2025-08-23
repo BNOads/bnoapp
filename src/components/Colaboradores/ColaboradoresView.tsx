@@ -10,6 +10,7 @@ import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoColaboradorModal } from "./NovoColaboradorModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSearch } from "@/hooks/useSearch";
 
 export const ColaboradoresView = () => {
   const { canCreateContent } = useUserPermissions();
@@ -17,6 +18,7 @@ export const ColaboradoresView = () => {
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { searchTerm, setSearchTerm, filteredItems } = useSearch(colaboradores, ['nome', 'email', 'nivel_acesso']);
 
   const carregarColaboradores = async () => {
     try {
@@ -100,6 +102,8 @@ export const ColaboradoresView = () => {
           <Input
             placeholder="Buscar colaboradores..."
             className="pl-10 bg-background border-border"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <Button variant="outline" className="shrink-0">
@@ -161,7 +165,7 @@ export const ColaboradoresView = () => {
             <div className="flex justify-center items-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          ) : colaboradores.length === 0 ? (
+          ) : filteredItems.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">Nenhum colaborador encontrado.</p>
               {canCreateContent && (
@@ -175,7 +179,7 @@ export const ColaboradoresView = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {colaboradores.map((colaborador) => (
+              {filteredItems.map((colaborador) => (
                 <div
                   key={colaborador.id}
                   className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300"

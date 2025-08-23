@@ -9,6 +9,7 @@ import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSearch } from "@/hooks/useSearch";
 
 export const ClientesView = () => {
   const { canCreateContent } = useUserPermissions();
@@ -16,6 +17,7 @@ export const ClientesView = () => {
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { searchTerm, setSearchTerm, filteredItems } = useSearch(clientes, ['nome', 'nicho', 'categoria']);
 
   const carregarClientes = async () => {
     try {
@@ -135,6 +137,8 @@ export const ClientesView = () => {
           <Input
             placeholder="Buscar painéis de clientes..."
             className="pl-10 bg-background border-border"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <Button variant="outline" className="shrink-0">
@@ -209,7 +213,7 @@ export const ClientesView = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {clientes.map((cliente) => (
+              {filteredItems.map((cliente) => (
                 <div
                   key={cliente.id}
                   className="flex items-center justify-between p-6 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300"

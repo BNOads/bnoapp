@@ -8,38 +8,40 @@ import { NovoColaboradorModal } from "@/components/Colaboradores/NovoColaborador
 import { NovoClienteModal } from "@/components/Clientes/NovoClienteModal";
 import { NovoTreinamentoModal } from "@/components/Treinamentos/NovoTreinamentoModal";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
-
+import { useDashboardStats } from "@/hooks/useDashboardStats";
 export const DashboardView = () => {
   const { canCreateContent } = useUserPermissions();
   const { activities } = useRecentActivities();
+  const { stats, loading: statsLoading } = useDashboardStats();
   const [colaboradorModalOpen, setColaboradorModalOpen] = useState(false);
   const [clienteModalOpen, setClienteModalOpen] = useState(false);
   const [treinamentoModalOpen, setTreinamentoModalOpen] = useState(false);
-  const stats = [
+  
+  const statsData = [
     { 
       title: "Colaboradores Ativos", 
-      value: "47", 
+      value: statsLoading ? "..." : stats.colaboradoresAtivos.toString(), 
       change: "+12%", 
       icon: Users,
       color: "text-primary"
     },
     { 
       title: "Clientes Ativos", 
-      value: "89", 
+      value: statsLoading ? "..." : stats.clientesAtivos.toString(), 
       change: "+23%", 
       icon: Calendar,
       color: "text-primary-glow"
     },
     { 
       title: "Treinamentos Concluídos", 
-      value: "156", 
+      value: statsLoading ? "..." : stats.treinamentosConcluidos.toString(), 
       change: "+8%", 
       icon: BookOpen,
       color: "text-secondary"
     },
     { 
       title: "Taxa de Progresso", 
-      value: "94%", 
+      value: statsLoading ? "..." : `${stats.taxaProgresso}%`, 
       change: "+5%", 
       icon: TrendingUp,
       color: "text-primary"
@@ -67,7 +69,7 @@ export const DashboardView = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => {
+        {statsData.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <Card key={index} className="p-6 bg-card border border-border hover:shadow-card transition-all duration-300 hover:border-primary/30">

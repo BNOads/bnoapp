@@ -120,11 +120,14 @@ export type Database = {
           link_painel: string | null
           nicho: string | null
           nome: string
+          observacoes: string | null
           pasta_drive_url: string | null
           progresso_etapa: number | null
+          status_cliente: string | null
           total_acessos: number | null
           ultimo_acesso: string | null
           updated_at: string
+          whatsapp_grupo_url: string | null
         }
         Insert: {
           ativo?: boolean
@@ -137,11 +140,14 @@ export type Database = {
           link_painel?: string | null
           nicho?: string | null
           nome: string
+          observacoes?: string | null
           pasta_drive_url?: string | null
           progresso_etapa?: number | null
+          status_cliente?: string | null
           total_acessos?: number | null
           ultimo_acesso?: string | null
           updated_at?: string
+          whatsapp_grupo_url?: string | null
         }
         Update: {
           ativo?: boolean
@@ -154,11 +160,14 @@ export type Database = {
           link_painel?: string | null
           nicho?: string | null
           nome?: string
+          observacoes?: string | null
           pasta_drive_url?: string | null
           progresso_etapa?: number | null
+          status_cliente?: string | null
           total_acessos?: number | null
           ultimo_acesso?: string | null
           updated_at?: string
+          whatsapp_grupo_url?: string | null
         }
         Relationships: []
       }
@@ -453,6 +462,47 @@ export type Database = {
           },
         ]
       }
+      links_importantes: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          created_by: string
+          id: string
+          tipo: string
+          titulo: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          tipo?: string
+          titulo: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "links_importantes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_emails: {
         Row: {
           created_at: string
@@ -640,6 +690,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "reunioes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefas: {
+        Row: {
+          atribuido_para: string | null
+          cliente_id: string | null
+          created_at: string
+          created_by: string
+          data_vencimento: string | null
+          descricao: string | null
+          id: string
+          prioridade: string
+          status: string
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          atribuido_para?: string | null
+          cliente_id?: string | null
+          created_at?: string
+          created_by: string
+          data_vencimento?: string | null
+          descricao?: string | null
+          id?: string
+          prioridade?: string
+          status?: string
+          tipo?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          atribuido_para?: string | null
+          cliente_id?: string | null
+          created_at?: string
+          created_by?: string
+          data_vencimento?: string | null
+          descricao?: string | null
+          id?: string
+          prioridade?: string
+          status?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
