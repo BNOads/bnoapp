@@ -109,12 +109,12 @@ export default function CursoDetalhes() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header activeTab="treinamentos" onTabChange={() => {}} />
+      <Header activeTab="treinamentos" onTabChange={(tab) => navigate(`/${tab}`)} />
       <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-6">
         <Button 
           variant="ghost" 
-          onClick={() => navigate('/treinamentos')}
+          onClick={() => navigate('/')}
           className="mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
