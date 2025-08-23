@@ -4,6 +4,7 @@ import { DashboardView } from "@/components/Dashboard/DashboardView";
 import { ColaboradoresView } from "@/components/Colaboradores/ColaboradoresView";
 import { ClientesView } from "@/components/Clientes/ClientesView";
 import { TreinamentosView } from "@/components/Treinamentos/TreinamentosView";
+import { CalendarView } from "@/components/Calendar/CalendarView";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -14,6 +15,8 @@ const Index = () => {
         return <ColaboradoresView />;
       case 'clientes':
         return <ClientesView />;
+      case 'calendario':
+        return <CalendarView />;
       case 'treinamentos':
         return <TreinamentosView />;
       default:
