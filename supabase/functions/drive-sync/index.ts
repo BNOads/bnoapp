@@ -41,12 +41,18 @@ async function listDriveFiles(folderId: string, pageToken?: string): Promise<any
   
   const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`);
   
+  console.log(`Fazendo requisição para Google Drive API: https://www.googleapis.com/drive/v3/files?${params}`);
+  console.log(`Response status: ${response.status}`);
+  
   if (!response.ok) {
     const error = await response.text();
+    console.error(`Google Drive API error: ${response.status} - ${error}`);
     throw new Error(`Google Drive API error: ${response.status} - ${error}`);
   }
   
-  return await response.json();
+  const result = await response.json();
+  console.log('Resposta da API do Google Drive:', JSON.stringify(result, null, 2));
+  return result;
 }
 
 // Função para fazer upsert de arquivos no banco
@@ -131,6 +137,25 @@ serve(async (req) => {
     }
     
     console.log('Folder ID extraído:', folderId);
+    console.log('URL original:', driveFolderUrl);
+    
+    // Verificar se a API key está configurada
+    const API_KEY = Deno.env.get('GOOGLE_DRIVE_API_KEY');
+    console.log('API Key configurada:', API_KEY ? 'Sim' : 'Não');
+    
+    // Testar se conseguimos acessar a pasta
+    try {
+      const testResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?key=${API_KEY}&fields=id,name,parents`);
+      if (testResponse.ok) {
+        const folderInfo = await testResponse.json();
+        console.log('Informações da pasta:', folderInfo);
+      } else {
+        const errorText = await testResponse.text();
+        console.log('Erro ao acessar pasta:', testResponse.status, errorText);
+      }
+    } catch (testError) {
+      console.log('Erro no teste de acesso à pasta:', testError);
+    }
     
     // Atualizar cliente com drive_folder_id
     const { error: updateError } = await supabase
