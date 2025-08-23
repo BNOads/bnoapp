@@ -30,6 +30,7 @@ export const TarefasList = ({ clienteId, tipo }: TarefasListProps) => {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [novaTarefa, setNovaTarefa] = useState({
     titulo: '',
     descricao: '',
@@ -39,6 +40,11 @@ export const TarefasList = ({ clienteId, tipo }: TarefasListProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+    };
+    checkAuth();
     loadTarefas();
   }, [clienteId, tipo]);
 
@@ -163,59 +169,61 @@ export const TarefasList = ({ clienteId, tipo }: TarefasListProps) => {
             {tipo === 'equipe' ? <Users className="h-5 w-5" /> : <User className="h-5 w-5" />}
             {tipo === 'equipe' ? 'Tarefas da Equipe' : 'Tarefas do Cliente'}
           </CardTitle>
-          <Dialog open={showModal} onOpenChange={setShowModal}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Tarefa
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {tipo === 'equipe' ? 'Nova Tarefa da Equipe' : 'Nova Tarefa do Cliente'}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <Input
-                  placeholder="Título da tarefa"
-                  value={novaTarefa.titulo}
-                  onChange={(e) => setNovaTarefa({ ...novaTarefa, titulo: e.target.value })}
-                />
-                <Textarea
-                  placeholder="Descrição da tarefa"
-                  value={novaTarefa.descricao}
-                  onChange={(e) => setNovaTarefa({ ...novaTarefa, descricao: e.target.value })}
-                />
-                <Select
-                  value={novaTarefa.prioridade}
-                  onValueChange={(value) => setNovaTarefa({ ...novaTarefa, prioridade: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Prioridade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="baixa">Baixa</SelectItem>
-                    <SelectItem value="media">Média</SelectItem>
-                    <SelectItem value="alta">Alta</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="date"
-                  value={novaTarefa.data_vencimento}
-                  onChange={(e) => setNovaTarefa({ ...novaTarefa, data_vencimento: e.target.value })}
-                />
-                <div className="flex gap-2">
-                  <Button onClick={criarTarefa} className="flex-1">
-                    Criar Tarefa
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowModal(false)}>
-                    Cancelar
-                  </Button>
+          {isAuthenticated && (
+            <Dialog open={showModal} onOpenChange={setShowModal}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nova Tarefa
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {tipo === 'equipe' ? 'Nova Tarefa da Equipe' : 'Nova Tarefa do Cliente'}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Input
+                    placeholder="Título da tarefa"
+                    value={novaTarefa.titulo}
+                    onChange={(e) => setNovaTarefa({ ...novaTarefa, titulo: e.target.value })}
+                  />
+                  <Textarea
+                    placeholder="Descrição da tarefa"
+                    value={novaTarefa.descricao}
+                    onChange={(e) => setNovaTarefa({ ...novaTarefa, descricao: e.target.value })}
+                  />
+                  <Select
+                    value={novaTarefa.prioridade}
+                    onValueChange={(value) => setNovaTarefa({ ...novaTarefa, prioridade: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Prioridade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="baixa">Baixa</SelectItem>
+                      <SelectItem value="media">Média</SelectItem>
+                      <SelectItem value="alta">Alta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="date"
+                    value={novaTarefa.data_vencimento}
+                    onChange={(e) => setNovaTarefa({ ...novaTarefa, data_vencimento: e.target.value })}
+                  />
+                  <div className="flex gap-2">
+                    <Button onClick={criarTarefa} className="flex-1">
+                      Criar Tarefa
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowModal(false)}>
+                      Cancelar
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -258,7 +266,7 @@ export const TarefasList = ({ clienteId, tipo }: TarefasListProps) => {
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      {tarefa.status !== 'concluida' && (
+                      {isAuthenticated && tarefa.status !== 'concluida' && (
                         <Button 
                           size="sm" 
                           variant="outline" 

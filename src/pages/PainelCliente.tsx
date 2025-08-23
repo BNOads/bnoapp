@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, ArrowLeft } from "lucide-react";
+import { MessageCircle, ArrowLeft, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Layout/Header";
@@ -12,6 +12,7 @@ import { GravacoesReunioes } from "@/components/Clientes/GravacoesReunioes";
 import { TarefasList } from "@/components/Clientes/TarefasList";
 import { LinksImportantes } from "@/components/Clientes/LinksImportantes";
 import { useNavigate } from "react-router-dom";
+import type { User } from "@supabase/supabase-js";
 
 interface Cliente {
   id: string;
@@ -41,6 +42,8 @@ const PainelCliente = () => {
   const [ultimasAtualizacoes, setUltimasAtualizacoes] = useState<UltimasAtualizacoes[]>([]);
   const [loading, setLoading] = useState(true);
   const [debugInfo, setDebugInfo] = useState<any>({});
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   useEffect(() => {
     console.log('=== PAINEL CLIENTE DEBUG ===');
@@ -54,9 +57,19 @@ const PainelCliente = () => {
       params: { clienteId }
     });
 
+    // Verificar autenticação
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setIsAuthenticated(!!user);
+      console.log('Usuario autenticado:', !!user, user?.email);
+    };
+
+    checkAuth();
+
     if (clienteId) {
       carregarDadosCliente();
-      // carregarUltimasAtualizacoes();
+      carregarUltimasAtualizacoes();
     } else {
       console.log('ClienteId não encontrado na URL');
       setLoading(false);
@@ -108,6 +121,11 @@ const PainelCliente = () => {
 
   const carregarUltimasAtualizacoes = async () => {
     try {
+      // Apenas carregar se o usuário estiver autenticado
+      if (!isAuthenticated) {
+        setUltimasAtualizacoes([]);
+        return;
+      }
       // Buscar diferentes tipos de atividades recentes
       const [interacoes, tarefas, reunioes] = await Promise.all([
         supabase
@@ -182,7 +200,25 @@ const PainelCliente = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header activeTab="clientes" onTabChange={(tab) => navigate(`/${tab}`)} />
+        {isAuthenticated ? (
+          <Header activeTab="clientes" onTabChange={(tab) => navigate(`/${tab}`)} />
+        ) : (
+          <div className="bg-background border-b border-border">
+            <div className="container mx-auto px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-bold">Painel do Cliente</h1>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/auth')}
+                  size="sm"
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Fazer Login
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="container mx-auto px-6 py-8">
           <div className="flex justify-center items-center h-64">
             <div className="text-center">
@@ -204,13 +240,31 @@ const PainelCliente = () => {
   if (!cliente) {
     return (
       <div className="min-h-screen bg-background">
-        <Header activeTab="clientes" onTabChange={(tab) => navigate(`/${tab}`)} />
+        {isAuthenticated ? (
+          <Header activeTab="clientes" onTabChange={(tab) => navigate(`/${tab}`)} />
+        ) : (
+          <div className="bg-background border-b border-border">
+            <div className="container mx-auto px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-bold">Painel do Cliente</h1>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/auth')}
+                  size="sm"
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Fazer Login
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="container mx-auto px-6 py-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Cliente não encontrado</h1>
             <Button onClick={() => navigate('/')}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar ao Dashboard
+              {isAuthenticated ? 'Voltar ao Dashboard' : 'Voltar'}
             </Button>
           </div>
         </div>
@@ -220,7 +274,25 @@ const PainelCliente = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header activeTab="clientes" onTabChange={(tab) => navigate(`/${tab}`)} />
+      {isAuthenticated ? (
+        <Header activeTab="clientes" onTabChange={(tab) => navigate(`/${tab}`)} />
+      ) : (
+        <div className="bg-background border-b border-border">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-bold">Painel do Cliente</h1>
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/auth')}
+                size="sm"
+              >
+                <LogIn className="h-4 w-4 mr-2" />
+                Fazer Login
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Header do Cliente */}
       <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border">
@@ -228,13 +300,15 @@ const PainelCliente = () => {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-4 mb-4">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => navigate('/')}
-                  className="p-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
+                {isAuthenticated && (
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => navigate('/')}
+                    className="p-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                )}
                 <div>
                   <h1 className="text-3xl font-bold text-foreground">
                     {cliente.nome}

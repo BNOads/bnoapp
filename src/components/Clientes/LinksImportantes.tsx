@@ -24,6 +24,7 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
   const [links, setLinks] = useState<LinkImportante[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [novoLink, setNovoLink] = useState({
     titulo: '',
     url: '',
@@ -32,6 +33,11 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+    };
+    checkAuth();
     loadLinks();
   }, [clienteId]);
 
@@ -133,54 +139,56 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
             <Link2 className="h-5 w-5" />
             Links Importantes
           </CardTitle>
-          <Dialog open={showModal} onOpenChange={setShowModal}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Link
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Adicionar Link Importante</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <Input
-                  placeholder="Título do link"
-                  value={novoLink.titulo}
-                  onChange={(e) => setNovoLink({ ...novoLink, titulo: e.target.value })}
-                />
-                <Input
-                  placeholder="https://exemplo.com"
-                  value={novoLink.url}
-                  onChange={(e) => setNovoLink({ ...novoLink, url: e.target.value })}
-                />
-                <Select
-                  value={novoLink.tipo}
-                  onValueChange={(value) => setNovoLink({ ...novoLink, tipo: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tipo do link" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="geral">Geral</SelectItem>
-                    <SelectItem value="drive">Google Drive</SelectItem>
-                    <SelectItem value="video">Vídeo</SelectItem>
-                    <SelectItem value="ferramenta">Ferramenta</SelectItem>
-                    <SelectItem value="site">Website</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="flex gap-2">
-                  <Button onClick={criarLink} className="flex-1">
-                    Adicionar Link
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowModal(false)}>
-                    Cancelar
-                  </Button>
+          {isAuthenticated && (
+            <Dialog open={showModal} onOpenChange={setShowModal}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Link
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Adicionar Link Importante</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Input
+                    placeholder="Título do link"
+                    value={novoLink.titulo}
+                    onChange={(e) => setNovoLink({ ...novoLink, titulo: e.target.value })}
+                  />
+                  <Input
+                    placeholder="https://exemplo.com"
+                    value={novoLink.url}
+                    onChange={(e) => setNovoLink({ ...novoLink, url: e.target.value })}
+                  />
+                  <Select
+                    value={novoLink.tipo}
+                    onValueChange={(value) => setNovoLink({ ...novoLink, tipo: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tipo do link" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="geral">Geral</SelectItem>
+                      <SelectItem value="drive">Google Drive</SelectItem>
+                      <SelectItem value="video">Vídeo</SelectItem>
+                      <SelectItem value="ferramenta">Ferramenta</SelectItem>
+                      <SelectItem value="site">Website</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex gap-2">
+                    <Button onClick={criarLink} className="flex-1">
+                      Adicionar Link
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowModal(false)}>
+                      Cancelar
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </CardHeader>
       <CardContent>

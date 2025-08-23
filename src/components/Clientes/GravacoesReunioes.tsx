@@ -23,9 +23,15 @@ interface GravacoesReunioesProps {
 export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+    };
+    checkAuth();
     loadGravacoes();
   }, [clienteId]);
 
@@ -73,10 +79,12 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
             <Video className="h-5 w-5" />
             Gravações de Reuniões
           </CardTitle>
-          <Button size="sm" variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Gravação
-          </Button>
+          {isAuthenticated && (
+            <Button size="sm" variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Gravação
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent>
