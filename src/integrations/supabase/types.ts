@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      auditoria_dados_sensíveis: {
+        Row: {
+          acao: string
+          campos_acessados: string[] | null
+          colaborador_id: string | null
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          motivo: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          acao: string
+          campos_acessados?: string[] | null
+          colaborador_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          motivo?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          acao?: string
+          campos_acessados?: string[] | null
+          colaborador_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          motivo?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_dados_sensíveis_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           ativo: boolean
@@ -533,6 +577,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_colaborador_dados_sensíveis: {
+        Args: { _colaborador_id: string; _motivo?: string }
+        Returns: {
+          cnpj: string
+          conta_bancaria: string
+          cpf: string
+          endereco: string
+          pix: string
+          razao_social: string
+          rg: string
+          telefone_contato: string
+          telefone_proximo: string
+        }[]
+      }
       has_sensitive_data_permission: {
         Args: {
           _permission_type: Database["public"]["Enums"]["tipo_acesso_dados"]
