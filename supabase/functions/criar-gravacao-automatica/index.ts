@@ -60,6 +60,14 @@ serve(async (req) => {
     const dataFormatada = agora.toLocaleDateString('pt-BR')
     const titulo = `Reunião ${cliente.nome} - ${dataFormatada}`
 
+    // Buscar o primeiro usuário admin para usar como created_by
+    const { data: adminUser } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('nivel_acesso', 'admin')
+      .limit(1)
+      .single()
+
     // Criar gravação
     const { data: gravacao, error: gravacaoError } = await supabase
       .from('gravacoes')
@@ -69,7 +77,7 @@ serve(async (req) => {
         cliente_id: cliente.id,
         descricao: `Gravação de reunião criada automaticamente`,
         tags: ['reuniao', 'automatico'],
-        created_by: null, // Sistema automático
+        created_by: adminUser?.user_id || '00000000-0000-0000-0000-000000000000', // Sistema automático
         visualizacoes: 0
       })
       .select()
