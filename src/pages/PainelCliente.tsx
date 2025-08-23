@@ -42,21 +42,36 @@ const PainelCliente = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('PainelCliente useEffect - clienteId:', clienteId);
     if (clienteId) {
       carregarDadosCliente();
       carregarUltimasAtualizacoes();
+    } else {
+      console.log('ClienteId não encontrado na URL');
+      setLoading(false);
     }
   }, [clienteId]);
 
   const carregarDadosCliente = async () => {
+    console.log('Carregando dados do cliente:', clienteId);
     try {
       const { data, error } = await supabase
         .from('clientes')
         .select('*')
         .eq('id', clienteId)
-        .single();
+        .maybeSingle();
 
+      console.log('Resultado da query cliente:', { data, error });
+      
       if (error) throw error;
+      
+      if (!data) {
+        console.log('Cliente não encontrado no banco de dados');
+        setCliente(null);
+        setLoading(false);
+        return;
+      }
+      
       setCliente(data);
 
       // Atualizar último acesso
@@ -72,6 +87,7 @@ const PainelCliente = () => {
         description: "Erro ao carregar dados do cliente",
         variant: "destructive",
       });
+      setLoading(false);
     }
   };
 

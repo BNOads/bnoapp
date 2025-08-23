@@ -10,6 +10,7 @@ import { NovoClienteModal } from "./NovoClienteModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
+import { useNavigate } from "react-router-dom";
 
 export const ClientesView = () => {
   const { canCreateContent } = useUserPermissions();
@@ -17,6 +18,7 @@ export const ClientesView = () => {
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { searchTerm, setSearchTerm, filteredItems } = useSearch(clientes, ['nome', 'nicho', 'categoria']);
 
   const carregarClientes = async () => {
@@ -292,6 +294,14 @@ export const ClientesView = () => {
                     )}
 
                     <div className="flex space-x-2">
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => navigate(`/painel/${cliente.id}`)}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        Ver Painel
+                      </Button>
                       {cliente.link_painel && (
                         <Button 
                           variant="outline" 
@@ -299,7 +309,7 @@ export const ClientesView = () => {
                           onClick={() => window.open(cliente.link_painel, '_blank')}
                         >
                           <ExternalLink className="h-3 w-3 mr-1" />
-                          Acessar Painel
+                          Link Externo
                         </Button>
                       )}
                       {cliente.pasta_drive_url && (
