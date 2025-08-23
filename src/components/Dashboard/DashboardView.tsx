@@ -1,11 +1,18 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
+import { NovoColaboradorModal } from "@/components/Colaboradores/NovoColaboradorModal";
+import { NovoClienteModal } from "@/components/Clientes/NovoClienteModal";
+import { NovoTreinamentoModal } from "@/components/Treinamentos/NovoTreinamentoModal";
 
 export const DashboardView = () => {
   const { canCreateContent } = useUserPermissions();
+  const [colaboradorModalOpen, setColaboradorModalOpen] = useState(false);
+  const [clienteModalOpen, setClienteModalOpen] = useState(false);
+  const [treinamentoModalOpen, setTreinamentoModalOpen] = useState(false);
   const stats = [
     { 
       title: "Colaboradores Ativos", 
@@ -98,21 +105,33 @@ export const DashboardView = () => {
               Ações Rápidas
             </h3>
             <div className="space-y-4">
-              <Button variant="card" className="w-full justify-start h-auto p-4">
+              <Button 
+                variant="card" 
+                className="w-full justify-start h-auto p-4"
+                onClick={() => setColaboradorModalOpen(true)}
+              >
                 <Users className="h-5 w-5 text-primary mr-3" />
                 <div className="text-left">
                   <p className="font-medium">Cadastrar Colaborador</p>
                   <p className="text-sm text-muted-foreground">Adicionar novo membro à equipe</p>
                 </div>
               </Button>
-              <Button variant="card" className="w-full justify-start h-auto p-4">
+              <Button 
+                variant="card" 
+                className="w-full justify-start h-auto p-4"
+                onClick={() => setClienteModalOpen(true)}
+              >
                 <Calendar className="h-5 w-5 text-primary mr-3" />
                 <div className="text-left">
                   <p className="font-medium">Criar Painel Cliente</p>
                   <p className="text-sm text-muted-foreground">Gerar novo painel personalizado</p>
                 </div>
               </Button>
-              <Button variant="card" className="w-full justify-start h-auto p-4">
+              <Button 
+                variant="card" 
+                className="w-full justify-start h-auto p-4"
+                onClick={() => setTreinamentoModalOpen(true)}
+              >
                 <BookOpen className="h-5 w-5 text-primary mr-3" />
                 <div className="text-left">
                   <p className="font-medium">Adicionar Treinamento</p>
@@ -150,6 +169,20 @@ export const DashboardView = () => {
           </div>
         </Card>
       </div>
+
+      {/* Modals */}
+      <NovoColaboradorModal 
+        open={colaboradorModalOpen}
+        onOpenChange={setColaboradorModalOpen}
+      />
+      <NovoClienteModal 
+        open={clienteModalOpen}
+        onOpenChange={setClienteModalOpen}
+      />
+      <NovoTreinamentoModal 
+        open={treinamentoModalOpen}
+        onOpenChange={setTreinamentoModalOpen}
+      />
     </div>
   );
 };

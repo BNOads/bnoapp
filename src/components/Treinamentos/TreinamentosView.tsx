@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +7,11 @@ import { Progress } from "@/components/ui/progress";
 import { BookOpen, Play, Users, Clock, Search, Plus, Star, Award } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
+import { NovoTreinamentoModal } from "./NovoTreinamentoModal";
 
 export const TreinamentosView = () => {
   const { canCreateContent } = useUserPermissions();
+  const [modalOpen, setModalOpen] = useState(false);
   const cursos = [
     {
       id: 1,
@@ -90,7 +93,11 @@ export const TreinamentosView = () => {
           </p>
         </div>
         {canCreateContent && (
-          <Button variant="hero" size="lg">
+          <Button 
+            variant="hero" 
+            size="lg"
+            onClick={() => setModalOpen(true)}
+          >
             <Plus className="h-5 w-5 mr-2" />
             Novo Curso
           </Button>
@@ -289,6 +296,15 @@ export const TreinamentosView = () => {
           </div>
         </Card>
       )}
+
+      {/* Modal */}
+      <NovoTreinamentoModal 
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onSuccess={() => {
+          console.log('Treinamento criado com sucesso!');
+        }}
+      />
     </div>
   );
 };

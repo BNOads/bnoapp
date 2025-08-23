@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
+import { NovoClienteModal } from "./NovoClienteModal";
 
 export const ClientesView = () => {
   const { canCreateContent } = useUserPermissions();
+  const [modalOpen, setModalOpen] = useState(false);
   const clientes = [
     {
       id: 1,
@@ -89,7 +92,11 @@ export const ClientesView = () => {
           </p>
         </div>
         {canCreateContent && (
-          <Button variant="hero" size="lg">
+          <Button 
+            variant="hero" 
+            size="lg"
+            onClick={() => setModalOpen(true)}
+          >
             <Plus className="h-5 w-5 mr-2" />
             Novo Painel
           </Button>
@@ -296,6 +303,15 @@ export const ClientesView = () => {
           </div>
         </div>
       </Card>
+
+      {/* Modal */}
+      <NovoClienteModal 
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onSuccess={() => {
+          console.log('Cliente criado com sucesso!');
+        }}
+      />
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +7,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Search, Plus, User, Mail, Calendar, BookOpen, MoreVertical } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
+import { NovoColaboradorModal } from "./NovoColaboradorModal";
 
 export const ColaboradoresView = () => {
   const { canCreateContent } = useUserPermissions();
+  const [modalOpen, setModalOpen] = useState(false);
   const colaboradores = [
     {
       id: 1,
@@ -85,7 +88,11 @@ export const ColaboradoresView = () => {
           </p>
         </div>
         {canCreateContent && (
-          <Button variant="hero" size="lg">
+          <Button 
+            variant="hero" 
+            size="lg"
+            onClick={() => setModalOpen(true)}
+          >
             <Plus className="h-5 w-5 mr-2" />
             Novo Colaborador
           </Button>
@@ -224,6 +231,16 @@ export const ColaboradoresView = () => {
           </div>
         </div>
       </Card>
+
+      {/* Modal */}
+      <NovoColaboradorModal 
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onSuccess={() => {
+          // Aqui você pode adicionar lógica para atualizar a lista
+          console.log('Colaborador criado com sucesso!');
+        }}
+      />
     </div>
   );
 };
