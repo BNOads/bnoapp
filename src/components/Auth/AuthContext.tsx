@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               .from('profiles')
               .select('id')
               .eq('user_id', session.user.id)
-              .single();
+              .maybeSingle();
             
             if (!existingProfile) {
               await createUserProfile(session.user);
@@ -60,6 +60,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const userData = user.user_metadata;
       
+      // Verificar se é email master primeiro
+      const { data: masterEmail } = await supabase
+        .from('master_emails')
+        .select('email')
+        .eq('email', user.email!)
+        .maybeSingle();
+      
+      const isMaster = !!masterEmail;
+      const nivelAcesso = isMaster ? 'admin' : 'cs';
+      
+      console.log('Criando perfil para:', user.email, 'Master:', isMaster);
+      
       // Criar perfil básico
       const { error: profileError } = await supabase
         .from('profiles')
@@ -67,7 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           user_id: user.id,
           nome: userData.nome || user.email?.split('@')[0] || 'Usuário',
           email: user.email!,
-          nivel_acesso: 'cs' // padrão
+          nivel_acesso: nivelAcesso
         });
 
       if (profileError) {
@@ -82,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           user_id: user.id,
           nome: userData.nome || user.email?.split('@')[0] || 'Usuário',
           email: user.email!,
-          nivel_acesso: 'cs'
+          nivel_acesso: nivelAcesso
         });
 
       if (colaboradorError) {
@@ -91,7 +103,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       toast({
         title: "Conta criada com sucesso!",
-        description: "Bem-vindo ao sistema BNOads.",
+        description: isMaster ? "Bem-vindo, Administrador!" : "Bem-vindo ao sistema BNOads.",
       });
     } catch (error) {
       console.error('Erro ao criar perfil do usuário:', error);

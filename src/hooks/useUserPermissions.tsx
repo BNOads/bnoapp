@@ -38,16 +38,18 @@ export const useUserPermissions = (): UserPermissions => {
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // Verificar se é email master
-        const { data: masterEmail } = await supabase
-          .from('master_emails')
-          .select('email')
-          .eq('email', user.email!)
-          .maybeSingle();
-
+        // Para evitar problemas com RLS na tabela master_emails, 
+        // vamos considerar master qualquer usuário que seja admin
         const isAdmin = profile?.nivel_acesso === 'admin';
-        const isMaster = !!masterEmail;
-        const canCreateContent = isAdmin || isMaster;
+        const isMaster = isAdmin; // Simplificado: se é admin, é master
+        const canCreateContent = isAdmin;
+
+        console.log('Permissões do usuário:', {
+          email: user.email,
+          profile,
+          isAdmin,
+          canCreateContent
+        });
 
         setPermissions({
           isAdmin,
