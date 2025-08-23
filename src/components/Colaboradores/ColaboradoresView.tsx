@@ -4,8 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Search, Plus, User, Mail, Calendar, BookOpen, MoreVertical } from "lucide-react";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 
 export const ColaboradoresView = () => {
+  const { canCreateContent } = useUserPermissions();
   const colaboradores = [
     {
       id: 1,
@@ -81,11 +84,16 @@ export const ColaboradoresView = () => {
             Gerencie a equipe e acompanhe o progresso dos treinamentos
           </p>
         </div>
-        <Button variant="hero" size="lg">
-          <Plus className="h-5 w-5 mr-2" />
-          Novo Colaborador
-        </Button>
+        {canCreateContent && (
+          <Button variant="hero" size="lg">
+            <Plus className="h-5 w-5 mr-2" />
+            Novo Colaborador
+          </Button>
+        )}
       </div>
+
+      {/* Indicator para usuários não-admin */}
+      {!canCreateContent && <ViewOnlyBadge />}
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">

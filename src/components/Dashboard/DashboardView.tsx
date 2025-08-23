@@ -1,8 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock } from "lucide-react";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 
 export const DashboardView = () => {
+  const { canCreateContent } = useUserPermissions();
   const stats = [
     { 
       title: "Colaboradores Ativos", 
@@ -56,6 +59,9 @@ export const DashboardView = () => {
         </div>
       </div>
 
+      {/* Indicator para usuários não-admin */}
+      {!canCreateContent && <ViewOnlyBadge />}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => {
@@ -85,38 +91,40 @@ export const DashboardView = () => {
 
       {/* Quick Actions & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Quick Actions */}
-        <Card className="p-6 bg-card border border-border shadow-card">
-          <h3 className="text-xl font-semibold mb-6 text-foreground">
-            Ações Rápidas
-          </h3>
-          <div className="space-y-4">
-            <Button variant="card" className="w-full justify-start h-auto p-4">
-              <Users className="h-5 w-5 text-primary mr-3" />
-              <div className="text-left">
-                <p className="font-medium">Cadastrar Colaborador</p>
-                <p className="text-sm text-muted-foreground">Adicionar novo membro à equipe</p>
-              </div>
-            </Button>
-            <Button variant="card" className="w-full justify-start h-auto p-4">
-              <Calendar className="h-5 w-5 text-primary mr-3" />
-              <div className="text-left">
-                <p className="font-medium">Criar Painel Cliente</p>
-                <p className="text-sm text-muted-foreground">Gerar novo painel personalizado</p>
-              </div>
-            </Button>
-            <Button variant="card" className="w-full justify-start h-auto p-4">
-              <BookOpen className="h-5 w-5 text-primary mr-3" />
-              <div className="text-left">
-                <p className="font-medium">Adicionar Treinamento</p>
-                <p className="text-sm text-muted-foreground">Criar novo curso ou material</p>
-              </div>
-            </Button>
-          </div>
-        </Card>
+        {/* Quick Actions - Visível apenas para admins */}
+        {canCreateContent && (
+          <Card className="p-6 bg-card border border-border shadow-card">
+            <h3 className="text-xl font-semibold mb-6 text-foreground">
+              Ações Rápidas
+            </h3>
+            <div className="space-y-4">
+              <Button variant="card" className="w-full justify-start h-auto p-4">
+                <Users className="h-5 w-5 text-primary mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Cadastrar Colaborador</p>
+                  <p className="text-sm text-muted-foreground">Adicionar novo membro à equipe</p>
+                </div>
+              </Button>
+              <Button variant="card" className="w-full justify-start h-auto p-4">
+                <Calendar className="h-5 w-5 text-primary mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Criar Painel Cliente</p>
+                  <p className="text-sm text-muted-foreground">Gerar novo painel personalizado</p>
+                </div>
+              </Button>
+              <Button variant="card" className="w-full justify-start h-auto p-4">
+                <BookOpen className="h-5 w-5 text-primary mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Adicionar Treinamento</p>
+                  <p className="text-sm text-muted-foreground">Criar novo curso ou material</p>
+                </div>
+              </Button>
+            </div>
+          </Card>
+        )}
 
         {/* Recent Activity */}
-        <Card className="p-6 bg-card border border-border shadow-card">
+        <Card className={`p-6 bg-card border border-border shadow-card ${!canCreateContent ? 'lg:col-span-2' : ''}`}>
           <h3 className="text-xl font-semibold mb-6 text-foreground">
             Atividade Recente
           </h3>

@@ -4,8 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen, Play, Users, Clock, Search, Plus, Star, Award } from "lucide-react";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 
 export const TreinamentosView = () => {
+  const { canCreateContent } = useUserPermissions();
   const cursos = [
     {
       id: 1,
@@ -86,11 +89,16 @@ export const TreinamentosView = () => {
             Gerencie cursos, aulas e acompanhe o progresso da equipe
           </p>
         </div>
-        <Button variant="hero" size="lg">
-          <Plus className="h-5 w-5 mr-2" />
-          Novo Curso
-        </Button>
+        {canCreateContent && (
+          <Button variant="hero" size="lg">
+            <Plus className="h-5 w-5 mr-2" />
+            Novo Curso
+          </Button>
+        )}
       </div>
+
+      {/* Indicator para usuários não-admin */}
+      {!canCreateContent && <ViewOnlyBadge />}
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -246,39 +254,41 @@ export const TreinamentosView = () => {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <Card className="bg-gradient-subtle border border-border shadow-card">
-        <div className="p-6 border-b border-border">
-          <h3 className="text-lg font-semibold text-foreground">
-            Ações Rápidas
-          </h3>
-        </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="card" className="h-auto p-4 justify-start">
-              <BookOpen className="h-5 w-5 text-primary mr-3" />
-              <div className="text-left">
-                <p className="font-medium">Criar Novo Curso</p>
-                <p className="text-sm text-muted-foreground">Adicionar conteúdo de treinamento</p>
-              </div>
-            </Button>
-            <Button variant="card" className="h-auto p-4 justify-start">
-              <Users className="h-5 w-5 text-primary mr-3" />
-              <div className="text-left">
-                <p className="font-medium">Relatório de Progresso</p>
-                <p className="text-sm text-muted-foreground">Visualizar desempenho da equipe</p>
-              </div>
-            </Button>
-            <Button variant="card" className="h-auto p-4 justify-start">
-              <Award className="h-5 w-5 text-primary mr-3" />
-              <div className="text-left">
-                <p className="font-medium">Certificações</p>
-                <p className="text-sm text-muted-foreground">Gerenciar certificados</p>
-              </div>
-            </Button>
+      {/* Quick Actions - Visível apenas para admins */}
+      {canCreateContent && (
+        <Card className="bg-gradient-subtle border border-border shadow-card">
+          <div className="p-6 border-b border-border">
+            <h3 className="text-lg font-semibold text-foreground">
+              Ações Rápidas
+            </h3>
           </div>
-        </div>
-      </Card>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button variant="card" className="h-auto p-4 justify-start">
+                <BookOpen className="h-5 w-5 text-primary mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Criar Novo Curso</p>
+                  <p className="text-sm text-muted-foreground">Adicionar conteúdo de treinamento</p>
+                </div>
+              </Button>
+              <Button variant="card" className="h-auto p-4 justify-start">
+                <Users className="h-5 w-5 text-primary mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Relatório de Progresso</p>
+                  <p className="text-sm text-muted-foreground">Visualizar desempenho da equipe</p>
+                </div>
+              </Button>
+              <Button variant="card" className="h-auto p-4 justify-start">
+                <Award className="h-5 w-5 text-primary mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Certificações</p>
+                  <p className="text-sm text-muted-foreground">Gerenciar certificados</p>
+                </div>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

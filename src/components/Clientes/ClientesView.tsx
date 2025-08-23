@@ -3,8 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye } from "lucide-react";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 
 export const ClientesView = () => {
+  const { canCreateContent } = useUserPermissions();
   const clientes = [
     {
       id: 1,
@@ -85,11 +88,16 @@ export const ClientesView = () => {
             Gerencie os painéis personalizados e acompanhe o acesso dos clientes
           </p>
         </div>
-        <Button variant="hero" size="lg">
-          <Plus className="h-5 w-5 mr-2" />
-          Novo Painel
-        </Button>
+        {canCreateContent && (
+          <Button variant="hero" size="lg">
+            <Plus className="h-5 w-5 mr-2" />
+            Novo Painel
+          </Button>
+        )}
       </div>
+
+      {/* Indicator para usuários não-admin */}
+      {!canCreateContent && <ViewOnlyBadge />}
 
       {/* Search */}
       <div className="flex flex-col sm:flex-row gap-4">
