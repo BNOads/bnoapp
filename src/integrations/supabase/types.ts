@@ -71,80 +71,109 @@ export type Database = {
       colaboradores: {
         Row: {
           ativo: boolean
-          cnpj: string | null
-          conta_bancaria: string | null
-          cpf: string | null
           created_at: string
           data_admissao: string | null
           data_nascimento: string | null
           email: string
-          endereco: string | null
           estado_civil: Database["public"]["Enums"]["estado_civil"] | null
           id: string
           nivel_acesso: Database["public"]["Enums"]["nivel_acesso"]
           nome: string
-          pix: string | null
           progresso_treinamentos: Json | null
-          razao_social: string | null
-          rg: string | null
           tamanho_camisa: string | null
-          telefone_contato: string | null
-          telefone_proximo: string | null
           tempo_plataforma: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
           ativo?: boolean
-          cnpj?: string | null
-          conta_bancaria?: string | null
-          cpf?: string | null
           created_at?: string
           data_admissao?: string | null
           data_nascimento?: string | null
           email: string
-          endereco?: string | null
           estado_civil?: Database["public"]["Enums"]["estado_civil"] | null
           id?: string
           nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
           nome: string
-          pix?: string | null
           progresso_treinamentos?: Json | null
-          razao_social?: string | null
-          rg?: string | null
           tamanho_camisa?: string | null
-          telefone_contato?: string | null
-          telefone_proximo?: string | null
           tempo_plataforma?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
           ativo?: boolean
-          cnpj?: string | null
-          conta_bancaria?: string | null
-          cpf?: string | null
           created_at?: string
           data_admissao?: string | null
           data_nascimento?: string | null
           email?: string
-          endereco?: string | null
           estado_civil?: Database["public"]["Enums"]["estado_civil"] | null
           id?: string
           nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
           nome?: string
-          pix?: string | null
           progresso_treinamentos?: Json | null
-          razao_social?: string | null
-          rg?: string | null
           tamanho_camisa?: string | null
-          telefone_contato?: string | null
-          telefone_proximo?: string | null
           tempo_plataforma?: number | null
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      colaboradores_dados_sensíveis: {
+        Row: {
+          cnpj: string | null
+          colaborador_id: string
+          conta_bancaria: string | null
+          cpf: string | null
+          created_at: string
+          endereco: string | null
+          id: string
+          pix: string | null
+          razao_social: string | null
+          rg: string | null
+          telefone_contato: string | null
+          telefone_proximo: string | null
+          updated_at: string
+        }
+        Insert: {
+          cnpj?: string | null
+          colaborador_id: string
+          conta_bancaria?: string | null
+          cpf?: string | null
+          created_at?: string
+          endereco?: string | null
+          id?: string
+          pix?: string | null
+          razao_social?: string | null
+          rg?: string | null
+          telefone_contato?: string | null
+          telefone_proximo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cnpj?: string | null
+          colaborador_id?: string
+          conta_bancaria?: string | null
+          cpf?: string | null
+          created_at?: string
+          endereco?: string | null
+          id?: string
+          pix?: string | null
+          razao_social?: string | null
+          rg?: string | null
+          telefone_contato?: string | null
+          telefone_proximo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "colaboradores_dados_sensíveis_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: true
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documentos: {
         Row: {
@@ -330,6 +359,42 @@ export type Database = {
           },
         ]
       }
+      permissoes_dados_sensíveis: {
+        Row: {
+          ativo: boolean
+          campos_permitidos: string[] | null
+          concedido_por: string | null
+          created_at: string
+          id: string
+          motivo: string | null
+          tipo_acesso: Database["public"]["Enums"]["tipo_acesso_dados"]
+          user_id: string
+          valido_ate: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          campos_permitidos?: string[] | null
+          concedido_por?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          tipo_acesso?: Database["public"]["Enums"]["tipo_acesso_dados"]
+          user_id: string
+          valido_ate?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          campos_permitidos?: string[] | null
+          concedido_por?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          tipo_acesso?: Database["public"]["Enums"]["tipo_acesso_dados"]
+          user_id?: string
+          valido_ate?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ativo: boolean
@@ -479,6 +544,11 @@ export type Database = {
         | "viuvo"
         | "uniao_estavel"
       nivel_acesso: "admin" | "gestor_trafego" | "cs" | "designer"
+      tipo_acesso_dados:
+        | "leitura_propria"
+        | "leitura_limitada"
+        | "leitura_completa"
+        | "administracao"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -615,6 +685,12 @@ export const Constants = {
         "uniao_estavel",
       ],
       nivel_acesso: ["admin", "gestor_trafego", "cs", "designer"],
+      tipo_acesso_dados: [
+        "leitura_propria",
+        "leitura_limitada",
+        "leitura_completa",
+        "administracao",
+      ],
     },
   },
 } as const
