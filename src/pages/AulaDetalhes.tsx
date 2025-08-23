@@ -40,15 +40,18 @@ export default function AulaDetalhes() {
   }, [aulaId, cursoId]);
 
   const carregarDados = async () => {
+    console.log('carregarDados iniciado', { aulaId, cursoId });
     try {
       // Carregar dados da aula
       const { data: aulaData, error: aulaError } = await supabase
         .from('aulas')
         .select('*')
         .eq('id', aulaId)
-        .single();
+        .maybeSingle();
 
+      console.log('Dados da aula:', { aulaData, aulaError });
       if (aulaError) throw aulaError;
+      if (!aulaData) throw new Error('Aula não encontrada');
       setAula(aulaData);
 
       // Carregar dados do treinamento
@@ -56,19 +59,25 @@ export default function AulaDetalhes() {
         .from('treinamentos')
         .select('id, titulo')
         .eq('id', cursoId)
-        .single();
+        .maybeSingle();
 
+      console.log('Dados do treinamento:', { treinamentoData, treinamentoError });
       if (treinamentoError) throw treinamentoError;
+      if (!treinamentoData) throw new Error('Treinamento não encontrado');
       setTreinamento(treinamentoData);
 
       // Verificar se a aula está concluída
+      const user = await supabase.auth.getUser();
+      console.log('Usuario para progresso:', user.data.user?.id);
+      
       const { data: progressoData, error: progressoError } = await supabase
         .from('progresso_aulas')
         .select('concluido')
         .eq('aula_id', aulaId)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('user_id', user.data.user?.id)
         .maybeSingle();
 
+      console.log('Dados do progresso:', { progressoData, progressoError });
       if (progressoError) throw progressoError;
       setConcluida(progressoData?.concluido || false);
 
@@ -85,12 +94,17 @@ export default function AulaDetalhes() {
   };
 
   const marcarComoConcluida = async () => {
+    console.log('marcarComoConcluida iniciado', { aula, marcandoConcluida, concluida });
     if (!aula || marcandoConcluida) return;
 
     setMarcandoConcluida(true);
     try {
       const user = await supabase.auth.getUser();
+      console.log('Usuario obtido:', user.data.user?.id);
       if (!user.data.user) throw new Error('Usuário não autenticado');
+
+      const novoStatus = !concluida;
+      console.log('Novo status:', novoStatus);
 
       const { error } = await supabase
         .from('progresso_aulas')
@@ -98,15 +112,18 @@ export default function AulaDetalhes() {
           user_id: user.data.user.id,
           aula_id: aula.id,
           treinamento_id: aula.treinamento_id,
-          concluido: !concluida
+          concluido: novoStatus
+        }, {
+          onConflict: 'user_id,aula_id'
         });
 
+      console.log('Resultado upsert:', { error });
       if (error) throw error;
 
-      setConcluida(!concluida);
+      setConcluida(novoStatus);
       toast({
         title: "Sucesso",
-        description: concluida ? "Aula desmarcada como concluída" : "Aula marcada como concluída",
+        description: novoStatus ? "Aula marcada como concluída" : "Aula desmarcada como concluída",
       });
 
     } catch (error) {
@@ -137,7 +154,7 @@ export default function AulaDetalhes() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header activeTab="treinamentos" onTabChange={(tab) => navigate(`/${tab}`)} />
+      <Header activeTab="treinamentos" onTabChange={(tab) => { console.log('Header navigation clicked:', tab); navigate(`/${tab}`); }} />
       <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-6">
         <Button 

@@ -52,15 +52,18 @@ export default function CursoDetalhes() {
   }, [cursoId]);
 
   const carregarDados = async () => {
+    console.log('CursoDetalhes carregarDados iniciado', { cursoId });
     try {
       // Carregar dados do treinamento
       const { data: treinamentoData, error: treinamentoError } = await supabase
         .from('treinamentos')
         .select('*')
         .eq('id', cursoId)
-        .single();
+        .maybeSingle();
 
+      console.log('Dados do treinamento:', { treinamentoData, treinamentoError });
       if (treinamentoError) throw treinamentoError;
+      if (!treinamentoData) throw new Error('Treinamento não encontrado');
       setTreinamento(treinamentoData);
 
       // Carregar aulas
@@ -71,15 +74,21 @@ export default function CursoDetalhes() {
         .eq('ativo', true)
         .order('ordem');
 
+      console.log('Dados das aulas:', { aulasData, aulasError });
       if (aulasError) throw aulasError;
       setAulas(aulasData || []);
 
       // Carregar progresso do usuário
+      const user = await supabase.auth.getUser();
+      console.log('Usuario para progresso:', user.data.user?.id);
+      
       const { data: progressoData, error: progressoError } = await supabase
         .from('progresso_aulas')
         .select('aula_id, concluido')
-        .eq('treinamento_id', cursoId);
+        .eq('treinamento_id', cursoId)
+        .eq('user_id', user.data.user?.id);
 
+      console.log('Dados do progresso das aulas:', { progressoData, progressoError });
       if (progressoError) throw progressoError;
       setProgressoAulas(progressoData || []);
 
@@ -109,7 +118,7 @@ export default function CursoDetalhes() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header activeTab="treinamentos" onTabChange={(tab) => navigate(`/${tab}`)} />
+      <Header activeTab="treinamentos" onTabChange={(tab) => { console.log('Header navigation clicked:', tab); navigate(`/${tab}`); }} />
       <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-6">
         <Button 
