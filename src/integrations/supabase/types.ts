@@ -533,7 +533,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_sensitive_data_permission: {
+        Args: {
+          _permission_type: Database["public"]["Enums"]["tipo_acesso_dados"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin_with_valid_reason: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       categoria_cliente: "negocio_local" | "infoproduto"
