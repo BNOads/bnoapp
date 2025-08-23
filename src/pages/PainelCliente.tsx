@@ -3,7 +3,8 @@ import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, ArrowLeft, LogIn } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MessageCircle, ArrowLeft, LogIn, FileImage } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Layout/Header";
@@ -11,6 +12,7 @@ import { StatusCliente } from "@/components/Clientes/StatusCliente";
 import { GravacoesReunioes } from "@/components/Clientes/GravacoesReunioes";
 import { TarefasList } from "@/components/Clientes/TarefasList";
 import { LinksImportantes } from "@/components/Clientes/LinksImportantes";
+import { CriativosView } from "@/components/Criativos/CriativosView";
 import { useNavigate } from "react-router-dom";
 import type { User } from "@supabase/supabase-js";
 
@@ -358,14 +360,45 @@ const PainelCliente = () => {
               </CardContent>
             </Card>
 
-            {/* Gravações de Reuniões */}
-            <GravacoesReunioes clienteId={cliente.id} />
-
-            {/* Tarefas da Equipe */}
-            <TarefasList clienteId={cliente.id} tipo="equipe" />
-
-            {/* Tarefas do Cliente */}
-            <TarefasList clienteId={cliente.id} tipo="cliente" />
+            {/* Abas do Conteúdo */}
+            <Tabs defaultValue="gravacoes" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
+                <TabsTrigger value="gravacoes" className="text-xs sm:text-sm">
+                  <span className="hidden sm:inline">Gravações</span>
+                  <span className="sm:hidden">Grav</span>
+                </TabsTrigger>
+                <TabsTrigger value="tarefas" className="text-xs sm:text-sm">
+                  <span className="hidden sm:inline">Tarefas</span>
+                  <span className="sm:hidden">Task</span>
+                </TabsTrigger>
+                <TabsTrigger value="criativos" className="text-xs sm:text-sm">
+                  <FileImage className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Criativos</span>
+                  <span className="sm:hidden">Criat</span>
+                </TabsTrigger>
+                <TabsTrigger value="links" className="text-xs sm:text-sm">
+                  <span className="hidden sm:inline">Links</span>
+                  <span className="sm:hidden">Link</span>
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="gravacoes" className="space-y-6 mt-6">
+                <GravacoesReunioes clienteId={cliente.id} />
+              </TabsContent>
+              
+              <TabsContent value="tarefas" className="space-y-6 mt-6">
+                <TarefasList clienteId={cliente.id} tipo="equipe" />
+                <TarefasList clienteId={cliente.id} tipo="cliente" />
+              </TabsContent>
+              
+              <TabsContent value="criativos" className="mt-6">
+                <CriativosView clienteId={cliente.id} />
+              </TabsContent>
+              
+              <TabsContent value="links" className="mt-6">
+                <LinksImportantes clienteId={cliente.id} />
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Sidebar */}
@@ -404,9 +437,6 @@ const PainelCliente = () => {
                 )}
               </CardContent>
             </Card>
-
-            {/* Links Importantes */}
-            <LinksImportantes clienteId={cliente.id} />
           </div>
         </div>
       </div>

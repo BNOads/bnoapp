@@ -287,6 +287,48 @@ export type Database = {
           },
         ]
       }
+      criativos: {
+        Row: {
+          ativo: boolean
+          cliente_id: string
+          created_at: string
+          created_by: string
+          descricao: string | null
+          id: string
+          link_externo: string
+          nome: string
+          tags: string[] | null
+          tipo_criativo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cliente_id: string
+          created_at?: string
+          created_by: string
+          descricao?: string | null
+          id?: string
+          link_externo: string
+          nome: string
+          tags?: string[] | null
+          tipo_criativo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cliente_id?: string
+          created_at?: string
+          created_by?: string
+          descricao?: string | null
+          id?: string
+          link_externo?: string
+          nome?: string
+          tags?: string[] | null
+          tipo_criativo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       documentos: {
         Row: {
           cliente_id: string | null
