@@ -114,6 +114,7 @@ export type Database = {
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at: string
           created_by: string | null
+          drive_folder_id: string | null
           etapa_atual: string | null
           funis_trabalhando: string[] | null
           id: string
@@ -134,6 +135,7 @@ export type Database = {
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
           created_by?: string | null
+          drive_folder_id?: string | null
           etapa_atual?: string | null
           funis_trabalhando?: string[] | null
           id?: string
@@ -154,6 +156,7 @@ export type Database = {
           categoria?: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
           created_by?: string | null
+          drive_folder_id?: string | null
           etapa_atual?: string | null
           funis_trabalhando?: string[] | null
           id?: string
