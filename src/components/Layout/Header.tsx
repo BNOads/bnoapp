@@ -1,6 +1,12 @@
-import { Users, Calendar, FileText, LayoutDashboard } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import bnoadsLogo from "@/assets/bnoads-logo.png";
+import { useAuth } from "@/components/Auth/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
   activeTab: string;
@@ -8,6 +14,7 @@ interface HeaderProps {
 }
 
 export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
+  const { user, signOut } = useAuth();
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'colaboradores', label: 'Colaboradores', icon: Users },
@@ -33,23 +40,45 @@ export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
             </div>
           </div>
 
-          <nav className="flex space-x-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <Button
-                  key={tab.id}
-                  variant={activeTab === tab.id ? "hero" : "ghost"}
-                  size="default"
-                  onClick={() => onTabChange(tab.id)}
-                  className="flex items-center space-x-2"
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
+          <div className="flex items-center space-x-4">
+            <nav className="flex space-x-2">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <Button
+                    key={tab.id}
+                    variant={activeTab === tab.id ? "hero" : "ghost"}
+                    size="default"
+                    onClick={() => onTabChange(tab.id)}
+                    className="flex items-center space-x-2"
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{tab.label}</span>
+                  </Button>
+                );
+              })}
+            </nav>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+                  <User className="h-4 w-4" />
+                  <span className="hidden md:inline">
+                    {user?.email?.split('@')[0]}
+                  </span>
                 </Button>
-              );
-            })}
-          </nav>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={signOut}
+                  className="flex items-center space-x-2 cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>
