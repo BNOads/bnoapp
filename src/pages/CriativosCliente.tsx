@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Copy } from "lucide-react";
-import { CriativosView } from "@/components/Criativos/CriativosView";
+import { ArrowLeft } from "lucide-react";
+import { DriveCreativesView } from "@/components/Criativos/DriveCreativesView";
 import { Header } from "@/components/Layout/Header";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,7 +40,7 @@ export default function CriativosCliente() {
           </div>
         </div>
 
-        <CriativosView clienteId={clienteId} />
+        <DriveCreativesView clienteId={clienteId} />
       </div>
     </div>
   );
