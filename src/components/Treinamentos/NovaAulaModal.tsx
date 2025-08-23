@@ -29,6 +29,17 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validação adicional para vídeos
+    if (formData.tipo_conteudo === "video" && !formData.url_youtube.trim()) {
+      toast({
+        title: "Erro de validação",
+        description: "URL do YouTube é obrigatória para aulas em vídeo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
@@ -48,16 +59,22 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
 
       const proximaOrdem = ultimaAula ? ultimaAula.ordem + 1 : 1;
 
+      // Preparar dados para inserção
+      const aulaData = {
+        titulo: formData.titulo,
+        descricao: formData.descricao,
+        tipo_conteudo: formData.tipo_conteudo,
+        treinamento_id: treinamentoId,
+        ordem: proximaOrdem,
+        created_by: user.data.user.id,
+        duracao: formData.duracao,
+        // Só incluir url_youtube se for um vídeo
+        ...(formData.tipo_conteudo === "video" && { url_youtube: formData.url_youtube })
+      };
+
       const { error } = await supabase
         .from('aulas')
-        .insert([
-          {
-            ...formData,
-            treinamento_id: treinamentoId,
-            ordem: proximaOrdem,
-            created_by: user.data.user.id,
-          },
-        ]);
+        .insert([aulaData]);
 
       if (error) throw error;
 
@@ -75,6 +92,7 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
         duracao: 0,
       });
 
+      onClose();
       onSuccess();
     } catch (error) {
       console.error('Erro ao criar aula:', error);
@@ -144,7 +162,6 @@ export function NovaAulaModal({ isOpen, onClose, treinamentoId, onSuccess }: Nov
                 value={formData.url_youtube}
                 onChange={(e) => setFormData({ ...formData, url_youtube: e.target.value })}
                 placeholder="https://www.youtube.com/watch?v=..."
-                required
               />
             </div>
           )}
