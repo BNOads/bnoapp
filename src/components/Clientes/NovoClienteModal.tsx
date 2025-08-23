@@ -71,26 +71,38 @@ export const NovoClienteModal = ({
       }
 
       // Disparar webhook após criação bem-sucedida
+      console.log('Disparando webhook para cliente criado:', formData.nome);
       try {
-        await fetch('https://automacao.bnoads.com.br/webhook-test/1c055879-2702-4588-b8bf-b22d18d7511e', {
+        const webhookData = {
+          evento: 'cliente_criado',
+          cliente: {
+            nome: formData.nome,
+            categoria: formData.categoria,
+            nicho: formData.nicho,
+            etapa_atual: formData.etapa_atual,
+            link_painel: linkPainel,
+          },
+          timestamp: new Date().toISOString(),
+          created_by: user?.id,
+        };
+        
+        console.log('Dados do webhook:', webhookData);
+        
+        const response = await fetch('https://automacao.bnoads.com.br/webhook-test/1c055879-2702-4588-b8bf-b22d18d7511e', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          mode: 'no-cors',
-          body: JSON.stringify({
-            evento: 'cliente_criado',
-            cliente: {
-              nome: formData.nome,
-              categoria: formData.categoria,
-              nicho: formData.nicho,
-              etapa_atual: formData.etapa_atual,
-              link_painel: linkPainel,
-            },
-            timestamp: new Date().toISOString(),
-            created_by: user?.id,
-          }),
+          body: JSON.stringify(webhookData),
         });
+        
+        console.log('Resposta do webhook:', response.status, response.statusText);
+        
+        if (!response.ok) {
+          throw new Error(`Webhook falhou: ${response.status} ${response.statusText}`);
+        }
+        
+        console.log('Webhook enviado com sucesso!');
       } catch (webhookError) {
         console.error('Erro ao disparar webhook:', webhookError);
         // Não interrompe o fluxo se o webhook falhar
