@@ -2,18 +2,20 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Video, Play, Calendar, Clock, Plus, ExternalLink } from "lucide-react";
+import { Video, Play, Calendar, Clock, Plus, ExternalLink, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { NovaGravacaoModal } from "./NovaGravacaoModal";
 
-interface DriveFile {
+interface Gravacao {
   id: string;
-  name: string;
-  mimeType: string;
-  modifiedTime: string;
-  size?: string;
-  webViewLink: string;
-  thumbnailLink?: string;
+  titulo: string;
+  descricao?: string;
+  url_gravacao: string;
+  duracao?: number;
+  tags?: string[];
+  created_at: string;
+  visualizacoes: number;
 }
 
 interface GravacoesReunioesProps {
@@ -21,10 +23,10 @@ interface GravacoesReunioesProps {
 }
 
 export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
-  const [gravacoes, setGravacoes] = useState<DriveFile[]>([]);
+  const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [driveFolderId, setDriveFolderId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -33,87 +35,82 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
       setIsAuthenticated(!!user);
     };
     checkAuth();
-    loadClienteData();
+    loadGravacoes();
   }, [clienteId]);
 
-  useEffect(() => {
-    if (driveFolderId) {
-      loadGravacoesDrive();
-    }
-  }, [driveFolderId]);
-
-  const loadClienteData = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('drive_folder_id')
-        .eq('id', clienteId)
-        .single();
-
-      if (error) throw error;
-      setDriveFolderId(data?.drive_folder_id || null);
-    } catch (error) {
-      console.error('Erro ao carregar dados do cliente:', error);
-    }
-  };
-
-  const loadGravacoesDrive = async () => {
-    if (!driveFolderId) return;
-    
+  const loadGravacoes = async () => {
     try {
       setLoading(true);
       
-      // Extrair ID da pasta do link compartilhado
-      const folderId = driveFolderId.includes('/folders/') 
-        ? driveFolderId.split('/folders/')[1].split('?')[0]
-        : driveFolderId;
-      
-      // Buscar arquivos da pasta do Google Drive usando API pública
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&fields=files(id,name,mimeType,modifiedTime,size,webViewLink,thumbnailLink)&key=AIzaSyBx7Gq7aBxVq9dYZjk8XkXf6YZg4Nq3jFI`
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        // Filtrar apenas arquivos de vídeo
-        const videoFiles = data.files?.filter((file: DriveFile) => 
-          file.mimeType.startsWith('video/') || 
-          file.name.toLowerCase().includes('.mp4') ||
-          file.name.toLowerCase().includes('.mov') ||
-          file.name.toLowerCase().includes('.avi') ||
-          file.name.toLowerCase().includes('.mkv')
-        ) || [];
-        
-        setGravacoes(videoFiles);
-      } else {
-        console.error('Erro ao buscar arquivos do Drive');
-        setGravacoes([]);
+      const { data, error } = await supabase
+        .from('gravacoes')
+        .select('*')
+        .eq('cliente_id', clienteId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
       }
+
+      setGravacoes(data || []);
     } catch (error) {
-      console.error('Erro ao carregar gravações do Drive:', error);
+      console.error('Erro ao carregar gravações:', error);
       setGravacoes([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatFileSize = (bytes?: string) => {
-    if (!bytes) return '';
-    
-    const size = parseInt(bytes);
-    const mb = size / (1024 * 1024);
-    
-    if (mb > 1024) {
-      return `${(mb / 1024).toFixed(1)} GB`;
+  const handleDeleteGravacao = async (gravacaoId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta gravação?')) {
+      return;
     }
-    return `${mb.toFixed(1)} MB`;
+
+    try {
+      const { error } = await supabase
+        .from('gravacoes')
+        .delete()
+        .eq('id', gravacaoId);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Gravação excluída",
+        description: "A gravação foi excluída com sucesso.",
+      });
+
+      loadGravacoes();
+    } catch (error: any) {
+      console.error('Erro ao excluir gravação:', error);
+      toast({
+        title: "Erro ao excluir gravação",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const formatDuration = (minutes?: number) => {
+    if (!minutes) return '';
+    
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${mins}min`;
+    }
+    return `${mins}min`;
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -130,7 +127,11 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
             Gravações de Reuniões
           </CardTitle>
           {isAuthenticated && (
-            <Button size="sm" variant="outline">
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => setModalOpen(true)}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Nova Gravação
             </Button>
@@ -138,64 +139,98 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
         </div>
       </CardHeader>
       <CardContent>
-        {!driveFolderId ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Video className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Pasta do Google Drive não configurada</p>
-            <p className="text-sm">Configure a pasta do Drive para visualizar as gravações</p>
-          </div>
-        ) : gravacoes.length === 0 ? (
+        {gravacoes.length === 0 && !loading ? (
           <div className="text-center py-8 text-muted-foreground">
             <Video className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>Nenhuma gravação encontrada</p>
-            <p className="text-sm">As gravações da pasta do Drive aparecerão aqui</p>
+            <p className="text-sm">As gravações de reuniões aparecerão aqui</p>
+            {isAuthenticated && (
+              <Button 
+                className="mt-4" 
+                variant="outline"
+                onClick={() => setModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar primeira gravação
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
-            {gravacoes.map((arquivo) => (
-              <div key={arquivo.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+            {gravacoes.map((gravacao) => (
+              <div key={gravacao.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
                 <div className="flex items-start gap-4">
                   <div className="w-24 h-16 bg-muted rounded-lg flex items-center justify-center">
-                    {arquivo.thumbnailLink ? (
-                      <img 
-                        src={arquivo.thumbnailLink} 
-                        alt={arquivo.name}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    ) : (
-                      <Play className="h-6 w-6 text-muted-foreground" />
-                    )}
+                    <Play className="h-6 w-6 text-muted-foreground" />
                   </div>
                   
                   <div className="flex-1">
-                    <h4 className="font-semibold mb-1">{arquivo.name}</h4>
+                    <h4 className="font-semibold mb-1">{gravacao.titulo}</h4>
                     
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    {gravacao.descricao && (
+                      <p className="text-sm text-muted-foreground mb-2">{gravacao.descricao}</p>
+                    )}
+                    
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        {formatDate(arquivo.modifiedTime)}
+                        {formatDate(gravacao.created_at)}
                       </div>
-                      {arquivo.size && (
+                      {gravacao.duracao && (
                         <div className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          {formatFileSize(arquivo.size)}
+                          {formatDuration(gravacao.duracao)}
                         </div>
                       )}
+                      <div className="flex items-center gap-1">
+                        <Play className="h-4 w-4" />
+                        {gravacao.visualizacoes} visualizações
+                      </div>
                     </div>
+
+                    {gravacao.tags && gravacao.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {gravacao.tags.map((tag, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   
-                  <Button size="sm" variant="outline" asChild>
-                    <a href={arquivo.webViewLink} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Assistir
-                    </a>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={gravacao.url_gravacao} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Assistir
+                      </a>
+                    </Button>
+                    {isAuthenticated && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleDeleteGravacao(gravacao.id)}
+                        className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </CardContent>
+
+      {/* Modal */}
+      <NovaGravacaoModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        clienteId={clienteId}
+        onSuccess={loadGravacoes}
+      />
     </Card>
   );
 };
