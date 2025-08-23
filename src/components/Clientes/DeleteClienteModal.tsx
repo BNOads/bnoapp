@@ -38,6 +38,17 @@ export const DeleteClienteModal = ({
     try {
       setLoading(true);
 
+      // Primeiro, excluir todas as tarefas associadas ao cliente
+      const { error: tarefasError } = await supabase
+        .from('tarefas')
+        .delete()
+        .eq('cliente_id', cliente.id);
+
+      if (tarefasError) {
+        throw tarefasError;
+      }
+
+      // Depois, excluir o cliente
       const { error } = await supabase
         .from('clientes')
         .delete()
