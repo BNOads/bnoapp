@@ -23,11 +23,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/painel/:clienteId" element={
-              <ProtectedRoute>
-                <PainelCliente />
-              </ProtectedRoute>
-            } />
+            <Route path="/painel/:clienteId" element={<PainelCliente />} />
             <Route path="/curso/:cursoId" element={
               <ProtectedRoute>
                 <CursoDetalhes />
