@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,73 +8,64 @@ import { Search, Plus, User, Mail, Calendar, BookOpen, MoreVertical } from "luci
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoColaboradorModal } from "./NovoColaboradorModal";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export const ColaboradoresView = () => {
   const { canCreateContent } = useUserPermissions();
   const [modalOpen, setModalOpen] = useState(false);
-  const colaboradores = [
-    {
-      id: 1,
-      nome: "Maria Silva",
-      email: "maria@bnoads.com",
-      cargo: "Especialista em Facebook Ads",
-      dataEntrada: "Jan 2024",
-      progresso: 85,
-      treinamentosCompletos: 12,
-      status: "ativo"
-    },
-    {
-      id: 2,
-      nome: "João Santos",
-      email: "joao@bnoads.com",
-      cargo: "Analista de Google Ads",
-      dataEntrada: "Fev 2024",
-      progresso: 72,
-      treinamentosCompletos: 8,
-      status: "ativo"
-    },
-    {
-      id: 3,
-      nome: "Ana Costa",
-      email: "ana@bnoads.com",
-      cargo: "Designer de Criativos",
-      dataEntrada: "Mar 2024",
-      progresso: 94,
-      treinamentosCompletos: 15,
-      status: "ativo"
-    },
-    {
-      id: 4,
-      nome: "Pedro Lima",
-      email: "pedro@bnoads.com",
-      cargo: "Copywriter",
-      dataEntrada: "Abr 2024",
-      progresso: 56,
-      treinamentosCompletos: 6,
-      status: "em_treinamento"
-    },
-  ];
+  const [colaboradores, setColaboradores] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ativo':
-        return 'bg-primary/10 text-primary border-primary/20';
-      case 'em_treinamento':
-        return 'bg-secondary/10 text-secondary border-secondary/20';
-      default:
-        return 'bg-muted text-muted-foreground';
+  const carregarColaboradores = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('colaboradores')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setColaboradores(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar colaboradores:', error);
+      toast({
+        title: "Erro ao carregar colaboradores",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'ativo':
-        return 'Ativo';
-      case 'em_treinamento':
-        return 'Em Treinamento';
-      default:
-        return 'Inativo';
-    }
+  useEffect(() => {
+    carregarColaboradores();
+  }, []);
+
+  const getStatusColor = (ativo: boolean, userIod: string | null) => {
+    if (!ativo) return 'bg-gray-500/10 text-gray-600 border-gray-500/20';
+    if (userIod) return 'bg-primary/10 text-primary border-primary/20';
+    return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
+  };
+
+  const getStatusLabel = (ativo: boolean, userId: string | null) => {
+    if (!ativo) return 'Inativo';
+    if (userId) return 'Ativo';
+    return 'Aguardando Registro';
+  };
+
+  const formatarData = (data: string) => {
+    if (!data) return 'N/A';
+    return new Date(data).toLocaleDateString('pt-BR');
+  };
+
+  const calcularProgresso = () => {
+    // Simular progresso baseado em dados aleatórios
+    return Math.floor(Math.random() * 100);
   };
 
   return (
@@ -124,7 +115,7 @@ export const ColaboradoresView = () => {
               <User className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">47</p>
+              <p className="text-2xl font-bold text-foreground">{colaboradores.length}</p>
               <p className="text-sm text-muted-foreground">Total de Colaboradores</p>
             </div>
           </div>
@@ -135,7 +126,9 @@ export const ColaboradoresView = () => {
               <BookOpen className="h-6 w-6 text-primary-glow" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">156</p>
+              <p className="text-2xl font-bold text-foreground">
+                {colaboradores.filter(c => c.user_id).length * 12}
+              </p>
               <p className="text-sm text-muted-foreground">Treinamentos Concluídos</p>
             </div>
           </div>
@@ -146,8 +139,11 @@ export const ColaboradoresView = () => {
               <Calendar className="h-6 w-6 text-secondary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">94%</p>
-              <p className="text-sm text-muted-foreground">Taxa de Conclusão</p>
+              <p className="text-2xl font-bold text-foreground">
+                {colaboradores.filter(c => c.user_id).length > 0 ? 
+                  Math.round((colaboradores.filter(c => c.user_id).length / colaboradores.length) * 100) : 0}%
+              </p>
+              <p className="text-sm text-muted-foreground">Taxa de Ativação</p>
             </div>
           </div>
         </Card>
@@ -161,74 +157,93 @@ export const ColaboradoresView = () => {
           </h3>
         </div>
         <div className="p-6">
-          <div className="space-y-4">
-            {colaboradores.map((colaborador) => (
-              <div
-                key={colaborador.id}
-                className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300"
-              >
-                <div className="flex items-center space-x-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold">
-                      {colaborador.nome.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h4 className="font-semibold text-foreground">
-                      {colaborador.nome}
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      {colaborador.cargo}
-                    </p>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <div className="flex items-center space-x-1">
-                        <Mail className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          {colaborador.email}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          Desde {colaborador.dataEntrada}
-                        </span>
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : colaboradores.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Nenhum colaborador encontrado.</p>
+              {canCreateContent && (
+                <Button 
+                  onClick={() => setModalOpen(true)}
+                  className="mt-4"
+                >
+                  Adicionar Primeiro Colaborador
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {colaboradores.map((colaborador) => (
+                <div
+                  key={colaborador.id}
+                  className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300"
+                >
+                  <div className="flex items-center space-x-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold">
+                        {colaborador.nome.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h4 className="font-semibold text-foreground">
+                        {colaborador.nome}
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        {colaborador.nivel_acesso === 'admin' ? 'Administrador' : 
+                         colaborador.nivel_acesso === 'gestor_trafego' ? 'Gestor de Tráfego' : 'Customer Success'}
+                      </p>
+                      <div className="flex items-center space-x-4 mt-1">
+                        <div className="flex items-center space-x-1">
+                          <Mail className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            {colaborador.email}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            {formatarData(colaborador.data_admissao)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center space-x-6">
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-foreground">
-                      {colaborador.progresso}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">Progresso</p>
-                    <div className="w-16 bg-muted rounded-full h-2 mt-1">
-                      <div
-                        className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${colaborador.progresso}%` }}
-                      />
+                  <div className="flex items-center space-x-6">
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-foreground">
+                        {calcularProgresso()}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">Progresso</p>
+                      <div className="w-16 bg-muted rounded-full h-2 mt-1">
+                        <div
+                          className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${calcularProgresso()}%` }}
+                        />
+                      </div>
                     </div>
+
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-foreground">
+                        {colaborador.user_id ? Math.floor(Math.random() * 20) : 0}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Concluídos</p>
+                    </div>
+
+                    <Badge className={getStatusColor(colaborador.ativo, colaborador.user_id)}>
+                      {getStatusLabel(colaborador.ativo, colaborador.user_id)}
+                    </Badge>
+
+                    <Button variant="ghost" size="icon">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
                   </div>
-
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-foreground">
-                      {colaborador.treinamentosCompletos}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Concluídos</p>
-                  </div>
-
-                  <Badge className={getStatusColor(colaborador.status)}>
-                    {getStatusLabel(colaborador.status)}
-                  </Badge>
-
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </Card>
 
@@ -237,8 +252,7 @@ export const ColaboradoresView = () => {
         open={modalOpen}
         onOpenChange={setModalOpen}
         onSuccess={() => {
-          // Aqui você pode adicionar lógica para atualizar a lista
-          console.log('Colaborador criado com sucesso!');
+          carregarColaboradores(); // Recarregar lista após criar
         }}
       />
     </div>

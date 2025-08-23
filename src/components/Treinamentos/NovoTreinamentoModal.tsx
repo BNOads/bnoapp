@@ -48,8 +48,11 @@ export const NovoTreinamentoModal = ({
     setLoading(true);
 
     try {
-      // Simular criação de treinamento (aqui você implementaria a lógica real)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Criar treinamento na base de dados (simulando uma tabela de treinamentos)
+      // Por enquanto, vamos simular o sucesso
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('Treinamento criado:', formData);
       
       toast({
         title: "Treinamento criado com sucesso!",

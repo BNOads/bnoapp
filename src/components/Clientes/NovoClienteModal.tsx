@@ -50,6 +50,10 @@ export const NovoClienteModal = ({
     setLoading(true);
 
     try {
+      // Gerar link do painel automaticamente se não fornecido
+      const linkPainel = formData.link_painel || 
+        `${window.location.origin}/painel/${formData.nome.toLowerCase().replace(/\s+/g, '-')}`;
+
       const { error } = await supabase
         .from('clientes')
         .insert({
@@ -58,7 +62,7 @@ export const NovoClienteModal = ({
           nicho: formData.nicho || null,
           etapa_atual: formData.etapa_atual || null,
           pasta_drive_url: formData.pasta_drive_url || null,
-          link_painel: formData.link_painel || null,
+          link_painel: linkPainel,
           created_by: user?.id,
         });
 

@@ -47,66 +47,48 @@ export const NovoColaboradorModal = ({
     setLoading(true);
 
     try {
-      // Primeiro, criar conta de usuário
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Criar registro direto na tabela colaboradores (sem criar usuário auth)
+      const colaboradorData: any = {
+        nome: formData.nome,
         email: formData.email,
-        password: "temp123456", // Senha temporária
-        options: {
-          data: {
-            nome: formData.nome
-          }
-        }
+        nivel_acesso: formData.nivel_acesso,
+      };
+
+      if (formData.data_nascimento) {
+        colaboradorData.data_nascimento = formData.data_nascimento;
+      }
+      if (formData.estado_civil) {
+        colaboradorData.estado_civil = formData.estado_civil;
+      }
+      if (formData.tamanho_camisa) {
+        colaboradorData.tamanho_camisa = formData.tamanho_camisa;
+      }
+
+      const { error: colaboradorError } = await supabase
+        .from('colaboradores')
+        .insert(colaboradorData);
+
+      if (colaboradorError) {
+        throw colaboradorError;
+      }
+
+      toast({
+        title: "Colaborador criado com sucesso!",
+        description: `${formData.nome} foi adicionado à equipe. Ele deve se registrar no sistema usando o email ${formData.email}.`,
       });
 
-      if (authError) {
-        throw authError;
-      }
+      // Reset form
+      setFormData({
+        nome: "",
+        email: "",
+        nivel_acesso: "cs",
+        data_nascimento: "",
+        estado_civil: "",
+        tamanho_camisa: "",
+      });
 
-      if (authData.user) {
-        // Criar registro na tabela colaboradores
-        const colaboradorData: any = {
-          user_id: authData.user.id,
-          nome: formData.nome,
-          email: formData.email,
-          nivel_acesso: formData.nivel_acesso,
-        };
-
-        if (formData.data_nascimento) {
-          colaboradorData.data_nascimento = formData.data_nascimento;
-        }
-        if (formData.estado_civil) {
-          colaboradorData.estado_civil = formData.estado_civil;
-        }
-        if (formData.tamanho_camisa) {
-          colaboradorData.tamanho_camisa = formData.tamanho_camisa;
-        }
-
-        const { error: colaboradorError } = await supabase
-          .from('colaboradores')
-          .insert(colaboradorData);
-
-        if (colaboradorError) {
-          throw colaboradorError;
-        }
-
-        toast({
-          title: "Colaborador criado com sucesso!",
-          description: `${formData.nome} foi adicionado à equipe.`,
-        });
-
-        // Reset form
-        setFormData({
-          nome: "",
-          email: "",
-          nivel_acesso: "cs",
-          data_nascimento: "",
-          estado_civil: "",
-          tamanho_camisa: "",
-        });
-
-        onOpenChange(false);
-        onSuccess?.();
-      }
+      onOpenChange(false);
+      onSuccess?.();
     } catch (error: any) {
       console.error('Erro ao criar colaborador:', error);
       toast({
