@@ -1,5 +1,6 @@
-import { Building2, Users, Calendar, FileText } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import bnoadsLogo from "@/assets/bnoads-logo.png";
 
 interface HeaderProps {
   activeTab: string;
@@ -8,7 +9,7 @@ interface HeaderProps {
 
 export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: Building2 },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'colaboradores', label: 'Colaboradores', icon: Users },
     { id: 'clientes', label: 'Painéis Clientes', icon: Calendar },
     { id: 'treinamentos', label: 'Treinamentos', icon: FileText },
@@ -20,7 +21,7 @@ export const Header = ({ activeTab, onTabChange }: HeaderProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="bg-gradient-primary p-3 rounded-xl shadow-glow">
-              <Building2 className="h-8 w-8 text-primary-foreground" />
+              <img src={bnoadsLogo} alt="BNOads Logo" className="h-8 w-8 object-contain" />
             </div>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
