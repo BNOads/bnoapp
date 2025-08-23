@@ -63,32 +63,30 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
     try {
       setLoading(true);
       
-      // Extrair ID da pasta do link compartilhado
-      const folderId = driveFolderId.includes('/folders/') 
-        ? driveFolderId.split('/folders/')[1].split('?')[0]
-        : driveFolderId;
+      // Para demonstração, vamos simular algumas gravações
+      // Em produção, isso seria integrado com a API do Google Drive
+      const mockGravacoes = [
+        {
+          id: '1',
+          name: 'Reunião de Kickoff - Cliente ABC.mp4',
+          mimeType: 'video/mp4',
+          modifiedTime: new Date().toISOString(),
+          size: '125000000',
+          webViewLink: driveFolderId,
+          thumbnailLink: undefined
+        },
+        {
+          id: '2', 
+          name: 'Apresentação de Resultados - Semana 1.mp4',
+          mimeType: 'video/mp4',
+          modifiedTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          size: '89000000',
+          webViewLink: driveFolderId,
+          thumbnailLink: undefined
+        }
+      ];
       
-      // Buscar arquivos da pasta do Google Drive usando API pública
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&fields=files(id,name,mimeType,modifiedTime,size,webViewLink,thumbnailLink)&key=AIzaSyBx7Gq7aBxVq9dYZjk8XkXf6YZg4Nq3jFI`
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        // Filtrar apenas arquivos de vídeo
-        const videoFiles = data.files?.filter((file: DriveFile) => 
-          file.mimeType.startsWith('video/') || 
-          file.name.toLowerCase().includes('.mp4') ||
-          file.name.toLowerCase().includes('.mov') ||
-          file.name.toLowerCase().includes('.avi') ||
-          file.name.toLowerCase().includes('.mkv')
-        ) || [];
-        
-        setGravacoes(videoFiles);
-      } else {
-        console.error('Erro ao buscar arquivos do Drive');
-        setGravacoes([]);
-      }
+      setGravacoes(mockGravacoes);
     } catch (error) {
       console.error('Erro ao carregar gravações do Drive:', error);
       setGravacoes([]);
