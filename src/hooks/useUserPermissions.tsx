@@ -31,18 +31,12 @@ export const useUserPermissions = (): UserPermissions => {
 
   const checkUserPermissions = async () => {
     try {
-      console.log('=== VERIFICANDO PERMISSÕES ===');
-      console.log('User ID:', user.id);
-      console.log('User Email:', user.email);
-      
       // Verificar perfil do usuário
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('nivel_acesso')
         .eq('user_id', user.id)
         .maybeSingle();
-
-      console.log('Profile Query Result:', { profile, error });
 
       if (error) {
         console.error('Erro ao buscar perfil:', error);
@@ -55,13 +49,10 @@ export const useUserPermissions = (): UserPermissions => {
       const isMaster = isAdmin; // Simplificado: se é admin, é master
       const canCreateContent = isAdmin;
 
-      console.log('=== RESULTADO DAS PERMISSÕES ===');
-      console.log('Permissões do usuário:', {
+      console.log('Permissões verificadas:', {
         email: user.email,
-        userId: user.id,
-        profile,
+        nivel_acesso: profile?.nivel_acesso,
         isAdmin,
-        isMaster,
         canCreateContent
       });
 

@@ -7,7 +7,6 @@ import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoColaboradorModal } from "@/components/Colaboradores/NovoColaboradorModal";
 import { NovoClienteModal } from "@/components/Clientes/NovoClienteModal";
 import { NovoTreinamentoModal } from "@/components/Treinamentos/NovoTreinamentoModal";
-import { PermissionsDebug } from "@/components/Debug/PermissionsDebug";
 
 export const DashboardView = () => {
   const { canCreateContent } = useUserPermissions();
@@ -54,9 +53,6 @@ export const DashboardView = () => {
 
   return (
     <div className="space-y-8">
-      {/* Debug Panel - apenas para desenvolvimento */}
-      <PermissionsDebug />
-      
       {/* Header Section */}
       <div className="bg-gradient-primary rounded-2xl p-8 text-primary-foreground shadow-glow">
         <div className="flex items-center justify-between">
