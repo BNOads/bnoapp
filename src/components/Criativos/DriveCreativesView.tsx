@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Creative {
   id: string;
@@ -47,6 +48,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<string>("todos");
   const [selectedFolder, setSelectedFolder] = useState<string>("todas");
+  const [selectedCreatives, setSelectedCreatives] = useState<string[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
@@ -268,6 +270,47 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     return creative.status || (creative.is_active ? 'ativo' : 'subir');
   };
 
+  // Funções de seleção em massa
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedCreatives(filteredCreatives.map(creative => creative.id));
+    } else {
+      setSelectedCreatives([]);
+    }
+  };
+
+  const handleSelectCreative = (creativeId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedCreatives(prev => [...prev, creativeId]);
+    } else {
+      setSelectedCreatives(prev => prev.filter(id => id !== creativeId));
+    }
+  };
+
+  const handleBulkAction = async (action: 'ativo' | 'inativo' | 'subir' | 'erro') => {
+    if (selectedCreatives.length === 0) return;
+
+    try {
+      await Promise.all(
+        selectedCreatives.map(creativeId => 
+          updateCreativeStatus(creativeId, action)
+        )
+      );
+
+      setSelectedCreatives([]);
+      toast({
+        title: "Ação em massa concluída",
+        description: `${selectedCreatives.length} criativos atualizados para "${action}"`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao executar ação em massa",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header com Status de Sincronização */}
@@ -348,10 +391,10 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         
         <Select value={selectedFolder} onValueChange={setSelectedFolder}>
           <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Filtrar por subpasta" />
+            <SelectValue placeholder="Filtrar por funil" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todas">Todas as subpastas</SelectItem>
+            <SelectItem value="todas">Todos os funis</SelectItem>
             {getUniqueSubfolders().map((folder) => (
               <SelectItem key={folder} value={folder}>
                 {folder}
@@ -360,6 +403,47 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Botões de Ação em Massa */}
+      {selectedCreatives.length > 0 && (
+        <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-lg">
+          <span className="text-sm font-medium">
+            {selectedCreatives.length} selecionado(s):
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleBulkAction('ativo')}
+            className="bg-green-500/10 text-green-700 border-green-500/20 hover:bg-green-500/20"
+          >
+            Marcar como Ativo
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleBulkAction('inativo')}
+            className="bg-red-500/10 text-red-700 border-red-500/20 hover:bg-red-500/20"
+          >
+            Marcar como Inativo
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleBulkAction('subir')}
+            className="bg-yellow-500/10 text-yellow-700 border-yellow-500/20 hover:bg-yellow-500/20"
+          >
+            Marcar para Subir
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleBulkAction('erro')}
+            className="bg-black/10 text-gray-700 border-black/20 hover:bg-black/20"
+          >
+            Marcar como Erro
+          </Button>
+        </div>
+      )}
 
       {/* Tabela de Criativos */}
       {loading ? (
@@ -377,12 +461,17 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedCreatives.length === filteredCreatives.length && filteredCreatives.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
                 <TableHead className="w-32">Status</TableHead>
                 <TableHead className="w-32">Ativado em</TableHead>
                 <TableHead className="w-12">Tipo</TableHead>
                 <TableHead>Nome do Arquivo</TableHead>
                 <TableHead className="w-32">Pasta</TableHead>
-                <TableHead className="w-32">Formato</TableHead>
                 <TableHead className="w-32">Data Upload</TableHead>
                 <TableHead className="w-48">Ações</TableHead>
               </TableRow>
@@ -390,6 +479,12 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
             <TableBody>
               {filteredCreatives.map((creative) => (
                 <TableRow key={creative.id} className="hover:bg-muted/50">
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedCreatives.includes(creative.id)}
+                      onCheckedChange={(checked) => handleSelectCreative(creative.id, checked as boolean)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Select
                       value={getCurrentStatus(creative)}
@@ -474,11 +569,6 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                     <span className="truncate" title={creative.folder_path || creative.folder_name}>
                       {creative.folder_name || 'Raiz'}
                     </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={`${getTipoColor(creative.mime_type)} text-xs`}>
-                      {creative.type_display}
-                    </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     <div>
