@@ -5,6 +5,7 @@ import { Calendar, ChevronLeft, ChevronRight, Clock, MapPin } from "lucide-react
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CalendarEvent {
   id: string;
@@ -29,8 +30,6 @@ export const CalendarView = () => {
 
   // Configuração da API do Google Calendar
   const CALENDAR_ID = 'contato@bnoads.com.br';
-  const API_KEY = 'AIzaSyBH8gZj7k6P_q_2ZhKjH_Q8YPxN4f1d2e3'; // Esta será substituída por uma secret
-  const CALENDAR_URL = `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events`;
 
   const fetchEvents = async () => {
     try {
@@ -40,22 +39,18 @@ export const CalendarView = () => {
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
       
-      const params = new URLSearchParams({
-        key: API_KEY,
-        timeMin: startOfMonth.toISOString(),
-        timeMax: endOfMonth.toISOString(),
-        singleEvents: 'true',
-        orderBy: 'startTime',
-        maxResults: '50'
+      const { data, error } = await supabase.functions.invoke('google-calendar', {
+        body: {
+          calendarId: CALENDAR_ID,
+          timeMin: startOfMonth.toISOString(),
+          timeMax: endOfMonth.toISOString()
+        }
       });
 
-      const response = await fetch(`${CALENDAR_URL}?${params}`);
-      
-      if (!response.ok) {
-        throw new Error('Erro ao buscar eventos do calendário');
+      if (error) {
+        throw new Error(error.message);
       }
-
-      const data = await response.json();
+      
       setEvents(data.items || []);
     } catch (error) {
       console.error('Erro ao carregar eventos:', error);
