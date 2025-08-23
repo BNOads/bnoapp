@@ -34,7 +34,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedType, setSelectedType] = useState<string>("");
+  const [selectedType, setSelectedType] = useState<string>("todos");
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
@@ -54,7 +54,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         limit: pagination.limit.toString()
       });
       
-      if (selectedType) params.append('type', selectedType);
+      if (selectedType && selectedType !== "todos") params.append('type', selectedType);
       if (searchTerm) params.append('q', searchTerm);
       
       // Fazer chamada HTTP direta para a edge function
@@ -237,7 +237,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
             <SelectValue placeholder="Filtrar por tipo" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os tipos</SelectItem>
+            <SelectItem value="todos">Todos os tipos</SelectItem>
             <SelectItem value="imagem">Imagens</SelectItem>
             <SelectItem value="video">Vídeos</SelectItem>
             <SelectItem value="pdf">PDF</SelectItem>
