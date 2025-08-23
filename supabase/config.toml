@@ -1,1 +1,4 @@
 project_id = "tbdooscfrrkwfutkdjha"
+
+[functions.criar-gravacao-automatica]
+verify_jwt = false
