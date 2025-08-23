@@ -119,6 +119,7 @@ export type Database = {
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at: string
           created_by: string | null
+          dashboards_looker: Json | null
           drive_folder_id: string | null
           drive_sync_error: string | null
           etapa_atual: string | null
@@ -144,6 +145,7 @@ export type Database = {
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
           created_by?: string | null
+          dashboards_looker?: Json | null
           drive_folder_id?: string | null
           drive_sync_error?: string | null
           etapa_atual?: string | null
@@ -169,6 +171,7 @@ export type Database = {
           categoria?: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
           created_by?: string | null
+          dashboards_looker?: Json | null
           drive_folder_id?: string | null
           drive_sync_error?: string | null
           etapa_atual?: string | null
