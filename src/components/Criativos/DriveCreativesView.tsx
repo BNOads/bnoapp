@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle } from "lucide-react";
+import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface Creative {
   id: string;
@@ -167,6 +168,14 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     return dataItem.toLocaleDateString('pt-BR');
   };
 
+  const copyToClipboard = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Link copiado!",
+      description: `${type} copiado para a área de transferência`,
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header com Status de Sincronização */}
@@ -246,7 +255,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         </Select>
       </div>
 
-      {/* Grid de Criativos */}
+      {/* Tabela de Criativos */}
       {loading ? (
         <div className="flex justify-center items-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -258,69 +267,89 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-          {creatives.map((creative) => (
-            <Card key={creative.id} className="bg-card border border-border shadow-card hover:shadow-elegant transition-all duration-300 overflow-hidden">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    {/* Thumbnail ou Ícone */}
-                    <div className="w-full h-32 bg-muted rounded-lg mb-3 flex items-center justify-center overflow-hidden">
-                      {creative.thumbnail_link ? (
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">Tipo</TableHead>
+                <TableHead>Nome do Arquivo</TableHead>
+                <TableHead className="w-32">Formato</TableHead>
+                <TableHead className="w-24">Tamanho</TableHead>
+                <TableHead className="w-32">Data Modificação</TableHead>
+                <TableHead className="w-48">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {creatives.map((creative) => (
+                <TableRow key={creative.id} className="hover:bg-muted/50">
+                  <TableCell>
+                    <div className="flex items-center justify-center">
+                      {getTipoIcon(creative.mime_type)}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-3">
+                      {creative.thumbnail_link && (
                         <img 
                           src={creative.thumbnail_link} 
                           alt={creative.name}
-                          className="w-full h-full object-cover"
+                          className="w-8 h-8 object-cover rounded"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
-                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
                           }}
                         />
-                      ) : null}
-                      <div className={`flex items-center justify-center ${creative.thumbnail_link ? 'hidden' : ''}`}>
-                        {getTipoIcon(creative.mime_type)}
-                      </div>
+                      )}
+                      <span className="truncate max-w-xs" title={creative.name}>
+                        {creative.name}
+                      </span>
                     </div>
-                    
-                    <CardTitle className="text-sm font-semibold text-foreground line-clamp-2 mb-2">
-                      {creative.name}
-                    </CardTitle>
-                    
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className={`${getTipoColor(creative.mime_type)} text-xs`}>
-                        {creative.type_display}
-                      </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={`${getTipoColor(creative.mime_type)} text-xs`}>
+                      {creative.type_display}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {creative.formatted_size}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {creative.formatted_date}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => copyToClipboard(creative.link_direct, "Link direto")}
+                        className="h-8 w-8 p-0"
+                        title="Copiar link direto"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => copyToClipboard(creative.link_web_view, "Link do Drive")}
+                        className="h-8 px-3"
+                        title="Copiar link do Drive"
+                      >
+                        Link
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => window.open(creative.link_web_view, '_blank')}
+                        className="h-8 px-3"
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Abrir
+                      </Button>
                     </div>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="pt-0">
-                <div className="space-y-2 text-xs text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Tamanho:</span>
-                    <span>{creative.formatted_size}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Modificado:</span>
-                    <span>{creative.formatted_date}</span>
-                  </div>
-                </div>
-                
-                <div className="flex gap-2 mt-4">
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => window.open(creative.link_web_view, '_blank')}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    Abrir
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
