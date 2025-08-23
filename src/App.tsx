@@ -26,8 +26,16 @@ function App() {
           <AuthProvider>
             <Routes>
               <Route path="/auth" element={<Auth />} />
-              <Route path="/painel/:clienteId" element={<PainelCliente />} />
-              <Route path="/criativos/:clienteId" element={<CriativosCliente />} />
+              <Route path="/painel/:clienteId" element={
+                <ProtectedRoute>
+                  <PainelCliente />
+                </ProtectedRoute>
+              } />
+              <Route path="/criativos/:clienteId" element={
+                <ProtectedRoute>
+                  <CriativosCliente />
+                </ProtectedRoute>
+              } />
               <Route path="/curso/:cursoId" element={
                 <ProtectedRoute>
                   <CursoDetalhes />
