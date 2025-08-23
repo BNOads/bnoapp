@@ -595,6 +595,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_admin_access: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       get_colaborador_dados_sensíveis: {
         Args: { _colaborador_id: string; _motivo?: string }
         Returns: {
@@ -622,6 +626,10 @@ export type Database = {
       }
       is_admin_with_valid_reason: {
         Args: { _user_id: string }
+        Returns: boolean
+      }
+      is_profile_owner: {
+        Args: { _profile_user_id: string; _user_id: string }
         Returns: boolean
       }
     }
