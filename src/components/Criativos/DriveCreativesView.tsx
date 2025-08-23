@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
 
 interface Creative {
   id: string;
@@ -31,6 +30,7 @@ interface Creative {
   is_active: boolean;
   activated_at: string | null;
   activated_by: string | null;
+  status?: 'subir' | 'ativo' | 'inativo' | 'erro';
   activated_user?: {
     nome: string;
   };
@@ -186,20 +186,18 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     });
   };
 
-  const toggleCreativeStatus = async (creativeId: string, currentStatus: boolean) => {
+  const updateCreativeStatus = async (creativeId: string, newStatus: 'subir' | 'ativo' | 'inativo' | 'erro') => {
     try {
       const { data, error } = await supabase.rpc('update_creative_status', {
         creative_id: creativeId,
-        new_status: !currentStatus
+        new_status: newStatus === 'ativo'
       });
 
       if (error) throw error;
 
       toast({
         title: "Status atualizado",
-        description: typeof data === 'object' && data && 'message' in data 
-          ? String(data.message) 
-          : "Status do criativo atualizado com sucesso",
+        description: `Status alterado para ${newStatus}`,
       });
 
       // Recarregar a lista para refletir as alterações
@@ -213,6 +211,27 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         variant: "destructive",
       });
     }
+  };
+
+  const getStatusBadge = (creative: Creative) => {
+    const status = creative.status || (creative.is_active ? 'ativo' : 'subir');
+    
+    switch (status) {
+      case 'subir':
+        return <Badge className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600">Subir</Badge>;
+      case 'ativo':
+        return <Badge className="bg-green-500 text-white hover:bg-green-600">Ativo</Badge>;
+      case 'inativo':
+        return <Badge className="bg-red-500 text-white hover:bg-red-600">Inativo</Badge>;
+      case 'erro':
+        return <Badge className="bg-black text-white hover:bg-gray-800">Erro</Badge>;
+      default:
+        return <Badge className="bg-yellow-500 text-yellow-900 hover:bg-yellow-600">Subir</Badge>;
+    }
+  };
+
+  const getCurrentStatus = (creative: Creative): 'subir' | 'ativo' | 'inativo' | 'erro' => {
+    return creative.status || (creative.is_active ? 'ativo' : 'subir');
   };
 
   return (
@@ -310,11 +329,11 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-32">Status</TableHead>
                 <TableHead className="w-12">Tipo</TableHead>
                 <TableHead>Nome do Arquivo</TableHead>
                 <TableHead className="w-32">Pasta</TableHead>
                 <TableHead className="w-32">Formato</TableHead>
-                <TableHead className="w-20">No Ar</TableHead>
                 <TableHead className="w-32">Ativado em</TableHead>
                 <TableHead className="w-24">Tamanho</TableHead>
                 <TableHead className="w-48">Ações</TableHead>
@@ -323,6 +342,44 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
             <TableBody>
               {creatives.map((creative) => (
                 <TableRow key={creative.id} className="hover:bg-muted/50">
+                  <TableCell>
+                    <Select
+                      value={getCurrentStatus(creative)}
+                      onValueChange={(value: 'subir' | 'ativo' | 'inativo' | 'erro') => 
+                        updateCreativeStatus(creative.id, value)
+                      }
+                    >
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="subir">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                            Subir
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="ativo">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                            Ativo
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="inativo">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                            Inativo
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="erro">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-black"></div>
+                            Erro
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center">
                       {getTipoIcon(creative.mime_type)}
@@ -354,12 +411,6 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                     <Badge className={`${getTipoColor(creative.mime_type)} text-xs`}>
                       {creative.type_display}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Checkbox
-                      checked={creative.is_active}
-                      onCheckedChange={() => toggleCreativeStatus(creative.id, creative.is_active)}
-                    />
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {creative.activated_at ? (
