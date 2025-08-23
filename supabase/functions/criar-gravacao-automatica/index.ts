@@ -9,6 +9,7 @@ const corsHeaders = {
 interface RequestData {
   nome: string;
   link: string;
+  titulo?: string;
 }
 
 serve(async (req) => {
@@ -23,7 +24,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { nome, link }: RequestData = await req.json()
+    const { nome, link, titulo }: RequestData = await req.json()
 
     if (!nome || !link) {
       return new Response(
@@ -55,10 +56,12 @@ serve(async (req) => {
       )
     }
 
-    // Criar título automático
-    const agora = new Date()
-    const dataFormatada = agora.toLocaleDateString('pt-BR')
-    const titulo = `Reunião ${cliente.nome} - ${dataFormatada}`
+    // Usar título fornecido ou criar título automático
+    const tituloFinal = titulo || (() => {
+      const agora = new Date()
+      const dataFormatada = agora.toLocaleDateString('pt-BR')
+      return `Reunião ${cliente.nome} - ${dataFormatada}`
+    })()
 
     // Buscar o primeiro usuário admin para usar como created_by
     const { data: adminUser } = await supabase
@@ -72,7 +75,7 @@ serve(async (req) => {
     const { data: gravacao, error: gravacaoError } = await supabase
       .from('gravacoes')
       .insert({
-        titulo,
+        titulo: tituloFinal,
         url_gravacao: link,
         cliente_id: cliente.id,
         descricao: `Gravação de reunião criada automaticamente`,
