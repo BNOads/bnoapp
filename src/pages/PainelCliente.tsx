@@ -102,7 +102,10 @@ const PainelCliente = () => {
     return (
       <div className="min-h-screen bg-background">
         {isAuthenticated ? (
-          <Header activeTab="clientes" onTabChange={(tab) => navigate(`/${tab}`)} />
+          <Header activeTab="clientes" onTabChange={(tab) => {
+            if (tab === 'clientes') return;
+            navigate(`/?tab=${tab}`);
+          }} />
         ) : (
           <div className="bg-background border-b border-border">
             <div className="container mx-auto px-6 py-4">
@@ -142,7 +145,10 @@ const PainelCliente = () => {
     return (
       <div className="min-h-screen bg-background">
         {isAuthenticated ? (
-          <Header activeTab="clientes" onTabChange={(tab) => navigate(`/${tab}`)} />
+          <Header activeTab="clientes" onTabChange={(tab) => {
+            if (tab === 'clientes') return;
+            navigate(`/?tab=${tab}`);
+          }} />
         ) : (
           <div className="bg-background border-b border-border">
             <div className="container mx-auto px-6 py-4">
@@ -176,7 +182,10 @@ const PainelCliente = () => {
   return (
     <div className="min-h-screen bg-background">
       {isAuthenticated ? (
-        <Header activeTab="clientes" onTabChange={(tab) => navigate(`/${tab}`)} />
+        <Header activeTab="clientes" onTabChange={(tab) => {
+          if (tab === 'clientes') return;
+          navigate(`/?tab=${tab}`);
+        }} />
       ) : (
         <div className="bg-background border-b border-border">
           <div className="container mx-auto px-6 py-4">

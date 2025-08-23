@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { DashboardView } from "@/components/Dashboard/DashboardView";
 import { ColaboradoresView } from "@/components/Colaboradores/ColaboradoresView";
@@ -7,7 +8,18 @@ import { TreinamentosView } from "@/components/Treinamentos/TreinamentosView";
 import { CalendarView } from "@/components/Calendar/CalendarView";
 
 const Index = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+      // Remove o parâmetro da URL após definir a aba
+      searchParams.delete('tab');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const renderContent = () => {
     switch (activeTab) {
