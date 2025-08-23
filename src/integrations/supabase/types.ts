@@ -115,13 +115,16 @@ export type Database = {
         Row: {
           aliases: string[] | null
           ativo: boolean
+          auto_permission: boolean | null
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at: string
           created_by: string | null
           drive_folder_id: string | null
+          drive_sync_error: string | null
           etapa_atual: string | null
           funis_trabalhando: string[] | null
           id: string
+          last_drive_sync: string | null
           link_painel: string | null
           nicho: string | null
           nome: string
@@ -137,13 +140,16 @@ export type Database = {
         Insert: {
           aliases?: string[] | null
           ativo?: boolean
+          auto_permission?: boolean | null
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
           created_by?: string | null
           drive_folder_id?: string | null
+          drive_sync_error?: string | null
           etapa_atual?: string | null
           funis_trabalhando?: string[] | null
           id?: string
+          last_drive_sync?: string | null
           link_painel?: string | null
           nicho?: string | null
           nome: string
@@ -159,13 +165,16 @@ export type Database = {
         Update: {
           aliases?: string[] | null
           ativo?: boolean
+          auto_permission?: boolean | null
           categoria?: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
           created_by?: string | null
           drive_folder_id?: string | null
+          drive_sync_error?: string | null
           etapa_atual?: string | null
           funis_trabalhando?: string[] | null
           id?: string
+          last_drive_sync?: string | null
           link_painel?: string | null
           nicho?: string | null
           nome?: string
@@ -286,6 +295,65 @@ export type Database = {
             columns: ["colaborador_id"]
             isOneToOne: true
             referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creatives: {
+        Row: {
+          archived: boolean | null
+          client_id: string
+          created_at: string
+          file_id: string
+          file_size: number | null
+          icon_link: string | null
+          id: string
+          link_direct: string | null
+          link_web_view: string | null
+          mime_type: string | null
+          modified_time: string | null
+          name: string
+          thumbnail_link: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean | null
+          client_id: string
+          created_at?: string
+          file_id: string
+          file_size?: number | null
+          icon_link?: string | null
+          id?: string
+          link_direct?: string | null
+          link_web_view?: string | null
+          mime_type?: string | null
+          modified_time?: string | null
+          name: string
+          thumbnail_link?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean | null
+          client_id?: string
+          created_at?: string
+          file_id?: string
+          file_size?: number | null
+          icon_link?: string | null
+          id?: string
+          link_direct?: string | null
+          link_web_view?: string | null
+          mime_type?: string | null
+          modified_time?: string | null
+          name?: string
+          thumbnail_link?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creatives_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
         ]
