@@ -39,7 +39,7 @@ export function DashboardView() {
     icon: Calendar,
     color: "text-primary-glow"
   }, {
-    title: "Treinamentos Concluídos",
+    title: "PDIs Finalizados",
     value: statsLoading ? "..." : stats.treinamentosConcluidos.toString(),
     change: "+8%",
     icon: BookOpen,
