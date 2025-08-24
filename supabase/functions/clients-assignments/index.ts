@@ -66,12 +66,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (method === 'PATCH') {
-      console.log('Updating client assignment...');
+      console.log('Processing PATCH request for client assignment...');
       
       const body = await req.json();
+      console.log('Request body:', body);
+      
       const { client_id, traffic_manager_id, cs_id } = body;
 
       if (!client_id) {
+        console.log('Missing client_id in request');
         return new Response(JSON.stringify({ error: 'client_id is required' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -80,13 +83,26 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log(`Updating client ${client_id} with TM: ${traffic_manager_id || 'none'}, CS: ${cs_id || 'none'}`);
 
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      };
+
+      if (traffic_manager_id === null || traffic_manager_id === 'none' || traffic_manager_id === '') {
+        updateData.traffic_manager_id = null;
+      } else {
+        updateData.traffic_manager_id = traffic_manager_id;
+      }
+
+      if (cs_id === null || cs_id === 'none' || cs_id === '') {
+        updateData.cs_id = null;
+      } else {
+        updateData.cs_id = cs_id;
+      }
+
+      console.log('Update data:', updateData);
       const { data, error } = await supabase
         .from('clientes')
-        .update({
-          traffic_manager_id: traffic_manager_id || null,
-          cs_id: cs_id || null,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', client_id)
         .select(`
           id,
