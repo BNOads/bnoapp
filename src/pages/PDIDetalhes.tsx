@@ -337,15 +337,26 @@ export default function PDIDetalhes() {
                     )}
                   </div>
                   
-                  {!aula.concluida && (
+                  <div className="flex items-center gap-2">
                     <Button 
-                      onClick={() => marcarAulaConcluida(aula.id)}
-                      disabled={loadingAction === aula.id}
+                      onClick={() => navigate(`/curso/treinamento-${aula.aula_id}/aula/${aula.aula_id}`)}
+                      variant="outline"
                       size="sm"
                     >
-                      {loadingAction === aula.id ? "Marcando..." : "Marcar como Concluída"}
+                      <Play className="h-4 w-4 mr-2" />
+                      Ver Aula
                     </Button>
-                  )}
+                    
+                    {!aula.concluida && (
+                      <Button 
+                        onClick={() => marcarAulaConcluida(aula.id)}
+                        disabled={loadingAction === aula.id}
+                        size="sm"
+                      >
+                        {loadingAction === aula.id ? "Marcando..." : "Marcar como Concluída"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
