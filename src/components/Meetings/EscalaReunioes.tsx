@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Users, UserPlus, RefreshCw, Plus } from "lucide-react";
+import { Clock, Users, UserPlus, RefreshCw, Plus, Search, Check } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -653,51 +653,70 @@ export const EscalaReunioes: React.FC = () => {
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Selecionar Colaboradores:</Label>
-              <div className="max-h-60 overflow-y-auto space-y-2">
-                {colaboradores.map((colaborador) => {
-                  const isParticipating = reunioes
-                    .find(r => r.id === reuniaoSelecionada)
-                    ?.presencas_reunioes?.some(p => p.user_id === colaborador.user_id);
-                  
-                  return (
-                    <div key={colaborador.user_id} className="flex items-center justify-between p-2 border rounded">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={colaborador.avatar_url} />
-                          <AvatarFallback className="text-xs">
-                            {colaborador.nome.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{colaborador.nome}</span>
+            {/* Campo de busca */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Busque ou insira o e-mail..."
+                className="pl-10"
+              />
+            </div>
+            
+            {/* Lista de colaboradores */}
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {colaboradores.map((colaborador) => {
+                const isParticipating = reunioes
+                  .find(r => r.id === reuniaoSelecionada)
+                  ?.presencas_reunioes?.some(p => p.user_id === colaborador.user_id);
+                
+                return (
+                  <div key={colaborador.user_id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={colaborador.avatar_url} />
+                        <AvatarFallback className="bg-primary/10">
+                          {colaborador.nome?.charAt(0) || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{colaborador.nome}</p>
+                        <p className="text-sm text-muted-foreground">Colaborador</p>
                       </div>
-                      
-                      <Button
-                        size="sm"
-                        variant={isParticipating ? "destructive" : "default"}
-                        onClick={() => {
-                          if (isParticipating) {
-                            // Remover participante (implementar se necessário)
-                            toast({
-                              title: "Info",
-                              description: "Funcionalidade de remoção será implementada"
-                            });
-                          } else {
-                            addParticipantsToMeeting(reuniaoSelecionada, [colaborador.user_id]);
-                          }
-                        }}
-                      >
-                        {isParticipating ? "Remover" : "Adicionar"}
-                      </Button>
                     </div>
-                  );
-                })}
-              </div>
+                    <Button
+                      size="sm"
+                      variant={isParticipating ? "secondary" : "default"}
+                      onClick={() => {
+                        if (!isParticipating) {
+                          addParticipantsToMeeting(reuniaoSelecionada, [colaborador.user_id]);
+                        }
+                      }}
+                      className={isParticipating ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : ""}
+                    >
+                      {isParticipating ? (
+                        <>
+                          <Check className="h-4 w-4 mr-1" />
+                          Adicionado
+                        </>
+                      ) : (
+                        "Adicionar"
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Opção de convidar por email */}
+            <div className="border-t pt-4">
+              <Button variant="ghost" className="w-full justify-start text-muted-foreground">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Convide pessoas por e-mail
+              </Button>
             </div>
           </div>
           
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end">
             <Button variant="outline" onClick={() => setParticipantesModal(false)}>
               Fechar
             </Button>
