@@ -1,29 +1,21 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.56.0";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface MeetingRequest {
-  titulo: string;
-  descricao?: string;
-  dataHora: string;
-  duracaoPrevista?: number;
-  tipo?: string;
-  clienteId?: string;
-  participantesObrigatorios?: string[];
-  participantesOpcionais?: string[];
-  linkMeet?: string;
-}
-
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const body = await req.json();
+    const { action } = body;
+
     const authToken = req.headers.get('Authorization')?.replace('Bearer ', '');
     if (!authToken) {
       return new Response(JSON.stringify({ error: 'Token de autorização necessário' }), {
@@ -50,93 +42,49 @@ serve(async (req) => {
       });
     }
 
-    const { action, ...data } = await req.json();
-
     switch (action) {
-      case 'create_meeting':
-        return await createMeeting(supabase, data as MeetingRequest, user.id);
-
       case 'get_daily_meetings':
-        return await getDailyMeetings(supabase, data.date);
-
-      case 'mark_attendance':
-        return await markAttendance(supabase, data.reuniaoId, data.userId || user.id, data.status);
-
-      case 'get_meeting_history':
-        return await getMeetingHistory(supabase, data.userId, data.filters);
-
-      case 'start_meeting':
-        return await startMeeting(supabase, data.reuniaoId);
-
-      case 'end_meeting':
-        return await endMeeting(supabase, data.reuniaoId);
-
-      case 'auto_attendance':
-        return await autoAttendance(supabase, data.reuniaoId);
-
+        return await getDailyMeetings(supabase, body.date);
+      
+      case 'sync_google_calendar':
+        return await syncGoogleCalendar(supabase, body.date);
+      
+      case 'create_meeting':
+        return await createMeeting(supabase, body);
+      
       case 'add_participants':
-        return await addParticipants(supabase, data.reuniaoId, data.participantes);
-
+        return await addParticipants(supabase, body.reuniaoId, body.participantes);
+      
       case 'mark_individual_attendance':
-        return await markIndividualAttendance(supabase, data.reuniaoId, data.userId, data.status);
-
+        return await markIndividualAttendance(supabase, body.reuniaoId, body.userId, body.status);
+      
+      case 'mark_attendance':
+        return await markAttendance(supabase, body.reuniaoId, user.id, body.status);
+      
+      case 'start_meeting':
+        return await startMeeting(supabase, body.reuniaoId);
+      
+      case 'end_meeting':
+        return await endMeeting(supabase, body.reuniaoId);
+      
       default:
-        return new Response(JSON.stringify({ error: 'Ação inválida' }), {
+        return new Response(JSON.stringify({ error: 'Ação não reconhecida' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     }
+
   } catch (error) {
-    console.error('Erro na gestão de reuniões:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Error in meeting-management function:', error);
+    return new Response(JSON.stringify({
+      error: 'Erro interno do servidor',
+      details: error.message
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
-
-async function createMeeting(supabase: any, data: MeetingRequest, userId: string) {
-  const { data: reuniao, error } = await supabase
-    .from('reunioes_agendadas')
-    .insert({
-      titulo: data.titulo,
-      descricao: data.descricao,
-      data_hora: data.dataHora,
-      duracao_prevista: data.duracaoPrevista,
-      tipo: data.tipo || 'reuniao',
-      cliente_id: data.clienteId,
-      organizador_id: userId,
-      participantes_obrigatorios: data.participantesObrigatorios || [],
-      participantes_opcionais: data.participantesOpcionais || [],
-      link_meet: data.linkMeet
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  // Criar registros de presença para participantes obrigatórios
-  const participantes = [...(data.participantesObrigatorios || []), ...(data.participantesOpcionais || [])];
-  
-  for (const participanteId of participantes) {
-    await supabase
-      .from('presencas_reunioes')
-      .insert({
-        reuniao_id: reuniao.id,
-        user_id: participanteId,
-        status: 'ausente'
-      });
-  }
-
-  return new Response(JSON.stringify({
-    success: true,
-    reuniao,
-    message: 'Reunião agendada com sucesso'
-  }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
-}
 
 async function getDailyMeetings(supabase: any, date: string) {
   try {
@@ -251,265 +199,277 @@ async function getDailyMeetings(supabase: any, date: string) {
   }
 }
 
-async function markAttendance(supabase: any, reuniaoId: string, userId: string, status: string) {
-  const agora = new Date().toISOString();
-
-  const updateData: any = {
-    status,
-    updated_at: agora
-  };
-
-  if (status === 'presente' && !updateData.horario_entrada) {
-    updateData.horario_entrada = agora;
-  }
-
-  const { data, error } = await supabase
-    .from('presencas_reunioes')
-    .update(updateData)
-    .eq('reuniao_id', reuniaoId)
-    .eq('user_id', userId)
-    .select();
-
-  if (error) throw error;
-
-  // Se marcou como presente, registrar no sistema de gamificação
-  if (status === 'presente') {
-    const gamificationPayload = {
-      action: 'log_meeting_attendance',
-      reuniaoId,
-      userId,
-      horarioEntrada: agora,
-      status
-    };
-
-    // Chamar função de gamificação
-    await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/gamification-engine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-      },
-      body: JSON.stringify(gamificationPayload)
-    });
-  }
-
-  return new Response(JSON.stringify({
-    success: true,
-    message: 'Presença marcada com sucesso'
-  }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
-}
-
-async function getMeetingHistory(supabase: any, userId: string, filters: any = {}) {
-  let query = supabase
-    .from('presencas_reunioes')
-    .select(`
-      *,
-      reunioes_agendadas(
-        titulo,
-        data_hora,
-        tipo,
-        clientes(nome)
-      )
-    `)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-
-  if (filters.startDate) {
-    query = query.gte('created_at', filters.startDate);
-  }
-
-  if (filters.endDate) {
-    query = query.lte('created_at', filters.endDate);
-  }
-
-  if (filters.status) {
-    query = query.eq('status', filters.status);
-  }
-
-  if (filters.tipo) {
-    query = query.eq('reunioes_agendadas.tipo', filters.tipo);
-  }
-
-  const { data: historico, error } = await query;
-
-  if (error) throw error;
-
-  // Calcular estatísticas
-  const stats = {
-    totalReunioes: historico.length,
-    reunioesPresentes: historico.filter((p: any) => p.status === 'presente').length,
-    reunioesAusentes: historico.filter((p: any) => p.status === 'ausente').length,
-    reunioesAtrasado: historico.filter((p: any) => p.status === 'atrasado').length,
-    tempoTotalPresenca: historico.reduce((total: number, p: any) => total + (p.tempo_presenca || 0), 0),
-    pontosGanhos: historico.reduce((total: number, p: any) => total + (p.pontos_ganhos || 0), 0)
-  };
-
-  return new Response(JSON.stringify({
-    success: true,
-    historico,
-    stats
-  }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
-}
-
-async function startMeeting(supabase: any, reuniaoId: string) {
-  const { error } = await supabase
-    .from('reunioes_agendadas')
-    .update({
-      status: 'em_andamento'
-    })
-    .eq('id', reuniaoId);
-
-  if (error) throw error;
-
-  return new Response(JSON.stringify({
-    success: true,
-    message: 'Reunião iniciada'
-  }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
-}
-
-async function endMeeting(supabase: any, reuniaoId: string) {
-  const agora = new Date().toISOString();
-
-  // Finalizar reunião
-  const { error: reuniaoError } = await supabase
-    .from('reunioes_agendadas')
-    .update({
-      status: 'finalizada'
-    })
-    .eq('id', reuniaoId);
-
-  if (reuniaoError) throw reuniaoError;
-
-  // Marcar saída para todos que estavam presentes e ainda não saíram
-  const { data: presencas } = await supabase
-    .from('presencas_reunioes')
-    .select('*')
-    .eq('reuniao_id', reuniaoId)
-    .eq('status', 'presente')
-    .is('horario_saida', null);
-
-  for (const presenca of presencas || []) {
-    const horarioEntrada = new Date(presenca.horario_entrada);
-    const horarioSaida = new Date(agora);
-    const tempoPresenca = Math.floor((horarioSaida.getTime() - horarioEntrada.getTime()) / (1000 * 60));
-
-    await supabase
-      .from('presencas_reunioes')
-      .update({
-        horario_saida: agora,
-        tempo_presenca: tempoPresenca,
-        pontos_ganhos: presenca.pontos_ganhos + tempoPresenca
-      })
-      .eq('id', presenca.id);
-
-    // Atualizar gamificação
-    const gamificationPayload = {
-      action: 'log_meeting_attendance',
-      reuniaoId,
-      userId: presenca.user_id,
-      horarioEntrada: presenca.horario_entrada,
-      horarioSaida: agora,
-      status: 'presente'
-    };
-
-    await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/gamification-engine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-      },
-      body: JSON.stringify(gamificationPayload)
-    });
-  }
-
-  return new Response(JSON.stringify({
-    success: true,
-    message: 'Reunião finalizada'
-  }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
-}
-
-async function autoAttendance(supabase: any, reuniaoId: string) {
-  // Marcar automaticamente como presente todos os participantes obrigatórios
-  const { data: reuniao } = await supabase
-    .from('reunioes_agendadas')
-    .select('participantes_obrigatorios')
-    .eq('id', reuniaoId)
-    .single();
-
-  if (!reuniao) {
-    throw new Error('Reunião não encontrada');
-  }
-
-  const agora = new Date().toISOString();
-
-  for (const userId of reuniao.participantes_obrigatorios || []) {
-    await supabase
-      .from('presencas_reunioes')
-      .update({
-        status: 'presente',
-        horario_entrada: agora
-      })
-      .eq('reuniao_id', reuniaoId)
-      .eq('user_id', userId);
-  }
-
-  return new Response(JSON.stringify({
-    success: true,
-    message: 'Presença automática registrada'
-  }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
-}
-
-async function addParticipants(supabase: any, reuniaoId: string, participantes: string[]) {
+async function syncGoogleCalendar(supabase: any, date: string) {
   try {
-    // Adicionar participantes à reunião
-    for (const participanteId of participantes) {
-      // Verificar se já existe registro de presença
-      const { data: existingPresenca } = await supabase
-        .from('presencas_reunioes')
-        .select('id')
-        .eq('reuniao_id', reuniaoId)
-        .eq('user_id', participanteId)
-        .single();
+    const apiKey = Deno.env.get('GOOGLE_CALENDAR_API_KEY');
+    if (!apiKey) {
+      throw new Error('Google Calendar API key not configured');
+    }
 
-      if (!existingPresenca) {
-        await supabase
-          .from('presencas_reunioes')
-          .insert({
-            reuniao_id: reuniaoId,
-            user_id: participanteId,
-            status: 'ausente'
-          });
+    // ID do calendário principal (pode ser configurado)
+    const calendarId = 'primary';
+    
+    const timeMin = `${date}T00:00:00.000Z`;
+    const timeMax = `${date}T23:59:59.999Z`;
+    
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${apiKey}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
+    
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(`Google Calendar API error: ${data.error?.message || 'Unknown error'}`);
+    }
+
+    console.log(`Google Calendar sync: found ${data.items?.length || 0} events`);
+
+    // Inserir reuniões no banco se não existirem
+    const reunioesInseridas = [];
+    
+    if (data.items && data.items.length > 0) {
+      for (const event of data.items) {
+        if (!event.start?.dateTime) continue; // Pular eventos de dia inteiro
+        
+        // Verificar se já existe uma reunião com este título e horário
+        const { data: existingMeeting } = await supabase
+          .from('reunioes_agendadas')
+          .select('id')
+          .eq('titulo', event.summary || 'Reunião sem título')
+          .eq('data_hora', event.start.dateTime)
+          .single();
+
+        if (!existingMeeting) {
+          // Criar nova reunião
+          const novaReuniao = {
+            titulo: event.summary || 'Reunião sem título',
+            descricao: event.description || null,
+            data_hora: event.start.dateTime,
+            duracao_prevista: event.end?.dateTime ? 
+              Math.round((new Date(event.end.dateTime).getTime() - new Date(event.start.dateTime).getTime()) / (1000 * 60)) : 60,
+            tipo: 'reuniao',
+            status: 'agendada',
+            link_meet: event.hangoutLink || null,
+            organizador_id: '4759b9d5-8e40-41f2-a994-f609fb62b9c2', // ID do usuário atual (temporário)
+            participantes_obrigatorios: [],
+            participantes_opcionais: []
+          };
+
+          const { data: insertedMeeting, error: insertError } = await supabase
+            .from('reunioes_agendadas')
+            .insert(novaReuniao)
+            .select()
+            .single();
+
+          if (!insertError && insertedMeeting) {
+            reunioesInseridas.push(insertedMeeting);
+            console.log(`Reunião inserida: ${insertedMeeting.titulo}`);
+          }
+        }
       }
     }
 
     return new Response(JSON.stringify({
       success: true,
-      message: 'Participantes adicionados com sucesso'
+      message: `Sincronizado com Google Calendar`,
+      reunioesInseridas: reunioesInseridas.length,
+      totalEventos: data.items?.length || 0
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('Erro ao adicionar participantes:', error);
+    console.error('Error syncing Google Calendar:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: 'Falha ao adicionar participantes'
+      error: 'Failed to sync Google Calendar',
+      details: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function createMeeting(supabase: any, meetingData: any) {
+  try {
+    const { data: newMeeting, error } = await supabase
+      .from('reunioes_agendadas')
+      .insert({
+        titulo: meetingData.titulo,
+        descricao: meetingData.descricao || null,
+        data_hora: meetingData.data_hora,
+        duracao_prevista: meetingData.duracao_prevista || 60,
+        tipo: meetingData.tipo || 'reuniao',
+        cliente_id: meetingData.cliente_id || null,
+        status: 'agendada',
+        link_meet: meetingData.link_meet || null,
+        organizador_id: meetingData.organizador_id,
+        participantes_obrigatorios: meetingData.participantes_obrigatorios || [],
+        participantes_opcionais: meetingData.participantes_opcionais || []
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return new Response(JSON.stringify({
+      success: true,
+      meeting: newMeeting
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error creating meeting:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to create meeting',
+      details: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function markAttendance(supabase: any, reuniaoId: string, userId: string, status: string) {
+  try {
+    const { data, error } = await supabase
+      .from('presencas_reunioes')
+      .upsert({
+        reuniao_id: reuniaoId,
+        user_id: userId,
+        status: status,
+        horario_entrada: status === 'presente' || status === 'atrasado' ? new Date().toISOString() : null
+      }, {
+        onConflict: 'reuniao_id,user_id'
+      })
+      .select();
+
+    if (error) throw error;
+
+    return new Response(JSON.stringify({
+      success: true,
+      data
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error marking attendance:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to mark attendance',
+      details: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function startMeeting(supabase: any, reuniaoId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('reunioes_agendadas')
+      .update({ status: 'em_andamento' })
+      .eq('id', reuniaoId)
+      .select();
+
+    if (error) throw error;
+
+    return new Response(JSON.stringify({
+      success: true,
+      data
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error starting meeting:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to start meeting',
+      details: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function endMeeting(supabase: any, reuniaoId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('reunioes_agendadas')
+      .update({ status: 'finalizada' })
+      .eq('id', reuniaoId)
+      .select();
+
+    if (error) throw error;
+
+    return new Response(JSON.stringify({
+      success: true,
+      data
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error ending meeting:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to end meeting',
+      details: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function addParticipants(supabase: any, reuniaoId: string, participantes: string[]) {
+  try {
+    // Inserir registros de presença para cada participante
+    const presencasData = participantes.map(participanteId => ({
+      reuniao_id: reuniaoId,
+      user_id: participanteId,
+      status: 'ausente',
+      horario_entrada: null,
+      horario_saida: null,
+      pontos_ganhos: 0,
+      tempo_presenca: 0
+    }));
+
+    const { data, error } = await supabase
+      .from('presencas_reunioes')
+      .upsert(presencasData, {
+        onConflict: 'reuniao_id,user_id'
+      })
+      .select();
+
+    if (error) throw error;
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `${participantes.length} participantes adicionados`,
+      data
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error adding participants:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to add participants',
+      details: error.message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -519,63 +479,51 @@ async function addParticipants(supabase: any, reuniaoId: string, participantes: 
 
 async function markIndividualAttendance(supabase: any, reuniaoId: string, userId: string, status: string) {
   try {
-    const agora = new Date().toISOString();
-
     const updateData: any = {
       status,
-      updated_at: agora
+      horario_entrada: status === 'presente' || status === 'atrasado' ? new Date().toISOString() : null
     };
 
-    if (status === 'presente' && !updateData.horario_entrada) {
-      updateData.horario_entrada = agora;
-    }
-
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('presencas_reunioes')
       .update(updateData)
       .eq('reuniao_id', reuniaoId)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .select();
 
     if (error) throw error;
 
-    // Se marcou como presente, registrar no sistema de gamificação
+    // Se marcado como presente, log para gamificação
     if (status === 'presente') {
-      const gamificationPayload = {
-        action: 'log_meeting_attendance',
-        reuniaoId,
-        userId,
-        horarioEntrada: agora,
-        status
-      };
-
-      // Chamar função de gamificação (não bloquear se falhar)
       try {
-        await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/gamification-engine`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-          },
-          body: JSON.stringify(gamificationPayload)
+        await supabase.functions.invoke('gamification-engine', {
+          body: {
+            action: 'log_meeting_attendance',
+            userId,
+            reuniaoId,
+            status
+          }
         });
       } catch (gamificationError) {
-        console.error('Erro na gamificação:', gamificationError);
+        console.error('Error logging to gamification:', gamificationError);
+        // Não falhar a operação principal por erro na gamificação
       }
     }
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Presença individual marcada como ${status}`
+      data
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('Erro ao marcar presença individual:', error);
+    console.error('Error marking individual attendance:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: 'Falha ao marcar presença individual'
+      error: 'Failed to mark individual attendance',
+      details: error.message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

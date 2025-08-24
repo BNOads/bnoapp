@@ -25,6 +25,7 @@ import {
   Plus
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -63,6 +64,7 @@ export const EscalaReunioes: React.FC = () => {
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
   const { toast } = useToast();
+  const { userData } = useCurrentUser();
 
   const [novaReuniao, setNovaReuniao] = useState({
     titulo: '',
@@ -77,17 +79,35 @@ export const EscalaReunioes: React.FC = () => {
   });
 
   useEffect(() => {
-    loadMeetings();
+    carregarReunioes();
     loadColaboradores();
     loadClientes();
   }, [selectedDate]);
 
-  const loadMeetings = async () => {
+  const carregarReunioes = async () => {
+    if (!selectedDate) return;
+    
     try {
       setLoading(true);
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       
-      // Tentar carregar via edge function primeiro
+      // Primeiro, sincronizar com Google Calendar
+      try {
+        const { data: syncData } = await supabase.functions.invoke('meeting-management', {
+          body: {
+            action: 'sync_google_calendar',
+            date: dateStr
+          }
+        });
+        
+        if (syncData?.success) {
+          console.log(`Sincronização concluída: ${syncData.reunioesInseridas} reuniões inseridas`);
+        }
+      } catch (syncError) {
+        console.warn('Erro na sincronização com Google Calendar:', syncError);
+      }
+
+      // Depois, carregar reuniões do banco
       try {
         const { data, error } = await supabase.functions.invoke('meeting-management', {
           body: {
@@ -145,6 +165,43 @@ export const EscalaReunioes: React.FC = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const criarNovaReuniao = async () => {
+    try {
+      const reuniaoData = {
+        titulo: "Nova Reunião",
+        descricao: "Reunião criada manualmente",
+        data_hora: format(selectedDate, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"),
+        duracao_prevista: 60,
+        tipo: "reuniao",
+        organizador_id: '4759b9d5-8e40-41f2-a994-f609fb62b9c2', // Temporário
+        participantes_obrigatorios: [],
+        participantes_opcionais: []
+      };
+
+      const { data } = await supabase.functions.invoke('meeting-management', {
+        body: {
+          action: 'create_meeting',
+          ...reuniaoData
+        }
+      });
+
+      if (data?.success) {
+        toast({
+          title: "Reunião criada",
+          description: "Nova reunião foi criada com sucesso",
+        });
+        carregarReunioes();
+      }
+    } catch (error) {
+      console.error('Erro ao criar reunião:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar a reunião",
+        variant: "destructive",
+      });
     }
   };
 
@@ -206,7 +263,7 @@ export const EscalaReunioes: React.FC = () => {
         participantesOpcionais: [],
         linkMeet: ''
       });
-      loadMeetings();
+      carregarReunioes();
     } catch (error) {
       console.error('Erro ao criar reunião:', error);
       toast({
@@ -234,7 +291,7 @@ export const EscalaReunioes: React.FC = () => {
         description: "Presença marcada com sucesso"
       });
 
-      loadMeetings();
+      carregarReunioes();
     } catch (error) {
       console.error('Erro ao marcar presença:', error);
       toast({
@@ -261,7 +318,7 @@ export const EscalaReunioes: React.FC = () => {
         description: "Reunião iniciada"
       });
 
-      loadMeetings();
+      carregarReunioes();
     } catch (error) {
       console.error('Erro ao iniciar reunião:', error);
       toast({
@@ -288,7 +345,7 @@ export const EscalaReunioes: React.FC = () => {
         description: "Reunião finalizada"
       });
 
-      loadMeetings();
+      carregarReunioes();
     } catch (error) {
       console.error('Erro ao finalizar reunião:', error);
       toast({
@@ -317,7 +374,7 @@ export const EscalaReunioes: React.FC = () => {
       });
 
       setParticipantesModal(false);
-      loadMeetings();
+      carregarReunioes();
     } catch (error) {
       console.error('Erro ao adicionar participantes:', error);
       toast({
@@ -346,7 +403,7 @@ export const EscalaReunioes: React.FC = () => {
         description: `Presença de ${status} marcada`
       });
 
-      loadMeetings();
+      carregarReunioes();
     } catch (error) {
       console.error('Erro ao marcar presença individual:', error);
       toast({
