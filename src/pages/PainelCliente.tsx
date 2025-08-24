@@ -242,40 +242,6 @@ const PainelCliente = () => {
           </div>
           
           <div className="container mx-auto p-6 max-w-7xl">
-            {/* Cards de Ação Rápida */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <Card className="hover:shadow-card transition-all duration-300 cursor-pointer group" onClick={() => setActiveTab('gravacoes')}>
-                <CardContent className="p-4 sm:p-6 text-center">
-                  <Video className="h-6 w-6 sm:h-8 sm:w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                  <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base">Gravações</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Ver reuniões gravadas</p>
-                </CardContent>
-              </Card>
-              
-              <Card className="hover:shadow-card transition-all duration-300 cursor-pointer group" onClick={() => setActiveTab('links')}>
-                <CardContent className="p-4 sm:p-6 text-center">
-                  <Link2 className="h-6 w-6 sm:h-8 sm:w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                  <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base">Links</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Links importantes</p>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:shadow-card transition-all duration-300 cursor-pointer group" onClick={() => setActiveTab('tarefas')}>
-                <CardContent className="p-4 sm:p-6 text-center">
-                  <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                  <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base">Tarefas</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Acompanhar atividades</p>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:shadow-card transition-all duration-300 cursor-pointer group" onClick={() => navigate(`/criativos/${clienteId}`)}>
-                <CardContent className="p-4 sm:p-6 text-center">
-                  <FolderOpen className="h-6 w-6 sm:h-8 sm:w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                  <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base">Criativos</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Catálogo de materiais</p>
-                </CardContent>
-              </Card>
-            </div>
 
 
             {/* Conteúdo Principal */}

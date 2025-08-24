@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ interface LinksImportantesProps {
 }
 
 export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
+  const navigate = useNavigate();
   const [links, setLinks] = useState<LinkImportante[]>([]);
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [loading, setLoading] = useState(true);
@@ -324,6 +326,15 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
           </CardTitle>
           {isAuthenticated && (
             <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => navigate(`/criativos/${clienteId}`)}
+              >
+                <FolderOpen className="h-4 w-4 mr-2" />
+                Criativos
+              </Button>
+              
               <Dialog open={showDashboardModal} onOpenChange={setShowDashboardModal}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline">

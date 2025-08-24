@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Video, Play, Calendar, Clock, Plus, ExternalLink, Trash2, RefreshCw } from "lucide-react";
+import { Video, Play, Calendar, Clock, Plus, ExternalLink, Trash2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NovaGravacaoModal } from "./NovaGravacaoModal";
@@ -28,6 +28,9 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showAll, setShowAll] = useState(false);
+  const itemsPerPage = 3;
   const { toast } = useToast();
 
   useEffect(() => {
@@ -157,6 +160,11 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
     return <div className="text-center py-4">Carregando gravações...</div>;
   }
 
+  // Calcular gravações para exibir
+  const totalGravacoes = gravacoes.length;
+  const displayGravacoes = showAll ? gravacoes : gravacoes.slice(0, itemsPerPage);
+  const remainingCount = totalGravacoes - itemsPerPage;
+
   return (
     <Card>
       <CardHeader>
@@ -207,7 +215,7 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
           </div>
         ) : (
           <div className="space-y-4">
-            {gravacoes.map((gravacao) => (
+            {displayGravacoes.map((gravacao) => (
               <div key={gravacao.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
                 <div className="flex items-start gap-4">
                   <div className="w-24 h-16 bg-muted rounded-lg flex items-center justify-center">
@@ -270,6 +278,22 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
                 </div>
               </div>
             ))}
+            
+            {totalGravacoes > itemsPerPage && (
+              <div className="flex justify-center pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowAll(!showAll)}
+                  className="text-sm"
+                >
+                  {showAll ? (
+                    <>Mostrar apenas 3 recentes</>
+                  ) : (
+                    <>Ver todas ({remainingCount} gravações a mais)</>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
