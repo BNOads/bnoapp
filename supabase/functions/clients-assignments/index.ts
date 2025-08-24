@@ -42,7 +42,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (method === 'GET') {
       console.log('Fetching clients assignments...');
       
-      // GET all clients with their assignments
+      // GET all clients with their assignments - using simple approach without joins
       const { data: clientes, error } = await supabase
         .from('clientes')
         .select(`
@@ -51,9 +51,7 @@ const handler = async (req: Request): Promise<Response> => {
           status_cliente,
           data_inicio,
           traffic_manager_id,
-          cs_id,
-          traffic_manager:colaboradores!fk_clientes_traffic_manager(id, nome, nivel_acesso),
-          cs:colaboradores!fk_clientes_cs(id, nome, nivel_acesso)
+          cs_id
         `)
         .order('nome');
 
@@ -65,8 +63,29 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
 
-      console.log(`Found ${clientes?.length || 0} clients`);
-      return new Response(JSON.stringify({ data: clientes }), {
+      // Get colaboradores separately to avoid relationship conflicts
+      const { data: colaboradores, error: colabError } = await supabase
+        .from('colaboradores')
+        .select('id, nome, nivel_acesso')
+        .eq('ativo', true);
+
+      if (colabError) {
+        console.error('Error fetching colaboradores:', colabError);
+        return new Response(JSON.stringify({ error: colabError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Map colaboradores data to clients
+      const clientesWithCollaborators = clientes?.map(cliente => ({
+        ...cliente,
+        traffic_manager: colaboradores?.find(c => c.id === cliente.traffic_manager_id) || null,
+        cs: colaboradores?.find(c => c.id === cliente.cs_id) || null
+      })) || [];
+      
+      console.log(`Found ${clientesWithCollaborators?.length || 0} clients`);
+      return new Response(JSON.stringify({ data: clientesWithCollaborators }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -114,9 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
           id,
           nome,
           traffic_manager_id,
-          cs_id,
-          traffic_manager:colaboradores!fk_clientes_traffic_manager(id, nome),
-          cs:colaboradores!fk_clientes_cs(id, nome)
+          cs_id
         `)
         .single();
 

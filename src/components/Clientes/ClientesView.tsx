@@ -144,7 +144,7 @@ export const ClientesView = () => {
       {/* Header */}
       <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
         <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Gestão de Clientes</h2>
+          <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Clientes</h2>
           <p className="text-muted-foreground mt-1 text-sm lg:text-base">
             Gerencie painéis, alocações e acompanhe o acesso dos clientes
           </p>
