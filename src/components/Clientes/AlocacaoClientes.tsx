@@ -109,7 +109,12 @@ export function AlocacaoClientes() {
       });
 
       if (error) {
-        console.error('Erro na resposta da API:', error);
+        console.error('Erro detalhado na resposta da API:', error);
+        console.error('Dados enviados:', {
+          client_id: clienteId,
+          traffic_manager_id: editData.traffic_manager_id || null,
+          cs_id: editData.cs_id || null
+        });
         throw error;
       }
 
@@ -123,11 +128,19 @@ export function AlocacaoClientes() {
       setEditingClient(null);
       setEditData({});
       carregarDados();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar alocação:', error);
+      
+      let errorMessage = "Falha ao atualizar alocação";
+      if (error?.details) {
+        errorMessage += `: ${error.details}`;
+      } else if (error?.message) {
+        errorMessage += `: ${error.message}`;
+      }
+      
       toast({
         title: "Erro",
-        description: "Falha ao atualizar alocação",
+        description: errorMessage,
         variant: "destructive"
       });
     }

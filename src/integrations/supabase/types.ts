@@ -283,6 +283,20 @@ export type Database = {
             referencedRelation: "colaboradores"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_clientes_cs"
+            columns: ["cs_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_clientes_traffic_manager"
+            columns: ["traffic_manager_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
         ]
       }
       clientes_layout: {

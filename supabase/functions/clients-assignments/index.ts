@@ -116,7 +116,13 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (error) {
         console.error('Error updating client assignment:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        console.error('Update data that caused error:', updateData);
+        return new Response(JSON.stringify({ 
+          error: error.message,
+          details: error.details || error.hint || 'Unknown error',
+          code: error.code
+        }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -136,7 +142,11 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error) {
     console.error('Error in clients-assignments function:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+    console.error('Error stack:', error.stack);
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error',
+      details: error.message
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
