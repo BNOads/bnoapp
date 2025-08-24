@@ -151,9 +151,21 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
 
+      // Get colaboradores data for the response
+      const { data: colaboradores } = await supabase
+        .from('colaboradores')
+        .select('id, nome')
+        .in('id', [data.traffic_manager_id, data.cs_id].filter(Boolean));
+
+      const responseData = {
+        ...data,
+        traffic_manager: colaboradores?.find(c => c.id === data.traffic_manager_id) || null,
+        cs: colaboradores?.find(c => c.id === data.cs_id) || null
+      };
+
       console.log(`Client assignment updated successfully: ${data.nome}`);
 
-      return new Response(JSON.stringify({ data }), {
+      return new Response(JSON.stringify({ data: responseData }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

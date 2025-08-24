@@ -31,7 +31,7 @@ export const Header = ({
     icon: Users
   }, {
     id: 'clientes',
-    label: 'Painéis Clientes',
+    label: 'Clientes',
     icon: Calendar
   }, {
     id: 'reunioes',
