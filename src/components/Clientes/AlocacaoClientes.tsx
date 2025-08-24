@@ -227,14 +227,17 @@ export function AlocacaoClientes() {
                     <TableCell>
                       {editingClient === cliente.id ? (
                         <Select
-                          value={editData.traffic_manager_id}
-                          onValueChange={(value) => setEditData(prev => ({ ...prev, traffic_manager_id: value }))}
+                          value={editData.traffic_manager_id || "none"}
+                          onValueChange={(value) => setEditData(prev => ({ 
+                            ...prev, 
+                            traffic_manager_id: value === "none" ? "" : value 
+                          }))}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Selecionar gestor" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Nenhum</SelectItem>
+                            <SelectItem value="none">Nenhum</SelectItem>
                             {gestoresTrafego.map((gestor) => (
                               <SelectItem key={gestor.id} value={gestor.id}>
                                 {gestor.nome}
@@ -255,14 +258,17 @@ export function AlocacaoClientes() {
                     <TableCell>
                       {editingClient === cliente.id ? (
                         <Select
-                          value={editData.cs_id}
-                          onValueChange={(value) => setEditData(prev => ({ ...prev, cs_id: value }))}
+                          value={editData.cs_id || "none"}
+                          onValueChange={(value) => setEditData(prev => ({ 
+                            ...prev, 
+                            cs_id: value === "none" ? "" : value 
+                          }))}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Selecionar CS" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Nenhum</SelectItem>
+                            <SelectItem value="none">Nenhum</SelectItem>
                             {csTeam.map((cs) => (
                               <SelectItem key={cs.id} value={cs.id}>
                                 {cs.nome}
