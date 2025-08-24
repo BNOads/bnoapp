@@ -7,6 +7,7 @@ import { AuthProvider } from "@/components/Auth/AuthContext";
 import { ProtectedRoute } from "@/components/Auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import PDIDetalhes from "./pages/PDIDetalhes";
 import PainelCliente from "./pages/PainelCliente";
 import CriativosCliente from "./pages/CriativosCliente";
 import CursoDetalhes from "./pages/CursoDetalhes";
@@ -26,6 +27,11 @@ function App() {
           <AuthProvider>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/pdi/:id" element={
+                <ProtectedRoute>
+                  <PDIDetalhes />
+                </ProtectedRoute>
+              } />
               <Route path="/painel/:clienteId" element={
                 <ProtectedRoute>
                   <PainelCliente />
