@@ -93,81 +93,92 @@ const handler = async (req: Request): Promise<Response> => {
     if (method === 'PATCH') {
       console.log('Processing PATCH request for client assignment...');
       
-      const body = await req.json();
-      console.log('Request body:', body);
-      
-      const { client_id, traffic_manager_id, cs_id } = body;
+      try {
+        const body = await req.json();
+        console.log('Request body:', body);
+        
+        const { client_id, traffic_manager_id, cs_id } = body;
 
-      if (!client_id) {
-        console.log('Missing client_id in request');
-        return new Response(JSON.stringify({ error: 'client_id is required' }), {
-          status: 400,
+        if (!client_id) {
+          console.log('Missing client_id in request');
+          return new Response(JSON.stringify({ error: 'client_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        console.log(`Updating client ${client_id} with TM: ${traffic_manager_id || 'none'}, CS: ${cs_id || 'none'}`);
+
+        const updateData: any = {
+          updated_at: new Date().toISOString()
+        };
+
+        if (traffic_manager_id === null || traffic_manager_id === 'none' || traffic_manager_id === '') {
+          updateData.traffic_manager_id = null;
+        } else {
+          updateData.traffic_manager_id = traffic_manager_id;
+        }
+
+        if (cs_id === null || cs_id === 'none' || cs_id === '') {
+          updateData.cs_id = null;
+        } else {
+          updateData.cs_id = cs_id;
+        }
+
+        console.log('Update data:', updateData);
+        const { data, error } = await supabase
+          .from('clientes')
+          .update(updateData)
+          .eq('id', client_id)
+          .select(`
+            id,
+            nome,
+            traffic_manager_id,
+            cs_id
+          `)
+          .single();
+
+        if (error) {
+          console.error('Error updating client assignment:', error);
+          console.error('Error details:', JSON.stringify(error, null, 2));
+          console.error('Update data that caused error:', updateData);
+          return new Response(JSON.stringify({ 
+            error: error.message,
+            details: error.details || error.hint || 'Unknown error',
+            code: error.code
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Get colaboradores data for the response
+        const { data: colaboradores } = await supabase
+          .from('colaboradores')
+          .select('id, nome')
+          .in('id', [data.traffic_manager_id, data.cs_id].filter(Boolean));
+
+        const responseData = {
+          ...data,
+          traffic_manager: colaboradores?.find(c => c.id === data.traffic_manager_id) || null,
+          cs: colaboradores?.find(c => c.id === data.cs_id) || null
+        };
+
+        console.log(`Client assignment updated successfully: ${data.nome}`);
+
+        return new Response(JSON.stringify({ data: responseData }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
-      }
-
-      console.log(`Updating client ${client_id} with TM: ${traffic_manager_id || 'none'}, CS: ${cs_id || 'none'}`);
-
-      const updateData: any = {
-        updated_at: new Date().toISOString()
-      };
-
-      if (traffic_manager_id === null || traffic_manager_id === 'none' || traffic_manager_id === '') {
-        updateData.traffic_manager_id = null;
-      } else {
-        updateData.traffic_manager_id = traffic_manager_id;
-      }
-
-      if (cs_id === null || cs_id === 'none' || cs_id === '') {
-        updateData.cs_id = null;
-      } else {
-        updateData.cs_id = cs_id;
-      }
-
-      console.log('Update data:', updateData);
-      const { data, error } = await supabase
-        .from('clientes')
-        .update(updateData)
-        .eq('id', client_id)
-        .select(`
-          id,
-          nome,
-          traffic_manager_id,
-          cs_id
-        `)
-        .single();
-
-      if (error) {
-        console.error('Error updating client assignment:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        console.error('Update data that caused error:', updateData);
+      } catch (patchError) {
+        console.error('Error in PATCH processing:', patchError);
         return new Response(JSON.stringify({ 
-          error: error.message,
-          details: error.details || error.hint || 'Unknown error',
-          code: error.code
+          error: 'Error processing PATCH request',
+          details: patchError.message
         }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-
-      // Get colaboradores data for the response
-      const { data: colaboradores } = await supabase
-        .from('colaboradores')
-        .select('id, nome')
-        .in('id', [data.traffic_manager_id, data.cs_id].filter(Boolean));
-
-      const responseData = {
-        ...data,
-        traffic_manager: colaboradores?.find(c => c.id === data.traffic_manager_id) || null,
-        cs: colaboradores?.find(c => c.id === data.cs_id) || null
-      };
-
-      console.log(`Client assignment updated successfully: ${data.nome}`);
-
-      return new Response(JSON.stringify({ data: responseData }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
 
     console.log('=== METHOD NOT ALLOWED ===');
