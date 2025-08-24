@@ -12,6 +12,8 @@ const supabase = createClient(
 );
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log('Assignments-summary function called with method:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -20,16 +22,20 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.log('Missing authorization header');
       return new Response(JSON.stringify({ error: 'Authorization header required' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log('Setting auth session...');
     // Set auth for the supabase client
     const token = authHeader.replace('Bearer ', '');
     await supabase.auth.setSession({ access_token: token, refresh_token: '' });
 
+    console.log(`Processing ${req.method} request for assignments summary`);
+    
     if (req.method === 'GET' || req.method === 'POST') {
       // GET /admin/assignments/summary
       
@@ -146,6 +152,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    console.log('Method not allowed:', req.method);
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

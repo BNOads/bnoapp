@@ -39,12 +39,10 @@ export function IndicadoresAlocacao() {
       
       console.log('Carregando indicadores de alocação...');
       
-      const { data, error } = await supabase.functions.invoke('assignments-summary', {
-        method: 'GET'
-      });
+      const { data, error } = await supabase.functions.invoke('assignments-summary');
       
       if (error) {
-        console.error('Erro ao carregar indicadores:', error);
+        console.error('Erro detalhado ao carregar indicadores:', error);
         throw error;
       }
       
