@@ -140,7 +140,12 @@ export const EscalaReunioes: React.FC = () => {
         .select(`
           *,
           organizador:profiles!organizador_id(nome),
-          cliente:clientes(nome)
+          cliente:clientes(nome),
+          presencas_reunioes(
+            user_id,
+            status,
+            profiles:user_id(nome, avatar_url)
+          )
         `)
         .gte('data_hora', startDate.toISOString())
         .lt('data_hora', endDate.toISOString())
@@ -148,11 +153,30 @@ export const EscalaReunioes: React.FC = () => {
       
       const reunioesFormatadas = (reunioesBanco || []).map(reuniao => ({
         ...reuniao,
-        participants: []
+        participants: reuniao.presencas_reunioes || []
       }));
       
+      // Buscar participantes das reuniões do Google Calendar
+      const reunioesComParticipantes = await Promise.all(
+        reunioesDoCalendar.map(async (reuniao) => {
+          const { data: participantes } = await supabase
+            .from('presencas_reunioes')
+            .select(`
+              user_id,
+              status,
+              profiles:user_id(nome, avatar_url)
+            `)
+            .eq('reuniao_id', reuniao.id);
+          
+          return {
+            ...reuniao,
+            presencas_reunioes: participantes || []
+          };
+        })
+      );
+      
       // Combinar reuniões do Google Calendar com as do banco
-      const todasReunioes = [...reunioesDoCalendar, ...reunioesFormatadas];
+      const todasReunioes = [...reunioesComParticipantes, ...reunioesFormatadas];
       console.log('Total de reuniões:', todasReunioes.length);
       setReunioes(todasReunioes);
       
