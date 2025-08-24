@@ -142,6 +142,30 @@ export default function PDIDetalhes() {
     }
   };
 
+  const verAula = async (aulaId: string) => {
+    try {
+      // Buscar dados da aula para obter o treinamento_id
+      const { data: aulaData, error } = await supabase
+        .from('aulas')
+        .select('treinamento_id')
+        .eq('id', aulaId)
+        .single();
+
+      if (error) throw error;
+
+      if (aulaData) {
+        navigate(`/curso/${aulaData.treinamento_id}/aula/${aulaId}`);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados da aula:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar dados da aula",
+        variant: "destructive"
+      });
+    }
+  };
+
   const concluirPDI = async () => {
     setLoadingAction('pdi');
     try {
@@ -339,7 +363,7 @@ export default function PDIDetalhes() {
                   
                   <div className="flex items-center gap-2">
                     <Button 
-                      onClick={() => navigate(`/curso/treinamento-${aula.aula_id}/aula/${aula.aula_id}`)}
+                      onClick={() => verAula(aula.aula_id)}
                       variant="outline"
                       size="sm"
                     >
