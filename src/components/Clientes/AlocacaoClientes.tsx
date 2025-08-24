@@ -46,12 +46,20 @@ export function AlocacaoClientes() {
     try {
       setLoading(true);
       
-      // Carregar clientes
-      const { data: clientesData, error: clientesError } = await supabase.functions.invoke('clients-assignments');
+      console.log('Carregando dados de alocação...');
       
-      if (clientesError) throw clientesError;
+      // Carregar clientes com suas alocações
+      const { data: clientesData, error: clientesError } = await supabase.functions.invoke('clients-assignments', {
+        method: 'GET'
+      });
       
-      setClientes(clientesData.data || []);
+      if (clientesError) {
+        console.error('Erro ao carregar clientes:', clientesError);
+        throw clientesError;
+      }
+      
+      console.log('Clientes carregados:', clientesData?.data?.length || 0);
+      setClientes(clientesData?.data || []);
 
       // Carregar colaboradores ativos
       const { data: colaboradoresData, error: colaboradoresError } = await supabase
@@ -60,8 +68,12 @@ export function AlocacaoClientes() {
         .eq('ativo', true)
         .order('nome');
 
-      if (colaboradoresError) throw colaboradoresError;
+      if (colaboradoresError) {
+        console.error('Erro ao carregar colaboradores:', colaboradoresError);
+        throw colaboradoresError;
+      }
       
+      console.log('Colaboradores carregados:', colaboradoresData?.length || 0);
       setColaboradores(colaboradoresData || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -85,15 +97,23 @@ export function AlocacaoClientes() {
 
   const handleSave = async (clienteId: string) => {
     try {
+      console.log('Salvando alocação para cliente:', clienteId, editData);
+      
       const { data, error } = await supabase.functions.invoke('clients-assignments', {
         method: 'PATCH',
         body: {
+          client_id: clienteId,
           traffic_manager_id: editData.traffic_manager_id || null,
           cs_id: editData.cs_id || null
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro na resposta da API:', error);
+        throw error;
+      }
+
+      console.log('Alocação salva com sucesso:', data);
 
       toast({
         title: "Sucesso",
@@ -101,6 +121,7 @@ export function AlocacaoClientes() {
       });
 
       setEditingClient(null);
+      setEditData({});
       carregarDados();
     } catch (error) {
       console.error('Erro ao salvar alocação:', error);

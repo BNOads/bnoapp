@@ -28,13 +28,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Set auth for the supabase client
     const token = authHeader.replace('Bearer ', '');
-    supabase.auth.setSession({ access_token: token, refresh_token: '' });
+    await supabase.auth.setSession({ access_token: token, refresh_token: '' });
 
     const url = new URL(req.url);
     const method = req.method;
 
     if (method === 'GET') {
-      // GET /admin/clients/assignments
+      console.log('Fetching clients assignments...');
+      
+      // GET all clients with their assignments
       const { data: clientes, error } = await supabase
         .from('clientes')
         .select(`
@@ -57,27 +59,35 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
 
+      console.log(`Found ${clientes?.length || 0} clients`);
       return new Response(JSON.stringify({ data: clientes }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (method === 'PATCH') {
-      // PATCH /admin/clients/:id/assignment
-      const pathParts = url.pathname.split('/');
-      const clientId = pathParts[pathParts.length - 2]; // gets ID from /admin/clients/:id/assignment
-
+      console.log('Updating client assignment...');
+      
       const body = await req.json();
-      const { traffic_manager_id, cs_id } = body;
+      const { client_id, traffic_manager_id, cs_id } = body;
+
+      if (!client_id) {
+        return new Response(JSON.stringify({ error: 'client_id is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log(`Updating client ${client_id} with TM: ${traffic_manager_id || 'none'}, CS: ${cs_id || 'none'}`);
 
       const { data, error } = await supabase
         .from('clientes')
         .update({
-          traffic_manager_id,
-          cs_id,
+          traffic_manager_id: traffic_manager_id || null,
+          cs_id: cs_id || null,
           updated_at: new Date().toISOString()
         })
-        .eq('id', clientId)
+        .eq('id', client_id)
         .select(`
           id,
           nome,
@@ -96,8 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
 
-      // Log the assignment change
-      console.log(`Client assignment updated: ${data.nome} - TM: ${data.traffic_manager?.nome || 'None'}, CS: ${data.cs?.nome || 'None'}`);
+      console.log(`Client assignment updated successfully: ${data.nome}`);
 
       return new Response(JSON.stringify({ data }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
