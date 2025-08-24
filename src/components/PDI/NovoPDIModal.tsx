@@ -246,12 +246,11 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
                 {aulas.map((aula) => (
                   <Card
                     key={aula.id}
-                    className={`cursor-pointer transition-colors ${
+                    className={`transition-colors ${
                       formData.aulas_selecionadas.includes(aula.id) 
                         ? 'border-primary bg-primary/5' 
                         : 'hover:bg-muted/50'
                     }`}
-                    onClick={() => toggleAula(aula.id)}
                   >
                     <CardHeader className="pb-2">
                       <div className="flex items-center space-x-2">
