@@ -143,6 +143,9 @@ async function getDailyMeetings(supabase: any, date: string) {
     const inicioData = `${date}T00:00:00.000Z`;
     const fimData = `${date}T23:59:59.999Z`;
 
+    console.log(`Buscando reuniões para: ${date}, período: ${inicioData} - ${fimData}`);
+
+    // Buscar reuniões sem joins problemáticos
     const { data: reunioes, error } = await supabase
       .from('reunioes_agendadas')
       .select(`
@@ -155,14 +158,9 @@ async function getDailyMeetings(supabase: any, date: string) {
         cliente_id,
         status,
         link_meet,
-        clientes:cliente_id(nome),
-        presencas_reunioes(
-          user_id,
-          status,
-          horario_entrada,
-          horario_saida,
-          profiles:user_id(nome, avatar_url)
-        )
+        organizador_id,
+        participantes_obrigatorios,
+        participantes_opcionais
       `)
       .gte('data_hora', inicioData)
       .lte('data_hora', fimData)
@@ -173,9 +171,68 @@ async function getDailyMeetings(supabase: any, date: string) {
       throw error;
     }
 
+    console.log(`Encontradas ${reunioes?.length || 0} reuniões`);
+
+    // Buscar presenças separadamente se houver reuniões
+    let reunioesComPresencas = reunioes || [];
+    
+    if (reunioes && reunioes.length > 0) {
+      const reuniaoIds = reunioes.map(r => r.id);
+      
+      const { data: presencas, error: presencasError } = await supabase
+        .from('presencas_reunioes')
+        .select(`
+          reuniao_id,
+          user_id,
+          status,
+          horario_entrada,
+          horario_saida,
+          profiles:user_id(nome, avatar_url)
+        `)
+        .in('reuniao_id', reuniaoIds);
+
+      if (!presencasError && presencas) {
+        // Agrupar presenças por reunião
+        const presencasPorReuniao = presencas.reduce((acc, presenca) => {
+          if (!acc[presenca.reuniao_id]) {
+            acc[presenca.reuniao_id] = [];
+          }
+          acc[presenca.reuniao_id].push(presenca);
+          return acc;
+        }, {});
+
+        // Adicionar presenças às reuniões
+        reunioesComPresencas = reunioes.map(reuniao => ({
+          ...reuniao,
+          presencas_reunioes: presencasPorReuniao[reuniao.id] || []
+        }));
+      }
+
+      // Buscar nomes dos clientes se houver cliente_id
+      const clienteIds = reunioes.map(r => r.cliente_id).filter(Boolean);
+      if (clienteIds.length > 0) {
+        const { data: clientes, error: clientesError } = await supabase
+          .from('clientes')
+          .select('id, nome')
+          .in('id', clienteIds);
+
+        if (!clientesError && clientes) {
+          const clientesPorId = clientes.reduce((acc, cliente) => {
+            acc[cliente.id] = cliente;
+            return acc;
+          }, {});
+
+          reunioesComPresencas = reunioesComPresencas.map(reuniao => ({
+            ...reuniao,
+            clientes: reuniao.cliente_id ? clientesPorId[reuniao.cliente_id] : null
+          }));
+        }
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
-      reunioes: reunioes || []
+      reunioes: reunioesComPresencas
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
