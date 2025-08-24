@@ -74,6 +74,12 @@ serve(async (req) => {
       case 'auto_attendance':
         return await autoAttendance(supabase, data.reuniaoId);
 
+      case 'add_participants':
+        return await addParticipants(supabase, data.reuniaoId, data.participantes);
+
+      case 'mark_individual_attendance':
+        return await markIndividualAttendance(supabase, data.reuniaoId, data.userId, data.status);
+
       default:
         return new Response(JSON.stringify({ error: 'Ação inválida' }), {
           status: 400,
@@ -386,4 +392,113 @@ async function autoAttendance(supabase: any, reuniaoId: string) {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
+}
+
+async function addParticipants(supabase: any, reuniaoId: string, participantes: string[]) {
+  try {
+    // Adicionar participantes à reunião
+    for (const participanteId of participantes) {
+      // Verificar se já existe registro de presença
+      const { data: existingPresenca } = await supabase
+        .from('presencas_reunioes')
+        .select('id')
+        .eq('reuniao_id', reuniaoId)
+        .eq('user_id', participanteId)
+        .single();
+
+      if (!existingPresenca) {
+        await supabase
+          .from('presencas_reunioes')
+          .insert({
+            reuniao_id: reuniaoId,
+            user_id: participanteId,
+            status: 'ausente'
+          });
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Participantes adicionados com sucesso'
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Erro ao adicionar participantes:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Falha ao adicionar participantes'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function markIndividualAttendance(supabase: any, reuniaoId: string, userId: string, status: string) {
+  try {
+    const agora = new Date().toISOString();
+
+    const updateData: any = {
+      status,
+      updated_at: agora
+    };
+
+    if (status === 'presente' && !updateData.horario_entrada) {
+      updateData.horario_entrada = agora;
+    }
+
+    const { error } = await supabase
+      .from('presencas_reunioes')
+      .update(updateData)
+      .eq('reuniao_id', reuniaoId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    // Se marcou como presente, registrar no sistema de gamificação
+    if (status === 'presente') {
+      const gamificationPayload = {
+        action: 'log_meeting_attendance',
+        reuniaoId,
+        userId,
+        horarioEntrada: agora,
+        status
+      };
+
+      // Chamar função de gamificação (não bloquear se falhar)
+      try {
+        await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/gamification-engine`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify(gamificationPayload)
+        });
+      } catch (gamificationError) {
+        console.error('Erro na gamificação:', gamificationError);
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Presença individual marcada como ${status}`
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Erro ao marcar presença individual:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Falha ao marcar presença individual'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
 }

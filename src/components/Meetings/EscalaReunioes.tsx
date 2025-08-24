@@ -58,6 +58,8 @@ export const EscalaReunioes: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
   const [novaReuniaoModal, setNovaReuniaoModal] = useState(false);
+  const [participantesModal, setParticipantesModal] = useState(false);
+  const [reuniaoSelecionada, setReuniaoSelecionada] = useState<string>('');
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
   const { toast } = useToast();
@@ -253,6 +255,64 @@ export const EscalaReunioes: React.FC = () => {
       toast({
         title: "Erro",
         description: "Falha ao finalizar reunião",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const addParticipantsToMeeting = async (reuniaoId: string, participantes: string[]) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('meeting-management', {
+        body: {
+          action: 'add_participants',
+          reuniaoId,
+          participantes
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Participantes adicionados à reunião"
+      });
+
+      setParticipantesModal(false);
+      loadMeetings();
+    } catch (error) {
+      console.error('Erro ao adicionar participantes:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao adicionar participantes",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const markIndividualAttendance = async (reuniaoId: string, userId: string, status: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('meeting-management', {
+        body: {
+          action: 'mark_individual_attendance',
+          reuniaoId,
+          userId,
+          status
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: `Presença de ${status} marcada`
+      });
+
+      loadMeetings();
+    } catch (error) {
+      console.error('Erro ao marcar presença individual:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao marcar presença",
         variant: "destructive"
       });
     }
@@ -515,57 +575,90 @@ export const EscalaReunioes: React.FC = () => {
                         </div>
                       )}
                       
-                      {reuniao.presencas_reunioes && reuniao.presencas_reunioes.length > 0 && (
-                        <div className="space-y-2">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
                           <h4 className="font-medium text-sm">Participantes:</h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setReuniaoSelecionada(reuniao.id);
+                              setParticipantesModal(true);
+                            }}
+                          >
+                            <Users className="h-4 w-4 mr-1" />
+                            Gerenciar
+                          </Button>
+                        </div>
+                        
+                        {reuniao.presencas_reunioes && reuniao.presencas_reunioes.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-2">
                             {reuniao.presencas_reunioes.map((presenca) => (
-                              <div key={presenca.user_id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                              <div key={presenca.user_id} className="flex items-center justify-between p-3 bg-muted/50 rounded">
                                 <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
+                                  <Avatar className="h-8 w-8">
                                     <AvatarImage src={presenca.profiles.avatar_url} />
                                     <AvatarFallback className="text-xs">
                                       {presenca.profiles.nome.split(' ').map(n => n[0]).join('')}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <span className="text-sm">{presenca.profiles.nome}</span>
+                                  <div>
+                                    <span className="text-sm font-medium">{presenca.profiles.nome}</span>
+                                    {presenca.horario_entrada && (
+                                      <div className="text-xs text-muted-foreground">
+                                        Entrada: {format(new Date(presenca.horario_entrada), "HH:mm")}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                                 
                                 <div className="flex items-center gap-2">
                                   {getStatusIcon(presenca.status)}
                                   
-                                  {reuniao.status === 'em_andamento' && presenca.status === 'ausente' && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => markAttendance(reuniao.id, 'presente')}
-                                    >
-                                      <CheckCircle className="h-3 w-3" />
-                                    </Button>
+                                  {reuniao.status === 'em_andamento' && (
+                                    <div className="flex gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant={presenca.status === 'presente' ? 'default' : 'outline'}
+                                        onClick={() => markIndividualAttendance(reuniao.id, presenca.user_id, 'presente')}
+                                      >
+                                        <CheckCircle className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant={presenca.status === 'atrasado' ? 'default' : 'outline'}
+                                        onClick={() => markIndividualAttendance(reuniao.id, presenca.user_id, 'atrasado')}
+                                      >
+                                        <Timer className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant={presenca.status === 'ausente' ? 'destructive' : 'outline'}
+                                        onClick={() => markIndividualAttendance(reuniao.id, presenca.user_id, 'ausente')}
+                                      >
+                                        <XCircle className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   )}
                                 </div>
                               </div>
                             ))}
                           </div>
-                        </div>
-                      )}
-                      
-                      {reuniao.status === 'em_andamento' && (
-                        <div className="flex gap-2 pt-2 border-t">
-                          <Button size="sm" onClick={() => markAttendance(reuniao.id, 'presente')}>
-                            <UserCheck className="h-4 w-4 mr-1" />
-                            Marcar Presente
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => markAttendance(reuniao.id, 'atrasado')}>
-                            <Timer className="h-4 w-4 mr-1" />
-                            Atrasado
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => markAttendance(reuniao.id, 'ausente')}>
-                            <UserX className="h-4 w-4 mr-1" />
-                            Ausente
-                          </Button>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="text-center py-4 text-muted-foreground text-sm">
+                            Nenhum participante adicionado ainda
+                          </div>
+                        )}
+                        
+                        {reuniao.status === 'em_andamento' && (
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button size="sm" onClick={() => markAttendance(reuniao.id, 'presente')}>
+                              <UserCheck className="h-4 w-4 mr-1" />
+                              Marcar Todos Presentes
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -574,6 +667,69 @@ export const EscalaReunioes: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* Modal para Gerenciar Participantes */}
+      <Dialog open={participantesModal} onOpenChange={setParticipantesModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Participantes</DialogTitle>
+            <DialogDescription>
+              Adicione ou remova participantes da reunião
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Selecionar Colaboradores:</Label>
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {colaboradores.map((colaborador) => {
+                  const isParticipating = reunioes
+                    .find(r => r.id === reuniaoSelecionada)
+                    ?.presencas_reunioes?.some(p => p.user_id === colaborador.user_id);
+                  
+                  return (
+                    <div key={colaborador.user_id} className="flex items-center justify-between p-2 border rounded">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={colaborador.avatar_url} />
+                          <AvatarFallback className="text-xs">
+                            {colaborador.nome.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm">{colaborador.nome}</span>
+                      </div>
+                      
+                      <Button
+                        size="sm"
+                        variant={isParticipating ? "destructive" : "default"}
+                        onClick={() => {
+                          if (isParticipating) {
+                            // Remover participante (implementar se necessário)
+                            toast({
+                              title: "Info",
+                              description: "Funcionalidade de remoção será implementada"
+                            });
+                          } else {
+                            addParticipantsToMeeting(reuniaoSelecionada, [colaborador.user_id]);
+                          }
+                        }}
+                      >
+                        {isParticipating ? "Remover" : "Adicionar"}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setParticipantesModal(false)}>
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
