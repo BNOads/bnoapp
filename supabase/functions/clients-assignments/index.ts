@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.56.0";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
 }
 
 const supabase = createClient(
@@ -12,8 +13,13 @@ const supabase = createClient(
 );
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log('=== Clients-assignments function called ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -135,7 +141,16 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+    console.log('=== METHOD NOT ALLOWED ===');
+    console.log('Received method:', req.method);
+    console.log('Allowed methods: GET, PATCH');
+    console.log('==========================');
+    
+    return new Response(JSON.stringify({ 
+      error: 'Method not allowed',
+      received: req.method,
+      allowed: ['GET', 'PATCH']
+    }), {
       status: 405,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
