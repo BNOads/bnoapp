@@ -219,8 +219,8 @@ async function syncGoogleCalendar(supabase: any, date: string) {
       });
     }
 
-    // ID do calendário principal (pode ser configurado)
-    const calendarId = 'primary';
+    // ID do calendário principal (mesmo usado na aba Calendar)
+    const calendarId = 'contato@bnoads.com.br';
     
     const timeMin = `${date}T00:00:00.000Z`;
     const timeMax = `${date}T23:59:59.999Z`;
