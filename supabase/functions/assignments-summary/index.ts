@@ -28,9 +28,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Set auth for the supabase client
     const token = authHeader.replace('Bearer ', '');
-    supabase.auth.setSession({ access_token: token, refresh_token: '' });
+    await supabase.auth.setSession({ access_token: token, refresh_token: '' });
 
-    if (req.method === 'GET') {
+    if (req.method === 'GET' || req.method === 'POST') {
       // GET /admin/assignments/summary
       
       // Buscar todos os colaboradores ativos

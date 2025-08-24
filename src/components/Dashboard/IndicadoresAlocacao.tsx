@@ -36,10 +36,19 @@ export function IndicadoresAlocacao() {
   const carregarSummary = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('assignments-summary');
       
-      if (error) throw error;
+      console.log('Carregando indicadores de alocação...');
       
+      const { data, error } = await supabase.functions.invoke('assignments-summary', {
+        method: 'GET'
+      });
+      
+      if (error) {
+        console.error('Erro ao carregar indicadores:', error);
+        throw error;
+      }
+      
+      console.log('Indicadores carregados:', data);
       setSummary(data.data);
     } catch (error) {
       console.error('Erro ao carregar summary de alocações:', error);
