@@ -137,40 +137,66 @@ export const EscalaReunioes: React.FC = () => {
       // Buscar reuniões já salvas no banco
       const { data: reunioesBanco, error: bancoError } = await supabase
         .from('reunioes_agendadas')
-        .select(`
-          *,
-          organizador:profiles!organizador_id(nome),
-          cliente:clientes(nome),
-          presencas_reunioes(
-            user_id,
-            status,
-            profiles:user_id(nome, avatar_url)
-          )
-        `)
+        .select('*')
         .gte('data_hora', startDate.toISOString())
         .lt('data_hora', endDate.toISOString())
         .order('data_hora');
       
-      const reunioesFormatadas = (reunioesBanco || []).map(reuniao => ({
-        ...reuniao,
-        participants: reuniao.presencas_reunioes || []
-      }));
+      // Buscar participantes de todas as reuniões
+      const { data: todasPresencas } = await supabase
+        .from('presencas_reunioes')
+        .select(`
+          reuniao_id,
+          user_id,
+          status
+        `);
+      
+      // Buscar dados dos colaboradores
+      const { data: colaboradoresData } = await supabase
+        .from('colaboradores')
+        .select('user_id, nome, avatar_url');
+      
+      const reunioesFormatadas = (reunioesBanco || []).map(reuniao => {
+        const participantes = (todasPresencas || [])
+          .filter(p => p.reuniao_id === reuniao.id)
+          .map(p => {
+            const colaborador = colaboradoresData?.find(c => c.user_id === p.user_id);
+            return {
+              user_id: p.user_id,
+              status: p.status,
+              profiles: {
+                nome: colaborador?.nome || 'Usuário',
+                avatar_url: colaborador?.avatar_url
+              }
+            };
+          });
+        
+        return {
+          ...reuniao,
+          presencas_reunioes: participantes
+        };
+      });
       
       // Buscar participantes das reuniões do Google Calendar
       const reunioesComParticipantes = await Promise.all(
         reunioesDoCalendar.map(async (reuniao) => {
-          const { data: participantes } = await supabase
-            .from('presencas_reunioes')
-            .select(`
-              user_id,
-              status,
-              profiles:user_id(nome, avatar_url)
-            `)
-            .eq('reuniao_id', reuniao.id);
+          const participantes = (todasPresencas || [])
+            .filter(p => p.reuniao_id === reuniao.id)
+            .map(p => {
+              const colaborador = colaboradoresData?.find(c => c.user_id === p.user_id);
+              return {
+                user_id: p.user_id,
+                status: p.status,
+                profiles: {
+                  nome: colaborador?.nome || 'Usuário',
+                  avatar_url: colaborador?.avatar_url
+                }
+              };
+            });
           
           return {
             ...reuniao,
-            presencas_reunioes: participantes || []
+            presencas_reunioes: participantes
           };
         })
       );
