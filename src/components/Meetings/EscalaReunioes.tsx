@@ -378,6 +378,9 @@ export const EscalaReunioes: React.FC = () => {
       
       console.log('Participantes adicionados com sucesso');
       
+      // Recarregar reuniões para atualizar a interface
+      await carregarReunioes();
+      
       toast({
         title: "Sucesso",
         description: "Participantes adicionados à reunião"
