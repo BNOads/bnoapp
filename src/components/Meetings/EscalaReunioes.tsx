@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+import { Clock, Users, UserPlus, RefreshCw, Plus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -12,8 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Calendar as CalendarIcon, 
-  Clock, 
-  Users, 
   MapPin, 
   Play, 
   Square, 
@@ -21,9 +19,9 @@ import {
   XCircle,
   UserCheck,
   UserX,
-  Timer,
-  Plus
+  Timer
 } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { format } from 'date-fns';
@@ -90,24 +88,29 @@ export const EscalaReunioes: React.FC = () => {
     try {
       setLoading(true);
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      console.log('Carregando reuniões para:', dateStr);
       
       // Primeiro, sincronizar com Google Calendar
       try {
-        const { data: syncData } = await supabase.functions.invoke('meeting-management', {
+        console.log('Iniciando sincronização com Google Calendar...');
+        const { data: syncData, error: syncError } = await supabase.functions.invoke('meeting-management', {
           body: {
             action: 'sync_google_calendar',
             date: dateStr
           }
         });
         
-        if (syncData?.success) {
-          console.log(`Sincronização concluída: ${syncData.reunioesInseridas} reuniões inseridas`);
+        if (syncError) {
+          console.error('Erro na sincronização:', syncError);
+        } else if (syncData?.success) {
+          console.log(`Sincronização concluída: ${syncData.reunioesInseridas} reuniões inseridas de ${syncData.totalEventos} eventos`);
         }
       } catch (syncError) {
         console.warn('Erro na sincronização com Google Calendar:', syncError);
       }
 
       // Depois, carregar reuniões do banco
+      console.log('Carregando reuniões do banco...');
       try {
         const { data, error } = await supabase.functions.invoke('meeting-management', {
           body: {
@@ -116,8 +119,12 @@ export const EscalaReunioes: React.FC = () => {
           }
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Erro na edge function:', error);
+          throw error;
+        }
         
+        console.log('Reuniões carregadas:', data?.reunioes?.length || 0);
         setReunioes(data.reunioes || []);
         return;
       } catch (edgeFunctionError) {
@@ -144,7 +151,12 @@ export const EscalaReunioes: React.FC = () => {
           .lte('data_hora', fimData)
           .order('data_hora');
 
-        if (directError) throw directError;
+        if (directError) {
+          console.error('Erro na query direta:', directError);
+          throw directError;
+        }
+        
+        console.log('Reuniões carregadas via fallback:', reunioesData?.length || 0);
         
         // Mapear os dados para o formato esperado
         const reunioesFormatadas = (reunioesData || []).map(reuniao => ({
@@ -232,45 +244,6 @@ export const EscalaReunioes: React.FC = () => {
       setClientes(data || []);
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
-    }
-  };
-
-  const createMeeting = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('meeting-management', {
-        body: {
-          action: 'create_meeting',
-          ...novaReuniao
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso",
-        description: "Reunião agendada com sucesso"
-      });
-
-      setNovaReuniaoModal(false);
-      setNovaReuniao({
-        titulo: '',
-        descricao: '',
-        dataHora: '',
-        duracaoPrevista: 60,
-        tipo: 'reuniao',
-        clienteId: '',
-        participantesObrigatorios: [],
-        participantesOpcionais: [],
-        linkMeet: ''
-      });
-      carregarReunioes();
-    } catch (error) {
-      console.error('Erro ao criar reunião:', error);
-      toast({
-        title: "Erro",
-        description: "Falha ao agendar reunião",
-        variant: "destructive"
-      });
     }
   };
 
@@ -452,117 +425,24 @@ export const EscalaReunioes: React.FC = () => {
           </p>
         </div>
         
-        <Dialog open={novaReuniaoModal} onOpenChange={setNovaReuniaoModal}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Reunião
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Agendar Nova Reunião</DialogTitle>
-              <DialogDescription>
-                Crie uma nova reunião e convide participantes
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="titulo">Título</Label>
-                <Input
-                  id="titulo"
-                  value={novaReuniao.titulo}
-                  onChange={(e) => setNovaReuniao({...novaReuniao, titulo: e.target.value})}
-                  placeholder="Ex: Reunião Semanal"
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="descricao">Descrição</Label>
-                <Textarea
-                  id="descricao"
-                  value={novaReuniao.descricao}
-                  onChange={(e) => setNovaReuniao({...novaReuniao, descricao: e.target.value})}
-                  placeholder="Descrição opcional da reunião"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="dataHora">Data e Hora</Label>
-                  <Input
-                    id="dataHora"
-                    type="datetime-local"
-                    value={novaReuniao.dataHora}
-                    onChange={(e) => setNovaReuniao({...novaReuniao, dataHora: e.target.value})}
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="duracao">Duração (min)</Label>
-                  <Input
-                    id="duracao"
-                    type="number"
-                    value={novaReuniao.duracaoPrevista}
-                    onChange={(e) => setNovaReuniao({...novaReuniao, duracaoPrevista: parseInt(e.target.value)})}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="tipo">Tipo</Label>
-                  <Select value={novaReuniao.tipo} onValueChange={(value) => setNovaReuniao({...novaReuniao, tipo: value})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="reuniao">Reunião</SelectItem>
-                      <SelectItem value="treinamento">Treinamento</SelectItem>
-                      <SelectItem value="apresentacao">Apresentação</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="cliente">Cliente (opcional)</Label>
-                  <Select value={novaReuniao.clienteId} onValueChange={(value) => setNovaReuniao({...novaReuniao, clienteId: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clientes.map((cliente) => (
-                        <SelectItem key={cliente.id} value={cliente.id}>
-                          {cliente.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="linkMeet">Link da Reunião</Label>
-                <Input
-                  id="linkMeet"
-                  value={novaReuniao.linkMeet}
-                  onChange={(e) => setNovaReuniao({...novaReuniao, linkMeet: e.target.value})}
-                  placeholder="https://meet.google.com/..."
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setNovaReuniaoModal(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={createMeeting}>
-                Agendar Reunião
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          <Button 
+            onClick={criarNovaReuniao}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nova Reunião
+          </Button>
+          <Button 
+            onClick={carregarReunioes}
+            variant="outline"
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Sincronizar
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

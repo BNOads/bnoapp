@@ -15,6 +15,8 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const { action } = body;
+    
+    console.log('Meeting management action:', action);
 
     const authToken = req.headers.get('Authorization')?.replace('Bearer ', '');
     if (!authToken) {
@@ -68,7 +70,7 @@ serve(async (req) => {
         return await endMeeting(supabase, body.reuniaoId);
       
       default:
-        return new Response(JSON.stringify({ error: 'Ação não reconhecida' }), {
+        return new Response(JSON.stringify({ error: 'Ação não reconhecida: ' + action }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
@@ -201,9 +203,20 @@ async function getDailyMeetings(supabase: any, date: string) {
 
 async function syncGoogleCalendar(supabase: any, date: string) {
   try {
+    console.log('Starting Google Calendar sync for date:', date);
+    
     const apiKey = Deno.env.get('GOOGLE_CALENDAR_API_KEY');
     if (!apiKey) {
-      throw new Error('Google Calendar API key not configured');
+      console.log('Google Calendar API key not configured, skipping sync');
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Google Calendar não configurado',
+        reunioesInseridas: 0,
+        totalEventos: 0
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // ID do calendário principal (pode ser configurado)
@@ -214,10 +227,12 @@ async function syncGoogleCalendar(supabase: any, date: string) {
     
     const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${apiKey}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
     
+    console.log('Fetching from Google Calendar API...');
     const response = await fetch(url);
     const data = await response.json();
     
     if (!response.ok) {
+      console.error('Google Calendar API error:', data);
       throw new Error(`Google Calendar API error: ${data.error?.message || 'Unknown error'}`);
     }
 
@@ -230,13 +245,15 @@ async function syncGoogleCalendar(supabase: any, date: string) {
       for (const event of data.items) {
         if (!event.start?.dateTime) continue; // Pular eventos de dia inteiro
         
+        console.log(`Processing event: ${event.summary}`);
+        
         // Verificar se já existe uma reunião com este título e horário
         const { data: existingMeeting } = await supabase
           .from('reunioes_agendadas')
           .select('id')
           .eq('titulo', event.summary || 'Reunião sem título')
           .eq('data_hora', event.start.dateTime)
-          .single();
+          .maybeSingle();
 
         if (!existingMeeting) {
           // Criar nova reunião
@@ -263,7 +280,11 @@ async function syncGoogleCalendar(supabase: any, date: string) {
           if (!insertError && insertedMeeting) {
             reunioesInseridas.push(insertedMeeting);
             console.log(`Reunião inserida: ${insertedMeeting.titulo}`);
+          } else {
+            console.error('Error inserting meeting:', insertError);
           }
+        } else {
+          console.log(`Event already exists: ${event.summary}`);
         }
       }
     }
