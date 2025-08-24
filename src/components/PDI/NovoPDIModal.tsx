@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CalendarDays, BookOpen } from "lucide-react";
+import { CalendarDays, BookOpen, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,6 +40,8 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
   const [loading, setLoading] = useState(false);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [aulas, setAulas] = useState<Aula[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentAulaIndex, setCurrentAulaIndex] = useState(0);
   
   const [formData, setFormData] = useState({
     titulo: "",
@@ -96,6 +98,21 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
       });
     }
   };
+
+  // Filter aulas based on search term
+  const filteredAulas = useMemo(() => {
+    if (!searchTerm) return aulas;
+    return aulas.filter(aula =>
+      aula.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      aula.treinamentos.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (aula.descricao && aula.descricao.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [aulas, searchTerm]);
+
+  // Reset current index when search changes
+  useEffect(() => {
+    setCurrentAulaIndex(0);
+  }, [searchTerm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,6 +183,20 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
       setLoading(false);
     }
   };
+
+  const nextAula = () => {
+    if (currentAulaIndex < filteredAulas.length - 1) {
+      setCurrentAulaIndex(prev => prev + 1);
+    }
+  };
+
+  const prevAula = () => {
+    if (currentAulaIndex > 0) {
+      setCurrentAulaIndex(prev => prev - 1);
+    }
+  };
+
+  const currentAula = filteredAulas[currentAulaIndex];
 
   const toggleAula = (aulaId: string) => {
     setFormData(prev => ({
@@ -241,47 +272,92 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
 
           <div className="space-y-3">
             <Label>Aulas do PDI *</Label>
-            <ScrollArea className="h-64 border rounded-md p-4">
+            
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar aulas..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Single Aula Display */}
+            {filteredAulas.length > 0 && currentAula ? (
               <div className="space-y-3">
-                {aulas.map((aula) => (
-                  <Card
-                    key={aula.id}
-                    className={`transition-colors ${
-                      formData.aulas_selecionadas.includes(aula.id) 
-                        ? 'border-primary bg-primary/5' 
-                        : 'hover:bg-muted/50'
-                    }`}
+                {/* Navigation Controls */}
+                <div className="flex items-center justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={prevAula}
+                    disabled={currentAulaIndex === 0}
                   >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={formData.aulas_selecionadas.includes(aula.id)}
-                          onCheckedChange={() => toggleAula(aula.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <div className="space-y-1 flex-1">
-                          <CardTitle className="text-sm">{aula.titulo}</CardTitle>
-                          <CardDescription className="text-xs">
-                            {aula.treinamentos.titulo}
-                          </CardDescription>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <CalendarDays className="h-3 w-3" />
-                          {aula.duracao}min
-                        </div>
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                  </Button>
+                  
+                  <span className="text-sm text-muted-foreground">
+                    {currentAulaIndex + 1} de {filteredAulas.length}
+                  </span>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={nextAula}
+                    disabled={currentAulaIndex === filteredAulas.length - 1}
+                  >
+                    Próxima
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Current Aula Card */}
+                <Card
+                  className={`transition-colors ${
+                    formData.aulas_selecionadas.includes(currentAula.id) 
+                      ? 'border-primary bg-primary/5' 
+                      : 'hover:bg-muted/50'
+                  }`}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={formData.aulas_selecionadas.includes(currentAula.id)}
+                        onCheckedChange={() => toggleAula(currentAula.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-sm">{currentAula.titulo}</CardTitle>
+                        <CardDescription className="text-xs">
+                          {currentAula.treinamentos.titulo}
+                        </CardDescription>
                       </div>
-                    </CardHeader>
-                    {aula.descricao && (
-                      <CardContent className="pt-0">
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {aula.descricao}
-                        </p>
-                      </CardContent>
-                    )}
-                  </Card>
-                ))}
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <CalendarDays className="h-3 w-3" />
+                        {currentAula.duracao}min
+                      </div>
+                    </div>
+                  </CardHeader>
+                  {currentAula.descricao && (
+                    <CardContent className="pt-0">
+                      <p className="text-xs text-muted-foreground">
+                        {currentAula.descricao}
+                      </p>
+                    </CardContent>
+                  )}
+                </Card>
               </div>
-            </ScrollArea>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchTerm ? 'Nenhuma aula encontrada' : 'Nenhuma aula disponível'}
+              </div>
+            )}
+            
             <p className="text-sm text-muted-foreground">
               {formData.aulas_selecionadas.length} aulas selecionadas
             </p>
