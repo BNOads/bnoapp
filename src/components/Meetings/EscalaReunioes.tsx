@@ -317,16 +317,28 @@ export const EscalaReunioes: React.FC = () => {
 
   const addParticipantsToMeeting = async (reuniaoId: string, participantes: string[]) => {
     try {
-      const { data, error } = await supabase.functions.invoke('meeting-management', {
-        body: {
-          action: 'add_participants',
-          reuniaoId,
-          participantes
-        }
-      });
-
-      if (error) throw error;
-
+      console.log('Adicionando participantes:', participantes, 'à reunião:', reuniaoId);
+      
+      // Adicionar participantes diretamente na tabela presencas_reunioes
+      const participantesData = participantes.map(userId => ({
+        reuniao_id: reuniaoId,
+        user_id: userId,
+        status: 'ausente'
+      }));
+      
+      const { error } = await supabase
+        .from('presencas_reunioes')
+        .upsert(participantesData, {
+          onConflict: 'reuniao_id,user_id'
+        });
+      
+      if (error) {
+        console.error('Erro ao adicionar participantes:', error);
+        throw error;
+      }
+      
+      console.log('Participantes adicionados com sucesso');
+      
       toast({
         title: "Sucesso",
         description: "Participantes adicionados à reunião"
