@@ -24,6 +24,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAuth } from '@/components/Auth/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -63,6 +64,7 @@ export const EscalaReunioes: React.FC = () => {
   const [clientes, setClientes] = useState<any[]>([]);
   const { toast } = useToast();
   const { userData } = useCurrentUser();
+  const { user } = useAuth();
 
   const [novaReuniao, setNovaReuniao] = useState({
     titulo: '',
@@ -319,9 +321,46 @@ export const EscalaReunioes: React.FC = () => {
     try {
       console.log('Adicionando participantes:', participantes, 'à reunião:', reuniaoId);
       
-      // Adicionar participantes diretamente na tabela presencas_reunioes
+      // Verificar se a reunião é do Google Calendar (não é UUID)
+      const isGoogleCalendarEvent = !reuniaoId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      
+      let finalReuniaoId = reuniaoId;
+      
+      if (isGoogleCalendarEvent) {
+        // Se for evento do Google Calendar, primeiro criar na tabela reunioes_agendadas
+        const reuniaoSelecionadaData = reunioes.find(r => r.id === reuniaoId);
+        
+        if (reuniaoSelecionadaData) {
+          console.log('Salvando reunião do Google Calendar no banco...');
+          
+          const { data: novaReuniao, error: insertError } = await supabase
+            .from('reunioes_agendadas')
+            .insert({
+              titulo: reuniaoSelecionadaData.titulo,
+              descricao: reuniaoSelecionadaData.descricao || '',
+              data_hora: reuniaoSelecionadaData.data_hora,
+              duracao_prevista: reuniaoSelecionadaData.duracao_prevista || 60,
+              tipo: 'reuniao',
+              status: 'agendada',
+              organizador_id: user?.id || '4759b9d5-8e40-41f2-a994-f609fb62b9c2',
+              link_meet: reuniaoSelecionadaData.link_meet || ''
+            })
+            .select()
+            .single();
+          
+          if (insertError) {
+            console.error('Erro ao salvar reunião:', insertError);
+            throw insertError;
+          }
+          
+          finalReuniaoId = novaReuniao.id;
+          console.log('Reunião salva com ID:', finalReuniaoId);
+        }
+      }
+      
+      // Adicionar participantes à reunião
       const participantesData = participantes.map(userId => ({
-        reuniao_id: reuniaoId,
+        reuniao_id: finalReuniaoId,
         user_id: userId,
         status: 'ausente'
       }));
