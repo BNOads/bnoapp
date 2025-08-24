@@ -6,6 +6,7 @@ import { ColaboradoresView } from "@/components/Colaboradores/ColaboradoresView"
 import { ClientesView } from "@/components/Clientes/ClientesView";
 import { TreinamentosView } from "@/components/Treinamentos/TreinamentosView";
 import { CalendarView } from "@/components/Calendar/CalendarView";
+import { EscalaReunioes } from "@/components/Meetings/EscalaReunioes";
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -29,6 +30,8 @@ const Index = () => {
         return <ClientesView />;
       case 'calendario':
         return <CalendarView />;
+      case 'reunioes':
+        return <EscalaReunioes />;
       case 'treinamentos':
         return <TreinamentosView />;
       default:
