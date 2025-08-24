@@ -111,6 +111,75 @@ export type Database = {
           },
         ]
       }
+      avisos: {
+        Row: {
+          ativo: boolean
+          canais: Json | null
+          conteudo: string
+          created_at: string
+          created_by: string
+          data_fim: string | null
+          data_inicio: string | null
+          destinatarios: string[] | null
+          id: string
+          prioridade: string
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          canais?: Json | null
+          conteudo: string
+          created_at?: string
+          created_by: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          destinatarios?: string[] | null
+          id?: string
+          prioridade?: string
+          tipo?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          canais?: Json | null
+          conteudo?: string
+          created_at?: string
+          created_by?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          destinatarios?: string[] | null
+          id?: string
+          prioridade?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      avisos_leitura: {
+        Row: {
+          aviso_id: string
+          id: string
+          lido_em: string
+          user_id: string
+        }
+        Insert: {
+          aviso_id: string
+          id?: string
+          lido_em?: string
+          user_id: string
+        }
+        Update: {
+          aviso_id?: string
+          id?: string
+          lido_em?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       clientes: {
         Row: {
           aliases: string[] | null
@@ -189,6 +258,51 @@ export type Database = {
           ultimo_acesso?: string | null
           updated_at?: string
           whatsapp_grupo_url?: string | null
+        }
+        Relationships: []
+      }
+      clientes_layout: {
+        Row: {
+          ativo: boolean
+          cliente_id: string
+          configuracoes: Json | null
+          cor_acento: string | null
+          cor_primaria: string | null
+          cor_secundaria: string | null
+          created_at: string
+          fonte: string | null
+          id: string
+          logo_url: string | null
+          tema: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cliente_id: string
+          configuracoes?: Json | null
+          cor_acento?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
+          created_at?: string
+          fonte?: string | null
+          id?: string
+          logo_url?: string | null
+          tema?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cliente_id?: string
+          configuracoes?: Json | null
+          cor_acento?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
+          created_at?: string
+          fonte?: string | null
+          id?: string
+          logo_url?: string | null
+          tema?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -301,6 +415,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      conquistas: {
+        Row: {
+          ativo: boolean
+          condicao: Json
+          cor: string | null
+          created_at: string
+          descricao: string | null
+          icone: string | null
+          id: string
+          nome: string
+          pontos_bonus: number | null
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean
+          condicao: Json
+          cor?: string | null
+          created_at?: string
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          nome: string
+          pontos_bonus?: number | null
+          tipo: string
+        }
+        Update: {
+          ativo?: boolean
+          condicao?: Json
+          cor?: string | null
+          created_at?: string
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          nome?: string
+          pontos_bonus?: number | null
+          tipo?: string
+        }
+        Relationships: []
       }
       creatives: {
         Row: {
@@ -646,6 +799,42 @@ export type Database = {
           },
         ]
       }
+      logs_estudo: {
+        Row: {
+          aula_id: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          pontos_ganhos: number
+          tempo_estudado: number
+          tipo_atividade: string
+          treinamento_id: string | null
+          user_id: string
+        }
+        Insert: {
+          aula_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          pontos_ganhos?: number
+          tempo_estudado?: number
+          tipo_atividade?: string
+          treinamento_id?: string | null
+          user_id: string
+        }
+        Update: {
+          aula_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          pontos_ganhos?: number
+          tempo_estudado?: number
+          tipo_atividade?: string
+          treinamento_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       master_emails: {
         Row: {
           created_at: string
@@ -697,6 +886,42 @@ export type Database = {
           tipo_acesso?: Database["public"]["Enums"]["tipo_acesso_dados"]
           user_id?: string
           valido_ate?: string | null
+        }
+        Relationships: []
+      }
+      presencas_reunioes: {
+        Row: {
+          created_at: string
+          horario_entrada: string | null
+          horario_saida: string | null
+          id: string
+          pontos_ganhos: number
+          reuniao_id: string
+          status: string
+          tempo_presenca: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          horario_entrada?: string | null
+          horario_saida?: string | null
+          id?: string
+          pontos_ganhos?: number
+          reuniao_id: string
+          status?: string
+          tempo_presenca?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          horario_entrada?: string | null
+          horario_saida?: string | null
+          id?: string
+          pontos_ganhos?: number
+          reuniao_id?: string
+          status?: string
+          tempo_presenca?: number | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -781,6 +1006,60 @@ export type Database = {
           },
         ]
       }
+      rankings: {
+        Row: {
+          created_at: string
+          data_referencia: string
+          id: string
+          periodo: string
+          pontos_estudo: number
+          pontos_reunioes: number
+          pontos_totais: number
+          posicao: number | null
+          reunioes_participadas: number
+          streak_estudo: number
+          tempo_estudo_total: number
+          tempo_reunioes_total: number
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data_referencia: string
+          id?: string
+          periodo: string
+          pontos_estudo?: number
+          pontos_reunioes?: number
+          pontos_totais?: number
+          posicao?: number | null
+          reunioes_participadas?: number
+          streak_estudo?: number
+          tempo_estudo_total?: number
+          tempo_reunioes_total?: number
+          tipo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data_referencia?: string
+          id?: string
+          periodo?: string
+          pontos_estudo?: number
+          pontos_reunioes?: number
+          pontos_totais?: number
+          posicao?: number | null
+          reunioes_participadas?: number
+          streak_estudo?: number
+          tempo_estudo_total?: number
+          tempo_reunioes_total?: number
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reunioes: {
         Row: {
           cliente_id: string | null
@@ -839,6 +1118,117 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reunioes_agendadas: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          data_hora: string
+          descricao: string | null
+          duracao_prevista: number | null
+          id: string
+          link_meet: string | null
+          organizador_id: string
+          participantes_obrigatorios: string[] | null
+          participantes_opcionais: string[] | null
+          status: string
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          data_hora: string
+          descricao?: string | null
+          duracao_prevista?: number | null
+          id?: string
+          link_meet?: string | null
+          organizador_id: string
+          participantes_obrigatorios?: string[] | null
+          participantes_opcionais?: string[] | null
+          status?: string
+          tipo?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          data_hora?: string
+          descricao?: string | null
+          duracao_prevista?: number | null
+          id?: string
+          link_meet?: string | null
+          organizador_id?: string
+          participantes_obrigatorios?: string[] | null
+          participantes_opcionais?: string[] | null
+          status?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      slack_webhooks: {
+        Row: {
+          ativo: boolean
+          canal: string | null
+          created_at: string
+          id: string
+          nome: string
+          tipos_aviso: string[] | null
+          webhook_url: string
+        }
+        Insert: {
+          ativo?: boolean
+          canal?: string | null
+          created_at?: string
+          id?: string
+          nome: string
+          tipos_aviso?: string[] | null
+          webhook_url: string
+        }
+        Update: {
+          ativo?: boolean
+          canal?: string | null
+          created_at?: string
+          id?: string
+          nome?: string
+          tipos_aviso?: string[] | null
+          webhook_url?: string
+        }
+        Relationships: []
+      }
+      streaks_estudo: {
+        Row: {
+          created_at: string
+          id: string
+          streak_atual: number
+          streak_maximo: number
+          ultima_atividade: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          streak_atual?: number
+          streak_maximo?: number
+          ultima_atividade?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          streak_atual?: number
+          streak_maximo?: number
+          ultima_atividade?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       tarefas: {
         Row: {
@@ -987,6 +1377,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_conquistas: {
+        Row: {
+          conquista_id: string
+          data_obtencao: string
+          id: string
+          pontos_ganhos: number
+          user_id: string
+        }
+        Insert: {
+          conquista_id: string
+          data_obtencao?: string
+          id?: string
+          pontos_ganhos?: number
+          user_id: string
+        }
+        Update: {
+          conquista_id?: string
+          data_obtencao?: string
+          id?: string
+          pontos_ganhos?: number
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
