@@ -52,8 +52,8 @@ const handler = async (req: Request): Promise<Response> => {
           data_inicio,
           traffic_manager_id,
           cs_id,
-          traffic_manager:colaboradores!traffic_manager_id(id, nome, nivel_acesso),
-          cs:colaboradores!cs_id(id, nome, nivel_acesso)
+          traffic_manager:colaboradores!fk_clientes_traffic_manager(id, nome, nivel_acesso),
+          cs:colaboradores!fk_clientes_cs(id, nome, nivel_acesso)
         `)
         .order('nome');
 
@@ -115,8 +115,8 @@ const handler = async (req: Request): Promise<Response> => {
           nome,
           traffic_manager_id,
           cs_id,
-          traffic_manager:colaboradores!traffic_manager_id(id, nome),
-          cs:colaboradores!cs_id(id, nome)
+          traffic_manager:colaboradores!fk_clientes_traffic_manager(id, nome),
+          cs:colaboradores!fk_clientes_cs(id, nome)
         `)
         .single();
 
