@@ -90,83 +90,69 @@ export const EscalaReunioes: React.FC = () => {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       console.log('Carregando reuniões para:', dateStr);
       
-      // Primeiro, sincronizar com Google Calendar
-      try {
-        console.log('Iniciando sincronização com Google Calendar...');
-        const { data: syncData, error: syncError } = await supabase.functions.invoke('meeting-management', {
-          body: {
-            action: 'sync_google_calendar',
-            date: dateStr
-          }
+      // Buscar eventos do Google Calendar (mesma estratégia da aba Calendar)
+      const startDate = new Date(selectedDate);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(selectedDate);
+      endDate.setHours(23, 59, 59, 999);
+      
+      console.log('Buscando eventos do Google Calendar...');
+      const { data: calendarData, error: calendarError } = await supabase.functions.invoke('google-calendar', {
+        body: {
+          calendarId: 'contato@bnoads.com.br',
+          timeMin: startDate.toISOString(),
+          timeMax: endDate.toISOString()
+        }
+      });
+      
+      const events = calendarData?.items || [];
+      console.log('Eventos encontrados:', events.length);
+
+      // Converter eventos do Google Calendar para formato de reunião
+      const reunioesDoCalendar = events
+        .filter((event: any) => event.start?.dateTime) // Apenas eventos com horário específico
+        .map((event: any) => {
+          const startTime = new Date(event.start.dateTime);
+          const endTime = event.end?.dateTime ? new Date(event.end.dateTime) : new Date(startTime.getTime() + 60 * 60 * 1000);
+          const duracao = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+          
+          return {
+            id: event.id,
+            titulo: event.summary || 'Reunião sem título',
+            descricao: event.description || '',
+            data_hora: event.start.dateTime,
+            duracao_prevista: duracao,
+            status: 'agendada',
+            tipo: 'reuniao',
+            link_meet: event.hangoutLink || event.htmlLink || '',
+            organizador: { nome: 'Google Calendar' },
+            cliente: null,
+            participants: []
+          };
         });
-        
-        if (syncError) {
-          console.error('Erro na sincronização:', syncError);
-        } else if (syncData?.success) {
-          console.log(`Sincronização concluída: ${syncData.reunioesInseridas} reuniões inseridas de ${syncData.totalEventos} eventos`);
-        }
-      } catch (syncError) {
-        console.warn('Erro na sincronização com Google Calendar:', syncError);
-      }
-
-      // Depois, carregar reuniões do banco
-      console.log('Carregando reuniões do banco...');
-      try {
-        const { data, error } = await supabase.functions.invoke('meeting-management', {
-          body: {
-            action: 'get_daily_meetings',
-            date: dateStr
-          }
-        });
-
-        if (error) {
-          console.error('Erro na edge function:', error);
-          throw error;
-        }
-        
-        console.log('Reuniões carregadas:', data?.reunioes?.length || 0);
-        setReunioes(data.reunioes || []);
-        return;
-      } catch (edgeFunctionError) {
-        console.warn('Edge function failed, fallback to direct query:', edgeFunctionError);
-        
-        // Fallback: carregar diretamente da tabela
-        const inicioData = `${dateStr}T00:00:00.000Z`;
-        const fimData = `${dateStr}T23:59:59.999Z`;
-        
-        const { data: reunioesData, error: directError } = await supabase
-          .from('reunioes_agendadas')
-          .select(`
-            id,
-            titulo,
-            descricao,
-            data_hora,
-            duracao_prevista,
-            tipo,
-            cliente_id,
-            status,
-            link_meet
-          `)
-          .gte('data_hora', inicioData)
-          .lte('data_hora', fimData)
-          .order('data_hora');
-
-        if (directError) {
-          console.error('Erro na query direta:', directError);
-          throw directError;
-        }
-        
-        console.log('Reuniões carregadas via fallback:', reunioesData?.length || 0);
-        
-        // Mapear os dados para o formato esperado
-        const reunioesFormatadas = (reunioesData || []).map(reuniao => ({
-          ...reuniao,
-          clientes: reuniao.cliente_id ? { nome: 'Cliente' } : undefined,
-          presencas_reunioes: []
-        }));
-        
-        setReunioes(reunioesFormatadas);
-      }
+      
+      // Buscar reuniões já salvas no banco
+      const { data: reunioesBanco, error: bancoError } = await supabase
+        .from('reunioes_agendadas')
+        .select(`
+          *,
+          organizador:profiles!organizador_id(nome),
+          cliente:clientes(nome)
+        `)
+        .gte('data_hora', startDate.toISOString())
+        .lt('data_hora', endDate.toISOString())
+        .order('data_hora');
+      
+      const reunioesFormatadas = (reunioesBanco || []).map(reuniao => ({
+        ...reuniao,
+        participants: []
+      }));
+      
+      // Combinar reuniões do Google Calendar com as do banco
+      const todasReunioes = [...reunioesDoCalendar, ...reunioesFormatadas];
+      console.log('Total de reuniões:', todasReunioes.length);
+      setReunioes(todasReunioes);
       
     } catch (error) {
       console.error('Erro ao carregar reuniões:', error);
