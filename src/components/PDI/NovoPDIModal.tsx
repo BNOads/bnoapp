@@ -258,6 +258,7 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
                         <Checkbox
                           checked={formData.aulas_selecionadas.includes(aula.id)}
                           onCheckedChange={() => toggleAula(aula.id)}
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <div className="space-y-1 flex-1">
                           <CardTitle className="text-sm">{aula.titulo}</CardTitle>
