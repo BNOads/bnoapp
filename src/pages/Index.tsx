@@ -43,7 +43,7 @@ const Index = () => {
     <Routes>
       <Route path="/pdi/:id" element={<PDIDetalhes />} />
       <Route path="/painel/:clienteId" element={<PainelCliente />} />
-      <Route path="/" element={
+      <Route path="*" element={
         <div className="min-h-screen bg-background">
           <Header activeTab={activeTab} onTabChange={setActiveTab} />
           <main className="container mx-auto px-6 py-8">
@@ -51,7 +51,6 @@ const Index = () => {
           </main>
         </div>
       } />
-      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
