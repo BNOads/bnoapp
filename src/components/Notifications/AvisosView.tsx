@@ -39,7 +39,7 @@ interface Aviso {
   data_fim?: string;
   ativo: boolean;
   created_at: string;
-  avisos_leitura: any[];
+  avisos_leitura?: { user_id: string; lido_em: string }[];
 }
 
 interface SlackWebhook {
@@ -92,14 +92,27 @@ export const AvisosView: React.FC = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('avisos')
-        .select(`
-          *,
-          avisos_leitura(user_id, lido_em)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setAvisos(data || []);
+      
+      // Load avisos with read count separately
+      const avisosWithReads = await Promise.all(
+        (data || []).map(async (aviso) => {
+          const { data: readData } = await supabase
+            .from('avisos_leitura')
+            .select('user_id, lido_em')
+            .eq('aviso_id', aviso.id);
+          
+          return {
+            ...aviso,
+            avisos_leitura: readData || []
+          };
+        })
+      );
+      
+      setAvisos(avisosWithReads);
     } catch (error) {
       console.error('Erro ao carregar avisos:', error);
       toast({
@@ -273,7 +286,7 @@ export const AvisosView: React.FC = () => {
   };
 
   const isUnread = (aviso: Aviso, currentUserId?: string) => {
-    if (!currentUserId) return false;
+    if (!currentUserId || !aviso.avisos_leitura) return false;
     return !aviso.avisos_leitura.some(leitura => leitura.user_id === currentUserId);
   };
 
@@ -614,7 +627,7 @@ export const AvisosView: React.FC = () => {
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <MessageSquare className="h-4 w-4" />
-                      {aviso.avisos_leitura.length} visualizações
+                      {aviso.avisos_leitura?.length || 0} visualizações
                     </div>
                     
                     <div className="flex gap-1">
