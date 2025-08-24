@@ -257,7 +257,7 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           checked={formData.aulas_selecionadas.includes(aula.id)}
-                          onChange={() => toggleAula(aula.id)}
+                          onCheckedChange={() => toggleAula(aula.id)}
                         />
                         <div className="space-y-1 flex-1">
                           <CardTitle className="text-sm">{aula.titulo}</CardTitle>
