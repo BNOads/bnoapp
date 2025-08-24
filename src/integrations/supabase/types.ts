@@ -188,7 +188,9 @@ export type Database = {
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at: string
           created_by: string | null
+          cs_id: string | null
           dashboards_looker: Json | null
+          data_inicio: string | null
           drive_folder_id: string | null
           drive_sync_error: string | null
           etapa_atual: string | null
@@ -203,6 +205,7 @@ export type Database = {
           progresso_etapa: number | null
           status_cliente: string | null
           total_acessos: number | null
+          traffic_manager_id: string | null
           ultimo_acesso: string | null
           updated_at: string
           whatsapp_grupo_url: string | null
@@ -214,7 +217,9 @@ export type Database = {
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
           created_by?: string | null
+          cs_id?: string | null
           dashboards_looker?: Json | null
+          data_inicio?: string | null
           drive_folder_id?: string | null
           drive_sync_error?: string | null
           etapa_atual?: string | null
@@ -229,6 +234,7 @@ export type Database = {
           progresso_etapa?: number | null
           status_cliente?: string | null
           total_acessos?: number | null
+          traffic_manager_id?: string | null
           ultimo_acesso?: string | null
           updated_at?: string
           whatsapp_grupo_url?: string | null
@@ -240,7 +246,9 @@ export type Database = {
           categoria?: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
           created_by?: string | null
+          cs_id?: string | null
           dashboards_looker?: Json | null
+          data_inicio?: string | null
           drive_folder_id?: string | null
           drive_sync_error?: string | null
           etapa_atual?: string | null
@@ -255,11 +263,27 @@ export type Database = {
           progresso_etapa?: number | null
           status_cliente?: string | null
           total_acessos?: number | null
+          traffic_manager_id?: string | null
           ultimo_acesso?: string | null
           updated_at?: string
           whatsapp_grupo_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clientes_cs_id_fkey"
+            columns: ["cs_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clientes_traffic_manager_id_fkey"
+            columns: ["traffic_manager_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       clientes_layout: {
         Row: {

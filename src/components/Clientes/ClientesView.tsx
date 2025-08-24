@@ -3,13 +3,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
 import { DeleteClienteModal } from "./DeleteClienteModal";
 import { ImportarClientesModal } from "./ImportarClientesModal";
 import { EditarClienteModal } from "./EditarClienteModal";
+import { AlocacaoClientes } from "./AlocacaoClientes";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
@@ -142,9 +144,9 @@ export const ClientesView = () => {
       {/* Header */}
       <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
         <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Painéis dos Clientes</h2>
+          <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Gestão de Clientes</h2>
           <p className="text-muted-foreground mt-1 text-sm lg:text-base">
-            Gerencie os painéis personalizados e acompanhe o acesso dos clientes
+            Gerencie painéis, alocações e acompanhe o acesso dos clientes
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:space-x-2">
@@ -177,21 +179,35 @@ export const ClientesView = () => {
       {/* Indicator para usuários não-admin */}
       {!canCreateContent && <ViewOnlyBadge />}
 
-      {/* Search */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar painéis de clientes..."
-            className="pl-10 bg-background border-border text-sm sm:text-base"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <Button variant="outline" className="shrink-0 w-full sm:w-auto">
-          Filtros
-        </Button>
-      </div>
+      {/* Tabs */}
+      <Tabs defaultValue="paineis" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="paineis" className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            Painéis de Clientes
+          </TabsTrigger>
+          <TabsTrigger value="alocacao" className="flex items-center gap-2">
+            <UserCheck className="h-4 w-4" />
+            Controle de Alocação
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="paineis" className="space-y-6">
+          {/* Search */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar painéis de clientes..."
+                className="pl-10 bg-background border-border text-sm sm:text-base"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Button variant="outline" className="shrink-0 w-full sm:w-auto">
+              Filtros
+            </Button>
+          </div>
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -405,6 +421,12 @@ export const ClientesView = () => {
           )}
         </div>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="alocacao">
+          <AlocacaoClientes />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <NovoClienteModal 
