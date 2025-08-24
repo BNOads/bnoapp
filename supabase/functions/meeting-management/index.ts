@@ -139,36 +139,59 @@ async function createMeeting(supabase: any, data: MeetingRequest, userId: string
 }
 
 async function getDailyMeetings(supabase: any, date: string) {
-  const inicioData = `${date} 00:00:00`;
-  const fimData = `${date} 23:59:59`;
+  try {
+    const inicioData = `${date}T00:00:00.000Z`;
+    const fimData = `${date}T23:59:59.999Z`;
 
-  const { data: reunioes, error } = await supabase
-    .from('reunioes_agendadas')
-    .select(`
-      *,
-      clientes(nome),
-      profiles!reunioes_agendadas_organizador_id_fkey(nome),
-      presencas_reunioes(
-        user_id,
+    const { data: reunioes, error } = await supabase
+      .from('reunioes_agendadas')
+      .select(`
+        id,
+        titulo,
+        descricao,
+        data_hora,
+        duracao_prevista,
+        tipo,
+        cliente_id,
         status,
-        horario_entrada,
-        horario_saida,
-        profiles!presencas_reunioes_user_id_fkey(nome)
-      )
-    `)
-    .gte('data_hora', inicioData)
-    .lte('data_hora', fimData)
-    .order('data_hora');
+        link_meet,
+        clientes:cliente_id(nome),
+        presencas_reunioes(
+          user_id,
+          status,
+          horario_entrada,
+          horario_saida,
+          profiles:user_id(nome, avatar_url)
+        )
+      `)
+      .gte('data_hora', inicioData)
+      .lte('data_hora', fimData)
+      .order('data_hora');
 
-  if (error) throw error;
+    if (error) {
+      console.error('Database error:', error);
+      throw error;
+    }
 
-  return new Response(JSON.stringify({
-    success: true,
-    reunioes
-  }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
+    return new Response(JSON.stringify({
+      success: true,
+      reunioes: reunioes || []
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error getting daily meetings:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to get meetings',
+      details: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
 }
 
 async function markAttendance(supabase: any, reuniaoId: string, userId: string, status: string) {

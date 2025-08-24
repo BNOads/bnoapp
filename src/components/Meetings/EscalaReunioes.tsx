@@ -87,16 +87,55 @@ export const EscalaReunioes: React.FC = () => {
       setLoading(true);
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       
-      const { data, error } = await supabase.functions.invoke('meeting-management', {
-        body: {
-          action: 'get_daily_meetings',
-          date: dateStr
-        }
-      });
+      // Tentar carregar via edge function primeiro
+      try {
+        const { data, error } = await supabase.functions.invoke('meeting-management', {
+          body: {
+            action: 'get_daily_meetings',
+            date: dateStr
+          }
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+        
+        setReunioes(data.reunioes || []);
+        return;
+      } catch (edgeFunctionError) {
+        console.warn('Edge function failed, fallback to direct query:', edgeFunctionError);
+        
+        // Fallback: carregar diretamente da tabela
+        const inicioData = `${dateStr}T00:00:00.000Z`;
+        const fimData = `${dateStr}T23:59:59.999Z`;
+        
+        const { data: reunioesData, error: directError } = await supabase
+          .from('reunioes_agendadas')
+          .select(`
+            id,
+            titulo,
+            descricao,
+            data_hora,
+            duracao_prevista,
+            tipo,
+            cliente_id,
+            status,
+            link_meet
+          `)
+          .gte('data_hora', inicioData)
+          .lte('data_hora', fimData)
+          .order('data_hora');
 
-      setReunioes(data.reunioes || []);
+        if (directError) throw directError;
+        
+        // Mapear os dados para o formato esperado
+        const reunioesFormatadas = (reunioesData || []).map(reuniao => ({
+          ...reuniao,
+          clientes: reuniao.cliente_id ? { nome: 'Cliente' } : undefined,
+          presencas_reunioes: []
+        }));
+        
+        setReunioes(reunioesFormatadas);
+      }
+      
     } catch (error) {
       console.error('Erro ao carregar reuniões:', error);
       toast({
