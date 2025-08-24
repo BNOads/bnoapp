@@ -34,10 +34,6 @@ export const Header = ({
     label: 'Painéis Clientes',
     icon: Calendar
   }, {
-    id: 'calendario',
-    label: 'Calendário',
-    icon: CalendarDays
-  }, {
     id: 'reunioes',
     label: 'Reuniões',
     icon: UserCheck

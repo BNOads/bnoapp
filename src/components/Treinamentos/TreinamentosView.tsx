@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, Play, Users, Clock, Search, Plus, Star, Award } from "lucide-react";
+import { BookOpen, Play, Users, Clock, Search, Plus, Star, Award, GraduationCap } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoTreinamentoModal } from "./NovoTreinamentoModal";
+import { NovoPDIModal } from "@/components/PDI/NovoPDIModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
@@ -17,11 +18,10 @@ export const TreinamentosView = () => {
     canCreateContent
   } = useUserPermissions();
   const [modalOpen, setModalOpen] = useState(false);
+  const [pdiModalOpen, setPdiModalOpen] = useState(false);
   const [treinamentos, setTreinamentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const {
     searchTerm,
@@ -111,10 +111,18 @@ export const TreinamentosView = () => {
             Explore cursos, tutoriais e materiais de capacitação
           </p>
         </div>
-        {canCreateContent && <Button variant="hero" size="lg" onClick={() => setModalOpen(true)}>
-            <Plus className="h-5 w-5 mr-2" />
-            Novo Curso
-          </Button>}
+        {canCreateContent && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setPdiModalOpen(true)}>
+              <GraduationCap className="h-4 w-4 mr-2" />
+              Criar PDI
+            </Button>
+            <Button variant="hero" size="lg" onClick={() => setModalOpen(true)}>
+              <Plus className="h-5 w-5 mr-2" />
+              Novo Curso
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Indicator para usuários não-admin */}
@@ -198,9 +206,21 @@ export const TreinamentosView = () => {
           </div>}
       </div>
 
-      {/* Modal */}
-      <NovoTreinamentoModal open={modalOpen} onOpenChange={setModalOpen} onSuccess={() => {
-      carregarTreinamentos(); // Recarregar lista após criar
-    }} />
+      {/* Modals */}
+      <NovoTreinamentoModal 
+        open={modalOpen} 
+        onOpenChange={setModalOpen} 
+        onSuccess={() => {
+          carregarTreinamentos(); // Recarregar lista após criar
+        }} 
+      />
+      
+      <NovoPDIModal 
+        open={pdiModalOpen} 
+        onOpenChange={setPdiModalOpen} 
+        onSuccess={() => {
+          // PDI criado com sucesso
+        }} 
+      />
     </div>;
 };

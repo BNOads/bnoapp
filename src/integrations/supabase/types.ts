@@ -853,6 +853,92 @@ export type Database = {
         }
         Relationships: []
       }
+      pdi_aulas: {
+        Row: {
+          aula_id: string
+          concluida: boolean
+          created_at: string
+          data_conclusao: string | null
+          id: string
+          pdi_id: string
+        }
+        Insert: {
+          aula_id: string
+          concluida?: boolean
+          created_at?: string
+          data_conclusao?: string | null
+          id?: string
+          pdi_id: string
+        }
+        Update: {
+          aula_id?: string
+          concluida?: boolean
+          created_at?: string
+          data_conclusao?: string | null
+          id?: string
+          pdi_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdi_aulas_aula_id_fkey"
+            columns: ["aula_id"]
+            isOneToOne: false
+            referencedRelation: "aulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdi_aulas_pdi_id_fkey"
+            columns: ["pdi_id"]
+            isOneToOne: false
+            referencedRelation: "pdis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdis: {
+        Row: {
+          colaborador_id: string
+          created_at: string
+          created_by: string
+          data_limite: string
+          descricao: string | null
+          id: string
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          colaborador_id: string
+          created_at?: string
+          created_by: string
+          data_limite: string
+          descricao?: string | null
+          id?: string
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          colaborador_id?: string
+          created_at?: string
+          created_by?: string
+          data_limite?: string
+          descricao?: string | null
+          id?: string
+          status?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdis_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permissoes_dados_sensíveis: {
         Row: {
           ativo: boolean

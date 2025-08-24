@@ -1,28 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoColaboradorModal } from "@/components/Colaboradores/NovoColaboradorModal";
 import { NovoClienteModal } from "@/components/Clientes/NovoClienteModal";
 import { NovoTreinamentoModal } from "@/components/Treinamentos/NovoTreinamentoModal";
+import { PDICard } from "@/components/PDI/PDICard";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+
 export const DashboardView = () => {
-  const {
-    canCreateContent
-  } = useUserPermissions();
-  const {
-    activities
-  } = useRecentActivities();
-  const {
-    stats,
-    loading: statsLoading
-  } = useDashboardStats();
+  const { canCreateContent } = useUserPermissions();
+  const { activities } = useRecentActivities();
+  const { stats, loading: statsLoading } = useDashboardStats();
   const [colaboradorModalOpen, setColaboradorModalOpen] = useState(false);
   const [clienteModalOpen, setClienteModalOpen] = useState(false);
   const [treinamentoModalOpen, setTreinamentoModalOpen] = useState(false);
+  const [pdis, setPdis] = useState<any[]>([]);
+  const [loadingPdis, setLoadingPdis] = useState(true);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
   const statsData = [{
     title: "Colaboradores Ativos",
     value: statsLoading ? "..." : stats.colaboradoresAtivos.toString(),
@@ -48,7 +51,63 @@ export const DashboardView = () => {
     icon: TrendingUp,
     color: "text-primary"
   }];
-  return <div className="space-y-8">
+
+  const carregarPdis = async () => {
+    try {
+      setLoadingPdis(true);
+      const { data, error } = await supabase
+        .from('pdis')
+        .select(`
+          *,
+          pdi_aulas (
+            id,
+            concluida,
+            data_conclusao,
+            aulas (
+              id,
+              titulo
+            )
+          )
+        `)
+        .eq('status', 'ativo')
+        .order('data_limite', { ascending: true });
+
+      if (error) throw error;
+
+      const pdisFormatados = (data || []).map(pdi => ({
+        ...pdi,
+        aulas: pdi.pdi_aulas.map((pa: any) => ({
+          id: pa.aulas.id,
+          titulo: pa.aulas.titulo,
+          concluida: pa.concluida,
+          data_conclusao: pa.data_conclusao
+        }))
+      }));
+
+      setPdis(pdisFormatados);
+    } catch (error) {
+      console.error('Erro ao carregar PDIs:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar PDIs",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingPdis(false);
+    }
+  };
+
+  useEffect(() => {
+    carregarPdis();
+  }, []);
+
+  const handleViewPdiDetails = (pdiId: string) => {
+    // Navegar para detalhes do PDI ou abrir modal
+    console.log('Ver detalhes do PDI:', pdiId);
+  };
+
+  return (
+    <div className="space-y-8">
       {/* Header Section */}
       <div className="bg-gradient-primary rounded-2xl p-8 text-primary-foreground shadow-glow">
         <div className="flex items-center justify-between">
@@ -56,8 +115,48 @@ export const DashboardView = () => {
             <h2 className="text-3xl font-bold mb-2">Bem-vindo à BNOads mito!</h2>
             <p className="text-primary-foreground/80 text-lg">Aqui é a sua central de treinamentos e informações sobre a empresa</p>
           </div>
-          
         </div>
+      </div>
+
+      {/* PDI Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <GraduationCap className="h-6 w-6" />
+              Meus PDIs
+            </h3>
+            <p className="text-muted-foreground">
+              Acompanhe seus Planos de Desenvolvimento Individual
+            </p>
+          </div>
+        </div>
+
+        {loadingPdis ? (
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : pdis.length === 0 ? (
+          <Card className="p-8 text-center">
+            <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h4 className="text-lg font-semibold text-foreground mb-2">
+              Nenhum PDI encontrado
+            </h4>
+            <p className="text-muted-foreground">
+              Você não possui PDIs ativos no momento.
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pdis.map((pdi) => (
+              <PDICard
+                key={pdi.id}
+                pdi={pdi}
+                onViewDetails={handleViewPdiDetails}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Indicator para usuários não-admin */}
@@ -66,8 +165,9 @@ export const DashboardView = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsData.map((stat, index) => {
-        const Icon = stat.icon;
-        return <Card key={index} className="p-6 bg-card border border-border hover:shadow-card transition-all duration-300 hover:border-primary/30">
+          const Icon = stat.icon;
+          return (
+            <Card key={index} className="p-6 bg-card border border-border hover:shadow-card transition-all duration-300 hover:border-primary/30">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground font-medium">
@@ -84,14 +184,16 @@ export const DashboardView = () => {
                   <Icon className={`h-6 w-6 ${stat.color}`} />
                 </div>
               </div>
-            </Card>;
-      })}
+            </Card>
+          );
+        })}
       </div>
 
       {/* Quick Actions & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Quick Actions - Visível apenas para admins */}
-        {canCreateContent && <Card className="p-6 bg-card border border-border shadow-card">
+        {canCreateContent && (
+          <Card className="p-6 bg-card border border-border shadow-card">
             <h3 className="text-xl font-semibold mb-6 text-foreground">
               Ações Rápidas
             </h3>
@@ -118,7 +220,8 @@ export const DashboardView = () => {
                 </div>
               </Button>
             </div>
-          </Card>}
+          </Card>
+        )}
 
         {/* Recent Activity */}
         <Card className={`p-6 bg-card border border-border shadow-card ${!canCreateContent ? 'lg:col-span-2' : ''}`}>
@@ -126,7 +229,8 @@ export const DashboardView = () => {
             Atividade Recente
           </h3>
           <div className="space-y-4">
-            {activities.map((activity, index) => <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50">
+            {activities.map((activity, index) => (
+              <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50">
                 <div className="bg-primary/10 p-2 rounded-lg">
                   <Clock className="h-4 w-4 text-primary" />
                 </div>
@@ -141,7 +245,8 @@ export const DashboardView = () => {
                     {activity.time}
                   </p>
                 </div>
-              </div>)}
+              </div>
+            ))}
           </div>
         </Card>
       </div>
@@ -150,5 +255,6 @@ export const DashboardView = () => {
       <NovoColaboradorModal open={colaboradorModalOpen} onOpenChange={setColaboradorModalOpen} />
       <NovoClienteModal open={clienteModalOpen} onOpenChange={setClienteModalOpen} />
       <NovoTreinamentoModal open={treinamentoModalOpen} onOpenChange={setTreinamentoModalOpen} />
-    </div>;
+    </div>
+  );
 };
