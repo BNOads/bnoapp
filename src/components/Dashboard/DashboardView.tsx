@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap, CheckCircle } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoColaboradorModal } from "@/components/Colaboradores/NovoColaboradorModal";
@@ -23,6 +23,7 @@ export function DashboardView() {
   const [clienteModalOpen, setClienteModalOpen] = useState(false);
   const [treinamentoModalOpen, setTreinamentoModalOpen] = useState(false);
   const [pdis, setPdis] = useState<any[]>([]);
+  const [pdisFinalizados, setPdisFinalizados] = useState<any[]>([]);
   const [loadingPdis, setLoadingPdis] = useState(true);
   const { toast } = useToast();
 
@@ -40,7 +41,7 @@ export function DashboardView() {
     color: "text-primary-glow"
   }, {
     title: "PDIs Finalizados",
-    value: statsLoading ? "..." : stats.treinamentosConcluidos.toString(),
+    value: statsLoading ? "..." : stats.pdisFinalizados.toString(),
     change: "+8%",
     icon: BookOpen,
     color: "text-secondary"
@@ -55,7 +56,9 @@ export function DashboardView() {
   const carregarPdis = async () => {
     try {
       setLoadingPdis(true);
-      const { data, error } = await supabase
+      
+      // Buscar PDIs ativos
+      const { data: pdisAtivos, error: errorAtivos } = await supabase
         .from('pdis')
         .select(`
           *,
@@ -72,9 +75,30 @@ export function DashboardView() {
         .eq('status', 'ativo')
         .order('data_limite', { ascending: true });
 
-      if (error) throw error;
+      if (errorAtivos) throw errorAtivos;
 
-      const pdisFormatados = (data || []).map(pdi => ({
+      // Buscar PDIs finalizados
+      const { data: pdisCompletos, error: errorCompletos } = await supabase
+        .from('pdis')
+        .select(`
+          *,
+          pdi_aulas (
+            id,
+            concluida,
+            data_conclusao,
+            aulas (
+              id,
+              titulo
+            )
+          )
+        `)
+        .eq('status', 'concluido')
+        .order('updated_at', { ascending: false })
+        .limit(5);
+
+      if (errorCompletos) throw errorCompletos;
+
+      const formatarPdis = (data: any[]) => (data || []).map(pdi => ({
         ...pdi,
         aulas: pdi.pdi_aulas.map((pa: any) => ({
           id: pa.aulas.id,
@@ -84,7 +108,8 @@ export function DashboardView() {
         }))
       }));
 
-      setPdis(pdisFormatados);
+      setPdis(formatarPdis(pdisAtivos));
+      setPdisFinalizados(formatarPdis(pdisCompletos));
     } catch (error) {
       console.error('Erro ao carregar PDIs:', error);
       toast({
@@ -157,6 +182,44 @@ export function DashboardView() {
           </div>
         )}
       </div>
+
+      {/* Histórico de PDIs Finalizados */}
+      {pdisFinalizados.length > 0 && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                PDIs Finalizados
+              </h3>
+              <p className="text-muted-foreground">
+                Histórico dos seus últimos PDIs concluídos
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pdisFinalizados.map((pdi) => (
+              <Card key={pdi.id} className="bg-green-50 border-green-200">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg text-green-800">{pdi.titulo}</CardTitle>
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <CardDescription className="text-green-600">
+                    Concluído em {new Date(pdi.updated_at).toLocaleDateString('pt-BR')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="text-sm text-green-700">
+                    {pdi.aulas.length} aula{pdi.aulas.length !== 1 ? 's' : ''} concluída{pdi.aulas.length !== 1 ? 's' : ''}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Indicator para usuários não-admin */}
       {!canCreateContent && <ViewOnlyBadge />}
