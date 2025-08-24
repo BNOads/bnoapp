@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Video, Play, Calendar, Clock, Plus, ExternalLink, Trash2 } from "lucide-react";
+import { Video, Play, Calendar, Clock, Plus, ExternalLink, Trash2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NovaGravacaoModal } from "./NovaGravacaoModal";
@@ -27,6 +27,7 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -114,6 +115,44 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
     });
   };
 
+  const handleSyncRecordings = async () => {
+    try {
+      setSyncing(true);
+      
+      toast({
+        title: "Sincronizando gravações",
+        description: "Buscando gravações do Google Drive...",
+      });
+
+      const { data, error } = await supabase.functions.invoke('sync-meeting-recordings');
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.success) {
+        toast({
+          title: "Sincronização concluída",
+          description: data.message,
+        });
+        
+        // Recarregar gravações após sincronização
+        loadGravacoes();
+      } else {
+        throw new Error(data.error || 'Erro desconhecido na sincronização');
+      }
+    } catch (error: any) {
+      console.error('Erro na sincronização:', error);
+      toast({
+        title: "Erro na sincronização",
+        description: error.message || "Erro ao sincronizar gravações do Google Drive",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-4">Carregando gravações...</div>;
   }
@@ -127,14 +166,25 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
             Gravações de Reuniões
           </CardTitle>
           {isAuthenticated && (
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => setModalOpen(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Gravação
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleSyncRecordings}
+                disabled={syncing}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Sincronizando...' : 'Sincronizar Drive'}
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Gravação
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
