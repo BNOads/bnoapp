@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap } from "lucide-react";
@@ -12,9 +13,9 @@ import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 
-export const DashboardView = () => {
+export function DashboardView() {
+  const navigate = useNavigate();
   const { canCreateContent } = useUserPermissions();
   const { activities } = useRecentActivities();
   const { stats, loading: statsLoading } = useDashboardStats();
@@ -24,7 +25,6 @@ export const DashboardView = () => {
   const [pdis, setPdis] = useState<any[]>([]);
   const [loadingPdis, setLoadingPdis] = useState(true);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const statsData = [{
     title: "Colaboradores Ativos",
@@ -102,8 +102,7 @@ export const DashboardView = () => {
   }, []);
 
   const handleViewPdiDetails = (pdiId: string) => {
-    // Navegar para detalhes do PDI ou abrir modal
-    console.log('Ver detalhes do PDI:', pdiId);
+    navigate(`/pdi/${pdiId}`);
   };
 
   return (

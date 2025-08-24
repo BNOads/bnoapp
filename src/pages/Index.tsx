@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Routes, Route } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { DashboardView } from "@/components/Dashboard/DashboardView";
 import { ColaboradoresView } from "@/components/Colaboradores/ColaboradoresView";
 import { ClientesView } from "@/components/Clientes/ClientesView";
 import { TreinamentosView } from "@/components/Treinamentos/TreinamentosView";
 import { EscalaReunioes } from "@/components/Meetings/EscalaReunioes";
+import NotFound from "./NotFound";
+import PDIDetalhes from "./PDIDetalhes";
+import PainelCliente from "./PainelCliente";
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,12 +40,19 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="container mx-auto px-6 py-8">
-        {renderContent()}
-      </main>
-    </div>
+    <Routes>
+      <Route path="/pdi/:id" element={<PDIDetalhes />} />
+      <Route path="/painel/:clienteId" element={<PainelCliente />} />
+      <Route path="/*" element={
+        <div className="min-h-screen bg-background">
+          <Header activeTab={activeTab} onTabChange={setActiveTab} />
+          <main className="container mx-auto px-6 py-8">
+            {renderContent()}
+          </main>
+        </div>
+      } />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 };
 
