@@ -130,7 +130,7 @@ export const EscalaReunioes: React.FC = () => {
             link_meet: event.hangoutLink || event.htmlLink || '',
             organizador: { nome: 'Google Calendar' },
             cliente: null,
-            participants: []
+            presencas_reunioes: []
           };
         });
       
@@ -156,6 +156,7 @@ export const EscalaReunioes: React.FC = () => {
         .from('colaboradores')
         .select('user_id, nome, avatar_url');
       
+      // Mapear reuniões do banco com participantes
       const reunioesFormatadas = (reunioesBanco || []).map(reuniao => {
         const participantes = (todasPresencas || [])
           .filter(p => p.reuniao_id === reuniao.id)
@@ -177,32 +178,41 @@ export const EscalaReunioes: React.FC = () => {
         };
       });
       
-      // Buscar participantes das reuniões do Google Calendar
-      const reunioesComParticipantes = await Promise.all(
-        reunioesDoCalendar.map(async (reuniao) => {
-          const participantes = (todasPresencas || [])
-            .filter(p => p.reuniao_id === reuniao.id)
-            .map(p => {
-              const colaborador = colaboradoresData?.find(c => c.user_id === p.user_id);
-              return {
-                user_id: p.user_id,
-                status: p.status,
-                profiles: {
-                  nome: colaborador?.nome || 'Usuário',
-                  avatar_url: colaborador?.avatar_url
-                }
-              };
-            });
-          
-          return {
-            ...reuniao,
-            presencas_reunioes: participantes
-          };
-        })
-      );
+      // Filtrar reuniões do Google Calendar que já não estejam salvas no banco
+      // Verificamos por título e data_hora para identificar duplicatas
+      const reunioesGoogleFiltradas = reunioesDoCalendar.filter(reuniaoGoogle => {
+        const googleDateTime = new Date(reuniaoGoogle.data_hora).toISOString();
+        return !reunioesFormatadas.some(reuniaoBanco => {
+          const bancoDateTime = new Date(reuniaoBanco.data_hora).toISOString();
+          return reuniaoBanco.titulo === reuniaoGoogle.titulo && 
+                 Math.abs(new Date(bancoDateTime).getTime() - new Date(googleDateTime).getTime()) < 60000; // 1 minuto de tolerância
+        });
+      });
       
-      // Combinar reuniões do Google Calendar com as do banco
-      const todasReunioes = [...reunioesComParticipantes, ...reunioesFormatadas];
+      // Adicionar participantes às reuniões do Google Calendar que não estão no banco
+      const reunioesGoogleComParticipantes = reunioesGoogleFiltradas.map(reuniao => {
+        const participantes = (todasPresencas || [])
+          .filter(p => p.reuniao_id === reuniao.id)
+          .map(p => {
+            const colaborador = colaboradoresData?.find(c => c.user_id === p.user_id);
+            return {
+              user_id: p.user_id,
+              status: p.status,
+              profiles: {
+                nome: colaborador?.nome || 'Usuário',
+                avatar_url: colaborador?.avatar_url
+              }
+            };
+          });
+        
+        return {
+          ...reuniao,
+          presencas_reunioes: participantes
+        };
+      });
+      
+      // Combinar reuniões sem duplicatas
+      const todasReunioes = [...reunioesFormatadas, ...reunioesGoogleComParticipantes];
       console.log('Total de reuniões:', todasReunioes.length);
       setReunioes(todasReunioes);
       
