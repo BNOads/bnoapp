@@ -47,7 +47,7 @@ interface ReferenciaCreativo {
   titulo: string;
   conteudo: any;
   link_publico: string;
-  categoria: 'infoproduto' | 'negocio_local';
+  categoria: 'infoproduto' | 'negocio_local' | 'pagina';
   created_at: string;
   updated_at: string;
   is_template: boolean;
@@ -68,12 +68,13 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
   const [selectedReferencia, setSelectedReferencia] = useState<ReferenciaCreativo | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState<'todas' | 'infoproduto' | 'negocio_local' | 'pagina'>('todas');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     titulo: "",
-    categoria: "infoproduto" as "infoproduto" | "negocio_local",
+    categoria: "infoproduto" as "infoproduto" | "negocio_local" | "pagina",
     is_template: false
   });
   
@@ -89,17 +90,23 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
 
   useEffect(() => {
     filtrarReferencias();
-  }, [searchTerm, referencias]);
+  }, [searchTerm, filtroCategoria, referencias]);
 
   const filtrarReferencias = () => {
-    if (!searchTerm.trim()) {
-      setReferenciasFiltradas(referencias);
-      return;
+    let filtered = referencias;
+
+    // Filtrar por categoria
+    if (filtroCategoria !== 'todas') {
+      filtered = filtered.filter(ref => ref.categoria === filtroCategoria);
     }
 
-    const filtered = referencias.filter(ref => 
-      ref.titulo.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Filtrar por termo de busca
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(ref => 
+        ref.titulo.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
     setReferenciasFiltradas(filtered);
   };
 
@@ -354,7 +361,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         
         return {
           titulo: values[0] || '',
-          categoria: (values[1] === 'negocio_local' ? 'negocio_local' : 'infoproduto') as 'infoproduto' | 'negocio_local',
+          categoria: (['negocio_local', 'pagina'].includes(values[1]) ? values[1] : 'infoproduto') as 'infoproduto' | 'negocio_local' | 'pagina',
           is_template: values[2] === 'true' || values[2] === 'TRUE',
           links_externos: linksExternos
         };
@@ -398,7 +405,8 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
   const downloadTemplateCSV = () => {
     const template = `titulo,categoria,is_template,links_externos
 "Exemplo Referência","infoproduto","false","[]"
-"Template Negócio Local","negocio_local","true","[{""url"":""https://example.com"",""titulo"":""Link Exemplo""}]"`;
+"Template Negócio Local","negocio_local","true","[{""url"":""https://example.com"",""titulo"":""Link Exemplo""}]"
+"Exemplo Página","pagina","false","https://example.com/pagina"`;
     
     const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -501,17 +509,40 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         </div>
       </div>
 
-      {/* Barra de Pesquisa */}
+      {/* Filtros */}
       <Card>
         <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Pesquisar referências..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Pesquisar referências..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="w-48">
+              <Label>Categoria</Label>
+              <Select
+                value={filtroCategoria}
+                onValueChange={(value: 'todas' | 'infoproduto' | 'negocio_local' | 'pagina') => 
+                  setFiltroCategoria(value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas</SelectItem>
+                  <SelectItem value="infoproduto">Infoproduto</SelectItem>
+                  <SelectItem value="negocio_local">Negócio Local</SelectItem>
+                  <SelectItem value="pagina">Página</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -537,11 +568,12 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                     <TableCell className="font-medium">
                       {referencia.titulo}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {referencia.categoria === 'infoproduto' ? 'Infoproduto' : 'Negócio Local'}
-                      </Badge>
-                    </TableCell>
+                     <TableCell>
+                       <Badge variant="outline">
+                         {referencia.categoria === 'infoproduto' ? 'Infoproduto' : 
+                          referencia.categoria === 'negocio_local' ? 'Negócio Local' : 'Página'}
+                       </Badge>
+                     </TableCell>
                     <TableCell>
                       {referencia.is_template ? (
                         <Badge variant="secondary">
@@ -673,7 +705,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                 <Label htmlFor="categoria">Categoria</Label>
                 <Select
                   value={formData.categoria}
-                  onValueChange={(value: "infoproduto" | "negocio_local") => 
+                  onValueChange={(value: "infoproduto" | "negocio_local" | "pagina") => 
                     setFormData({ ...formData, categoria: value })
                   }
                 >
@@ -683,6 +715,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                   <SelectContent>
                     <SelectItem value="infoproduto">Infoproduto</SelectItem>
                     <SelectItem value="negocio_local">Negócio Local</SelectItem>
+                    <SelectItem value="pagina">Página</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -873,7 +906,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               <p>Formato esperado: titulo,categoria,is_template,links_externos</p>
-              <p>Categorias válidas: infoproduto, negocio_local</p>
+              <p>Categorias válidas: infoproduto, negocio_local, pagina</p>
             </div>
             
             <div className="flex gap-2">
