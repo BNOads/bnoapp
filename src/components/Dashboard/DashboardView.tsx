@@ -141,6 +141,26 @@ export function DashboardView() {
             <p className="text-primary-foreground/80 text-lg">Aqui é a sua central de treinamentos e informações sobre a empresa</p>
           </div>
         </div>
+        
+        {/* Quick Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 mt-6">
+          <Button 
+            variant="secondary" 
+            size="lg"
+            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')}
+            className="flex-1 bg-white/10 text-white border border-white/20 hover:bg-white/20"
+          >
+            Preencher conversa franca
+          </Button>
+          <Button 
+            variant="secondary" 
+            size="lg"
+            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')}
+            className="flex-1 bg-white/10 text-white border border-white/20 hover:bg-white/20"
+          >
+            Marcar 1x1
+          </Button>
+        </div>
       </div>
 
       {/* PDI Section */}
