@@ -3,8 +3,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
@@ -27,9 +28,11 @@ export const ClientesView = () => {
   const [clienteToEdit, setClienteToEdit] = useState<any | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoriaFilter, setCategoriaFilter] = useState<string>('');
+  const [nichoFilter, setNichoFilter] = useState<string>('');
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { searchTerm, setSearchTerm, filteredItems } = useSearch(clientes, ['nome', 'nicho', 'categoria']);
 
   const carregarClientes = async () => {
     try {
@@ -138,6 +141,28 @@ export const ClientesView = () => {
     setClienteToEdit(null);
     carregarClientes();
   };
+  
+  // Filtrar clientes baseado nos filtros ativos
+  const filteredClientes = clientes.filter(cliente => {
+    const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         cliente.nicho?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         cliente.categoria?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategoria = !categoriaFilter || cliente.categoria === categoriaFilter;
+    const matchesNicho = !nichoFilter || cliente.nicho === nichoFilter;
+    
+    return matchesSearch && matchesCategoria && matchesNicho;
+  });
+
+  // Obter listas únicas para os filtros
+  const categorias = [...new Set(clientes.map(c => c.categoria).filter(Boolean))];
+  const nichos = [...new Set(clientes.map(c => c.nicho).filter(Boolean))];
+
+  const limparFiltros = () => {
+    setCategoriaFilter('');
+    setNichoFilter('');
+    setSearchTerm('');
+  };
 
   return (
     <div className="space-y-8">
@@ -183,20 +208,52 @@ export const ClientesView = () => {
       <div className="space-y-6">
 
         <div className="space-y-6">
-          {/* Search */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          {/* Search and Filters */}
+          <div className="flex flex-col lg:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar painéis de clientes..."
-                className="pl-10 bg-background border-border text-sm sm:text-base"
+                placeholder="Buscar clientes por nome, nicho ou categoria..."
+                className="pl-10 bg-background border-border"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" className="shrink-0 w-full sm:w-auto">
-              Filtros
-            </Button>
+            
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas categorias</SelectItem>
+                  {categorias.map(categoria => (
+                    <SelectItem key={categoria} value={categoria}>
+                      {categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={nichoFilter} onValueChange={setNichoFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Nicho" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos nichos</SelectItem>
+                  {nichos.map(nicho => (
+                    <SelectItem key={nicho} value={nicho}>
+                      {nicho}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button variant="outline" onClick={limparFiltros}>
+                <Filter className="h-4 w-4 mr-2" />
+                Limpar
+              </Button>
+            </div>
           </div>
 
       {/* Statistics Cards */}
@@ -240,22 +297,27 @@ export const ClientesView = () => {
         </Card>
       </div>
 
-      {/* Clientes List */}
+      {/* Tabela de Clientes */}
       <Card className="bg-card border border-border shadow-card">
         <div className="p-6 border-b border-border">
           <h3 className="text-lg font-semibold text-foreground">
-            Lista de Painéis
+            Lista de Clientes ({filteredClientes.length})
           </h3>
         </div>
-        <div className="p-6">
+        <div className="overflow-x-auto">
           {loading ? (
             <div className="flex justify-center items-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          ) : clientes.length === 0 ? (
+          ) : filteredClientes.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">Nenhum painel de cliente encontrado.</p>
-              {canCreateContent && (
+              <p className="text-muted-foreground">
+                {clientes.length === 0 
+                  ? "Nenhum cliente encontrado." 
+                  : "Nenhum cliente corresponde aos filtros aplicados."
+                }
+              </p>
+              {clientes.length === 0 && canCreateContent && (
                 <Button 
                   onClick={() => setModalOpen(true)}
                   className="mt-4"
@@ -263,151 +325,146 @@ export const ClientesView = () => {
                   Criar Primeiro Painel
                 </Button>
               )}
+              {clientes.length > 0 && (
+                <Button 
+                  onClick={limparFiltros}
+                  variant="outline"
+                  className="mt-4"
+                >
+                  Limpar Filtros
+                </Button>
+              )}
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredItems.map((cliente) => (
-                <div
-                  key={cliente.id}
-                  className="flex flex-col p-4 sm:p-6 bg-muted/20 rounded-xl border border-border hover:shadow-card transition-all duration-300"
-                >
-                  <div className="flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 space-y-2 sm:space-y-0">
-                      <div className="flex-1">
-                        <h4 className="text-base sm:text-lg font-semibold text-foreground mb-1">
-                          {cliente.nome}
-                        </h4>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
-                          <span className="flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
-                          </span>
-                          {cliente.nicho && (
-                            <span className="flex items-center">
-                              <FileText className="h-3 w-3 mr-1" />
-                              {cliente.nicho}
-                            </span>
-                          )}
-                        </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>Nicho</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Progresso</TableHead>
+                  <TableHead className="text-center">Acessos</TableHead>
+                  <TableHead className="text-center">Último Acesso</TableHead>
+                  <TableHead className="text-center">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredClientes.map((cliente) => (
+                  <TableRow key={cliente.id} className="hover:bg-muted/50">
+                    <TableCell>
+                      <div>
+                        <div className="font-medium text-foreground">{cliente.nome}</div>
+                        {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {funil}
+                              </Badge>
+                            ))}
+                            {cliente.funis_trabalhando.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{cliente.funis_trabalhando.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <Badge className={`${getStatusColor(cliente.etapa_atual)} text-xs shrink-0`}>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {cliente.nicho ? (
+                        <span className="text-sm text-muted-foreground">{cliente.nicho}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={`${getStatusColor(cliente.etapa_atual)} text-xs`}>
                         {getStatusLabel(cliente.etapa_atual)}
                       </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-                      <div className="text-center">
-                        <p className="text-lg sm:text-2xl font-bold text-foreground">
-                          {cliente.progresso_etapa || 0}%
-                        </p>
-                        <p className="text-xs text-muted-foreground">Progresso</p>
-                        <div className="w-full bg-muted rounded-full h-1.5 sm:h-2 mt-2">
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="text-sm font-medium">{cliente.progresso_etapa || 0}%</span>
+                        <div className="w-16 bg-muted rounded-full h-2">
                           <div
-                            className="bg-gradient-primary h-1.5 sm:h-2 rounded-full transition-all duration-300"
+                            className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
                             style={{ width: `${cliente.progresso_etapa || 0}%` }}
                           />
                         </div>
                       </div>
-
-                      <div className="text-center">
-                        <p className="text-base sm:text-lg font-semibold text-foreground">
-                          {cliente.total_acessos || 0}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Total de Acessos</p>
-                      </div>
-
-                      <div className="text-center">
-                        <p className="text-xs sm:text-sm font-medium text-foreground">
-                          {formatarDataAcesso(cliente.ultimo_acesso)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Último Acesso</p>
-                      </div>
-
-                      <div className="text-center">
-                        <p className="text-xs sm:text-sm font-medium text-foreground">
-                          {cliente.funis_trabalhando?.length || 0}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Funis Ativos</p>
-                      </div>
-                    </div>
-
-                    {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && (
-                      <div className="mb-4">
-                        <p className="text-xs text-muted-foreground mb-2">Funis Trabalhando:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {cliente.funis_trabalhando.map((funil: string, index: number) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {funil}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        className="w-full sm:w-auto"
-                        onClick={() => navigate(`/painel/${cliente.id}`)}
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        <span className="hidden sm:inline">Ver Painel</span>
-                        <span className="sm:hidden">Ver</span>
-                      </Button>
-                      <div className="flex flex-wrap gap-2">
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="text-sm font-medium">{cliente.total_acessos || 0}</span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="text-sm text-muted-foreground">
+                        {formatarDataAcesso(cliente.ultimo_acesso)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center space-x-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => navigate(`/painel/${cliente.id}`)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        
                         {canCreateContent && (
                           <Button 
-                            variant="outline" 
+                            variant="ghost" 
                             size="sm"
-                            className="flex-1 sm:flex-none"
                             onClick={() => handleEditClick(cliente)}
+                            className="h-8 w-8 p-0"
                           >
-                            <Edit className="h-3 w-3 mr-1" />
-                            <span className="hidden sm:inline">Editar</span>
-                            <span className="sm:hidden">Edit</span>
+                            <Edit className="h-4 w-4" />
                           </Button>
                         )}
+                        
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => copyToClipboard(cliente.link_painel || '')}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        
                         {cliente.pasta_drive_url && (
                           <Button 
-                            variant="outline" 
+                            variant="ghost" 
                             size="sm"
-                            className="flex-1 sm:flex-none"
                             onClick={() => window.open(cliente.pasta_drive_url, '_blank')}
+                            className="h-8 w-8 p-0"
                           >
-                            <Link2 className="h-3 w-3 mr-1" />
-                            <span className="hidden sm:inline">Drive</span>
-                            <span className="sm:hidden">Dr</span>
+                            <Link2 className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="flex-1 sm:flex-none"
-                          onClick={() => copyToClipboard(cliente.link_painel || '')}
-                        >
-                          <Copy className="h-3 w-3 mr-1" />
-                          <span className="hidden sm:inline">Copiar Link</span>
-                          <span className="sm:hidden">Copy</span>
-                        </Button>
+                        
                         {canCreateContent && (
                           <Button 
-                            variant="outline" 
+                            variant="ghost" 
                             size="sm"
-                            className="flex-1 sm:flex-none text-destructive hover:text-destructive-foreground hover:bg-destructive"
                             onClick={() => handleDeleteClick(cliente)}
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive"
                           >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            <span className="hidden sm:inline">Excluir</span>
-                            <span className="sm:hidden">Del</span>
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </div>
       </Card>
