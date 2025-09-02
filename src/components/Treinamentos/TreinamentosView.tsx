@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, Play, Users, Clock, Search, Plus, Star, Award, GraduationCap } from "lucide-react";
+import { BookOpen, Play, Users, Clock, Search, Plus, Star, Award, GraduationCap, FileText } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoTreinamentoModal } from "./NovoTreinamentoModal";
@@ -13,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
 import { useNavigate } from "react-router-dom";
+import { POPView } from "./POPView";
 export const TreinamentosView = () => {
   const {
     canCreateContent
@@ -102,7 +104,8 @@ export const TreinamentosView = () => {
     };
     return categorias[categoria] || categoria;
   };
-  return <div className="space-y-8">
+  return (
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -128,83 +131,100 @@ export const TreinamentosView = () => {
       {/* Indicator para usuários não-admin */}
       {!canCreateContent && <ViewOnlyBadge />}
 
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar treinamentos..." className="pl-10 bg-background border-border" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-        </div>
-        <Button variant="outline" className="shrink-0">
-          Filtros
-        </Button>
-      </div>
+      {/* Tabs */}
+      <Tabs defaultValue="cursos" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="cursos" className="flex items-center gap-2">
+            <Play className="h-4 w-4" />
+            Cursos
+          </TabsTrigger>
+          <TabsTrigger value="pops" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            POPs
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Statistics Cards */}
-      
+        <TabsContent value="cursos" className="space-y-6">
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar treinamentos..." className="pl-10 bg-background border-border" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            </div>
+            <Button variant="outline" className="shrink-0">
+              Filtros
+            </Button>
+          </div>
 
-      {/* Treinamentos Grid */}
-      <div className="space-y-6">
-        <h3 className="text-xl font-semibold text-foreground">Cursos Disponíveis</h3>
-        
-        {loading ? <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div> : filteredItems.length === 0 ? <Card className="p-8 text-center">
-            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h4 className="text-lg font-semibold text-foreground mb-2">
-              Nenhum treinamento encontrado
-            </h4>
-            <p className="text-muted-foreground mb-4">
-              Ainda não há treinamentos disponíveis na biblioteca.
-            </p>
-            {canCreateContent && <Button onClick={() => setModalOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Primeiro Treinamento
-              </Button>}
-          </Card> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredItems.map(treinamento => {
-          const TipoIcon = getTipoIcon(treinamento.tipo);
-          return <Card key={treinamento.id} className="overflow-hidden hover:shadow-card transition-all duration-300">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        <div className="bg-primary/10 p-2 rounded-lg">
-                          <TipoIcon className="h-4 w-4 text-primary" />
+          {/* Treinamentos Grid */}
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-foreground">Cursos Disponíveis</h3>
+            
+            {loading ? <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div> : filteredItems.length === 0 ? <Card className="p-8 text-center">
+                <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-foreground mb-2">
+                  Nenhum treinamento encontrado
+                </h4>
+                <p className="text-muted-foreground mb-4">
+                  Ainda não há treinamentos disponíveis na biblioteca.
+                </p>
+                {canCreateContent && <Button onClick={() => setModalOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Primeiro Treinamento
+                  </Button>}
+              </Card> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredItems.map(treinamento => {
+              const TipoIcon = getTipoIcon(treinamento.tipo);
+              return <Card key={treinamento.id} className="overflow-hidden hover:shadow-card transition-all duration-300">
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center space-x-2">
+                            <div className="bg-primary/10 p-2 rounded-lg">
+                              <TipoIcon className="h-4 w-4 text-primary" />
+                            </div>
+                            <Badge className={getNivelColor(treinamento.nivel)}>
+                              {treinamento.nivel}
+                            </Badge>
+                          </div>
                         </div>
-                        <Badge className={getNivelColor(treinamento.nivel)}>
-                          {treinamento.nivel}
-                        </Badge>
+
+                        <h4 className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
+                          {treinamento.titulo}
+                        </h4>
+
+                        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                          {treinamento.descricao || 'Sem descrição disponível'}
+                        </p>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Categoria:</span>
+                            <Badge variant="outline" className="text-xs">
+                              {formatarCategoria(treinamento.categoria)}
+                            </Badge>
+                          </div>
+
+                        </div>
+
+                        <div className="mt-6 space-y-2">
+                          <Button className="w-full" variant="default" onClick={() => navigate(`/curso/${treinamento.id}`)}>
+                            <Play className="h-4 w-4 mr-2" />
+                            Acessar Curso
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    </Card>;
+            })}
+              </div>}
+          </div>
+        </TabsContent>
 
-                    <h4 className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
-                      {treinamento.titulo}
-                    </h4>
-
-                    <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                      {treinamento.descricao || 'Sem descrição disponível'}
-                    </p>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Categoria:</span>
-                        <Badge variant="outline" className="text-xs">
-                          {formatarCategoria(treinamento.categoria)}
-                        </Badge>
-                      </div>
-
-                    </div>
-
-                    <div className="mt-6 space-y-2">
-                      <Button className="w-full" variant="default" onClick={() => navigate(`/curso/${treinamento.id}`)}>
-                        <Play className="h-4 w-4 mr-2" />
-                        Acessar Curso
-                      </Button>
-                    </div>
-                  </div>
-                </Card>;
-        })}
-          </div>}
-      </div>
+        <TabsContent value="pops">
+          <POPView />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <NovoTreinamentoModal 
@@ -222,5 +242,6 @@ export const TreinamentosView = () => {
           // PDI criado com sucesso
         }} 
       />
-    </div>;
+    </div>
+  );
 };
