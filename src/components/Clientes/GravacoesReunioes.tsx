@@ -56,7 +56,29 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
         throw error;
       }
 
-      setGravacoes(data || []);
+      // Filtrar apenas arquivos de vídeo baseado na URL ou tipo
+      const videoGravacoes = (data || []).filter((gravacao) => {
+        const url = gravacao.url_gravacao?.toLowerCase() || '';
+        
+        // Verificar se é um arquivo de vídeo comum
+        const isVideoFile = url.includes('.mp4') || 
+                           url.includes('.mov') || 
+                           url.includes('.avi') || 
+                           url.includes('.mkv') || 
+                           url.includes('.webm') || 
+                           url.includes('.flv');
+        
+        // Verificar se é um link de plataforma de vídeo
+        const isVideoLink = url.includes('youtube.com') || 
+                           url.includes('youtu.be') || 
+                           url.includes('vimeo.com') || 
+                           url.includes('drive.google.com') ||
+                           url.includes('meet.google.com');
+        
+        return isVideoFile || isVideoLink;
+      });
+
+      setGravacoes(videoGravacoes);
     } catch (error) {
       console.error('Erro ao carregar gravações:', error);
       setGravacoes([]);
@@ -171,7 +193,7 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Video className="h-5 w-5" />
-            Gravações de Reuniões
+            Gravações de Vídeo
           </CardTitle>
           {isAuthenticated && (
             <div className="flex items-center gap-2">
@@ -200,8 +222,8 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
         {gravacoes.length === 0 && !loading ? (
           <div className="text-center py-8 text-muted-foreground">
             <Video className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Nenhuma gravação encontrada</p>
-            <p className="text-sm">As gravações de reuniões aparecerão aqui</p>
+            <p>Nenhuma gravação de vídeo encontrada</p>
+            <p className="text-sm">As gravações de vídeo das reuniões aparecerão aqui</p>
             {isAuthenticated && (
               <Button 
                 className="mt-4" 
@@ -209,7 +231,7 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
                 onClick={() => setModalOpen(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Adicionar primeira gravação
+                Adicionar primeira gravação de vídeo
               </Button>
             )}
           </div>
