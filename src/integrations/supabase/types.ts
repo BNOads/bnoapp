@@ -722,6 +722,44 @@ export type Database = {
           },
         ]
       }
+      historico_orcamentos: {
+        Row: {
+          alterado_por: string
+          data_alteracao: string
+          id: string
+          motivo_alteracao: string | null
+          orcamento_id: string
+          valor_anterior: number | null
+          valor_novo: number
+        }
+        Insert: {
+          alterado_por: string
+          data_alteracao?: string
+          id?: string
+          motivo_alteracao?: string | null
+          orcamento_id: string
+          valor_anterior?: number | null
+          valor_novo: number
+        }
+        Update: {
+          alterado_por?: string
+          data_alteracao?: string
+          id?: string
+          motivo_alteracao?: string | null
+          orcamento_id?: string
+          valor_anterior?: number | null
+          valor_novo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_orcamentos_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_funil"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interacoes: {
         Row: {
           cliente_id: string | null
@@ -888,6 +926,45 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+        }
+        Relationships: []
+      }
+      orcamentos_funil: {
+        Row: {
+          ativo: boolean
+          cliente_id: string
+          created_at: string
+          created_by: string
+          data_atualizacao: string
+          id: string
+          nome_funil: string
+          observacoes: string | null
+          updated_at: string
+          valor_investimento: number
+        }
+        Insert: {
+          ativo?: boolean
+          cliente_id: string
+          created_at?: string
+          created_by: string
+          data_atualizacao?: string
+          id?: string
+          nome_funil: string
+          observacoes?: string | null
+          updated_at?: string
+          valor_investimento?: number
+        }
+        Update: {
+          ativo?: boolean
+          cliente_id?: string
+          created_at?: string
+          created_by?: string
+          data_atualizacao?: string
+          id?: string
+          nome_funil?: string
+          observacoes?: string | null
+          updated_at?: string
+          valor_investimento?: number
         }
         Relationships: []
       }
@@ -1181,6 +1258,54 @@ export type Database = {
           tipo?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      referencias_criativos: {
+        Row: {
+          ativo: boolean
+          cliente_id: string
+          conteudo: Json
+          created_at: string
+          created_by: string
+          data_expiracao: string | null
+          id: string
+          is_template: boolean
+          link_publico: string | null
+          links_externos: Json | null
+          permissoes_edicao: Json | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cliente_id: string
+          conteudo?: Json
+          created_at?: string
+          created_by: string
+          data_expiracao?: string | null
+          id?: string
+          is_template?: boolean
+          link_publico?: string | null
+          links_externos?: Json | null
+          permissoes_edicao?: Json | null
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cliente_id?: string
+          conteudo?: Json
+          created_at?: string
+          created_by?: string
+          data_expiracao?: string | null
+          id?: string
+          is_template?: boolean
+          link_publico?: string | null
+          links_externos?: Json | null
+          permissoes_edicao?: Json | null
+          titulo?: string
+          updated_at?: string
         }
         Relationships: []
       }
