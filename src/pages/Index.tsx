@@ -27,8 +27,6 @@ const Index = () => {
         return <ColaboradoresView />;
       case 'clientes':
         return <ClientesView />;
-      case 'reunioes':
-        return <EscalaReunioes />;
       case 'treinamentos':
         return <TreinamentosView />;
       default:

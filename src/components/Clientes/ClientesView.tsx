@@ -180,19 +180,9 @@ export const ClientesView = () => {
       {!canCreateContent && <ViewOnlyBadge />}
 
       {/* Tabs */}
-      <Tabs defaultValue="paineis" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="paineis" className="flex items-center gap-2">
-            <Eye className="h-4 w-4" />
-            Painéis de Clientes
-          </TabsTrigger>
-          <TabsTrigger value="alocacao" className="flex items-center gap-2">
-            <UserCheck className="h-4 w-4" />
-            Controle de Alocação
-          </TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
 
-        <TabsContent value="paineis" className="space-y-6">
+        <div className="space-y-6">
           {/* Search */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="relative flex-1">
@@ -421,12 +411,8 @@ export const ClientesView = () => {
           )}
         </div>
       </Card>
-        </TabsContent>
-
-        <TabsContent value="alocacao">
-          <AlocacaoClientes />
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
 
       {/* Modals */}
       <NovoClienteModal 
