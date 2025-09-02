@@ -22,7 +22,9 @@ import {
   FileCode,
   Share2,
   Search,
-  Trash2
+  Trash2,
+  Upload,
+  Download
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,7 +47,7 @@ interface ReferenciaCreativo {
   titulo: string;
   conteudo: any;
   link_publico: string;
-  data_expiracao: string | null;
+  categoria: 'infoproduto' | 'negocio_local';
   created_at: string;
   updated_at: string;
   is_template: boolean;
@@ -62,13 +64,16 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showVisualizacao, setShowVisualizacao] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [selectedReferencia, setSelectedReferencia] = useState<ReferenciaCreativo | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     titulo: "",
-    data_expiracao: "",
+    categoria: "infoproduto" as "infoproduto" | "negocio_local",
     is_template: false
   });
   
@@ -117,8 +122,8 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       const { data, error } = await query;
 
       if (error) throw error;
-      setReferencias(data || []);
-      setReferenciasFiltradas(data || []);
+      setReferencias((data || []) as ReferenciaCreativo[]);
+      setReferenciasFiltradas((data || []) as ReferenciaCreativo[]);
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -163,16 +168,14 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         return;
       }
 
-      const dataExpiracao = formData.data_expiracao ? new Date(formData.data_expiracao).toISOString() : null;
-
       if (editingId) {
         // Editar existente
         const { error } = await supabase
           .from('referencias_criativos')
           .update({
             titulo: formData.titulo,
+            categoria: formData.categoria,
             conteudo: JSON.stringify(blocos),
-            data_expiracao: dataExpiracao,
             is_template: formData.is_template,
             links_externos: linksExternos
           })
@@ -191,8 +194,8 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
           .insert({
             cliente_id: clienteId === "geral" ? null : clienteId,
             titulo: formData.titulo,
+            categoria: formData.categoria,
             conteudo: JSON.stringify(blocos),
-            data_expiracao: dataExpiracao,
             is_template: formData.is_template,
             links_externos: linksExternos,
             created_by: (await supabase.auth.getUser()).data.user?.id
@@ -221,7 +224,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
   const resetarForm = () => {
     setFormData({
       titulo: "",
-      data_expiracao: "",
+      categoria: "infoproduto",
       is_template: false
     });
     setBlocos([]);
@@ -233,7 +236,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
     setEditingId(referencia.id);
     setFormData({
       titulo: referencia.titulo,
-      data_expiracao: referencia.data_expiracao ? referencia.data_expiracao.split('T')[0] : "",
+      categoria: referencia.categoria || "infoproduto",
       is_template: referencia.is_template
     });
     setBlocos(typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : (referencia.conteudo || []));
@@ -269,8 +272,8 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         .insert({
           cliente_id: clienteId === "geral" ? null : clienteId,
           titulo: `${referencia.titulo} (Cópia)`,
+          categoria: referencia.categoria,
           conteudo: referencia.conteudo,
-          data_expiracao: null,
           is_template: false,
           links_externos: referencia.links_externos,
           created_by: (await supabase.auth.getUser()).data.user?.id
@@ -323,6 +326,73 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         variant: "destructive",
       });
     }
+  };
+
+  const processarImportacaoCSV = async () => {
+    if (!csvFile) return;
+
+    setImportLoading(true);
+    try {
+      const text = await csvFile.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      
+      // Esperado: titulo,categoria,is_template,links_externos
+      const referencesData = lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        return {
+          titulo: values[0] || '',
+          categoria: (values[1] === 'negocio_local' ? 'negocio_local' : 'infoproduto') as 'infoproduto' | 'negocio_local',
+          is_template: values[2] === 'true' || values[2] === 'TRUE',
+          links_externos: values[3] ? JSON.parse(values[3]) : []
+        };
+      });
+
+      for (const refData of referencesData) {
+        if (refData.titulo) {
+          await supabase
+            .from('referencias_criativos')
+            .insert({
+              cliente_id: clienteId === "geral" ? null : clienteId,
+              titulo: refData.titulo,
+              categoria: refData.categoria,
+              conteudo: JSON.stringify([]),
+              is_template: refData.is_template,
+              links_externos: refData.links_externos,
+              created_by: (await supabase.auth.getUser()).data.user?.id
+            });
+        }
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `${referencesData.filter(r => r.titulo).length} referências importadas com sucesso!`,
+      });
+      
+      setShowImportModal(false);
+      setCsvFile(null);
+      carregarReferencias();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Erro ao processar arquivo CSV: " + error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const downloadTemplateCSV = () => {
+    const template = `titulo,categoria,is_template,links_externos
+"Exemplo Referência","infoproduto","false","[]"
+"Template Negócio Local","negocio_local","true","[{""url"":""https://example.com"",""titulo"":""Link Exemplo""}]"`;
+    
+    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'template_referencias.csv';
+    link.click();
   };
 
   const removerLinkExterno = (index: number) => {
@@ -400,12 +470,23 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
             Crie documentos multimídia para referência e compartilhamento
           </p>
         </div>
-        {isAdmin && (
-          <Button onClick={() => setShowModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Referência
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {isAdmin && (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowImportModal(true)}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Importar CSV
+              </Button>
+              <Button onClick={() => setShowModal(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Referência
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Barra de Pesquisa */}
@@ -431,10 +512,10 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
               <TableHeader>
                 <TableRow>
                   <TableHead>Título</TableHead>
+                  <TableHead>Categoria</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Blocos</TableHead>
                   <TableHead>Criado em</TableHead>
-                  <TableHead>Expira em</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -443,6 +524,11 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                   <TableRow key={referencia.id}>
                     <TableCell className="font-medium">
                       {referencia.titulo}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {referencia.categoria === 'infoproduto' ? 'Infoproduto' : 'Negócio Local'}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       {referencia.is_template ? (
@@ -465,17 +551,16 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                     <TableCell>
                       {format(new Date(referencia.created_at), "dd/MM/yyyy", { locale: ptBR })}
                     </TableCell>
-                    <TableCell>
-                      {referencia.data_expiracao ? (
-                        <Badge variant="outline" className="text-xs">
-                          {format(new Date(referencia.data_expiracao), "dd/MM/yyyy", { locale: ptBR })}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => window.open(referencia.link_publico, '_blank')}
+                          title="Abrir link público"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -573,13 +658,21 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                 />
               </div>
               <div>
-                <Label htmlFor="data_expiracao">Data de Expiração (opcional)</Label>
-                <Input
-                  id="data_expiracao"
-                  type="date"
-                  value={formData.data_expiracao}
-                  onChange={(e) => setFormData({ ...formData, data_expiracao: e.target.value })}
-                />
+                <Label htmlFor="categoria">Categoria</Label>
+                <Select
+                  value={formData.categoria}
+                  onValueChange={(value: "infoproduto" | "negocio_local") => 
+                    setFormData({ ...formData, categoria: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="infoproduto">Infoproduto</SelectItem>
+                    <SelectItem value="negocio_local">Negócio Local</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -612,32 +705,34 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
               </div>
               
               {linksExternos.map((link, index) => (
-                <div key={index} className="flex gap-2 mb-2">
+                <div key={index} className="grid grid-cols-2 gap-2 mb-2">
                   <Input
-                    placeholder="Título"
+                    placeholder="Título do link"
                     value={link.titulo}
                     onChange={(e) => atualizarLinkExterno(index, 'titulo', e.target.value)}
                   />
-                  <Input
-                    placeholder="URL (Figma, Notion, Miro, etc.)"
-                    value={link.url}
-                    onChange={(e) => atualizarLinkExterno(index, 'url', e.target.value)}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removerLinkExterno(index)}
-                  >
-                    ×
-                  </Button>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="URL"
+                      value={link.url}
+                      onChange={(e) => atualizarLinkExterno(index, 'url', e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removerLinkExterno(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
 
             <Separator />
 
-            {/* Editor de Conteúdo */}
+            {/* Blocos de Conteúdo */}
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium">Conteúdo</h3>
@@ -680,27 +775,24 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                   </Button>
                 </div>
               </div>
-
-              {/* Blocos de Conteúdo */}
+              
               <div className="space-y-4">
-                {blocos.map((bloco, index) => (
+                {blocos.map((bloco) => (
                   <Card key={bloco.id}>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center">
-                        <Badge variant="outline" className="capitalize">
-                          {bloco.tipo}
-                        </Badge>
+                        <Badge variant="outline">{bloco.tipo}</Badge>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => removerBloco(bloco.id)}
                         >
-                          ×
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-3">
                       <div>
                         <Label>Título (opcional)</Label>
                         <Input
@@ -759,6 +851,55 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         </DialogContent>
       </Dialog>
 
+      {/* Modal de Importação CSV */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Importar Referências via CSV</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              <p>Formato esperado: titulo,categoria,is_template,links_externos</p>
+              <p>Categorias válidas: infoproduto, negocio_local</p>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={downloadTemplateCSV}
+                className="flex-1"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Baixar Template
+              </Button>
+            </div>
+            
+            <div>
+              <Label htmlFor="csv-file">Arquivo CSV</Label>
+              <Input
+                id="csv-file"
+                type="file"
+                accept=".csv"
+                onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowImportModal(false)}>
+                Cancelar
+              </Button>
+              <Button 
+                onClick={processarImportacaoCSV}
+                disabled={!csvFile || importLoading}
+              >
+                {importLoading ? "Importando..." : "Importar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de Visualização */}
       <Dialog open={showVisualizacao} onOpenChange={setShowVisualizacao}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -775,11 +916,6 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                     <Share2 className="h-4 w-4 mr-2" />
                     Compartilhar
                   </Button>
-                  {selectedReferencia?.data_expiracao && (
-                    <Badge variant="outline">
-                      Expira em {format(new Date(selectedReferencia.data_expiracao), "dd/MM/yyyy", { locale: ptBR })}
-                    </Badge>
-                  )}
                 </div>
               </div>
             </div>
