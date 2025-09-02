@@ -85,8 +85,11 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         .eq('ativo', true)
         .order('created_at', { ascending: false });
 
-      // Se clienteId não for "geral", filtrar por cliente específico
-      if (clienteId !== "geral") {
+      // Se clienteId for "geral", buscar referências gerais (cliente_id null)
+      // Senão, filtrar por cliente específico
+      if (clienteId === "geral") {
+        query = query.is('cliente_id', null);
+      } else {
         query = query.eq('cliente_id', clienteId);
       }
 

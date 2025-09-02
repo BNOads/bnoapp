@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye } from "lucide-react";
+import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -198,6 +198,29 @@ export const OrcamentoPorFunil = ({ clienteId }: OrcamentoPorFunilProps) => {
     link.click();
   };
 
+  const excluirOrcamento = async (orcamento: OrcamentoFunil) => {
+    try {
+      const { error } = await supabase
+        .from('orcamentos_funil')
+        .update({ ativo: false })
+        .eq('id', orcamento.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Orçamento excluído com sucesso!",
+      });
+      carregarOrcamentos();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir orçamento: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -257,13 +280,23 @@ export const OrcamentoPorFunil = ({ clienteId }: OrcamentoPorFunilProps) => {
                     <History className="h-4 w-4" />
                   </Button>
                   {isAdmin && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => abrirEdicao(orcamento)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => abrirEdicao(orcamento)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => excluirOrcamento(orcamento)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
