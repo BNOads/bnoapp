@@ -35,18 +35,24 @@ serve(async (req) => {
     const systemContext = await getSystemContext(supabase, userId);
     
     // Preparar prompt para o ChatGPT
-    const systemPrompt = `Você é um assistente inteligente da BNOads, uma agência de marketing digital especializada em tráfego pago e gestão de clientes. 
+    const systemPrompt = `Você é um assistente inteligente da BNOads, uma agência de marketing digital especializada em tráfego pago e gestão de clientes.
 
-Contexto do sistema:
+CONTEXTO COMPLETO DO SISTEMA:
 ${systemContext}
 
-Instruções:
+INSTRUÇÕES PARA O ASSISTENTE:
 - Responda sempre em português brasileiro
 - Seja útil, profissional e amigável
-- Use as informações do sistema quando relevante
-- Ajude com questões sobre clientes, treinamentos, PDIs, reuniões e outras funcionalidades da plataforma
-- Se não souber algo específico do sistema, seja honesto e sugira onde o usuário pode encontrar a informação
-- Mantenha as respostas concisas mas completas`;
+- Use TODAS as informações do sistema quando relevante - você tem acesso completo aos dados
+- Você pode responder sobre: clientes, colaboradores, treinamentos, aulas, PDIs, reuniões, gravações, criativos, referências, orçamentos, tarefas, avisos
+- Forneça informações específicas quando solicitado (IDs, links, datas, valores, etc.)
+- Quando mencionar clientes, sempre inclua o link do painel quando disponível
+- Para treinamentos e aulas, mencione detalhes como duração, categoria e progresso
+- Para PDIs, informe status e prazos
+- Para reuniões, inclua datas e participantes
+- Se precisar de informações mais específicas, sugira onde encontrar na plataforma
+- Mantenha as respostas informativas mas organizadas
+- Sempre que possível, ofereça ações práticas ou próximos passos`;
 
     console.log('Enviando requisição para OpenAI...');
 
@@ -99,7 +105,7 @@ Instruções:
 
 async function getSystemContext(supabase: any, userId: string) {
   try {
-    let context = "Informações do sistema BNOads:\n\n";
+    let context = "SISTEMA BNOADS - BASE DE CONHECIMENTO COMPLETA:\n\n";
 
     // Buscar dados do usuário atual
     const { data: profile } = await supabase
@@ -109,163 +115,313 @@ async function getSystemContext(supabase: any, userId: string) {
       .single();
 
     if (profile) {
-      context += `Usuário: ${profile.nome} (${profile.email})\n`;
+      context += `Usuário logado: ${profile.nome} (${profile.email})\n`;
       context += `Nível de acesso: ${profile.nivel_acesso}\n\n`;
     }
 
-    // Buscar estatísticas detalhadas de clientes
+    // CLIENTES - Informações completas
     const { data: clientes } = await supabase
       .from('clientes')
-      .select('id, nome, status_cliente, categoria, nicho, link_painel')
+      .select(`
+        id, nome, status_cliente, categoria, nicho, link_painel, 
+        data_inicio, etapa_atual, progresso_etapa, funis_trabalhando,
+        observacoes, ultimo_acesso, total_acessos, pasta_drive_url,
+        whatsapp_grupo_url, aliases, dashboards_looker
+      `)
       .eq('ativo', true);
 
-    if (clientes) {
+    if (clientes && clientes.length > 0) {
       context += `=== CLIENTES (${clientes.length} ativos) ===\n`;
       clientes.forEach((cliente: any) => {
-        context += `- ${cliente.nome} (${cliente.categoria} - ${cliente.nicho})\n`;
-        context += `  Status: ${cliente.status_cliente}\n`;
-        context += `  Painel: ${cliente.link_painel}\n`;
+        context += `• ${cliente.nome} [ID: ${cliente.id}]\n`;
+        context += `  - Categoria: ${cliente.categoria} | Nicho: ${cliente.nicho}\n`;
+        context += `  - Status: ${cliente.status_cliente}\n`;
+        context += `  - Etapa atual: ${cliente.etapa_atual || 'Não definida'}\n`;
+        context += `  - Funis: ${cliente.funis_trabalhando?.join(', ') || 'Nenhum'}\n`;
+        context += `  - Painel: ${cliente.link_painel}\n`;
+        context += `  - Drive: ${cliente.pasta_drive_url || 'Não configurado'}\n`;
+        context += `  - WhatsApp: ${cliente.whatsapp_grupo_url || 'Não configurado'}\n`;
+        if (cliente.observacoes) context += `  - Obs: ${cliente.observacoes.substring(0, 150)}...\n`;
+        context += `\n`;
       });
-      context += `\n`;
-      
-      const clientesPorCategoria = clientes.reduce((acc: any, cliente: any) => {
-        acc[cliente.categoria] = (acc[cliente.categoria] || 0) + 1;
-        return acc;
-      }, {});
-      context += `Clientes por categoria: ${JSON.stringify(clientesPorCategoria)}\n\n`;
+
+      // Estatísticas de clientes
+      const stats = {
+        porCategoria: clientes.reduce((acc: any, c: any) => { acc[c.categoria] = (acc[c.categoria] || 0) + 1; return acc; }, {}),
+        porStatus: clientes.reduce((acc: any, c: any) => { acc[c.status_cliente] = (acc[c.status_cliente] || 0) + 1; return acc; }, {}),
+        porNicho: clientes.reduce((acc: any, c: any) => { acc[c.nicho] = (acc[c.nicho] || 0) + 1; return acc; }, {})
+      };
+      context += `Estatísticas:\n`;
+      context += `- Por categoria: ${JSON.stringify(stats.porCategoria)}\n`;
+      context += `- Por status: ${JSON.stringify(stats.porStatus)}\n`;
+      context += `- Por nicho: ${JSON.stringify(stats.porNicho)}\n\n`;
     }
 
-    // Buscar colaboradores detalhados
+    // COLABORADORES - Informações completas
     const { data: colaboradores } = await supabase
       .from('colaboradores')
-      .select('id, nome, nivel_acesso, especialidade')
+      .select(`
+        id, nome, email, nivel_acesso, data_admissao, 
+        progresso_treinamentos, tamanho_camisa, estado_civil,
+        data_nascimento, tempo_plataforma, avatar_url
+      `)
       .eq('ativo', true);
 
-    if (colaboradores) {
+    if (colaboradores && colaboradores.length > 0) {
       context += `=== COLABORADORES (${colaboradores.length} ativos) ===\n`;
       colaboradores.forEach((colab: any) => {
-        context += `- ${colab.nome} (${colab.nivel_acesso})`;
-        if (colab.especialidade) context += ` - ${colab.especialidade}`;
+        context += `• ${colab.nome} (${colab.email})\n`;
+        context += `  - Acesso: ${colab.nivel_acesso}\n`;
+        context += `  - Admissão: ${colab.data_admissao ? new Date(colab.data_admissao).toLocaleDateString('pt-BR') : 'Não informado'}\n`;
+        context += `  - Tempo na plataforma: ${colab.tempo_plataforma || 0} horas\n`;
+        if (colab.progresso_treinamentos) {
+          const progresso = typeof colab.progresso_treinamentos === 'object' ? 
+            Object.keys(colab.progresso_treinamentos).length : 0;
+          context += `  - Treinamentos: ${progresso} em andamento\n`;
+        }
         context += `\n`;
       });
-      context += `\n`;
     }
 
-    // Buscar treinamentos detalhados
+    // TREINAMENTOS E AULAS - Informações detalhadas
     const { data: treinamentos } = await supabase
       .from('treinamentos')
-      .select('id, titulo, categoria, descricao')
+      .select(`
+        id, titulo, categoria, tipo, nivel, descricao, 
+        duracao, visualizacoes, tags, thumbnail_url, created_by
+      `)
       .eq('ativo', true);
 
-    if (treinamentos) {
-      context += `=== TREINAMENTOS (${treinamentos.length} disponíveis) ===\n`;
-      treinamentos.forEach((treino: any) => {
-        context += `- ${treino.titulo} (${treino.categoria})\n`;
-        if (treino.descricao) context += `  ${treino.descricao.substring(0, 100)}...\n`;
-      });
-      context += `\n`;
-    }
-
-    // Buscar aulas disponíveis
     const { data: aulas } = await supabase
       .from('aulas')
-      .select('id, titulo, treinamento_id, duracao, categoria')
+      .select(`
+        id, titulo, treinamento_id, tipo_conteudo, duracao, 
+        ordem, url_youtube, descricao, created_by
+      `)
       .eq('ativo', true);
 
-    if (aulas) {
-      context += `=== AULAS (${aulas.length} disponíveis) ===\n`;
-      aulas.forEach((aula: any) => {
-        context += `- ${aula.titulo}`;
-        if (aula.duracao) context += ` (${aula.duracao} min)`;
-        if (aula.categoria) context += ` - ${aula.categoria}`;
+    if (treinamentos && treinamentos.length > 0) {
+      context += `=== TREINAMENTOS (${treinamentos.length} disponíveis) ===\n`;
+      treinamentos.forEach((treino: any) => {
+        const aulasDoTreino = aulas?.filter(a => a.treinamento_id === treino.id) || [];
+        context += `• ${treino.titulo} [${treino.categoria}]\n`;
+        context += `  - Tipo: ${treino.tipo} | Nível: ${treino.nivel}\n`;
+        context += `  - Duração: ${treino.duracao || 'N/A'} min | Views: ${treino.visualizacoes || 0}\n`;
+        context += `  - Aulas: ${aulasDoTreino.length}\n`;
+        if (treino.tags) context += `  - Tags: ${treino.tags.join(', ')}\n`;
+        if (treino.descricao) context += `  - Desc: ${treino.descricao.substring(0, 100)}...\n`;
+        
+        // Listar aulas do treinamento
+        if (aulasDoTreino.length > 0) {
+          context += `  Aulas:\n`;
+          aulasDoTreino.slice(0, 5).forEach((aula: any) => {
+            context += `    ${aula.ordem}. ${aula.titulo} (${aula.duracao || 'N/A'} min)\n`;
+          });
+          if (aulasDoTreino.length > 5) {
+            context += `    ... e mais ${aulasDoTreino.length - 5} aulas\n`;
+          }
+        }
         context += `\n`;
       });
-      context += `\n`;
     }
 
-    // Buscar referências de criativos
+    // CRIATIVOS E REFERÊNCIAS
     const { data: referencias } = await supabase
       .from('referencias_criativos')
-      .select('id, titulo, categoria, cliente_id, link_publico')
+      .select(`
+        id, titulo, categoria, cliente_id, link_publico, 
+        is_template, conteudo, links_externos, data_expiracao
+      `)
+      .eq('ativo', true)
+      .limit(50);
+
+    const { data: criativos } = await supabase
+      .from('criativos')
+      .select(`
+        id, nome, tipo_criativo, cliente_id, link_externo,
+        tags, descricao, created_at
+      `)
+      .eq('ativo', true)
+      .limit(30);
+
+    if (referencias && referencias.length > 0) {
+      context += `=== REFERÊNCIAS DE CRIATIVOS (${referencias.length}) ===\n`;
+      referencias.forEach((ref: any) => {
+        context += `• ${ref.titulo} [${ref.categoria}]\n`;
+        context += `  - Template: ${ref.is_template ? 'Sim' : 'Não'}\n`;
+        context += `  - Link: ${ref.link_publico}\n`;
+        if (ref.links_externos && ref.links_externos.length > 0) {
+          context += `  - Links externos: ${ref.links_externos.length}\n`;
+        }
+        context += `\n`;
+      });
+    }
+
+    if (criativos && criativos.length > 0) {
+      context += `=== CRIATIVOS (${criativos.length}) ===\n`;
+      const criativosPorTipo = criativos.reduce((acc: any, c: any) => {
+        acc[c.tipo_criativo] = (acc[c.tipo_criativo] || 0) + 1;
+        return acc;
+      }, {});
+      context += `Por tipo: ${JSON.stringify(criativosPorTipo)}\n\n`;
+    }
+
+    // PDIS E PROGRESSOS
+    const { data: pdis } = await supabase
+      .from('pdis')
+      .select(`
+        id, titulo, status, data_limite, descricao, 
+        colaborador_id, created_by, created_at
+      `);
+
+    const { data: pdiAulas } = await supabase
+      .from('pdi_aulas')
+      .select('pdi_id, aula_id, concluida, data_conclusao');
+
+    if (pdis && pdis.length > 0) {
+      context += `=== PDIs (${pdis.length} total) ===\n`;
+      pdis.forEach((pdi: any) => {
+        const aulasAssociadas = pdiAulas?.filter(pa => pa.pdi_id === pdi.id) || [];
+        const aulasConcluidas = aulasAssociadas.filter(pa => pa.concluida).length;
+        
+        context += `• ${pdi.titulo} [${pdi.status}]\n`;
+        context += `  - Prazo: ${pdi.data_limite ? new Date(pdi.data_limite).toLocaleDateString('pt-BR') : 'Indefinido'}\n`;
+        context += `  - Progresso: ${aulasConcluidas}/${aulasAssociadas.length} aulas\n`;
+        if (pdi.descricao) context += `  - Desc: ${pdi.descricao.substring(0, 100)}...\n`;
+        context += `\n`;
+      });
+    }
+
+    // REUNIÕES E GRAVAÇÕES
+    const { data: reunioes } = await supabase
+      .from('reunioes')
+      .select(`
+        id, titulo, status, data_hora, cliente_id, duracao,
+        participantes, link_meet, link_gravacao, resumo_ia
+      `)
+      .gte('data_hora', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .order('data_hora', { ascending: false })
+      .limit(20);
+
+    const { data: gravacoes } = await supabase
+      .from('gravacoes')
+      .select(`
+        id, titulo, cliente_id, url_gravacao, duracao,
+        visualizacoes, tags, thumbnail_url, created_at
+      `)
+      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(15);
+
+    if (reunioes && reunioes.length > 0) {
+      context += `=== REUNIÕES (${reunioes.length} últimos 30 dias) ===\n`;
+      reunioes.forEach((reuniao: any) => {
+        context += `• ${reuniao.titulo} [${reuniao.status}]\n`;
+        context += `  - Data: ${new Date(reuniao.data_hora).toLocaleString('pt-BR')}\n`;
+        context += `  - Duração: ${reuniao.duracao || 'N/A'} min\n`;
+        context += `  - Participantes: ${reuniao.participantes?.length || 0}\n`;
+        if (reuniao.link_gravacao) context += `  - Gravação disponível\n`;
+        if (reuniao.resumo_ia) context += `  - Resumo IA: ${reuniao.resumo_ia.substring(0, 100)}...\n`;
+        context += `\n`;
+      });
+    }
+
+    if (gravacoes && gravacoes.length > 0) {
+      context += `=== GRAVAÇÕES (${gravacoes.length} recentes) ===\n`;
+      gravacoes.forEach((grav: any) => {
+        context += `• ${grav.titulo}\n`;
+        context += `  - Duração: ${grav.duracao || 'N/A'} min\n`;
+        context += `  - Views: ${grav.visualizacoes || 0}\n`;
+        context += `  - Tags: ${grav.tags?.join(', ') || 'Nenhuma'}\n`;
+        context += `\n`;
+      });
+    }
+
+    // ORÇAMENTOS E FINANCEIRO
+    const { data: orcamentos } = await supabase
+      .from('orcamentos_funil')
+      .select(`
+        id, nome_funil, valor_investimento, cliente_id, 
+        observacoes, ativo, data_atualizacao
+      `)
       .eq('ativo', true)
       .limit(20);
 
-    if (referencias) {
-      context += `=== REFERÊNCIAS DE CRIATIVOS (${referencias.length}) ===\n`;
-      referencias.forEach((ref: any) => {
-        context += `- ${ref.titulo} (${ref.categoria})\n`;
-        context += `  Link: ${ref.link_publico}\n`;
-      });
-      context += `\n`;
-    }
-
-    // Buscar PDIs do usuário (se for colaborador)
-    const { data: colaborador } = await supabase
-      .from('colaboradores')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
-
-    if (colaborador) {
-      const { data: pdis } = await supabase
-        .from('pdis')
-        .select('id, titulo, status, data_limite, descricao')
-        .eq('colaborador_id', colaborador.id);
-
-      if (pdis && pdis.length > 0) {
-        context += `=== SEUS PDIs (${pdis.length}) ===\n`;
-        pdis.forEach((pdi: any) => {
-          context += `- ${pdi.titulo} (${pdi.status})\n`;
-          if (pdi.data_limite) context += `  Prazo: ${new Date(pdi.data_limite).toLocaleDateString('pt-BR')}\n`;
-          if (pdi.descricao) context += `  ${pdi.descricao.substring(0, 100)}...\n`;
-        });
+    if (orcamentos && orcamentos.length > 0) {
+      context += `=== ORÇAMENTOS (${orcamentos.length} ativos) ===\n`;
+      const totalInvestimento = orcamentos.reduce((sum, orc) => sum + (parseFloat(orc.valor_investimento) || 0), 0);
+      context += `Total em investimentos: R$ ${totalInvestimento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n\n`;
+      
+      orcamentos.forEach((orc: any) => {
+        context += `• ${orc.nome_funil}\n`;
+        context += `  - Valor: R$ ${parseFloat(orc.valor_investimento).toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
+        context += `  - Atualizado: ${new Date(orc.data_atualizacao).toLocaleDateString('pt-BR')}\n`;
+        if (orc.observacoes) context += `  - Obs: ${orc.observacoes.substring(0, 100)}...\n`;
         context += `\n`;
-      }
+      });
     }
 
-    // Buscar reuniões recentes com mais detalhes
-    const dataLimite = new Date();
-    dataLimite.setDate(dataLimite.getDate() - 7); // Últimos 7 dias
+    // TAREFAS E ATIVIDADES
+    const { data: tarefas } = await supabase
+      .from('tarefas')
+      .select(`
+        id, titulo, status, prioridade, tipo, cliente_id,
+        atribuido_para, data_vencimento, descricao, created_at
+      `)
+      .in('status', ['pendente', 'em_andamento'])
+      .limit(20);
 
-    const { data: reunioes } = await supabase
-      .from('reunioes')
-      .select('id, titulo, status, data_hora, cliente_id, tipo')
-      .gte('data_hora', dataLimite.toISOString())
-      .order('data_hora', { ascending: false })
+    if (tarefas && tarefas.length > 0) {
+      context += `=== TAREFAS ATIVAS (${tarefas.length}) ===\n`;
+      tarefas.forEach((tarefa: any) => {
+        context += `• ${tarefa.titulo} [${tarefa.status}]\n`;
+        context += `  - Prioridade: ${tarefa.prioridade} | Tipo: ${tarefa.tipo}\n`;
+        if (tarefa.data_vencimento) {
+          context += `  - Vencimento: ${new Date(tarefa.data_vencimento).toLocaleDateString('pt-BR')}\n`;
+        }
+        if (tarefa.descricao) context += `  - Desc: ${tarefa.descricao.substring(0, 100)}...\n`;
+        context += `\n`;
+      });
+    }
+
+    // AVISOS E NOTIFICAÇÕES
+    const { data: avisos } = await supabase
+      .from('avisos')
+      .select(`
+        id, titulo, tipo, prioridade, conteudo, 
+        data_inicio, data_fim, ativo
+      `)
+      .eq('ativo', true)
+      .gte('data_fim', new Date().toISOString())
       .limit(10);
 
-    if (reunioes && reunioes.length > 0) {
-      context += `=== REUNIÕES RECENTES (${reunioes.length} últimos 7 dias) ===\n`;
-      reunioes.forEach((reuniao: any) => {
-        context += `- ${reuniao.titulo} (${reuniao.status})\n`;
-        context += `  Data: ${new Date(reuniao.data_hora).toLocaleString('pt-BR')}\n`;
-        if (reuniao.tipo) context += `  Tipo: ${reuniao.tipo}\n`;
+    if (avisos && avisos.length > 0) {
+      context += `=== AVISOS ATIVOS (${avisos.length}) ===\n`;
+      avisos.forEach((aviso: any) => {
+        context += `• ${aviso.titulo} [${aviso.tipo} - ${aviso.prioridade}]\n`;
+        context += `  - ${aviso.conteudo.substring(0, 150)}...\n`;
+        context += `\n`;
       });
-      context += `\n`;
     }
 
-    // Buscar gravações recentes
-    const { data: gravacoes } = await supabase
-      .from('gravacoes')
-      .select('id, titulo, cliente_id, data_gravacao, url_gravacao')
-      .gte('data_gravacao', dataLimite.toISOString())
-      .order('data_gravacao', { ascending: false })
-      .limit(10);
-
-    if (gravacoes && gravacoes.length > 0) {
-      context += `=== GRAVAÇÕES RECENTES (${gravacoes.length} últimos 7 dias) ===\n`;
-      gravacoes.forEach((grav: any) => {
-        context += `- ${grav.titulo}\n`;
-        context += `  Data: ${new Date(grav.data_gravacao).toLocaleDateString('pt-BR')}\n`;
-        if (grav.url_gravacao) context += `  URL: ${grav.url_gravacao}\n`;
-      });
-      context += `\n`;
-    }
+    // ESTATÍSTICAS GERAIS DO SISTEMA
+    context += `=== ESTATÍSTICAS GERAIS ===\n`;
+    context += `- Total de clientes ativos: ${clientes?.length || 0}\n`;
+    context += `- Total de colaboradores: ${colaboradores?.length || 0}\n`;
+    context += `- Total de treinamentos: ${treinamentos?.length || 0}\n`;
+    context += `- Total de aulas: ${aulas?.length || 0}\n`;
+    context += `- Total de PDIs: ${pdis?.length || 0}\n`;
+    context += `- Total de referências: ${referencias?.length || 0}\n`;
+    context += `- Total de criativos: ${criativos?.length || 0}\n`;
+    context += `- Reuniões recentes: ${reunioes?.length || 0}\n`;
+    context += `- Gravações disponíveis: ${gravacoes?.length || 0}\n`;
+    context += `- Orçamentos ativos: ${orcamentos?.length || 0}\n`;
+    context += `- Tarefas pendentes: ${tarefas?.length || 0}\n`;
 
     return context;
 
   } catch (error) {
     console.error('Erro ao buscar contexto do sistema:', error);
-    return "Não foi possível carregar informações do sistema no momento.";
+    return "Erro ao carregar informações do sistema. Verifique as permissões de acesso.";
   }
 }
