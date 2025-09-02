@@ -340,11 +340,23 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       // Esperado: titulo,categoria,is_template,links_externos
       const referencesData = lines.slice(1).map(line => {
         const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        
+        let linksExternos = [];
+        if (values[3]) {
+          try {
+            // Tenta parsear como JSON primeiro
+            linksExternos = JSON.parse(values[3]);
+          } catch {
+            // Se falhar, trata como URL simples
+            linksExternos = [{ titulo: values[3], url: values[3] }];
+          }
+        }
+        
         return {
           titulo: values[0] || '',
           categoria: (values[1] === 'negocio_local' ? 'negocio_local' : 'infoproduto') as 'infoproduto' | 'negocio_local',
           is_template: values[2] === 'true' || values[2] === 'TRUE',
-          links_externos: values[3] ? JSON.parse(values[3]) : []
+          links_externos: linksExternos
         };
       });
 
