@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Send, Mic, Bot, User } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -18,13 +20,14 @@ export function AssistenteView() {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! How can I help you today?',
+      content: 'Olá! Como posso ajudá-lo hoje? Posso responder perguntas sobre clientes, treinamentos, PDIs e outras funcionalidades da plataforma BNOads.',
       timestamp: new Date()
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,17 +51,59 @@ export function AssistenteView() {
     setInputMessage('');
     setIsLoading(true);
 
-    // Simular resposta do assistente
-    setTimeout(() => {
+    try {
+      console.log('Enviando mensagem para assistente...');
+      
+      // Buscar usuário atual
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      const { data, error } = await supabase.functions.invoke('assistente-chat', {
+        body: {
+          message: inputMessage,
+          userId: user.id
+        }
+      });
+
+      if (error) {
+        console.error('Erro da função:', error);
+        throw error;
+      }
+
+      console.log('Resposta recebida:', data);
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sure! I\'d be happy to help. What would you like to know?',
+        content: data.response || 'Desculpe, não consegui processar sua mensagem no momento.',
         timestamp: new Date()
       };
+      
       setMessages(prev => [...prev, assistantMessage]);
+
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+      
+      toast({
+        title: "Erro",
+        description: "Falha ao enviar mensagem. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -76,6 +121,9 @@ export function AssistenteView() {
             <Bot className="h-6 w-6 text-primary" />
             Assistente BNOads
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Seu assistente inteligente para dúvidas sobre a plataforma
+          </p>
         </CardHeader>
         
         <CardContent className="flex-1 flex flex-col p-0">
@@ -92,7 +140,7 @@ export function AssistenteView() {
                   <Avatar className="h-8 w-8 flex-shrink-0">
                     {message.role === 'assistant' ? (
                       <>
-                        <AvatarImage src="/assets/bnoads-logo.png" alt="Assistant" />
+                        <AvatarImage src="/src/assets/bnoads-logo.png" alt="Assistente" />
                         <AvatarFallback className="bg-primary text-primary-foreground">
                           <Bot className="h-4 w-4" />
                         </AvatarFallback>
@@ -111,7 +159,13 @@ export function AssistenteView() {
                         : 'bg-muted'
                     }`}
                   >
-                    <p className="text-sm">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-xs opacity-70 mt-1">
+                      {message.timestamp.toLocaleTimeString('pt-BR', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -148,7 +202,7 @@ export function AssistenteView() {
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Type your message..."
+                  placeholder="Digite sua mensagem..."
                   className="pr-12"
                   disabled={isLoading}
                 />
@@ -163,6 +217,10 @@ export function AssistenteView() {
                 <Send className="h-4 w-4" />
               </Button>
             </div>
+            
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Pressione Enter para enviar • Shift+Enter para nova linha
+            </p>
           </div>
         </CardContent>
       </Card>
