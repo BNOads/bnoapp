@@ -113,14 +113,21 @@ async function getSystemContext(supabase: any, userId: string) {
       context += `Nível de acesso: ${profile.nivel_acesso}\n\n`;
     }
 
-    // Buscar estatísticas gerais
+    // Buscar estatísticas detalhadas de clientes
     const { data: clientes } = await supabase
       .from('clientes')
-      .select('id, nome, status_cliente, categoria')
+      .select('id, nome, status_cliente, categoria, nicho, link_painel')
       .eq('ativo', true);
 
     if (clientes) {
-      context += `Clientes ativos: ${clientes.length}\n`;
+      context += `=== CLIENTES (${clientes.length} ativos) ===\n`;
+      clientes.forEach((cliente: any) => {
+        context += `- ${cliente.nome} (${cliente.categoria} - ${cliente.nicho})\n`;
+        context += `  Status: ${cliente.status_cliente}\n`;
+        context += `  Painel: ${cliente.link_painel}\n`;
+      });
+      context += `\n`;
+      
       const clientesPorCategoria = clientes.reduce((acc: any, cliente: any) => {
         acc[cliente.categoria] = (acc[cliente.categoria] || 0) + 1;
         return acc;
@@ -128,29 +135,68 @@ async function getSystemContext(supabase: any, userId: string) {
       context += `Clientes por categoria: ${JSON.stringify(clientesPorCategoria)}\n\n`;
     }
 
-    // Buscar colaboradores
+    // Buscar colaboradores detalhados
     const { data: colaboradores } = await supabase
       .from('colaboradores')
-      .select('id, nome, nivel_acesso')
+      .select('id, nome, nivel_acesso, especialidade')
       .eq('ativo', true);
 
     if (colaboradores) {
-      context += `Colaboradores ativos: ${colaboradores.length}\n\n`;
+      context += `=== COLABORADORES (${colaboradores.length} ativos) ===\n`;
+      colaboradores.forEach((colab: any) => {
+        context += `- ${colab.nome} (${colab.nivel_acesso})`;
+        if (colab.especialidade) context += ` - ${colab.especialidade}`;
+        context += `\n`;
+      });
+      context += `\n`;
     }
 
-    // Buscar treinamentos
+    // Buscar treinamentos detalhados
     const { data: treinamentos } = await supabase
       .from('treinamentos')
-      .select('id, titulo, categoria')
+      .select('id, titulo, categoria, descricao')
       .eq('ativo', true);
 
     if (treinamentos) {
-      context += `Treinamentos disponíveis: ${treinamentos.length}\n`;
-      const treinamentosPorCategoria = treinamentos.reduce((acc: any, treino: any) => {
-        acc[treino.categoria] = (acc[treino.categoria] || 0) + 1;
-        return acc;
-      }, {});
-      context += `Treinamentos por categoria: ${JSON.stringify(treinamentosPorCategoria)}\n\n`;
+      context += `=== TREINAMENTOS (${treinamentos.length} disponíveis) ===\n`;
+      treinamentos.forEach((treino: any) => {
+        context += `- ${treino.titulo} (${treino.categoria})\n`;
+        if (treino.descricao) context += `  ${treino.descricao.substring(0, 100)}...\n`;
+      });
+      context += `\n`;
+    }
+
+    // Buscar aulas disponíveis
+    const { data: aulas } = await supabase
+      .from('aulas')
+      .select('id, titulo, treinamento_id, duracao, categoria')
+      .eq('ativo', true);
+
+    if (aulas) {
+      context += `=== AULAS (${aulas.length} disponíveis) ===\n`;
+      aulas.forEach((aula: any) => {
+        context += `- ${aula.titulo}`;
+        if (aula.duracao) context += ` (${aula.duracao} min)`;
+        if (aula.categoria) context += ` - ${aula.categoria}`;
+        context += `\n`;
+      });
+      context += `\n`;
+    }
+
+    // Buscar referências de criativos
+    const { data: referencias } = await supabase
+      .from('referencias_criativos')
+      .select('id, titulo, categoria, cliente_id, link_publico')
+      .eq('ativo', true)
+      .limit(20);
+
+    if (referencias) {
+      context += `=== REFERÊNCIAS DE CRIATIVOS (${referencias.length}) ===\n`;
+      referencias.forEach((ref: any) => {
+        context += `- ${ref.titulo} (${ref.categoria})\n`;
+        context += `  Link: ${ref.link_publico}\n`;
+      });
+      context += `\n`;
     }
 
     // Buscar PDIs do usuário (se for colaborador)
@@ -163,32 +209,57 @@ async function getSystemContext(supabase: any, userId: string) {
     if (colaborador) {
       const { data: pdis } = await supabase
         .from('pdis')
-        .select('id, titulo, status, data_limite')
+        .select('id, titulo, status, data_limite, descricao')
         .eq('colaborador_id', colaborador.id);
 
       if (pdis && pdis.length > 0) {
-        context += `PDIs do usuário: ${pdis.length}\n`;
-        const pdisPorStatus = pdis.reduce((acc: any, pdi: any) => {
-          acc[pdi.status] = (acc[pdi.status] || 0) + 1;
-          return acc;
-        }, {});
-        context += `PDIs por status: ${JSON.stringify(pdisPorStatus)}\n\n`;
+        context += `=== SEUS PDIs (${pdis.length}) ===\n`;
+        pdis.forEach((pdi: any) => {
+          context += `- ${pdi.titulo} (${pdi.status})\n`;
+          if (pdi.data_limite) context += `  Prazo: ${new Date(pdi.data_limite).toLocaleDateString('pt-BR')}\n`;
+          if (pdi.descricao) context += `  ${pdi.descricao.substring(0, 100)}...\n`;
+        });
+        context += `\n`;
       }
     }
 
-    // Buscar reuniões recentes
+    // Buscar reuniões recentes com mais detalhes
     const dataLimite = new Date();
     dataLimite.setDate(dataLimite.getDate() - 7); // Últimos 7 dias
 
     const { data: reunioes } = await supabase
       .from('reunioes')
-      .select('id, titulo, status, data_hora')
+      .select('id, titulo, status, data_hora, cliente_id, tipo')
       .gte('data_hora', dataLimite.toISOString())
       .order('data_hora', { ascending: false })
       .limit(10);
 
     if (reunioes && reunioes.length > 0) {
-      context += `Reuniões dos últimos 7 dias: ${reunioes.length}\n\n`;
+      context += `=== REUNIÕES RECENTES (${reunioes.length} últimos 7 dias) ===\n`;
+      reunioes.forEach((reuniao: any) => {
+        context += `- ${reuniao.titulo} (${reuniao.status})\n`;
+        context += `  Data: ${new Date(reuniao.data_hora).toLocaleString('pt-BR')}\n`;
+        if (reuniao.tipo) context += `  Tipo: ${reuniao.tipo}\n`;
+      });
+      context += `\n`;
+    }
+
+    // Buscar gravações recentes
+    const { data: gravacoes } = await supabase
+      .from('gravacoes')
+      .select('id, titulo, cliente_id, data_gravacao, url_gravacao')
+      .gte('data_gravacao', dataLimite.toISOString())
+      .order('data_gravacao', { ascending: false })
+      .limit(10);
+
+    if (gravacoes && gravacoes.length > 0) {
+      context += `=== GRAVAÇÕES RECENTES (${gravacoes.length} últimos 7 dias) ===\n`;
+      gravacoes.forEach((grav: any) => {
+        context += `- ${grav.titulo}\n`;
+        context += `  Data: ${new Date(grav.data_gravacao).toLocaleDateString('pt-BR')}\n`;
+        if (grav.url_gravacao) context += `  URL: ${grav.url_gravacao}\n`;
+      });
+      context += `\n`;
     }
 
     return context;

@@ -207,80 +207,84 @@ const PainelCliente = () => {
       
       {/* Header do Cliente */}
       <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border">
-        <div className="container mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-4 mb-4">
+        <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+            <div className="flex-1">
+              <div className="flex items-start gap-2 sm:gap-4 mb-4">
                 {isAuthenticated && (
                   <Button 
                     variant="ghost" 
                     onClick={() => navigate('/')}
-                    className="p-2"
+                    className="p-2 flex-shrink-0"
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
                 )}
-                <div>
-                  <h1 className="text-3xl font-bold text-foreground">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground break-words">
                     {cliente.nome}
                   </h1>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="outline">{cliente.categoria}</Badge>
-                    <Badge variant="outline">{cliente.nicho}</Badge>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <Badge variant="outline" className="text-xs sm:text-sm">{cliente.categoria}</Badge>
+                    <Badge variant="outline" className="text-xs sm:text-sm">{cliente.nicho}</Badge>
                   </div>
                 </div>
               </div>
             </div>
             
             {cliente.whatsapp_grupo_url && (
-              <Button asChild>
-                <a href={cliente.whatsapp_grupo_url} target="_blank" rel="noopener noreferrer">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Grupo WhatsApp
-                </a>
-              </Button>
+              <div className="flex-shrink-0">
+                <Button asChild size="sm" className="w-full sm:w-auto">
+                  <a href={cliente.whatsapp_grupo_url} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    <span className="hidden sm:inline">Grupo WhatsApp</span>
+                    <span className="sm:hidden">WhatsApp</span>
+                  </a>
+                </Button>
+              </div>
             )}
           </div>
           
-          <div className="container mx-auto p-6 max-w-7xl">
-            {/* Conteúdo Principal */}
-            <div className="space-y-8">
-              {/* Gravações */}
-              <div>
-                <h2 className="text-xl font-semibold mb-4 flex items-center">
-                  <Video className="h-5 w-5 mr-2 text-primary" />
-                  Gravações e Reuniões
-                </h2>
-                <GravacoesReunioes clienteId={clienteId} />
-              </div>
+        </div>
+      </div>
 
-              {/* Orçamento por Funil */}
-              <div>
-                <h2 className="text-xl font-semibold mb-4 flex items-center">
-                  <DollarSign className="h-5 w-5 mr-2 text-primary" />
-                  Orçamento por Funil
-                </h2>
-                <OrcamentoPorFunil clienteId={clienteId} />
-              </div>
+      {/* Conteúdo Principal */}
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-7xl">
+        <div className="space-y-6 sm:space-y-8">
+          {/* Gravações */}
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
+              <Video className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
+              Gravações e Reuniões
+            </h2>
+            <GravacoesReunioes clienteId={clienteId} />
+          </div>
 
-              {/* Links e Tarefas em duas colunas */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div>
-                  <h2 className="text-xl font-semibold mb-4 flex items-center">
-                    <Link2 className="h-5 w-5 mr-2 text-primary" />
-                    Links Importantes
-                  </h2>
-                  <LinksImportantes clienteId={clienteId} />
-                </div>
+          {/* Orçamento por Funil */}
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
+              Orçamento por Funil
+            </h2>
+            <OrcamentoPorFunil clienteId={clienteId} />
+          </div>
 
-                <div>
-                  <h2 className="text-xl font-semibold mb-4 flex items-center">
-                    <FileText className="h-5 w-5 mr-2 text-primary" />
-                    Tarefas
-                  </h2>
-                  <TarefasList clienteId={clienteId} tipo="cliente" />
-                </div>
-              </div>
+          {/* Links e Tarefas - Layout responsivo */}
+          <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-6 xl:gap-8">
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
+                <Link2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
+                Links Importantes
+              </h2>
+              <LinksImportantes clienteId={clienteId} />
+            </div>
+
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
+                Tarefas
+              </h2>
+              <TarefasList clienteId={clienteId} tipo="cliente" />
             </div>
           </div>
         </div>
