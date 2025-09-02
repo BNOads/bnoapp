@@ -20,8 +20,11 @@ import {
   Calendar,
   ExternalLink,
   FileCode,
-  Share2
+  Share2,
+  Search,
+  Trash2
 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -55,11 +58,13 @@ interface ReferenciaCriativosProps {
 
 export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => {
   const [referencias, setReferencias] = useState<ReferenciaCreativo[]>([]);
+  const [referenciasFiltradas, setReferenciasFiltradas] = useState<ReferenciaCreativo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showVisualizacao, setShowVisualizacao] = useState(false);
   const [selectedReferencia, setSelectedReferencia] = useState<ReferenciaCreativo | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   
   const [formData, setFormData] = useState({
     titulo: "",
@@ -76,6 +81,22 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
   useEffect(() => {
     carregarReferencias();
   }, [clienteId]);
+
+  useEffect(() => {
+    filtrarReferencias();
+  }, [searchTerm, referencias]);
+
+  const filtrarReferencias = () => {
+    if (!searchTerm.trim()) {
+      setReferenciasFiltradas(referencias);
+      return;
+    }
+
+    const filtered = referencias.filter(ref => 
+      ref.titulo.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setReferenciasFiltradas(filtered);
+  };
 
   const carregarReferencias = async () => {
     try {
@@ -97,6 +118,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
 
       if (error) throw error;
       setReferencias(data || []);
+      setReferenciasFiltradas(data || []);
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -280,6 +302,29 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
     setLinksExternos(novosLinks);
   };
 
+  const excluirReferencia = async (referencia: ReferenciaCreativo) => {
+    try {
+      const { error } = await supabase
+        .from('referencias_criativos')
+        .update({ ativo: false })
+        .eq('id', referencia.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Referência excluída com sucesso!",
+      });
+      carregarReferencias();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir referência: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const removerLinkExterno = (index: number) => {
     setLinksExternos(linksExternos.filter((_, i) => i !== index));
   };
@@ -363,96 +408,145 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         )}
       </div>
 
-      {/* Lista de Referências */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {referencias.map((referencia) => (
-          <Card key={referencia.id} className="relative">
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <CardTitle className="text-lg line-clamp-2">{referencia.titulo}</CardTitle>
-                  <div className="flex items-center gap-2 mt-2">
-                    {referencia.is_template && (
-                      <Badge variant="secondary">
-                        <FileCode className="h-3 w-3 mr-1" />
-                        Template
-                      </Badge>
-                    )}
-                    {referencia.data_expiracao && (
-                      <Badge variant="outline" className="text-xs">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        Expira em {format(new Date(referencia.data_expiracao), "dd/MM", { locale: ptBR })}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => abrirVisualizacao(referencia)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copiarLink(referencia.link_publico)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  {isAdmin && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => abrirEdicao(referencia)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      {referencia.is_template && (
+      {/* Barra de Pesquisa */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Pesquisar referências..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabela de Referências */}
+      <Card>
+        <CardContent className="p-0">
+          {referenciasFiltradas.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Título</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Blocos</TableHead>
+                  <TableHead>Criado em</TableHead>
+                  <TableHead>Expira em</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {referenciasFiltradas.map((referencia) => (
+                  <TableRow key={referencia.id}>
+                    <TableCell className="font-medium">
+                      {referencia.titulo}
+                    </TableCell>
+                    <TableCell>
+                      {referencia.is_template ? (
+                        <Badge variant="secondary">
+                          <FileCode className="h-3 w-3 mr-1" />
+                          Template
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">Referência</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const conteudoParsed = typeof referencia.conteudo === 'string' 
+                          ? JSON.parse(referencia.conteudo) 
+                          : (referencia.conteudo || []);
+                        return Array.isArray(conteudoParsed) ? conteudoParsed.length : 0;
+                      })()} bloco(s)
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(referencia.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                    </TableCell>
+                    <TableCell>
+                      {referencia.data_expiracao ? (
+                        <Badge variant="outline" className="text-xs">
+                          {format(new Date(referencia.data_expiracao), "dd/MM/yyyy", { locale: ptBR })}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-1 justify-end">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => duplicarTemplate(referencia)}
+                          onClick={() => abrirVisualizacao(referencia)}
                         >
-                          <FileCode className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                         </Button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground">
-                {(() => {
-                  const conteudoParsed = typeof referencia.conteudo === 'string' 
-                    ? JSON.parse(referencia.conteudo) 
-                    : (referencia.conteudo || []);
-                  return Array.isArray(conteudoParsed) ? conteudoParsed.length : 0;
-                })() || 0} bloco(s) de conteúdo
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Criado em {format(new Date(referencia.created_at), "dd/MM/yyyy", { locale: ptBR })}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {referencias.length === 0 && (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium">Nenhuma referência criada</h3>
-            <p className="text-muted-foreground">
-              {isAdmin ? "Clique em 'Nova Referência' para criar a primeira." : "As referências serão exibidas aqui quando criadas."}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copiarLink(referencia.link_publico)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => abrirEdicao(referencia)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            {referencia.is_template && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => duplicarTemplate(referencia)}
+                              >
+                                <FileCode className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => excluirReferencia(referencia)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="py-8 text-center">
+              {searchTerm ? (
+                <>
+                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium">Nenhuma referência encontrada</h3>
+                  <p className="text-muted-foreground">
+                    Tente pesquisar com outros termos ou limpe o filtro.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium">Nenhuma referência criada</h3>
+                  <p className="text-muted-foreground">
+                    {isAdmin ? "Clique em 'Nova Referência' para criar a primeira." : "As referências serão exibidas aqui quando criadas."}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Modal de Edição */}
       <Dialog open={showModal} onOpenChange={(open) => {
