@@ -220,7 +220,15 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
   };
 
   const abrirVisualizacao = (referencia: ReferenciaCreativo) => {
-    setSelectedReferencia(referencia);
+    // Parse do conteúdo JSON para array
+    const conteudoParsed = typeof referencia.conteudo === 'string' 
+      ? JSON.parse(referencia.conteudo) 
+      : (referencia.conteudo || []);
+    
+    setSelectedReferencia({
+      ...referencia,
+      conteudo: conteudoParsed
+    });
     setShowVisualizacao(true);
   };
 
@@ -419,7 +427,12 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
             </CardHeader>
             <CardContent>
               <div className="text-sm text-muted-foreground">
-                {referencia.conteudo?.length || 0} bloco(s) de conteúdo
+                {(() => {
+                  const conteudoParsed = typeof referencia.conteudo === 'string' 
+                    ? JSON.parse(referencia.conteudo) 
+                    : (referencia.conteudo || []);
+                  return Array.isArray(conteudoParsed) ? conteudoParsed.length : 0;
+                })() || 0} bloco(s) de conteúdo
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 Criado em {format(new Date(referencia.created_at), "dd/MM/yyyy", { locale: ptBR })}
