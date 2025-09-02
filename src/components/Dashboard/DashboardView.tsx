@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap, CheckCircle, UserCheck } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap, CheckCircle } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoColaboradorModal } from "@/components/Colaboradores/NovoColaboradorModal";
 import { NovoClienteModal } from "@/components/Clientes/NovoClienteModal";
 import { NovoTreinamentoModal } from "@/components/Treinamentos/NovoTreinamentoModal";
 import { PDICard } from "@/components/PDI/PDICard";
-import { IndicadoresAlocacao } from "./IndicadoresAlocacao";
+
 import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { supabase } from "@/integrations/supabase/client";
@@ -222,22 +222,6 @@ export function DashboardView() {
         </div>
       )}
 
-      {/* Indicadores de Alocação */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <UserCheck className="h-6 w-6" />
-              Indicadores de Alocação
-            </h3>
-            <p className="text-muted-foreground">
-              Distribuição de clientes entre colaboradores
-            </p>
-          </div>
-        </div>
-        
-        <IndicadoresAlocacao />
-      </div>
 
       {/* Indicator para usuários não-admin */}
       {!canCreateContent && <ViewOnlyBadge />}

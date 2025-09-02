@@ -4,6 +4,7 @@ import { Header } from "@/components/Layout/Header";
 import { DashboardView } from "@/components/Dashboard/DashboardView";
 import { ColaboradoresView } from "@/components/Colaboradores/ColaboradoresView";
 import { ClientesView } from "@/components/Clientes/ClientesView";
+import { AssistenteView } from "@/components/Assistente/AssistenteView";
 import { TreinamentosView } from "@/components/Treinamentos/TreinamentosView";
 import { EscalaReunioes } from "@/components/Meetings/EscalaReunioes";
 
@@ -27,6 +28,8 @@ const Index = () => {
         return <ColaboradoresView />;
       case 'clientes':
         return <ClientesView />;
+      case 'assistente':
+        return <AssistenteView />;
       case 'treinamentos':
         return <TreinamentosView />;
       default:
