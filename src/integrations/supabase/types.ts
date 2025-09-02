@@ -1264,7 +1264,7 @@ export type Database = {
       referencias_criativos: {
         Row: {
           ativo: boolean
-          cliente_id: string
+          cliente_id: string | null
           conteudo: Json
           created_at: string
           created_by: string
@@ -1279,7 +1279,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
-          cliente_id: string
+          cliente_id?: string | null
           conteudo?: Json
           created_at?: string
           created_by: string
@@ -1294,7 +1294,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
-          cliente_id?: string
+          cliente_id?: string | null
           conteudo?: Json
           created_at?: string
           created_by?: string
