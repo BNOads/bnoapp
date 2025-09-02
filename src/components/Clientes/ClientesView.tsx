@@ -29,8 +29,8 @@ export const ClientesView = () => {
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoriaFilter, setCategoriaFilter] = useState<string>('');
-  const [nichoFilter, setNichoFilter] = useState<string>('');
+  const [categoriaFilter, setCategoriaFilter] = useState<string>('all');
+  const [nichoFilter, setNichoFilter] = useState<string>('all');
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -148,8 +148,8 @@ export const ClientesView = () => {
                          cliente.nicho?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          cliente.categoria?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesCategoria = !categoriaFilter || cliente.categoria === categoriaFilter;
-    const matchesNicho = !nichoFilter || cliente.nicho === nichoFilter;
+    const matchesCategoria = categoriaFilter === 'all' || !categoriaFilter || cliente.categoria === categoriaFilter;
+    const matchesNicho = nichoFilter === 'all' || !nichoFilter || cliente.nicho === nichoFilter;
     
     return matchesSearch && matchesCategoria && matchesNicho;
   });
@@ -159,8 +159,8 @@ export const ClientesView = () => {
   const nichos = [...new Set(clientes.map(c => c.nicho).filter(Boolean))];
 
   const limparFiltros = () => {
-    setCategoriaFilter('');
-    setNichoFilter('');
+    setCategoriaFilter('all');
+    setNichoFilter('all');
     setSearchTerm('');
   };
 
@@ -226,7 +226,7 @@ export const ClientesView = () => {
                   <SelectValue placeholder="Categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas categorias</SelectItem>
+                  <SelectItem value="all">Todas categorias</SelectItem>
                   {categorias.map(categoria => (
                     <SelectItem key={categoria} value={categoria}>
                       {categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
@@ -240,7 +240,7 @@ export const ClientesView = () => {
                   <SelectValue placeholder="Nicho" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos nichos</SelectItem>
+                  <SelectItem value="all">Todos nichos</SelectItem>
                   {nichos.map(nicho => (
                     <SelectItem key={nicho} value={nicho}>
                       {nicho}
