@@ -343,9 +343,6 @@ export const ClientesView = () => {
                   <TableHead>Categoria</TableHead>
                   <TableHead>Nicho</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-center">Progresso</TableHead>
-                  <TableHead className="text-center">Acessos</TableHead>
-                  <TableHead className="text-center">Último Acesso</TableHead>
                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -372,7 +369,14 @@ export const ClientesView = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${
+                          cliente.categoria === 'negocio_local' 
+                            ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' 
+                            : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                        }`}
+                      >
                         {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
                       </Badge>
                     </TableCell>
@@ -387,25 +391,6 @@ export const ClientesView = () => {
                       <Badge className={`${getStatusColor(cliente.etapa_atual)} text-xs`}>
                         {getStatusLabel(cliente.etapa_atual)}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center space-x-2">
-                        <span className="text-sm font-medium">{cliente.progresso_etapa || 0}%</span>
-                        <div className="w-16 bg-muted rounded-full h-2">
-                          <div
-                            className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${cliente.progresso_etapa || 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="text-sm font-medium">{cliente.total_acessos || 0}</span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="text-sm text-muted-foreground">
-                        {formatarDataAcesso(cliente.ultimo_acesso)}
-                      </span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center space-x-1">
