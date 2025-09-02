@@ -3,8 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Palette } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign } from "lucide-react";
 import { MessageCircle, ArrowLeft, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +13,6 @@ import { GravacoesReunioes } from "@/components/Clientes/GravacoesReunioes";
 import { TarefasList } from "@/components/Clientes/TarefasList";
 import { LinksImportantes } from "@/components/Clientes/LinksImportantes";
 import { OrcamentoPorFunil } from "@/components/Clientes/OrcamentoPorFunil";
-import { ReferenciaCreativos } from "@/components/Clientes/ReferenciaCreativos";
 import type { User } from "@supabase/supabase-js";
 
 const PainelCliente = () => {
@@ -244,53 +242,47 @@ const PainelCliente = () => {
             )}
           </div>
           
-          {/* Navegação por Tabs */}
-          <Tabs defaultValue="gravacoes" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="gravacoes" className="flex items-center gap-2">
-                <Video className="h-4 w-4" />
-                Gravações
-              </TabsTrigger>
-              <TabsTrigger value="links" className="flex items-center gap-2">
-                <Link2 className="h-4 w-4" />
-                Links
-              </TabsTrigger>
-              <TabsTrigger value="tarefas" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Tarefas
-              </TabsTrigger>
-              <TabsTrigger value="orcamento" className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Orçamento
-              </TabsTrigger>
-              <TabsTrigger value="referencias" className="flex items-center gap-2">
-                <Palette className="h-4 w-4" />
-                Referências
-              </TabsTrigger>
-            </TabsList>
-
-            <div className="mt-6">
-              <TabsContent value="gravacoes" className="space-y-6">
+          <div className="container mx-auto p-6 max-w-7xl">
+            {/* Conteúdo Principal */}
+            <div className="space-y-8">
+              {/* Gravações */}
+              <div>
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <Video className="h-5 w-5 mr-2 text-primary" />
+                  Gravações e Reuniões
+                </h2>
                 <GravacoesReunioes clienteId={clienteId} />
-              </TabsContent>
+              </div>
 
-              <TabsContent value="links" className="space-y-6">
-                <LinksImportantes clienteId={clienteId} />
-              </TabsContent>
-
-              <TabsContent value="tarefas" className="space-y-6">
-                <TarefasList clienteId={clienteId} tipo="cliente" />
-              </TabsContent>
-
-              <TabsContent value="orcamento" className="space-y-6">
+              {/* Orçamento por Funil */}
+              <div>
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <DollarSign className="h-5 w-5 mr-2 text-primary" />
+                  Orçamento por Funil
+                </h2>
                 <OrcamentoPorFunil clienteId={clienteId} />
-              </TabsContent>
+              </div>
 
-              <TabsContent value="referencias" className="space-y-6">
-                <ReferenciaCreativos clienteId={clienteId} />
-              </TabsContent>
+              {/* Links e Tarefas em duas colunas */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                  <h2 className="text-xl font-semibold mb-4 flex items-center">
+                    <Link2 className="h-5 w-5 mr-2 text-primary" />
+                    Links Importantes
+                  </h2>
+                  <LinksImportantes clienteId={clienteId} />
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold mb-4 flex items-center">
+                    <FileText className="h-5 w-5 mr-2 text-primary" />
+                    Tarefas
+                  </h2>
+                  <TarefasList clienteId={clienteId} tipo="cliente" />
+                </div>
+              </div>
             </div>
-          </Tabs>
+          </div>
         </div>
       </div>
     </div>

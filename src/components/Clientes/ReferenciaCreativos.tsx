@@ -79,12 +79,18 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
 
   const carregarReferencias = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('referencias_criativos')
         .select('*')
-        .eq('cliente_id', clienteId)
         .eq('ativo', true)
         .order('created_at', { ascending: false });
+
+      // Se clienteId não for "geral", filtrar por cliente específico
+      if (clienteId !== "geral") {
+        query = query.eq('cliente_id', clienteId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setReferencias(data || []);
@@ -158,7 +164,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         const { error } = await supabase
           .from('referencias_criativos')
           .insert({
-            cliente_id: clienteId,
+            cliente_id: clienteId === "geral" ? null : clienteId,
             titulo: formData.titulo,
             conteudo: JSON.stringify(blocos),
             data_expiracao: dataExpiracao,
@@ -228,7 +234,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       const { error } = await supabase
         .from('referencias_criativos')
         .insert({
-          cliente_id: clienteId,
+          cliente_id: clienteId === "geral" ? null : clienteId,
           titulo: `${referencia.titulo} (Cópia)`,
           conteudo: referencia.conteudo,
           data_expiracao: null,

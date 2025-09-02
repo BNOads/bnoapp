@@ -1,4 +1,4 @@
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, CalendarDays, UserCheck } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, CalendarDays, UserCheck, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -41,6 +41,10 @@ export const Header = ({
     id: 'treinamentos',
     label: 'Treinamentos',
     icon: FileText
+  }, {
+    id: 'referencias',
+    label: 'Referências',
+    icon: Palette
   }];
   return <header className="bg-gradient-subtle border-b border-border shadow-card">
       <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
