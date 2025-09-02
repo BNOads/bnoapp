@@ -595,16 +595,23 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                     <TableCell>
                       {format(new Date(referencia.created_at), "dd/MM/yyyy", { locale: ptBR })}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(referencia.link_publico, '_blank')}
-                          title="Abrir link público"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
+                     <TableCell className="text-right">
+                       <div className="flex gap-1 justify-end">
+                         {/* Botão de abrir link externo - só aparece se houver links externos */}
+                         {referencia.links_externos && referencia.links_externos.length > 0 && (
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => {
+                               const firstLink = referencia.links_externos[0];
+                               const url = typeof firstLink === 'string' ? firstLink : firstLink.url;
+                               window.open(url, '_blank');
+                             }}
+                             title="Abrir primeiro link externo"
+                           >
+                             <ExternalLink className="h-4 w-4" />
+                           </Button>
+                         )}
                         <Button
                           variant="ghost"
                           size="sm"
