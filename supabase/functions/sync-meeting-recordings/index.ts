@@ -15,9 +15,10 @@ async function listDriveFiles(folderId: string, pageToken?: string): Promise<any
   
   const params = new URLSearchParams({
     key: API_KEY!,
-    q: `'${folderId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`,
+    q: `'${folderId}' in parents and (mimeType contains 'video/' or name contains '.mp4' or name contains '.mov' or name contains '.avi' or name contains '.mkv' or name contains '.webm') and trashed=false`,
     fields: 'nextPageToken,files(id,name,mimeType,webViewLink,size,modifiedTime,videoMediaMetadata)',
-    pageSize: '100'
+    pageSize: '100',
+    orderBy: 'modifiedTime desc'
   });
   
   if (pageToken) {
@@ -70,9 +71,25 @@ async function findClientByNameOrAlias(supabase: any, fileName: string): Promise
     const nomeCliente = cliente.nome.toLowerCase();
     
     // Verificar se o nome do cliente está no nome do arquivo
+    // Melhorar a correspondência para ser mais flexível
     if (lowerFileName.includes(nomeCliente)) {
       console.log(`Cliente encontrado por nome: ${cliente.nome} para arquivo: ${fileName}`);
       return cliente.id;
+    }
+    
+    // Verificar variações do nome (sem espaços, com caracteres especiais, etc.)
+    const nomeVariations = [
+      nomeCliente.replace(/\s+/g, ''),
+      nomeCliente.replace(/\s+/g, '_'),
+      nomeCliente.replace(/\s+/g, '-'),
+      nomeCliente.replace(/[^a-z0-9]/g, ''),
+    ];
+    
+    for (const variation of nomeVariations) {
+      if (lowerFileName.includes(variation)) {
+        console.log(`Cliente encontrado por variação "${variation}": ${cliente.nome} para arquivo: ${fileName}`);
+        return cliente.id;
+      }
     }
     
     // Verificar aliases se existirem

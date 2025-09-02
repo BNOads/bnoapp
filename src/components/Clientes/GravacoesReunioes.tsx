@@ -45,6 +45,7 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
   const loadGravacoes = async () => {
     try {
       setLoading(true);
+      console.log('🎥 Carregando gravações para cliente:', clienteId);
       
       const { data, error } = await supabase
         .from('gravacoes')
@@ -55,6 +56,8 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
       if (error) {
         throw error;
       }
+
+      console.log('🎥 Gravações encontradas no banco:', data);
 
       // Filtrar apenas arquivos de vídeo baseado na URL ou tipo
       const videoGravacoes = (data || []).filter((gravacao) => {
@@ -75,12 +78,29 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
                            url.includes('drive.google.com') ||
                            url.includes('meet.google.com');
         
-        return isVideoFile || isVideoLink;
+        // Para arquivos do Google Drive, verificar se contém "recording" no nome
+        const isGoogleDriveVideo = url.includes('drive.google.com') && 
+                                  (gravacao.titulo?.toLowerCase().includes('recording') || 
+                                   gravacao.titulo?.toLowerCase().includes('gravação') ||
+                                   gravacao.descricao?.toLowerCase().includes('recording'));
+        
+        const isVideo = isVideoFile || isVideoLink || isGoogleDriveVideo;
+        
+        console.log(`🎥 Analisando gravação "${gravacao.titulo}":`, {
+          url: url.substring(0, 50) + '...',
+          isVideoFile,
+          isVideoLink, 
+          isGoogleDriveVideo,
+          isVideo
+        });
+        
+        return isVideo;
       });
 
+      console.log('🎥 Gravações de vídeo filtradas:', videoGravacoes);
       setGravacoes(videoGravacoes);
     } catch (error) {
-      console.error('Erro ao carregar gravações:', error);
+      console.error('❌ Erro ao carregar gravações:', error);
       setGravacoes([]);
     } finally {
       setLoading(false);
