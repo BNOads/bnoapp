@@ -3,13 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy } from "lucide-react";
+import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2, Save, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
 interface Creative {
   id: string;
@@ -31,6 +33,8 @@ interface Creative {
   is_active: boolean;
   activated_at: string | null;
   activated_by: string | null;
+  observacao_personalizada?: string | null;
+  nomenclatura_trafego?: string | null;
   status?: 'subir' | 'ativo' | 'inativo' | 'erro';
   activated_user?: {
     nome: string;
@@ -51,6 +55,11 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [selectedCreatives, setSelectedCreatives] = useState<string[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
+  const [editingCreative, setEditingCreative] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ observacao: string; nomenclatura: string }>({ observacao: '', nomenclatura: '' });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -162,12 +171,50 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     return folders;
   };
 
-  // Filtrar criativos localmente por subpasta se necessário
-  const filteredCreatives = selectedFolder === 'todas' 
-    ? creatives 
-    : creatives.filter(creative => 
-        (creative.folder_name || 'Raiz') === selectedFolder
-      );
+  // Filtrar e ordenar criativos
+  const getFilteredAndSortedCreatives = () => {
+    let filtered = selectedFolder === 'todas' 
+      ? creatives 
+      : creatives.filter(creative => 
+          (creative.folder_name || 'Raiz') === selectedFolder
+        );
+
+    // Aplicar filtro de data
+    if (dateFilter.start || dateFilter.end) {
+      filtered = filtered.filter(creative => {
+        const creativeDate = new Date(creative.modified_time);
+        const startDate = dateFilter.start ? new Date(dateFilter.start) : null;
+        const endDate = dateFilter.end ? new Date(dateFilter.end + 'T23:59:59') : null;
+
+        if (startDate && creativeDate < startDate) return false;
+        if (endDate && creativeDate > endDate) return false;
+        return true;
+      });
+    }
+
+    // Aplicar ordenação
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'date':
+          comparison = new Date(a.modified_time).getTime() - new Date(b.modified_time).getTime();
+          break;
+        case 'size':
+          comparison = (a.file_size || 0) - (b.file_size || 0);
+          break;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return filtered;
+  };
+
+  const filteredCreatives = getFilteredAndSortedCreatives();
 
   const getTipoIcon = (mimeType: string) => {
     if (mimeType?.startsWith('image/')) return <FileImage className="h-5 w-5" />;
@@ -311,6 +358,58 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     }
   };
 
+  const handleToggleSort = (field: 'name' | 'date' | 'size') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const handleEditCreative = (creative: Creative) => {
+    setEditingCreative(creative.id);
+    setEditForm({
+      observacao: creative.observacao_personalizada || '',
+      nomenclatura: creative.nomenclatura_trafego || ''
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingCreative) return;
+
+    try {
+      const { error } = await supabase
+        .from('creatives')
+        .update({
+          observacao_personalizada: editForm.observacao || null,
+          nomenclatura_trafego: editForm.nomenclatura || null
+        })
+        .eq('id', editingCreative);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Informações atualizadas com sucesso!",
+      });
+
+      setEditingCreative(null);
+      await carregarCreatives();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao atualizar informações",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCreative(null);
+    setEditForm({ observacao: '', nomenclatura: '' });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header com Status de Sincronização */}
@@ -365,43 +464,104 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
       </div>
 
       {/* Filtros e Busca */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome do arquivo..."
-            className="pl-10 bg-background border-border text-sm sm:text-base"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome do arquivo..."
+              className="pl-10 bg-background border-border text-sm sm:text-base"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <Select value={selectedType} onValueChange={setSelectedType}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Filtrar por tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os tipos</SelectItem>
+              <SelectItem value="imagem">Imagens</SelectItem>
+              <SelectItem value="video">Vídeos</SelectItem>
+              <SelectItem value="pdf">PDF</SelectItem>
+              <SelectItem value="documento">Documentos</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Filtrar por funil" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todos os funis</SelectItem>
+              {getUniqueSubfolders().map((folder) => (
+                <SelectItem key={folder} value={folder}>
+                  {folder}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        
-        <Select value={selectedType} onValueChange={setSelectedType}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Filtrar por tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os tipos</SelectItem>
-            <SelectItem value="imagem">Imagens</SelectItem>
-            <SelectItem value="video">Vídeos</SelectItem>
-            <SelectItem value="pdf">PDF</SelectItem>
-            <SelectItem value="documento">Documentos</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <Select value={selectedFolder} onValueChange={setSelectedFolder}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Filtrar por funil" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todos os funis</SelectItem>
-            {getUniqueSubfolders().map((folder) => (
-              <SelectItem key={folder} value={folder}>
-                {folder}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+        {/* Filtros de Data e Ordenação */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filtro de Data:</span>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              type="date"
+              placeholder="Data inicial"
+              className="w-full sm:w-40"
+              value={dateFilter.start}
+              onChange={(e) => setDateFilter(prev => ({ ...prev, start: e.target.value }))}
+            />
+            <span className="hidden sm:block text-muted-foreground">até</span>
+            <Input
+              type="date"
+              placeholder="Data final"
+              className="w-full sm:w-40"
+              value={dateFilter.end}
+              onChange={(e) => setDateFilter(prev => ({ ...prev, end: e.target.value }))}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Ordenar por:</span>
+            <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+              const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
+              setSortBy(field);
+              setSortOrder(order);
+            }}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name-asc">Nome (A-Z)</SelectItem>
+                <SelectItem value="name-desc">Nome (Z-A)</SelectItem>
+                <SelectItem value="date-desc">Data (Mais recente)</SelectItem>
+                <SelectItem value="date-asc">Data (Mais antigo)</SelectItem>
+                <SelectItem value="size-desc">Tamanho (Maior)</SelectItem>
+                <SelectItem value="size-asc">Tamanho (Menor)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(dateFilter.start || dateFilter.end) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDateFilter({ start: '', end: '' })}
+              className="text-xs"
+            >
+              Limpar filtro
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Botões de Ação em Massa */}
@@ -473,12 +633,14 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                 <TableHead>Nome do Arquivo</TableHead>
                 <TableHead className="w-32">Pasta</TableHead>
                 <TableHead className="w-32">Data Upload</TableHead>
+                <TableHead className="w-48">Nomenclatura</TableHead>
+                <TableHead className="w-48">Observação</TableHead>
                 <TableHead className="w-48">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredCreatives.map((creative) => (
-                <TableRow key={creative.id} className="hover:bg-muted/50">
+                <TableRow key={creative.id} className="hover:bg-muted/50 group">
                   <TableCell>
                     <Checkbox
                       checked={selectedCreatives.includes(creative.id)}
@@ -580,6 +742,67 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                         })}
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {editingCreative === creative.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editForm.nomenclatura}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, nomenclatura: e.target.value }))}
+                          placeholder="Ex: Criativo A, Variação 1..."
+                          className="h-8 text-xs"
+                        />
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={handleSaveEdit} className="h-6 w-6 p-0">
+                            <Save className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-6 w-6 p-0">
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm truncate" title={creative.nomenclatura_trafego || ''}>
+                          {creative.nomenclatura_trafego || '-'}
+                        </span>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => handleEditCreative(creative)}
+                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editingCreative === creative.id ? (
+                      <Textarea
+                        value={editForm.observacao}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, observacao: e.target.value }))}
+                        placeholder="Observações sobre o criativo..."
+                        className="h-8 text-xs resize-none"
+                        rows={2}
+                      />
+                    ) : (
+                      <div className="flex items-start gap-2">
+                        <span className="text-sm text-muted-foreground truncate" title={creative.observacao_personalizada || ''}>
+                          {creative.observacao_personalizada || '-'}
+                        </span>
+                        {editingCreative !== creative.id && (
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleEditCreative(creative)}
+                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">

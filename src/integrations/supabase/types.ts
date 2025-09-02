@@ -512,6 +512,8 @@ export type Database = {
           mime_type: string | null
           modified_time: string | null
           name: string
+          nomenclatura_trafego: string | null
+          observacao_personalizada: string | null
           parent_folder_id: string | null
           thumbnail_link: string | null
           updated_at: string
@@ -534,6 +536,8 @@ export type Database = {
           mime_type?: string | null
           modified_time?: string | null
           name: string
+          nomenclatura_trafego?: string | null
+          observacao_personalizada?: string | null
           parent_folder_id?: string | null
           thumbnail_link?: string | null
           updated_at?: string
@@ -556,6 +560,8 @@ export type Database = {
           mime_type?: string | null
           modified_time?: string | null
           name?: string
+          nomenclatura_trafego?: string | null
+          observacao_personalizada?: string | null
           parent_folder_id?: string | null
           thumbnail_link?: string | null
           updated_at?: string
