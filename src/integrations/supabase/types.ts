@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      assistente_conversas: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          titulo: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          titulo?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          titulo?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      assistente_mensagens: {
+        Row: {
+          content: string
+          conversa_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversa_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversa_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistente_mensagens_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "assistente_conversas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auditoria_dados_sensíveis: {
         Row: {
           acao: string

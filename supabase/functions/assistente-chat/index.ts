@@ -142,7 +142,7 @@ FORMATO DE RESPOSTA:
           { role: 'user', content: message }
         ],
         max_completion_tokens: 1500,
-        temperature: 0.7,
+        temperature: 0.3, // Reduzir para respostas mais consistentes
       }),
     });
 
