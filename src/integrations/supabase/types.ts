@@ -735,10 +735,16 @@ export type Database = {
           descricao: string | null
           duracao: number | null
           id: string
+          indexacao_busca: unknown | null
+          palavras_chave: string[] | null
+          participantes_mencionados: string[] | null
+          resumo_ia: string | null
           reuniao_id: string | null
           tags: string[] | null
+          temas: Json | null
           thumbnail_url: string | null
           titulo: string
+          transcricao: string | null
           updated_at: string
           url_gravacao: string
           visualizacoes: number | null
@@ -750,10 +756,16 @@ export type Database = {
           descricao?: string | null
           duracao?: number | null
           id?: string
+          indexacao_busca?: unknown | null
+          palavras_chave?: string[] | null
+          participantes_mencionados?: string[] | null
+          resumo_ia?: string | null
           reuniao_id?: string | null
           tags?: string[] | null
+          temas?: Json | null
           thumbnail_url?: string | null
           titulo: string
+          transcricao?: string | null
           updated_at?: string
           url_gravacao: string
           visualizacoes?: number | null
@@ -765,10 +777,16 @@ export type Database = {
           descricao?: string | null
           duracao?: number | null
           id?: string
+          indexacao_busca?: unknown | null
+          palavras_chave?: string[] | null
+          participantes_mencionados?: string[] | null
+          resumo_ia?: string | null
           reuniao_id?: string | null
           tags?: string[] | null
+          temas?: Json | null
           thumbnail_url?: string | null
           titulo?: string
+          transcricao?: string | null
           updated_at?: string
           url_gravacao?: string
           visualizacoes?: number | null
@@ -1389,12 +1407,16 @@ export type Database = {
           descricao: string | null
           duracao: number | null
           id: string
+          indexacao_busca: unknown | null
           link_gravacao: string | null
           link_meet: string | null
+          palavras_chave: string[] | null
           participantes: string[] | null
           resumo_ia: string | null
           status: string | null
+          temas_discutidos: Json | null
           titulo: string
+          transcricao: string | null
           updated_at: string
         }
         Insert: {
@@ -1405,12 +1427,16 @@ export type Database = {
           descricao?: string | null
           duracao?: number | null
           id?: string
+          indexacao_busca?: unknown | null
           link_gravacao?: string | null
           link_meet?: string | null
+          palavras_chave?: string[] | null
           participantes?: string[] | null
           resumo_ia?: string | null
           status?: string | null
+          temas_discutidos?: Json | null
           titulo: string
+          transcricao?: string | null
           updated_at?: string
         }
         Update: {
@@ -1421,12 +1447,16 @@ export type Database = {
           descricao?: string | null
           duracao?: number | null
           id?: string
+          indexacao_busca?: unknown | null
           link_gravacao?: string | null
           link_meet?: string | null
+          palavras_chave?: string[] | null
           participantes?: string[] | null
           resumo_ia?: string | null
           status?: string | null
+          temas_discutidos?: Json | null
           titulo?: string
+          transcricao?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1727,6 +1757,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      buscar_transcricoes_reunioes: {
+        Args: {
+          _cliente_id?: string
+          _data_fim?: string
+          _data_inicio?: string
+          _limit?: number
+          _query?: string
+          _responsavel?: string
+          _user_id: string
+        }
+        Returns: {
+          cliente_nome: string
+          data_reuniao: string
+          id: string
+          link_meet: string
+          palavras_chave: string[]
+          relevancia: number
+          resumo_ia: string
+          temas: Json
+          tipo: string
+          titulo: string
+          transcricao: string
+          url_gravacao: string
+        }[]
+      }
       check_admin_access: {
         Args: { _user_id: string }
         Returns: boolean

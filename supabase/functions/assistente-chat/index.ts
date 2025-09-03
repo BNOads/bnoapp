@@ -90,6 +90,15 @@ serve(async (req) => {
     // Buscar informações do sistema para contexto (agora com permissões por cliente)
     const systemContext = await getSystemContext(supabase, user.id, isAdmin, userClientId);
     
+    // Verificar se a mensagem solicita informações específicas sobre reuniões/transcrições
+    const isTranscriptionQuery = detectTranscriptionQuery(message);
+    let transcriptionContext = '';
+    
+    if (isTranscriptionQuery) {
+      console.log('Detectada consulta sobre transcrições, buscando...');
+      transcriptionContext = await searchTranscriptions(supabase, user.id, message);
+    }
+    
     // Preparar prompt inteligente para o ChatGPT
     const systemPrompt = `Você é o Assistente IA da BNOads, especializado em marketing digital e gestão de clientes.
 
@@ -102,6 +111,11 @@ PERFIL DO USUÁRIO:
 CONTEXTO COMPLETO DO SISTEMA:
 ${systemContext}
 
+${transcriptionContext ? `
+🎥 TRANSCRIÇÕES DE REUNIÕES RELEVANTES:
+${transcriptionContext}
+` : ''}
+
 INSTRUÇÕES AVANÇADAS:
 - Você tem acesso COMPLETO aos dados do sistema respeitando as permissões do usuário
 - Para PAINÉIS: Forneça links diretos, métricas específicas e interpretações dos dados
@@ -111,21 +125,22 @@ INSTRUÇÕES AVANÇADAS:
 - Para GRAVAÇÕES: Sugira gravações relevantes com links diretos
 - Para TAREFAS: Priorize por urgência e relevância para o usuário
 - Para PDIS: Acompanhe progressos e prazos
+- Para TRANSCRIÇÕES: Use as transcrições para responder sobre reuniões específicas, compromissos feitos, decisões tomadas
+- Para RESUMOS: Gere resumos em bullet points ou texto corrido conforme solicitado
 
-COMPORTAMENTO INTELIGENTE:
-- Sempre inclua links diretos e ações práticas
-- Sugira próximos passos baseados no contexto
-- Para dúvidas sobre métricas, interprete os dados disponíveis
-- Para pedidos de material, recomende especificamente do nosso catálogo
-- Mantenha respostas organizadas e acionáveis
-- Se não tiver informação específica, sugira onde encontrar no sistema
-- Para clientes: sempre priorize informações do SEU cliente quando aplicável
+COMPORTAMENTO INTELIGENTE COM TRANSCRIÇÕES:
+- Quando perguntado sobre reuniões, consulte PRIMEIRO as transcrições disponíveis
+- Para resumos de reuniões, extraia os pontos principais, decisões e próximos passos
+- Identifique compromissos feitos, responsáveis e prazos mencionados nas transcrições
+- Relacione informações das transcrições com o contexto do cliente/projeto
+- Se a transcrição for extensa, ofereça resumo executivo e detalhes sob demanda
 
 FORMATO DE RESPOSTA:
 - Use seções organizadas (### Título)
 - Inclua links diretos quando disponíveis
 - Destaque informações importantes com **negrito**
-- Sugira ações práticas sempre que possível`;
+- Sugira ações práticas sempre que possível
+- Para informações de transcrições, cite a reunião específica e data`;
 
     console.log('Enviando requisição para OpenAI...');
 
@@ -453,4 +468,153 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     console.error('Erro ao buscar contexto do sistema:', error);
     return "❌ Erro ao carregar informações do sistema. Dados filtrados por permissões de usuário.";
   }
+}
+
+// Função para detectar se a consulta é sobre transcrições ou reuniões
+function detectTranscriptionQuery(message: string): boolean {
+  const transcriptionKeywords = [
+    'reunião', 'reuniões', 'meeting', 'encontro', 'call',
+    'transcrição', 'transcricao', 'ata', 'gravação', 'gravacao',
+    'resumo', 'resumir', 'prometemos', 'compromisso', 'acordo',
+    'decidimos', 'combinamos', 'falamos sobre', 'discutimos',
+    'pra paloma', 'para paloma', 'com paloma', 'mateco', 'cliente',
+    'última reunião', 'ultima reunião', 'reunião passada',
+    'o que foi dito', 'que foi decidido', 'próximos passos',
+    'proximos passos', 'ação', 'prazo', 'deadline'
+  ];
+  
+  const messageLower = message.toLowerCase();
+  return transcriptionKeywords.some(keyword => messageLower.includes(keyword));
+}
+
+// Função para buscar e processar transcrições relevantes
+async function searchTranscriptions(supabase: any, userId: string, query: string) {
+  try {
+    console.log('Buscando transcrições para:', query);
+    
+    // Extrair informações da query
+    const extractedInfo = extractQueryInfo(query);
+    
+    // Chamar a função SQL especializada
+    const { data: results, error } = await supabase.rpc('buscar_transcricoes_reunioes', {
+      _user_id: userId,
+      _query: extractedInfo.searchTerms,
+      _cliente_id: extractedInfo.clienteId,
+      _data_inicio: extractedInfo.dataInicio,
+      _data_fim: extractedInfo.dataFim,
+      _responsavel: extractedInfo.responsavel,
+      _limit: 5
+    });
+    
+    if (error) {
+      console.error('Erro ao buscar transcrições:', error);
+      return '';
+    }
+    
+    if (!results || results.length === 0) {
+      return '⚠️ Nenhuma transcrição encontrada para a consulta especificada.';
+    }
+    
+    // Formatear resultados
+    let context = `📋 TRANSCRIÇÕES ENCONTRADAS (${results.length} relevantes):\n\n`;
+    
+    results.forEach((result: any, index: number) => {
+      context += `### ${index + 1}. ${result.titulo} (${result.tipo})\n`;
+      context += `**Cliente:** ${result.cliente_nome}\n`;
+      context += `**Data:** ${new Date(result.data_reuniao).toLocaleDateString('pt-BR')}\n`;
+      
+      if (result.url_gravacao) {
+        context += `**Link:** ${result.url_gravacao}\n`;
+      }
+      
+      if (result.resumo_ia) {
+        context += `**Resumo IA:** ${result.resumo_ia.substring(0, 300)}...\n`;
+      }
+      
+      if (result.palavras_chave && result.palavras_chave.length > 0) {
+        context += `**Palavras-chave:** ${result.palavras_chave.join(', ')}\n`;
+      }
+      
+      if (result.transcricao) {
+        // Extrair trechos relevantes da transcrição
+        const relevantExcerpts = extractRelevantExcerpts(result.transcricao, query);
+        if (relevantExcerpts) {
+          context += `**Trechos relevantes:**\n${relevantExcerpts}\n`;
+        }
+      }
+      
+      context += `**Relevância:** ${(result.relevancia * 100).toFixed(1)}%\n\n`;
+    });
+    
+    return context;
+    
+  } catch (error) {
+    console.error('Erro ao buscar transcrições:', error);
+    return '❌ Erro ao buscar transcrições. Tente novamente.';
+  }
+}
+
+// Função para extrair informações específicas da query
+function extractQueryInfo(query: string) {
+  const queryLower = query.toLowerCase();
+  
+  // Extrair cliente
+  let clienteId = null;
+  const clientePatterns = [
+    /(?:cliente|para|pra|com)\s+(\w+)/gi,
+    /(\w+)(?:\s+na|última|ultima)/gi
+  ];
+  
+  // Extrair datas
+  let dataInicio = null;
+  let dataFim = null;
+  const datePatterns = [
+    /(\d{1,2}\/\d{1,2}\/\d{4})/g,
+    /(\d{1,2}\/\d{1,2})/g,
+    /(hoje|ontem|semana passada|mês passado)/gi
+  ];
+  
+  // Extrair responsável
+  let responsavel = null;
+  if (queryLower.includes('paloma')) {
+    responsavel = 'paloma';
+  }
+  
+  // Termos de busca limpos
+  let searchTerms = query
+    .replace(/cliente|para|pra|com|reunião|última|ultima|na/gi, '')
+    .trim();
+  
+  return {
+    searchTerms: searchTerms || query,
+    clienteId,
+    dataInicio,
+    dataFim,
+    responsavel
+  };
+}
+
+// Função para extrair trechos relevantes da transcrição
+function extractRelevantExcerpts(transcricao: string, query: string, maxLength: number = 400): string {
+  if (!transcricao) return '';
+  
+  const queryWords = query.toLowerCase().split(' ').filter(word => word.length > 2);
+  const sentences = transcricao.split(/[.!?]+/);
+  
+  // Encontrar sentenças mais relevantes
+  const relevantSentences = sentences
+    .map(sentence => {
+      const lowerSentence = sentence.toLowerCase();
+      const score = queryWords.reduce((acc, word) => {
+        return acc + (lowerSentence.includes(word) ? 1 : 0);
+      }, 0);
+      return { sentence: sentence.trim(), score };
+    })
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(item => `"${item.sentence}"`);
+  
+  const result = relevantSentences.join('\n');
+  return result.length > maxLength ? result.substring(0, maxLength) + '...' : result;
 }
