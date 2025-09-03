@@ -55,7 +55,7 @@ serve(async (req) => {
     console.log('Mensagem recebida:', message);
     console.log('User ID:', user.id);
 
-    // Get user profile to check admin status
+    // Get user profile to check admin status and client association
     const { data: profile } = await supabase
       .from('profiles')
       .select('nivel_acesso, nome, email')
@@ -64,29 +64,68 @@ serve(async (req) => {
 
     const isAdmin = profile?.nivel_acesso === 'admin';
 
-    // Buscar informações do sistema para contexto (agora usando RLS)
-    const systemContext = await getSystemContext(supabase, user.id, isAdmin);
-    
-    // Preparar prompt para o ChatGPT
-    const systemPrompt = `Você é um assistente inteligente da BNOads, uma agência de marketing digital especializada em tráfego pago e gestão de clientes.
+    // Check if user is associated with a specific client
+    let userClientId = null;
+    if (!isAdmin) {
+      const { data: colaborador } = await supabase
+        .from('colaboradores')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (colaborador) {
+        // Check if this collaborator is assigned to specific clients
+        const { data: clientAssignments } = await supabase
+          .from('clientes')
+          .select('id, nome')
+          .or(`cs_id.eq.${colaborador.id},traffic_manager_id.eq.${colaborador.id}`)
+          .limit(1);
+        
+        if (clientAssignments && clientAssignments.length > 0) {
+          userClientId = clientAssignments[0].id;
+        }
+      }
+    }
 
-CONTEXTO DO SISTEMA (filtrado por permissões):
+    // Buscar informações do sistema para contexto (agora com permissões por cliente)
+    const systemContext = await getSystemContext(supabase, user.id, isAdmin, userClientId);
+    
+    // Preparar prompt inteligente para o ChatGPT
+    const systemPrompt = `Você é o Assistente IA da BNOads, especializado em marketing digital e gestão de clientes.
+
+PERFIL DO USUÁRIO:
+- Nome: ${profile?.nome}
+- Email: ${profile?.email}
+- Nível: ${profile?.nivel_acesso}
+- Acesso: ${isAdmin ? 'Administrador (acesso completo)' : userClientId ? 'Cliente específico' : 'Equipe geral'}
+
+CONTEXTO COMPLETO DO SISTEMA:
 ${systemContext}
 
-INSTRUÇÕES PARA O ASSISTENTE:
-- Responda sempre em português brasileiro
-- Seja útil, profissional e amigável
-- Use as informações do sistema quando relevante
-- Você pode responder sobre: clientes, colaboradores, treinamentos, aulas, PDIs, reuniões, gravações, criativos, referências, orçamentos, tarefas, avisos
-- Forneça informações específicas quando solicitado (IDs, links, datas, valores, etc.)
-- Quando mencionar clientes, sempre inclua o link do painel quando disponível
-- Para treinamentos e aulas, mencione detalhes como duração, categoria e progresso
-- Para PDIs, informe status e prazos
-- Para reuniões, inclua datas e participantes
-- Se precisar de informações mais específicas, sugira onde encontrar na plataforma
-- Mantenha as respostas informativas mas organizadas
-- Sempre que possível, ofereça ações práticas ou próximos passos
-- IMPORTANTE: Respeite as permissões do usuário - nem todos têm acesso a todos os dados`;
+INSTRUÇÕES AVANÇADAS:
+- Você tem acesso COMPLETO aos dados do sistema respeitando as permissões do usuário
+- Para PAINÉIS: Forneça links diretos, métricas específicas e interpretações dos dados
+- Para REFERÊNCIAS: Mencione links públicos, categorias e suggira materiais relevantes
+- Para AULAS/CURSOS: Recomende conteúdo específico baseado na dúvida, inclua durações e URLs quando disponível
+- Para CLIENTES: Forneça informações detalhadas sobre status, progresso, orçamentos e links de painel
+- Para GRAVAÇÕES: Sugira gravações relevantes com links diretos
+- Para TAREFAS: Priorize por urgência e relevância para o usuário
+- Para PDIS: Acompanhe progressos e prazos
+
+COMPORTAMENTO INTELIGENTE:
+- Sempre inclua links diretos e ações práticas
+- Sugira próximos passos baseados no contexto
+- Para dúvidas sobre métricas, interprete os dados disponíveis
+- Para pedidos de material, recomende especificamente do nosso catálogo
+- Mantenha respostas organizadas e acionáveis
+- Se não tiver informação específica, sugira onde encontrar no sistema
+- Para clientes: sempre priorize informações do SEU cliente quando aplicável
+
+FORMATO DE RESPOSTA:
+- Use seções organizadas (### Título)
+- Inclua links diretos quando disponíveis
+- Destaque informações importantes com **negrito**
+- Sugira ações práticas sempre que possível`;
 
     console.log('Enviando requisição para OpenAI...');
 
@@ -97,12 +136,12 @@ INSTRUÇÕES PARA O ASSISTENTE:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-mini-2025-08-07',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
         ],
-        max_tokens: 1000,
+        max_completion_tokens: 1500,
         temperature: 0.7,
       }),
     });
@@ -137,9 +176,9 @@ INSTRUÇÕES PARA O ASSISTENTE:
   }
 });
 
-async function getSystemContext(supabase: any, userId: string, isAdmin: boolean) {
+async function getSystemContext(supabase: any, userId: string, isAdmin: boolean, userClientId: string | null = null) {
   try {
-    let context = "SISTEMA BNOADS - BASE DE CONHECIMENTO (com permissões aplicadas):\n\n";
+    let context = "🎯 SISTEMA BNOADS - COPILOTO INTELIGENTE\n\n";
 
     // Buscar dados do usuário atual
     const { data: profile } = await supabase
@@ -149,72 +188,89 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean)
       .single();
 
     if (profile) {
-      context += `Usuário logado: ${profile.nome} (${profile.email})\n`;
-      context += `Nível de acesso: ${profile.nivel_acesso}\n\n`;
+      context += `👤 USUÁRIO ATUAL: ${profile.nome} (${profile.email})\n`;
+      context += `🔐 Nível de acesso: ${profile.nivel_acesso}\n\n`;
     }
 
-    // CLIENTES - Informações filtradas por RLS
-    const { data: clientes } = await supabase
+    // CLIENTES - Informações completas com foco no cliente específico
+    let clientesQuery = supabase
       .from('clientes')
       .select(`
         id, nome, status_cliente, categoria, nicho, link_painel, 
         data_inicio, etapa_atual, progresso_etapa, funis_trabalhando,
-        observacoes, ultimo_acesso, total_acessos
-        ${isAdmin ? ', pasta_drive_url, whatsapp_grupo_url, aliases, dashboards_looker' : ''}
+        observacoes, ultimo_acesso, total_acessos, dashboards_looker,
+        pasta_drive_url, whatsapp_grupo_url, aliases
       `)
       .eq('ativo', true);
 
+    // If user has specific client access, prioritize that client
+    if (userClientId && !isAdmin) {
+      clientesQuery = clientesQuery.eq('id', userClientId);
+    }
+
+    const { data: clientes } = await clientesQuery;
+
     if (clientes && clientes.length > 0) {
-      context += `=== CLIENTES (${clientes.length} ativos) ===\n`;
+      context += `📊 CLIENTES (${clientes.length} ${userClientId ? 'seu cliente' : 'ativos'}) ===\n`;
       clientes.forEach((cliente: any) => {
-        context += `• ${cliente.nome} [ID: ${cliente.id}]\n`;
-        context += `  - Categoria: ${cliente.categoria} | Nicho: ${cliente.nicho}\n`;
-        context += `  - Status: ${cliente.status_cliente}\n`;
-        context += `  - Etapa atual: ${cliente.etapa_atual || 'Não definida'}\n`;
-        context += `  - Funis: ${cliente.funis_trabalhando?.join(', ') || 'Nenhum'}\n`;
-        context += `  - Painel: ${cliente.link_painel}\n`;
+        context += `\n🏢 **${cliente.nome}** [ID: ${cliente.id}]\n`;
+        context += `   📈 Painel: ${cliente.link_painel || 'Não configurado'}\n`;
+        context += `   📋 Status: ${cliente.status_cliente} | Categoria: ${cliente.categoria}\n`;
+        context += `   🎯 Nicho: ${cliente.nicho} | Etapa: ${cliente.etapa_atual || 'Não definida'}\n`;
+        context += `   🚀 Funis: ${cliente.funis_trabalhando?.join(', ') || 'Nenhum'}\n`;
+        context += `   📊 Progresso: ${cliente.progresso_etapa || 0}%\n`;
         
-        // Sensitive data only for admins
-        if (isAdmin) {
-          context += `  - Drive: ${cliente.pasta_drive_url || 'Não configurado'}\n`;
-          if (cliente.whatsapp_grupo_url) {
-            context += `  - WhatsApp: [LINK DISPONÍVEL - acesso admin]\n`;
+        if (isAdmin || userClientId) {
+          context += `   💾 Drive: ${cliente.pasta_drive_url || 'Não configurado'}\n`;
+          context += `   💬 WhatsApp: ${cliente.whatsapp_grupo_url || 'Não configurado'}\n`;
+          if (cliente.dashboards_looker) {
+            context += `   📊 Dashboards: ${JSON.stringify(cliente.dashboards_looker)}\n`;
           }
         }
         
-        if (cliente.observacoes) context += `  - Obs: ${cliente.observacoes.substring(0, 150)}...\n`;
+        if (cliente.observacoes) context += `   📝 Obs: ${cliente.observacoes.substring(0, 200)}...\n`;
+        context += `   📅 Último acesso: ${cliente.ultimo_acesso ? new Date(cliente.ultimo_acesso).toLocaleDateString('pt-BR') : 'Nunca'}\n`;
+        context += `   🔢 Total acessos: ${cliente.total_acessos || 0}\n`;
+      });
+      context += `\n`;
+    }
+
+    // ORÇAMENTOS POR FUNIL - Dados específicos do cliente ou gerais
+    let orcamentosQuery = supabase
+      .from('orcamentos_funil')
+      .select(`
+        id, nome_funil, valor_investimento, cliente_id, 
+        observacoes, ativo, data_atualizacao
+      `)
+      .eq('ativo', true);
+
+    if (userClientId && !isAdmin) {
+      orcamentosQuery = orcamentosQuery.eq('cliente_id', userClientId);
+    }
+
+    const { data: orcamentos } = await orcamentosQuery.limit(20);
+
+    if (orcamentos && orcamentos.length > 0) {
+      const totalInvestimento = orcamentos.reduce((sum, orc) => sum + (parseFloat(orc.valor_investimento) || 0), 0);
+      context += `💰 ORÇAMENTOS POR FUNIL (${orcamentos.length} ativos)\n`;
+      context += `💎 **Total investimento: R$ ${totalInvestimento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}**\n\n`;
+      
+      orcamentos.forEach((orc: any) => {
+        const clienteNome = clientes?.find(c => c.id === orc.cliente_id)?.nome || 'Cliente não encontrado';
+        context += `🎯 **${orc.nome_funil}** (${clienteNome})\n`;
+        context += `   💵 Valor: R$ ${parseFloat(orc.valor_investimento).toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
+        context += `   📅 Atualizado: ${new Date(orc.data_atualizacao).toLocaleDateString('pt-BR')}\n`;
+        if (orc.observacoes) context += `   📝 Obs: ${orc.observacoes.substring(0, 100)}...\n`;
         context += `\n`;
       });
     }
 
-    // COLABORADORES - Only for admins or limited info
-    if (isAdmin) {
-      const { data: colaboradores } = await supabase
-        .from('colaboradores')
-        .select(`
-          id, nome, email, nivel_acesso, data_admissao, 
-          progresso_treinamentos, tempo_plataforma
-        `)
-        .eq('ativo', true);
-
-      if (colaboradores && colaboradores.length > 0) {
-        context += `=== COLABORADORES (${colaboradores.length} ativos) ===\n`;
-        colaboradores.forEach((colab: any) => {
-          context += `• ${colab.nome} (${colab.email})\n`;
-          context += `  - Acesso: ${colab.nivel_acesso}\n`;
-          context += `  - Admissão: ${colab.data_admissao ? new Date(colab.data_admissao).toLocaleDateString('pt-BR') : 'Não informado'}\n`;
-          context += `  - Tempo na plataforma: ${colab.tempo_plataforma || 0} horas\n`;
-          context += `\n`;
-        });
-      }
-    }
-
-    // TREINAMENTOS E AULAS - Available to all authenticated users
+    // TREINAMENTOS E AULAS - Catálogo completo
     const { data: treinamentos } = await supabase
       .from('treinamentos')
       .select(`
         id, titulo, categoria, tipo, nivel, descricao, 
-        duracao, visualizacoes, tags
+        duracao, visualizacoes, tags, url_conteudo, thumbnail_url
       `)
       .eq('ativo', true);
 
@@ -222,88 +278,178 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean)
       .from('aulas')
       .select(`
         id, titulo, treinamento_id, tipo_conteudo, duracao, 
-        ordem, descricao
+        ordem, descricao, url_youtube
       `)
       .eq('ativo', true);
 
     if (treinamentos && treinamentos.length > 0) {
-      context += `=== TREINAMENTOS (${treinamentos.length} disponíveis) ===\n`;
+      context += `🎓 CATÁLOGO DE TREINAMENTOS (${treinamentos.length} disponíveis)\n\n`;
       treinamentos.forEach((treino: any) => {
         const aulasDoTreino = aulas?.filter(a => a.treinamento_id === treino.id) || [];
-        context += `• ${treino.titulo} [${treino.categoria}]\n`;
-        context += `  - Tipo: ${treino.tipo} | Nível: ${treino.nivel}\n`;
-        context += `  - Duração: ${treino.duracao || 'N/A'} min | Views: ${treino.visualizacoes || 0}\n`;
-        context += `  - Aulas: ${aulasDoTreino.length}\n`;
-        if (treino.tags) context += `  - Tags: ${treino.tags.join(', ')}\n`;
-        if (treino.descricao) context += `  - Desc: ${treino.descricao.substring(0, 100)}...\n`;
-        context += `\n`;
-      });
-    }
-
-    // REFERÊNCIAS - Limited data without sensitive URLs
-    const { data: referencias } = await supabase
-      .from('referencias_criativos')
-      .select(`
-        id, titulo, categoria, is_template, link_publico
-      `)
-      .eq('ativo', true)
-      .limit(20);
-
-    if (referencias && referencias.length > 0) {
-      context += `=== REFERÊNCIAS DE CRIATIVOS (${referencias.length}) ===\n`;
-      referencias.forEach((ref: any) => {
-        context += `• ${ref.titulo} [${ref.categoria}]\n`;
-        context += `  - Template: ${ref.is_template ? 'Sim' : 'Não'}\n`;
-        if (ref.link_publico) {
-          context += `  - Link público: ${ref.link_publico}\n`;
+        context += `📚 **${treino.titulo}** [${treino.categoria}]\n`;
+        context += `   🎯 Tipo: ${treino.tipo} | Nível: ${treino.nivel}\n`;
+        context += `   ⏱️ Duração: ${treino.duracao || 'N/A'} min | 👁️ Views: ${treino.visualizacoes || 0}\n`;
+        context += `   📖 Aulas: ${aulasDoTreino.length}\n`;
+        if (treino.url_conteudo) context += `   🔗 URL: ${treino.url_conteudo}\n`;
+        if (treino.tags) context += `   🏷️ Tags: ${treino.tags.join(', ')}\n`;
+        if (treino.descricao) context += `   📄 Desc: ${treino.descricao.substring(0, 150)}...\n`;
+        
+        // Listar principais aulas
+        if (aulasDoTreino.length > 0) {
+          context += `   📋 Principais aulas:\n`;
+          aulasDoTreino.slice(0, 3).forEach((aula: any) => {
+            context += `      ${aula.ordem}. ${aula.titulo} (${aula.duracao || 'N/A'} min)\n`;
+            if (aula.url_youtube) context += `         🎥 ${aula.url_youtube}\n`;
+          });
+          if (aulasDoTreino.length > 3) {
+            context += `      ... e mais ${aulasDoTreino.length - 3} aulas\n`;
+          }
         }
         context += `\n`;
       });
     }
 
-    // ORÇAMENTOS - Only totals for non-admins
-    const { data: orcamentos } = await supabase
-      .from('orcamentos_funil')
-      .select(isAdmin ? `
-        id, nome_funil, valor_investimento, cliente_id, 
-        observacoes, ativo, data_atualizacao
-      ` : 'valor_investimento')
+    // REFERÊNCIAS DE CRIATIVOS - Com links e materiais
+    const { data: referencias } = await supabase
+      .from('referencias_criativos')
+      .select(`
+        id, titulo, categoria, is_template, link_publico, 
+        conteudo, links_externos, data_expiracao, cliente_id
+      `)
       .eq('ativo', true)
-      .limit(20);
+      .limit(30);
 
-    if (orcamentos && orcamentos.length > 0) {
-      const totalInvestimento = orcamentos.reduce((sum, orc) => sum + (parseFloat(orc.valor_investimento) || 0), 0);
-      context += `=== ORÇAMENTOS ===\n`;
-      context += `Total em investimentos: R$ ${totalInvestimento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
-      
-      if (isAdmin) {
-        context += `Detalhes (${orcamentos.length} ativos):\n`;
-        orcamentos.forEach((orc: any) => {
-          context += `• ${orc.nome_funil}\n`;
-          context += `  - Valor: R$ ${parseFloat(orc.valor_investimento).toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
-          context += `  - Atualizado: ${new Date(orc.data_atualizacao).toLocaleDateString('pt-BR')}\n`;
-          context += `\n`;
-        });
-      }
-      context += `\n`;
+    if (referencias && referencias.length > 0) {
+      context += `🎨 REFERÊNCIAS DE CRIATIVOS (${referencias.length})\n\n`;
+      referencias.forEach((ref: any) => {
+        context += `🖼️ **${ref.titulo}** [${ref.categoria}]\n`;
+        context += `   📋 Template: ${ref.is_template ? 'Sim' : 'Não'}\n`;
+        if (ref.link_publico) {
+          context += `   🔗 Link público: ${ref.link_publico}\n`;
+        }
+        if (ref.links_externos && ref.links_externos.length > 0) {
+          context += `   🌐 Links externos: ${ref.links_externos.length} disponíveis\n`;
+        }
+        if (ref.conteudo && ref.conteudo.length > 0) {
+          context += `   📁 Arquivos: ${ref.conteudo.length} itens\n`;
+        }
+        if (ref.cliente_id) {
+          const clienteRef = clientes?.find(c => c.id === ref.cliente_id);
+          if (clienteRef) context += `   👤 Cliente: ${clienteRef.nome}\n`;
+        }
+        context += `\n`;
+      });
     }
 
-    // ESTATÍSTICAS GERAIS
-    context += `=== ESTATÍSTICAS GERAIS ===\n`;
-    context += `- Total de clientes ativos: ${clientes?.length || 0}\n`;
-    context += `- Total de treinamentos: ${treinamentos?.length || 0}\n`;
-    context += `- Total de aulas: ${aulas?.length || 0}\n`;
-    context += `- Total de referências: ${referencias?.length || 0}\n`;
-    context += `- Orçamentos ativos: ${orcamentos?.length || 0}\n`;
+    // GRAVAÇÕES DE REUNIÕES - Últimas gravações
+    const { data: gravacoes } = await supabase
+      .from('gravacoes')
+      .select(`
+        id, titulo, cliente_id, url_gravacao, duracao,
+        visualizacoes, tags, thumbnail_url, created_at, descricao
+      `)
+      .gte('created_at', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()) // Últimos 60 dias
+      .order('created_at', { ascending: false })
+      .limit(20);
 
-    if (!isAdmin) {
-      context += `\nNOTA: Dados sensíveis (URLs, contatos) estão limitados ao seu nível de acesso.\n`;
+    if (gravacoes && gravacoes.length > 0) {
+      context += `🎥 GRAVAÇÕES DE REUNIÕES (${gravacoes.length} recentes)\n\n`;
+      gravacoes.forEach((grav: any) => {
+        const clienteGrav = clientes?.find(c => c.id === grav.cliente_id);
+        context += `📹 **${grav.titulo}**\n`;
+        if (clienteGrav) context += `   👤 Cliente: ${clienteGrav.nome}\n`;
+        context += `   ⏱️ Duração: ${grav.duracao || 'N/A'} min\n`;
+        context += `   👁️ Views: ${grav.visualizacoes || 0}\n`;
+        context += `   🔗 URL: ${grav.url_gravacao}\n`;
+        context += `   📅 Data: ${new Date(grav.created_at).toLocaleDateString('pt-BR')}\n`;
+        if (grav.tags) context += `   🏷️ Tags: ${grav.tags.join(', ')}\n`;
+        if (grav.descricao) context += `   📄 Desc: ${grav.descricao.substring(0, 100)}...\n`;
+        context += `\n`;
+      });
+    }
+
+    // TAREFAS ATIVAS - Priorizadas por relevância
+    let tarefasQuery = supabase
+      .from('tarefas')
+      .select(`
+        id, titulo, status, prioridade, tipo, cliente_id,
+        atribuido_para, data_vencimento, descricao, created_at
+      `)
+      .in('status', ['pendente', 'em_andamento']);
+
+    if (userClientId && !isAdmin) {
+      tarefasQuery = tarefasQuery.eq('cliente_id', userClientId);
+    }
+
+    const { data: tarefas } = await tarefasQuery.limit(15);
+
+    if (tarefas && tarefas.length > 0) {
+      context += `✅ TAREFAS ATIVAS (${tarefas.length})\n\n`;
+      // Ordenar por prioridade
+      const tarefasOrdenadas = tarefas.sort((a: any, b: any) => {
+        const prioridades = { 'alta': 3, 'media': 2, 'baixa': 1 };
+        return prioridades[b.prioridade] - prioridades[a.prioridade];
+      });
+
+      tarefasOrdenadas.forEach((tarefa: any) => {
+        const clienteTarefa = clientes?.find(c => c.id === tarefa.cliente_id);
+        const prioEmoji = { 'alta': '🔴', 'media': '🟡', 'baixa': '🟢' };
+        
+        context += `${prioEmoji[tarefa.prioridade]} **${tarefa.titulo}** [${tarefa.status}]\n`;
+        context += `   📋 Prioridade: ${tarefa.prioridade} | Tipo: ${tarefa.tipo}\n`;
+        if (clienteTarefa) context += `   👤 Cliente: ${clienteTarefa.nome}\n`;
+        if (tarefa.data_vencimento) {
+          const vencimento = new Date(tarefa.data_vencimento);
+          const hoje = new Date();
+          const dias = Math.ceil((vencimento.getTime() - hoje.getTime()) / (1000 * 3600 * 24));
+          context += `   ⏰ Vencimento: ${vencimento.toLocaleDateString('pt-BR')} (${dias} dias)\n`;
+        }
+        if (tarefa.descricao) context += `   📄 Desc: ${tarefa.descricao.substring(0, 120)}...\n`;
+        context += `\n`;
+      });
+    }
+
+    // PDIs (Planos de Desenvolvimento Individual)
+    const { data: pdis } = await supabase
+      .from('pdis')
+      .select(`
+        id, titulo, status, data_limite, descricao, 
+        colaborador_id, created_by, created_at
+      `)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (pdis && pdis.length > 0) {
+      context += `🎯 PDIs - PLANOS DE DESENVOLVIMENTO (${pdis.length})\n\n`;
+      pdis.forEach((pdi: any) => {
+        context += `📊 **${pdi.titulo}** [${pdi.status}]\n`;
+        context += `   📅 Prazo: ${pdi.data_limite ? new Date(pdi.data_limite).toLocaleDateString('pt-BR') : 'Indefinido'}\n`;
+        if (pdi.descricao) context += `   📄 Desc: ${pdi.descricao.substring(0, 120)}...\n`;
+        context += `\n`;
+      });
+    }
+
+    // ESTATÍSTICAS E RESUMO EXECUTIVO
+    context += `📈 ESTATÍSTICAS DO SISTEMA\n`;
+    context += `├── 🏢 Clientes ativos: ${clientes?.length || 0}\n`;
+    context += `├── 🎓 Treinamentos: ${treinamentos?.length || 0}\n`;
+    context += `├── 📚 Aulas: ${aulas?.length || 0}\n`;
+    context += `├── 🎨 Referências: ${referencias?.length || 0}\n`;
+    context += `├── 🎥 Gravações: ${gravacoes?.length || 0}\n`;
+    context += `├── 💰 Orçamentos: ${orcamentos?.length || 0}\n`;
+    context += `├── ✅ Tarefas ativas: ${tarefas?.length || 0}\n`;
+    context += `└── 🎯 PDIs: ${pdis?.length || 0}\n\n`;
+
+    if (userClientId && !isAdmin) {
+      context += `🔒 NOTA: Dados filtrados para o seu cliente específico.\n`;
+    } else if (!isAdmin) {
+      context += `🔒 NOTA: Dados sensíveis limitados ao seu nível de acesso.\n`;
     }
 
     return context;
 
   } catch (error) {
     console.error('Erro ao buscar contexto do sistema:', error);
-    return "Erro ao carregar informações do sistema. Dados filtrados por permissões de usuário.";
+    return "❌ Erro ao carregar informações do sistema. Dados filtrados por permissões de usuário.";
   }
 }
