@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap, CheckCircle } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap, CheckCircle, DollarSign } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
+import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
 import { NovoColaboradorModal } from "@/components/Colaboradores/NovoColaboradorModal";
 import { NovoClienteModal } from "@/components/Clientes/NovoClienteModal";
 import { NovoTreinamentoModal } from "@/components/Treinamentos/NovoTreinamentoModal";
@@ -16,7 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 export function DashboardView() {
   const navigate = useNavigate();
   const {
-    canCreateContent
+    canCreateContent,
+    isAdmin
   } = useUserPermissions();
   const {
     activities
@@ -28,6 +30,7 @@ export function DashboardView() {
   const [colaboradorModalOpen, setColaboradorModalOpen] = useState(false);
   const [clienteModalOpen, setClienteModalOpen] = useState(false);
   const [treinamentoModalOpen, setTreinamentoModalOpen] = useState(false);
+  const [showOrcamentos, setShowOrcamentos] = useState(false);
   const [pdis, setPdis] = useState<any[]>([]);
   const [pdisFinalizados, setPdisFinalizados] = useState<any[]>([]);
   const [loadingPdis, setLoadingPdis] = useState(true);
@@ -130,6 +133,20 @@ export function DashboardView() {
   const handleViewPdiDetails = (pdiId: string) => {
     navigate(`/pdi/${pdiId}`);
   };
+  // Se estiver mostrando orçamentos, renderizar a view de orçamentos
+  if (showOrcamentos) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Button variant="outline" onClick={() => setShowOrcamentos(false)}>
+            ← Voltar ao Dashboard
+          </Button>
+        </div>
+        <OrcamentosView />
+      </div>
+    );
+  }
+
     return <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Header Section - Mobile Optimized */}
       <div className="bg-gradient-primary rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-primary-foreground shadow-glow">
@@ -290,6 +307,15 @@ export function DashboardView() {
                   <p className="text-sm text-muted-foreground">Criar novo curso ou material</p>
                 </div>
               </Button>
+              {isAdmin && (
+                <Button variant="card" className="w-full justify-start h-auto p-4" onClick={() => setShowOrcamentos(true)}>
+                  <DollarSign className="h-5 w-5 text-primary mr-3" />
+                  <div className="text-left">
+                    <p className="font-medium">Gerenciar Orçamentos por Funil</p>
+                    <p className="text-sm text-muted-foreground">Controlar investimentos por cliente</p>
+                  </div>
+                </Button>
+              )}
             </div>
           </Card>}
 
