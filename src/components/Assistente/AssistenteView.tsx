@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -94,7 +95,7 @@ export const AssistenteView = () => {
 
       setMessages(formattedMessages);
       setCurrentConversationId(conversationId);
-      setShowHistory(false);
+      // Não fechar o histórico
     } catch (error) {
       console.error('Erro ao carregar conversa:', error);
       toast.error('Erro ao carregar conversa');
@@ -231,12 +232,13 @@ export const AssistenteView = () => {
       e.preventDefault();
       sendMessage();
     }
+    // Shift+Enter permite quebra de linha (comportamento padrão do textarea)
   };
 
   const startNewChat = () => {
     setMessages([]);
     setCurrentConversationId(null);
-    setShowHistory(false);
+    // Não fechar o histórico automaticamente
   };
 
   const deleteConversation = async (conversationId: string) => {
@@ -393,7 +395,7 @@ export const AssistenteView = () => {
           </CardHeader>
 
           <CardContent className="flex-1 p-0">
-            <ScrollArea className="h-[calc(100vh-240px)] p-4">
+            <ScrollArea className="h-[calc(100vh-180px)] p-4">{/* Reduzido de 240px para 180px */}
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                   <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center">
@@ -486,15 +488,16 @@ export const AssistenteView = () => {
 
             <Separator />
             
-            <div className="p-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Digite sua mensagem... (Enter para enviar)"
+            <div className="p-3">{/* Reduzido padding de 4 para 3 */}
+              <div className="flex gap-2 items-end">
+                <Textarea
+                  placeholder="Digite sua mensagem... (Shift+Enter para quebra de linha)"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyPress}
                   disabled={isLoading}
-                  className="flex-1"
+                  className="flex-1 min-h-[44px] max-h-32 resize-none"
+                  rows={1}
                 />
                 <Button
                   variant="outline"
