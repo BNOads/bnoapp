@@ -19,10 +19,49 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    // Get JWT from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header required' }), 
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create Supabase client with the forwarded JWT (not service role)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
+
+    // Verify user is authenticated and get user info
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      return new Response(
+        JSON.stringify({ error: 'Authentication failed' }), 
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if user is admin
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('nivel_acesso')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile || profile.nivel_acesso !== 'admin') {
+      console.error('Admin check failed:', profileError);
+      return new Response(
+        JSON.stringify({ error: 'Admin access required' }), 
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const { nome, link, titulo }: RequestData = await req.json()
 
@@ -63,15 +102,7 @@ serve(async (req) => {
       return `Reunião ${cliente.nome} - ${dataFormatada}`
     })()
 
-    // Buscar o primeiro usuário admin para usar como created_by
-    const { data: adminUser } = await supabase
-      .from('profiles')
-      .select('user_id')
-      .eq('nivel_acesso', 'admin')
-      .limit(1)
-      .single()
-
-    // Criar gravação
+    // Criar gravação usando authenticated user's context (RLS will apply)
     const { data: gravacao, error: gravacaoError } = await supabase
       .from('gravacoes')
       .insert({
@@ -80,7 +111,7 @@ serve(async (req) => {
         cliente_id: cliente.id,
         descricao: `Gravação de reunião criada automaticamente`,
         tags: ['reuniao', 'automatico'],
-        created_by: adminUser?.user_id || '00000000-0000-0000-0000-000000000000', // Sistema automático
+        created_by: user.id, // Use authenticated user instead of system placeholder
         visualizacoes: 0
       })
       .select()
@@ -99,6 +130,8 @@ serve(async (req) => {
         }
       )
     }
+
+    console.log('Recording created successfully by admin:', user.id);
 
     return new Response(
       JSON.stringify({ 
