@@ -51,6 +51,36 @@ export function ImportarAnotacoesGemini() {
     }
   };
 
+  const handleImportFromDocs = async () => {
+    if (!formData.documentUrl) {
+      toast.error("Cole a URL do Google Docs primeiro");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('sincronizar-docs-gemini', {
+        body: { url: formData.documentUrl }
+      });
+
+      if (error) throw error;
+
+      if (data.requiresManualInput) {
+        toast.warning("Por favor, copie e cole o conteúdo manualmente do documento");
+        return;
+      }
+
+      toast.success(`Documento importado com sucesso! ${data.message}`);
+      setOpen(false);
+      
+    } catch (error) {
+      console.error('Erro ao importar do Google Docs:', error);
+      toast.error("Erro ao importar documento. Tente colar o conteúdo manualmente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -199,6 +229,26 @@ export function ImportarAnotacoesGemini() {
 
           <div className="space-y-2">
             <Label htmlFor="anotacoes">Anotações do Gemini *</Label>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Cole a URL do Google Docs aqui para importar automaticamente"
+                  value={formData.documentUrl}
+                  onChange={(e) => setFormData(prev => ({ ...prev, documentUrl: e.target.value }))}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleImportFromDocs}
+                  disabled={!formData.documentUrl || loading}
+                >
+                  Importar
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Ou cole o conteúdo manualmente abaixo:
+              </p>
+            </div>
             <Textarea
               id="anotacoes"
               value={formData.anotacoes}
