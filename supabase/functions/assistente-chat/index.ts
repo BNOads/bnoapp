@@ -558,11 +558,12 @@ async function searchTranscriptions(supabase: any, userId: string, query: string
 function extractQueryInfo(query: string) {
   const queryLower = query.toLowerCase();
   
-  // Extrair cliente
+  // Extrair cliente - incluir nomes compostos como GISLENEISQUIERDO
   let clienteId = null;
   const clientePatterns = [
-    /(?:cliente|para|pra|com)\s+(\w+)/gi,
-    /(\w+)(?:\s+na|última|ultima)/gi
+    /(?:cliente|para|pra|com)\s+([A-Z]{2,})/gi,
+    /([A-Z]{2,})(?:\s+na|última|ultima)/gi,
+    /(gislene|isquierdo|gisleneisquierdo|paloma)/gi
   ];
   
   // Extrair datas
@@ -580,10 +581,13 @@ function extractQueryInfo(query: string) {
     responsavel = 'paloma';
   }
   
-  // Termos de busca limpos
-  let searchTerms = query
-    .replace(/cliente|para|pra|com|reunião|última|ultima|na/gi, '')
-    .trim();
+  // Termos de busca - manter nomes de clientes para busca
+  let searchTerms = query;
+  
+  // Se detectar um nome específico de cliente, priorizar na busca
+  if (queryLower.includes('gislene') || queryLower.includes('isquierdo')) {
+    searchTerms = 'GISLENEISQUIERDO ' + searchTerms;
+  }
   
   return {
     searchTerms: searchTerms || query,
