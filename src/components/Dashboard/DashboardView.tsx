@@ -130,55 +130,73 @@ export function DashboardView() {
   const handleViewPdiDetails = (pdiId: string) => {
     navigate(`/pdi/${pdiId}`);
   };
-  return <div className="space-y-8">
-      {/* Header Section */}
-      <div className="bg-gradient-primary rounded-2xl p-8 text-primary-foreground shadow-glow">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold mb-2">Bem-vindo à BNOads mito!</h2>
-            <p className="text-primary-foreground/80 text-lg">Aqui é a sua central de treinamentos e informações sobre a empresa</p>
+    return <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Header Section - Mobile Optimized */}
+      <div className="bg-gradient-primary rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-primary-foreground shadow-glow">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 leading-tight">Bem-vindo à BNOads mito!</h2>
+            <p className="text-primary-foreground/80 text-sm sm:text-base lg:text-lg leading-relaxed">
+              Aqui é a sua central de treinamentos e informações sobre a empresa
+            </p>
           </div>
         </div>
         
-        {/* Quick Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 mt-6">
-          <Button variant="secondary" size="lg" onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')} className="flex-1 border border-white/20 bg-slate-50 text-sky-900">
+        {/* Quick Action Buttons - Mobile Stack */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-4 sm:mt-6">
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')} 
+            className="flex-1 border border-white/20 bg-slate-50 text-sky-900 text-xs sm:text-sm"
+          >
             Preencher conversa franca
           </Button>
-          <Button variant="secondary" size="lg" onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')} className="flex-1 border border-white/20 bg-slate-50 text-blue-950">
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')} 
+            className="flex-1 border border-white/20 bg-slate-50 text-blue-950 text-xs sm:text-sm"
+          >
             Marcar 1x1
           </Button>
         </div>
       </div>
 
-      {/* PDI Section */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <GraduationCap className="h-6 w-6" />
-              Meus PDIs
+      {/* PDI Section - Mobile Responsive */}
+      <section className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
+              <span className="truncate">Meus PDIs</span>
             </h3>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
               Acompanhe seus Planos de Desenvolvimento Individual
             </p>
           </div>
         </div>
 
-        {loadingPdis ? <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div> : pdis.length === 0 ? <Card className="p-8 text-center">
-            <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h4 className="text-lg font-semibold text-foreground mb-2">
+        {loadingPdis ? 
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-primary"></div>
+          </div> 
+        : pdis.length === 0 ? 
+          <Card className="p-4 sm:p-6 lg:p-8 text-center">
+            <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground mx-auto mb-4" />
+            <h4 className="text-base sm:text-lg font-semibold text-foreground mb-2">
               Nenhum PDI encontrado
             </h4>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Você não possui PDIs ativos no momento.
             </p>
-          </Card> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          </Card> 
+        : 
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
             {pdis.map(pdi => <PDICard key={pdi.id} pdi={pdi} onViewDetails={handleViewPdiDetails} />)}
-          </div>}
-      </div>
+          </div>
+        }
+      </section>
 
       {/* Histórico de PDIs Finalizados */}
       {pdisFinalizados.length > 0 && <div className="space-y-6">
@@ -218,30 +236,30 @@ export function DashboardView() {
       {/* Indicator para usuários não-admin */}
       {!canCreateContent && <ViewOnlyBadge />}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats Grid - Mobile First */}
+      <section className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {statsData.map((stat, index) => {
         const Icon = stat.icon;
-        return <Card key={index} className="p-6 bg-card border border-border hover:shadow-card transition-all duration-300 hover:border-primary/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">
+        return <Card key={index} className="p-3 sm:p-4 lg:p-6 bg-card border border-border hover:shadow-card transition-all duration-300 hover:border-primary/30">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium truncate">
                     {stat.title}
                   </p>
-                  <p className="text-3xl font-bold text-foreground mt-2">
+                  <p className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-foreground mt-1 sm:mt-2 truncate">
                     {stat.value}
                   </p>
-                  <p className={`text-sm font-medium mt-1 ${stat.color}`}>
+                  <p className={`text-xs sm:text-sm font-medium mt-1 ${stat.color} truncate`}>
                     {stat.change} este mês
                   </p>
                 </div>
-                <div className={`p-3 rounded-xl bg-gradient-subtle`}>
-                  <Icon className={`h-6 w-6 ${stat.color}`} />
+                <div className={`p-2 sm:p-3 rounded-lg lg:rounded-xl bg-gradient-subtle flex-shrink-0`}>
+                  <Icon className={`h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 ${stat.color}`} />
                 </div>
               </div>
             </Card>;
       })}
-      </div>
+      </section>
 
       {/* Quick Actions & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

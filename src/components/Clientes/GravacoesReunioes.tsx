@@ -208,31 +208,35 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
   const remainingCount = totalGravacoes - itemsPerPage;
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Video className="h-5 w-5" />
-            Gravações de Vídeo
+    <Card className="w-full">
+      <CardHeader className="pb-3 sm:pb-4">
+        <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Video className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+            <span className="truncate">Gravações de Vídeo</span>
           </CardTitle>
           {isAuthenticated && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col xs:flex-row gap-2 w-full sm:w-auto">
               <Button 
                 size="sm" 
                 variant="outline"
                 onClick={handleSyncRecordings}
                 disabled={syncing}
+                className="flex-1 xs:flex-none text-xs sm:text-sm"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                {syncing ? 'Sincronizando...' : 'Sincronizar Drive'}
+                <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                <span className="truncate">
+                  {syncing ? 'Sincronizando...' : 'Sincronizar Drive'}
+                </span>
               </Button>
               <Button 
                 size="sm" 
                 variant="outline"
                 onClick={() => setModalOpen(true)}
+                className="flex-1 xs:flex-none text-xs sm:text-sm"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Gravação
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="truncate">Nova Gravação</span>
               </Button>
             </div>
           )}
@@ -256,54 +260,71 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
             )}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {displayGravacoes.map((gravacao) => (
-              <div key={gravacao.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-24 h-16 bg-muted rounded-lg flex items-center justify-center">
-                    <Play className="h-6 w-6 text-muted-foreground" />
+              <div key={gravacao.id} className="border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  {/* Thumbnail - Responsivo */}
+                  <div className="w-full sm:w-20 lg:w-24 h-12 sm:h-14 lg:h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-muted-foreground" />
                   </div>
                   
-                  <div className="flex-1">
-                    <h4 className="font-semibold mb-1">{gravacao.titulo}</h4>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold mb-2 text-sm sm:text-base line-clamp-2 leading-tight">
+                      {gravacao.titulo}
+                    </h4>
                     
                     {gravacao.descricao && (
-                      <p className="text-sm text-muted-foreground mb-2">{gravacao.descricao}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
+                        {gravacao.descricao}
+                      </p>
                     )}
                     
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {formatDate(gravacao.created_at)}
+                    {/* Info responsiva - Stack em mobile */}
+                    <div className="flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground mb-2">
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                        <span className="truncate">{formatDate(gravacao.created_at)}</span>
                       </div>
-                      {gravacao.duracao && (
+                      
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        {gravacao.duracao && (
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <span>{formatDuration(gravacao.duracao)}</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {formatDuration(gravacao.duracao)}
+                          <Play className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                          <span>{gravacao.visualizacoes} views</span>
                         </div>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <Play className="h-4 w-4" />
-                        {gravacao.visualizacoes} visualizações
                       </div>
                     </div>
 
+                    {/* Tags responsivas */}
                     {gravacao.tags && gravacao.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {gravacao.tags.map((tag, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {gravacao.tags.slice(0, 3).map((tag, index) => (
+                          <Badge key={index} variant="outline" className="text-xs px-2 py-0.5">
                             {tag}
                           </Badge>
                         ))}
+                        {gravacao.tags.length > 3 && (
+                          <Badge variant="outline" className="text-xs px-2 py-0.5">
+                            +{gravacao.tags.length - 3}
+                          </Badge>
+                        )}
                       </div>
                     )}
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" asChild>
+                  {/* Botões responsivos */}
+                  <div className="flex flex-row sm:flex-col gap-2 sm:gap-1 w-full sm:w-auto">
+                    <Button size="sm" variant="outline" asChild className="flex-1 sm:flex-none text-xs sm:text-sm">
                       <a href={gravacao.url_gravacao} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Assistir
+                        <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                        <span className="hidden xs:inline">Assistir</span>
+                        <span className="xs:hidden">Ver</span>
                       </a>
                     </Button>
                     {isAuthenticated && (
@@ -311,9 +332,9 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
                         size="sm" 
                         variant="outline"
                         onClick={() => handleDeleteGravacao(gravacao.id)}
-                        className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                        className="text-destructive hover:text-destructive-foreground hover:bg-destructive flex-shrink-0 sm:px-2"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                     )}
                   </div>

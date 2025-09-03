@@ -248,44 +248,52 @@ const PainelCliente = () => {
         </div>
       </div>
 
-      {/* Conteúdo Principal */}
-      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-7xl">
-        <div className="space-y-6 sm:space-y-8">
-          {/* Gravações */}
-          <div>
-            <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
-              <Video className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
-              Gravações e Reuniões
+      {/* Conteúdo Principal - Mobile-First */}
+      <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
+        <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+          {/* Gravações - Prioridade Mobile */}
+          <section className="space-y-3 sm:space-y-4">
+            <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
+              <Video className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+              <span className="truncate">Gravações e Reuniões</span>
             </h2>
-            <GravacoesReunioes clienteId={clienteId} />
-          </div>
+            <div className="w-full overflow-hidden">
+              <GravacoesReunioes clienteId={clienteId} />
+            </div>
+          </section>
 
-          {/* Orçamento por Funil */}
-          <div>
-            <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
-              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
-              Orçamento por Funil
+          {/* Orçamento por Funil - Adaptativo */}
+          <section className="space-y-3 sm:space-y-4">
+            <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+              <span className="truncate">Orçamento por Funil</span>
             </h2>
-            <OrcamentoPorFunil clienteId={clienteId} />
-          </div>
-
-          {/* Links e Tarefas - Layout responsivo */}
-          <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-6 xl:gap-8">
-            <div>
-              <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
-                <Link2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
-                Links Importantes
-              </h2>
-              <LinksImportantes clienteId={clienteId} />
+            <div className="w-full overflow-hidden">
+              <OrcamentoPorFunil clienteId={clienteId} />
             </div>
+          </section>
 
-            <div>
-              <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
-                <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
-                Tarefas
+          {/* Links e Tarefas - Stack em Mobile, Grid em Desktop */}
+          <div className="space-y-4 sm:space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 xl:gap-6 2xl:gap-8">
+            <section className="space-y-3 sm:space-y-4 min-w-0">
+              <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
+                <Link2 className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                <span className="truncate">Links Importantes</span>
               </h2>
-              <TarefasList clienteId={clienteId} tipo="cliente" />
-            </div>
+              <div className="w-full overflow-hidden">
+                <LinksImportantes clienteId={clienteId} />
+              </div>
+            </section>
+
+            <section className="space-y-3 sm:space-y-4 min-w-0">
+              <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                <span className="truncate">Tarefas</span>
+              </h2>
+              <div className="w-full overflow-hidden">
+                <TarefasList clienteId={clienteId} tipo="cliente" />
+              </div>
+            </section>
           </div>
         </div>
       </div>

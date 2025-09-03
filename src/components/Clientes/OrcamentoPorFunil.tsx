@@ -238,46 +238,51 @@ export const OrcamentoPorFunil = ({ clienteId }: OrcamentoPorFunilProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Orçamento por Funil</h2>
-          <p className="text-muted-foreground">
+      {/* Header Responsivo */}
+      <div className="flex flex-col gap-4 sm:gap-6 lg:flex-row lg:justify-between lg:items-start">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-bold truncate">Orçamento por Funil</h2>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Visualize o investimento de cada funil e seu histórico
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col xs:flex-row gap-2 w-full lg:w-auto lg:flex-shrink-0">
           <Button
             variant="outline"
             onClick={exportarCSV}
             disabled={orcamentos.length === 0}
+            size="sm"
+            className="flex-1 lg:flex-none text-xs sm:text-sm"
           >
-            <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
+            <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            <span className="truncate">Exportar CSV</span>
           </Button>
           {isAdmin && (
-            <Button onClick={() => setShowNovoModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Orçamento
+            <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="truncate">Novo Orçamento</span>
             </Button>
           )}
         </div>
       </div>
 
-      {/* Cards de Orçamentos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Cards de Orçamentos - Mobile First Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         {orcamentos.map((orcamento) => (
-          <Card key={orcamento.id} className="relative">
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{orcamento.nome_funil}</CardTitle>
-                <div className="flex gap-1">
+          <Card key={orcamento.id} className="relative w-full">
+            <CardHeader className="pb-2 sm:pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
+                <CardTitle className="text-base sm:text-lg font-semibold line-clamp-2 leading-tight pr-2">
+                  {orcamento.nome_funil}
+                </CardTitle>
+                <div className="flex gap-1 flex-shrink-0 self-end sm:self-start">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => abrirHistorico(orcamento)}
+                    className="h-7 w-7 p-0 sm:h-8 sm:w-8"
                   >
-                    <History className="h-4 w-4" />
+                    <History className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                   {isAdmin && (
                     <>
@@ -285,35 +290,38 @@ export const OrcamentoPorFunil = ({ clienteId }: OrcamentoPorFunilProps) => {
                         variant="ghost"
                         size="sm"
                         onClick={() => abrirEdicao(orcamento)}
+                        className="h-7 w-7 p-0 sm:h-8 sm:w-8"
                       >
-                        <Edit2 className="h-4 w-4" />
+                        <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => excluirOrcamento(orcamento)}
-                        className="text-destructive hover:text-destructive"
+                        className="text-destructive hover:text-destructive h-7 w-7 p-0 sm:h-8 sm:w-8"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                     </>
                   )}
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="text-3xl font-bold text-primary">
+            <CardContent className="pt-0">
+              <div className="space-y-2 sm:space-y-3">
+                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary break-all">
                   {formatarMoeda(orcamento.valor_investimento)}
                 </div>
                 
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  Atualizado em {format(new Date(orcamento.data_atualizacao), "dd/MM/yyyy", { locale: ptBR })}
+                <div className="flex items-start gap-2 text-xs sm:text-sm text-muted-foreground">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
+                  <span className="leading-tight">
+                    Atualizado em {format(new Date(orcamento.data_atualizacao), "dd/MM/yyyy", { locale: ptBR })}
+                  </span>
                 </div>
                 
                 {orcamento.observacoes && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground line-clamp-3 leading-relaxed">
                     {orcamento.observacoes}
                   </p>
                 )}
