@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Bot, User, Send, Mic, MessageSquare, Plus, Search, History, X } from "lucide-react";
+import { Bot, User, Send, Mic, MessageSquare, Plus, Search, History, X, Edit3, Trash2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { toast } from "sonner";
@@ -36,6 +36,8 @@ export const AssistenteView = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(true); // Começar com histórico visível
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { userData } = useCurrentUser();
 
@@ -263,6 +265,36 @@ export const AssistenteView = () => {
     }
   };
 
+  const editConversation = async (conversationId: string, newTitle: string) => {
+    try {
+      const { error } = await supabase
+        .from('assistente_conversas')
+        .update({ titulo: newTitle.trim() })
+        .eq('id', conversationId);
+
+      if (error) throw error;
+
+      await loadConversations();
+      setEditingConversationId(null);
+      setEditTitle('');
+      
+      toast.success('Título da conversa atualizado');
+    } catch (error) {
+      console.error('Erro ao editar conversa:', error);
+      toast.error('Erro ao editar conversa');
+    }
+  };
+
+  const startEditing = (conversation: Conversation) => {
+    setEditingConversationId(conversation.id);
+    setEditTitle(conversation.titulo);
+  };
+
+  const cancelEditing = () => {
+    setEditingConversationId(null);
+    setEditTitle('');
+  };
+
   const filteredConversations = conversations.filter(conv =>
     conv.titulo.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -322,26 +354,94 @@ export const AssistenteView = () => {
               {filteredConversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors ${
+                  className={`group relative rounded-lg mb-2 transition-colors ${
                     currentConversationId === conversation.id
                       ? 'bg-primary/10 border border-primary/20'
                       : 'hover:bg-muted'
                   }`}
-                  onClick={() => loadConversation(conversation.id)}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-sm truncate">
-                        {conversation.titulo || 'Conversa sem título'}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(conversation.updated_at).toLocaleDateString('pt-BR')}
-                      </p>
+                  {editingConversationId === conversation.id ? (
+                    <div className="p-3">
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="flex-1 text-sm"
+                          placeholder="Título da conversa"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              editConversation(conversation.id, editTitle);
+                            } else if (e.key === 'Escape') {
+                              cancelEditing();
+                            }
+                          }}
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => editConversation(conversation.id, editTitle)}
+                          disabled={!editTitle.trim()}
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={cancelEditing}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {conversation.message_count}
-                    </Badge>
-                  </div>
+                  ) : (
+                    <div
+                      className="p-3 cursor-pointer"
+                      onClick={() => loadConversation(conversation.id)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <h3 className="font-medium text-sm truncate">
+                            {conversation.titulo || 'Conversa sem título'}
+                          </h3>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(conversation.updated_at).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Badge variant="secondary" className="text-xs">
+                            {conversation.message_count}
+                          </Badge>
+                          
+                          {/* Botões de ação - aparecem no hover */}
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 ml-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditing(conversation);
+                              }}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteConversation(conversation.id);
+                              }}
+                              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
