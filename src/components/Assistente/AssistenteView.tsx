@@ -140,7 +140,7 @@ export function AssistenteView() {
                   <Avatar className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0">
                     {message.role === 'assistant' ? (
                       <>
-                        <AvatarImage src="/src/assets/bnoads-logo.png" alt="Assistente" />
+                        <AvatarImage src="/lovable-uploads/04b4bc6e-c3c0-4f8e-9819-9f578ec4da19.png" alt="Assistente" />
                         <AvatarFallback className="bg-primary text-primary-foreground">
                           <Bot className="h-3 w-3 sm:h-4 sm:w-4" />
                         </AvatarFallback>
