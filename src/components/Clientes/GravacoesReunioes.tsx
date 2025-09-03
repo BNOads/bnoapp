@@ -6,6 +6,7 @@ import { Video, Play, Calendar, Clock, Plus, ExternalLink, Trash2, RefreshCw, Ch
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NovaGravacaoModal } from "./NovaGravacaoModal";
+import { ImportarAnotacoesGemini } from "../Gravacoes/ImportarAnotacoesGemini";
 
 interface Gravacao {
   id: string;
@@ -229,6 +230,7 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
                   {syncing ? 'Sincronizando...' : 'Sincronizar Drive'}
                 </span>
               </Button>
+              <ImportarAnotacoesGemini />
               <Button 
                 size="sm" 
                 variant="outline"
