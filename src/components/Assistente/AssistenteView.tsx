@@ -33,7 +33,7 @@ export const AssistenteView = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(true); // Começar com histórico visível
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { userData } = useCurrentUser();
@@ -44,6 +44,7 @@ export const AssistenteView = () => {
 
   useEffect(() => {
     loadConversations();
+    setShowHistory(true); // Mostrar histórico automaticamente
   }, []);
 
   const loadConversations = async () => {
@@ -449,8 +450,11 @@ export const AssistenteView = () => {
                       
                       {message.role === 'user' && (
                         <Avatar className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0">
+                          {userData?.avatar_url ? (
+                            <AvatarImage src={userData.avatar_url} alt={userData.nome || "Avatar do usuário"} />
+                          ) : null}
                           <AvatarFallback className="bg-secondary">
-                            <User className="h-3 w-3 sm:h-4 sm:w-4" />
+                            {userData?.nome ? userData.nome.split(' ').map(n => n[0]).join('').substring(0, 2) : <User className="h-3 w-3 sm:h-4 sm:w-4" />}
                           </AvatarFallback>
                         </Avatar>
                       )}

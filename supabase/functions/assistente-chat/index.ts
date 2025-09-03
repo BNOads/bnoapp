@@ -136,20 +136,21 @@ FORMATO DE RESPOSTA:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini-2025-08-07',
+        model: 'gpt-4o-mini', // Usar modelo que sabemos que funciona
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
         ],
-        max_completion_tokens: 1500,
-        temperature: 0.3, // Reduzir para respostas mais consistentes
+        max_tokens: 1500, // Usar max_tokens em vez de max_completion_tokens
+        temperature: 0.3,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('Erro da OpenAI:', errorData);
-      throw new Error(`Erro da OpenAI: ${response.status}`);
+      console.error('Erro da OpenAI Status:', response.status);
+      console.error('Erro da OpenAI Body:', errorData);
+      throw new Error(`Erro da OpenAI: ${response.status} - ${errorData}`);
     }
 
     const data = await response.json();
