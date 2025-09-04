@@ -399,46 +399,48 @@ export const AssistenteView = () => {
                       className="p-3 cursor-pointer"
                       onClick={() => loadConversation(conversation.id)}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <h3 className="font-medium text-sm truncate">
-                            {conversation.titulo || 'Conversa sem título'}
-                          </h3>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(conversation.updated_at).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {conversation.message_count}
-                          </Badge>
-                          
-                          {/* Botões de ação - aparecem no hover */}
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 ml-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startEditing(conversation);
-                              }}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Edit3 className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteConversation(conversation.id);
-                              }}
-                              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
+                       <div className="flex items-start justify-between gap-2">
+                         <div className="flex-1 min-w-0">
+                           <h3 className="font-medium text-sm leading-relaxed break-words">
+                             {conversation.titulo || 'Conversa sem título'}
+                           </h3>
+                           <p className="text-xs text-muted-foreground mt-1">
+                             {new Date(conversation.updated_at).toLocaleDateString('pt-BR')}
+                           </p>
+                         </div>
+                         <div className="flex items-center gap-1 flex-shrink-0">
+                           <Badge variant="secondary" className="text-xs">
+                             {conversation.message_count}
+                           </Badge>
+                           
+                           {/* Botões de ação - sempre visíveis agora */}
+                           <div className="flex gap-1 ml-1">
+                             <Button
+                               size="sm"
+                               variant="ghost"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 startEditing(conversation);
+                               }}
+                               className="h-6 w-6 p-0 hover:bg-primary/20"
+                               title="Editar título"
+                             >
+                               <Edit3 className="h-3 w-3" />
+                             </Button>
+                             <Button
+                               size="sm"
+                               variant="ghost"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 deleteConversation(conversation.id);
+                               }}
+                               className="h-6 w-6 p-0 text-destructive hover:bg-destructive/20 hover:text-destructive"
+                               title="Excluir conversa"
+                             >
+                               <Trash2 className="h-3 w-3" />
+                             </Button>
+                           </div>
+                         </div>
                       </div>
                     </div>
                   )}
@@ -495,7 +497,7 @@ export const AssistenteView = () => {
           </CardHeader>
 
           <CardContent className="flex-1 p-0">
-            <ScrollArea className="h-[calc(100vh-180px)] p-4">{/* Reduzido de 240px para 180px */}
+            <ScrollArea className="h-[calc(100vh-140px)] p-4">{/* Reduzido de 180px para 140px para diminuir espaço */}
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                   <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center">
@@ -588,31 +590,32 @@ export const AssistenteView = () => {
 
             <Separator />
             
-            <div className="p-3">{/* Reduzido padding de 4 para 3 */}
-              <div className="flex gap-2 items-end">
+            <div className="p-4">
+              <div className="flex gap-3 items-end">
                 <Textarea
                   placeholder="Digite sua mensagem... (Shift+Enter para quebra de linha)"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={handleKeyPress}
                   disabled={isLoading}
-                  className="flex-1 min-h-[44px] max-h-32 resize-none"
-                  rows={1}
+                  className="flex-1 min-h-[60px] max-h-40 resize-none text-base"
+                  rows={2}
                 />
                 <Button
                   variant="outline"
                   size="icon"
                   disabled={isLoading}
-                  className="flex-shrink-0"
+                  className="flex-shrink-0 h-12 w-12"
                 >
-                  <Mic className="h-4 w-4" />
+                  <Mic className="h-5 w-5" />
                 </Button>
                 <Button
                   onClick={sendMessage}
                   disabled={isLoading || !inputMessage.trim()}
-                  className="flex-shrink-0"
+                  className="flex-shrink-0 h-12 px-6"
                 >
-                  <Send className="h-4 w-4" />
+                  <Send className="h-5 w-5 mr-2" />
+                  Enviar
                 </Button>
               </div>
               
