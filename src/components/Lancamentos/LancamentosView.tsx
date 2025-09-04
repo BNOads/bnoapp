@@ -55,8 +55,10 @@ export const LancamentosView: React.FC = () => {
   const [activeTab, setActiveTab] = useState('lista');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [sortField, setSortField] = useState('created_at');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
   const [filtros, setFiltros] = useState({
     status: 'all',
     tipo: 'all',
@@ -100,7 +102,8 @@ export const LancamentosView: React.FC = () => {
           *,
           clientes:cliente_id (nome)
         `)
-        .eq('ativo', true);
+        .eq('ativo', true)
+        .order('created_at', { ascending: false });
 
       // Aplicar filtros
       if (filtros.status && filtros.status !== 'all') {
@@ -111,14 +114,6 @@ export const LancamentosView: React.FC = () => {
       }
       if (filtros.cliente && filtros.cliente !== 'all') {
         query = query.eq('cliente_id', filtros.cliente);
-      }
-
-      // Aplicar ordenação
-      if (sortField === 'cliente_nome') {
-        // Para ordenar por nome do cliente, precisamos de uma abordagem diferente
-        query = query.order('created_at', { ascending: sortDirection === 'asc' });
-      } else {
-        query = query.order(sortField as any, { ascending: sortDirection === 'asc' });
       }
 
       const { data, error } = await query;
@@ -133,22 +128,7 @@ export const LancamentosView: React.FC = () => {
         return;
       }
 
-      let sortedData = data as any || [];
-      
-      // Ordenação manual para campos relacionados
-      if (sortField === 'cliente_nome') {
-        sortedData.sort((a: any, b: any) => {
-          const aName = a.clientes?.nome || '';
-          const bName = b.clientes?.nome || '';
-          if (sortDirection === 'asc') {
-            return aName.localeCompare(bName);
-          } else {
-            return bName.localeCompare(aName);
-          }
-        });
-      }
-
-      setLancamentos(sortedData);
+      setLancamentos(data as any || []);
     } catch (error) {
       console.error('Erro ao buscar lançamentos:', error);
       toast({
@@ -163,7 +143,7 @@ export const LancamentosView: React.FC = () => {
 
   useEffect(() => {
     fetchLancamentos();
-  }, [filtros, searchTerm, sortField, sortDirection]);
+  }, [filtros, searchTerm]);
 
   const handleLancamentoCriado = () => {
     fetchLancamentos();
@@ -187,15 +167,6 @@ export const LancamentosView: React.FC = () => {
     fetchLancamentos();
     setSelectedIds([]);
     setShowEdicaoMassaModal(false);
-  };
-
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
   };
 
   if (loading) {
@@ -226,7 +197,7 @@ export const LancamentosView: React.FC = () => {
   }
 
   // Filtrar por termo de pesquisa
-  const lancamentosFiltrados = lancamentos.filter(l => {
+  let lancamentosFiltrados = lancamentos.filter(l => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -235,6 +206,34 @@ export const LancamentosView: React.FC = () => {
       l.clientes?.nome.toLowerCase().includes(searchLower)
     );
   });
+
+  // Aplicar ordenação
+  if (sortConfig !== null) {
+    lancamentosFiltrados = [...lancamentosFiltrados].sort((a, b) => {
+      const aValue = getNestedValue(a, sortConfig.key);
+      const bValue = getNestedValue(b, sortConfig.key);
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getNestedValue = (obj: any, path: string) => {
+    return path.split('.').reduce((current, key) => current?.[key], obj) || '';
+  };
 
   const stats = {
     total: lancamentosFiltrados.length,
@@ -373,9 +372,8 @@ export const LancamentosView: React.FC = () => {
             onFiltrosChange={setFiltros}
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
-            sortField={sortField}
-            sortDirection={sortDirection}
             onSort={handleSort}
+            sortConfig={sortConfig}
           />
         </TabsContent>
 

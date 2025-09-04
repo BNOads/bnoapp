@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import EditarLancamentoModal from './EditarLancamentoModal';
@@ -27,9 +27,11 @@ interface LancamentosTableProps {
   onFiltrosChange?: (filtros: any) => void;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
-  sortField?: string;
-  sortDirection?: 'asc' | 'desc';
-  onSort?: (field: string) => void;
+  onSort?: (key: string) => void;
+  sortConfig?: {
+    key: string;
+    direction: 'asc' | 'desc';
+  } | null;
 }
 
 export const LancamentosTable = ({ 
@@ -43,9 +45,8 @@ export const LancamentosTable = ({
   onFiltrosChange = () => {},
   selectedIds = [],
   onSelectionChange = () => {},
-  sortField = '',
-  sortDirection = 'desc',
-  onSort = () => {}
+  onSort = () => {},
+  sortConfig = null
 }: LancamentosTableProps) => {
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
@@ -108,23 +109,23 @@ export const LancamentosTable = ({
     setEditingLancamento(null);
   };
 
-  const getSortIcon = (field: string) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-4 w-4 opacity-50" />;
+  const getSortIcon = (columnKey: string) => {
+    if (!sortConfig || sortConfig.key !== columnKey) {
+      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />;
     }
-    return sortDirection === 'asc' ? 
-      <ArrowUp className="h-4 w-4" /> : 
-      <ArrowDown className="h-4 w-4" />;
+    return sortConfig.direction === 'asc' 
+      ? <ChevronUp className="h-4 w-4 text-primary" />
+      : <ChevronDown className="h-4 w-4 text-primary" />;
   };
 
-  const SortableHeader = ({ field, children }: { field: string; children: React.ReactNode }) => (
+  const SortableHeader = ({ children, sortKey }: { children: React.ReactNode; sortKey: string }) => (
     <TableHead 
       className="cursor-pointer hover:bg-muted/50 select-none"
-      onClick={() => onSort(field)}
+      onClick={() => onSort(sortKey)}
     >
       <div className="flex items-center gap-2">
         {children}
-        {getSortIcon(field)}
+        {getSortIcon(sortKey)}
       </div>
     </TableHead>
   );
@@ -214,12 +215,12 @@ export const LancamentosTable = ({
                     aria-label="Selecionar todos"
                   />
                 </TableHead>
-                <SortableHeader field="nome_lancamento">Lançamento</SortableHeader>
-                <SortableHeader field="cliente_nome">Cliente</SortableHeader>
-                <SortableHeader field="status_lancamento">Status</SortableHeader>
-                <SortableHeader field="tipo_lancamento">Tipo</SortableHeader>
-                <SortableHeader field="investimento_total">Investimento</SortableHeader>
-                <SortableHeader field="data_inicio_captacao">Data Início</SortableHeader>
+                <SortableHeader sortKey="nome_lancamento">Lançamento</SortableHeader>
+                <SortableHeader sortKey="clientes.nome">Cliente</SortableHeader>
+                <SortableHeader sortKey="status_lancamento">Status</SortableHeader>
+                <SortableHeader sortKey="tipo_lancamento">Tipo</SortableHeader>
+                <SortableHeader sortKey="investimento_total">Investimento</SortableHeader>
+                <SortableHeader sortKey="data_inicio_captacao">Data Início</SortableHeader>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
