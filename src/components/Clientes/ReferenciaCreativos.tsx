@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ReferencesEditor } from "@/components/References/ReferencesEditor";
 
 interface ConteudoBloco {
   id: string;
@@ -65,6 +66,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
   const [showModal, setShowModal] = useState(false);
   const [showVisualizacao, setShowVisualizacao] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showNotionEditor, setShowNotionEditor] = useState(false);
   const [selectedReferencia, setSelectedReferencia] = useState<ReferenciaCreativo | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -500,9 +502,19 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                 <Upload className="h-4 w-4 mr-2" />
                 Importar CSV
               </Button>
-              <Button onClick={() => setShowModal(true)}>
+              <Button 
+                onClick={() => setShowNotionEditor(true)}
+                className="bg-gradient-primary text-primary-foreground hover:opacity-90"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Referência
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => setShowModal(true)}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Editor Clássico
               </Button>
             </>
           )}
@@ -628,13 +640,17 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                         </Button>
                         {isAdmin && (
                           <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => abrirEdicao(referencia)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => {
+                                 setEditingId(referencia.id);
+                                 setShowNotionEditor(true);
+                               }}
+                               title="Editar com Editor Notion"
+                             >
+                               <Edit2 className="h-4 w-4" />
+                             </Button>
                             {referencia.is_template && (
                               <Button
                                 variant="ghost"
@@ -1010,6 +1026,22 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Editor estilo Notion */}
+      <ReferencesEditor
+        isOpen={showNotionEditor}
+        onClose={() => {
+          setShowNotionEditor(false);
+          setEditingId(null);
+        }}
+        referenceId={editingId}
+        clienteId={clienteId}
+        onSave={() => {
+          carregarReferencias();
+          setShowNotionEditor(false);
+          setEditingId(null);
+        }}
+      />
     </div>
   );
 };

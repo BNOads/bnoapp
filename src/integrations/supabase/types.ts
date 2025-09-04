@@ -1373,6 +1373,7 @@ export type Database = {
           ativo: boolean
           categoria: string | null
           cliente_id: string | null
+          configuracoes_editor: Json | null
           conteudo: Json
           created_at: string
           created_by: string
@@ -1384,11 +1385,13 @@ export type Database = {
           permissoes_edicao: Json | null
           titulo: string
           updated_at: string
+          versao_editor: number | null
         }
         Insert: {
           ativo?: boolean
           categoria?: string | null
           cliente_id?: string | null
+          configuracoes_editor?: Json | null
           conteudo?: Json
           created_at?: string
           created_by: string
@@ -1400,11 +1403,13 @@ export type Database = {
           permissoes_edicao?: Json | null
           titulo: string
           updated_at?: string
+          versao_editor?: number | null
         }
         Update: {
           ativo?: boolean
           categoria?: string | null
           cliente_id?: string | null
+          configuracoes_editor?: Json | null
           conteudo?: Json
           created_at?: string
           created_by?: string
@@ -1416,6 +1421,7 @@ export type Database = {
           permissoes_edicao?: Json | null
           titulo?: string
           updated_at?: string
+          versao_editor?: number | null
         }
         Relationships: []
       }
