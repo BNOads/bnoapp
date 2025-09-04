@@ -539,7 +539,12 @@ export const ClientesView = () => {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => copyToClipboard(cliente.link_painel || '')}
+                          onClick={() => {
+                            const fullLink = cliente.link_painel?.startsWith('http') 
+                              ? cliente.link_painel 
+                              : `${window.location.origin}${cliente.link_painel}`;
+                            copyToClipboard(fullLink);
+                          }}
                           className="h-8 w-8 p-0"
                         >
                           <Copy className="h-4 w-4" />

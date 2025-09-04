@@ -632,13 +632,18 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                              >
                                <Eye className="h-4 w-4" />
                              </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => copiarLink(referencia.link_publico)}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => {
+                             const fullLink = referencia.link_publico?.startsWith('http') 
+                               ? referencia.link_publico 
+                               : `${window.location.origin}${referencia.link_publico}`;
+                             copiarLink(fullLink);
+                           }}
+                         >
+                           <Copy className="h-4 w-4" />
+                         </Button>
                         {isAdmin && (
                           <>
                              <Button

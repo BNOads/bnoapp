@@ -208,7 +208,10 @@ export const POPViewNova = () => {
 
   const copiarLinkPublico = async (linkPublico: string) => {
     try {
-      await navigator.clipboard.writeText(linkPublico);
+      const fullLink = linkPublico.startsWith('http') 
+        ? linkPublico 
+        : `${window.location.origin}${linkPublico}`;
+      await navigator.clipboard.writeText(fullLink);
       setCopiedLink(linkPublico);
       setTimeout(() => setCopiedLink(null), 2000);
       toast({

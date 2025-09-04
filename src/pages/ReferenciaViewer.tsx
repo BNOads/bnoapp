@@ -95,7 +95,10 @@ export const ReferenciaViewer = () => {
 
   const copiarLink = () => {
     if (referencia?.link_publico) {
-      navigator.clipboard.writeText(referencia.link_publico);
+      const fullLink = referencia.link_publico.startsWith('http') 
+        ? referencia.link_publico 
+        : `${window.location.origin}${referencia.link_publico}`;
+      navigator.clipboard.writeText(fullLink);
       toast({
         title: "Link copiado",
         description: "Link da referência copiado para a área de transferência!",

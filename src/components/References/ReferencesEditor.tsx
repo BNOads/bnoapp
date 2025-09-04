@@ -177,7 +177,10 @@ export const ReferencesEditor = ({
 
   const copyPublicLink = () => {
     if (formData.link_publico) {
-      navigator.clipboard.writeText(formData.link_publico);
+      const fullLink = formData.link_publico.startsWith('http') 
+        ? formData.link_publico 
+        : `${window.location.origin}${formData.link_publico}`;
+      navigator.clipboard.writeText(fullLink);
       toast({
         title: "Link copiado",
         description: "Link público copiado para a área de transferência!",
