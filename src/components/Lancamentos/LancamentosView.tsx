@@ -6,10 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, BarChart3, Calendar, FileText, Import, Filter, Search, X } from 'lucide-react';
+import { Plus, BarChart3, Calendar, FileText, Import, Filter, Search, X, Edit } from 'lucide-react';
 import NovoLancamentoModal from './NovoLancamentoModal';
 import ImportarLancamentosModal from './ImportarLancamentosModal';
 import LancamentosTable from './LancamentosTable';
+import EdicaoMassaLancamentosModal from './EdicaoMassaLancamentosModal';
 import GanttChart from './GanttChart';
 import DashboardLancamentos from './DashboardLancamentos';
 
@@ -49,6 +50,8 @@ export const LancamentosView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showNovoModal, setShowNovoModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showEdicaoMassaModal, setShowEdicaoMassaModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('lista');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -166,6 +169,12 @@ export const LancamentosView: React.FC = () => {
     });
   };
 
+  const handleEdicaoMassaConcluida = () => {
+    fetchLancamentos();
+    setSelectedIds([]);
+    setShowEdicaoMassaModal(false);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -241,6 +250,16 @@ export const LancamentosView: React.FC = () => {
               </Button>
             )}
           </div>
+          {selectedIds.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => setShowEdicaoMassaModal(true)}
+              className="gap-2"
+            >
+              <Edit className="h-4 w-4" />
+              Editar Selecionados ({selectedIds.length})
+            </Button>
+          )}
           <Button
             variant={showFilters ? "default" : "outline"}
             onClick={() => setShowFilters(!showFilters)}
@@ -328,6 +347,8 @@ export const LancamentosView: React.FC = () => {
             showFilters={showFilters}
             filtros={filtros}
             onFiltrosChange={setFiltros}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
           />
         </TabsContent>
 
@@ -359,6 +380,13 @@ export const LancamentosView: React.FC = () => {
         open={showImportModal}
         onOpenChange={setShowImportModal}
         onImportacaoConcluida={handleImportacaoConcluida}
+      />
+
+      <EdicaoMassaLancamentosModal
+        open={showEdicaoMassaModal}
+        onOpenChange={setShowEdicaoMassaModal}
+        selectedIds={selectedIds}
+        onEdicaoConcluida={handleEdicaoMassaConcluida}
       />
     </div>
   );

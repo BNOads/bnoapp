@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +25,8 @@ interface LancamentosTableProps {
     cliente: string;
   };
   onFiltrosChange?: (filtros: any) => void;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 export const LancamentosTable = ({ 
@@ -34,7 +37,9 @@ export const LancamentosTable = ({
   tipoLabels,
   showFilters = false,
   filtros = { status: '', tipo: '', gestor: '', cliente: '' },
-  onFiltrosChange = () => {}
+  onFiltrosChange = () => {},
+  selectedIds = [],
+  onSelectionChange = () => {}
 }: LancamentosTableProps) => {
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
@@ -64,6 +69,25 @@ export const LancamentosTable = ({
   const clearFiltros = () => {
     onFiltrosChange({ status: '', tipo: '', gestor: '', cliente: '' });
   };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      onSelectionChange(lancamentos.map(l => l.id));
+    } else {
+      onSelectionChange([]);
+    }
+  };
+
+  const handleSelectItem = (id: string, checked: boolean) => {
+    if (checked) {
+      onSelectionChange([...selectedIds, id]);
+    } else {
+      onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
+    }
+  };
+
+  const isAllSelected = lancamentos.length > 0 && selectedIds.length === lancamentos.length;
+  const isSomeSelected = selectedIds.length > 0 && selectedIds.length < lancamentos.length;
 
   return (
     <div className="space-y-4">
@@ -160,6 +184,13 @@ export const LancamentosTable = ({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={isAllSelected || isSomeSelected}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Selecionar todos"
+                  />
+                </TableHead>
                 <TableHead>Lançamento</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Gestor</TableHead>
@@ -173,6 +204,13 @@ export const LancamentosTable = ({
             <TableBody>
               {lancamentos.map((lancamento) => (
                 <TableRow key={lancamento.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.includes(lancamento.id)}
+                      onCheckedChange={(checked) => handleSelectItem(lancamento.id, checked as boolean)}
+                      aria-label={`Selecionar ${lancamento.nome_lancamento}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">
                     <div>
                       <div className="font-semibold">{lancamento.nome_lancamento}</div>
