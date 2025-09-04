@@ -52,39 +52,44 @@ async function getAllFilesRecursively(folderId: string, folderName = 'Raiz', fol
     nextPageToken = result.nextPageToken;
   } while (nextPageToken);
   
-  // Buscar subpastas recursivamente
-  const foldersParams = new URLSearchParams({
-    key: API_KEY!,
-    q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    fields: 'files(id,name)',
-    pageSize: '1000'
-  });
-  
-  const foldersResponse = await fetch(`https://www.googleapis.com/drive/v3/files?${foldersParams}`);
-  
-  if (foldersResponse.ok) {
-    const foldersResult = await foldersResponse.json();
-    if (foldersResult.files && foldersResult.files.length > 0) {
-      console.log(`${'  '.repeat(depth)}  📁 Encontradas ${foldersResult.files.length} subpastas em "${folderName}"`);
+    // Buscar subpastas recursivamente (com limite de profundidade para evitar loops infinitos)
+    if (depth < 10) {
+      const foldersParams = new URLSearchParams({
+        key: API_KEY!,
+        q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id,name)',
+        pageSize: '1000'
+      });
       
-      for (const folder of foldersResult.files) {
-        const subFolderPath = folderPath ? `${folderPath}/${folder.name}` : folder.name;
-        console.log(`${'  '.repeat(depth)}  🔍 Explorando subpasta: ${folder.name}`);
-        
-        try {
-          const subFolderFiles = await getAllFilesRecursively(folder.id, folder.name, subFolderPath, depth + 1);
-          allFiles = allFiles.concat(subFolderFiles);
-          console.log(`${'  '.repeat(depth)}  ✅ Concluída subpasta: ${folder.name} (${subFolderFiles.length} documentos)`);
-        } catch (error) {
-          console.error(`${'  '.repeat(depth)}  ❌ Erro ao processar subpasta ${folder.name}:`, error);
+      const foldersResponse = await fetch(`https://www.googleapis.com/drive/v3/files?${foldersParams}`);
+      
+      if (foldersResponse.ok) {
+        const foldersResult = await foldersResponse.json();
+        if (foldersResult.files && foldersResult.files.length > 0) {
+          console.log(`${'  '.repeat(depth)}  📁 Encontradas ${foldersResult.files.length} subpastas em "${folderName}"`);
+          
+          for (const folder of foldersResult.files) {
+            const subFolderPath = folderPath ? `${folderPath}/${folder.name}` : folder.name;
+            console.log(`${'  '.repeat(depth)}  🔍 Explorando subpasta: "${folder.name}" (ID: ${folder.id})`);
+            
+            try {
+              const subFolderFiles = await getAllFilesRecursively(folder.id, folder.name, subFolderPath, depth + 1);
+              allFiles = allFiles.concat(subFolderFiles);
+              console.log(`${'  '.repeat(depth)}  ✅ Concluída subpasta: "${folder.name}" (${subFolderFiles.length} documentos encontrados)`);
+            } catch (error) {
+              console.error(`${'  '.repeat(depth)}  ❌ Erro ao processar subpasta "${folder.name}":`, error);
+            }
+          }
+        } else {
+          console.log(`${'  '.repeat(depth)}  📂 Nenhuma subpasta encontrada em "${folderName}"`);
         }
+      } else {
+        const errorText = await foldersResponse.text();
+        console.error(`${'  '.repeat(depth)}  ❌ Erro ao buscar subpastas de "${folderName}": ${foldersResponse.status} - ${errorText}`);
       }
     } else {
-      console.log(`${'  '.repeat(depth)}  📂 Nenhuma subpasta encontrada em "${folderName}"`);
+      console.log(`${'  '.repeat(depth)}  ⚠️ Limite de profundidade atingido para "${folderName}"`);
     }
-  } else {
-    console.error(`${'  '.repeat(depth)}  ❌ Erro ao buscar subpastas:`, foldersResponse.status);
-  }
   
   console.log(`${'  '.repeat(depth)}📊 Total de documentos encontrados em "${folderName}" e subpastas: ${allFiles.length}`);
   return allFiles;
