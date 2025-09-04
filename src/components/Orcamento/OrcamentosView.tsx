@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { NovoOrcamentoModal } from "./NovoOrcamentoModal";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Edit, Trash2, DollarSign, TrendingUp, Target } from "lucide-react";
+import { Plus, Edit, Trash2, DollarSign, TrendingUp, Target, Search } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -32,9 +33,22 @@ export const OrcamentosView = () => {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string | null }>({
     open: false,
     id: null
+  });
+
+  // Filtro personalizado para orçamentos
+  const filteredOrcamentos = orcamentos.filter(orcamento => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      orcamento.nome_funil.toLowerCase().includes(searchLower) ||
+      orcamento.cliente.nome.toLowerCase().includes(searchLower) ||
+      (orcamento.observacoes && orcamento.observacoes.toLowerCase().includes(searchLower))
+    );
   });
 
   useEffect(() => {
@@ -223,21 +237,44 @@ export const OrcamentosView = () => {
       {/* Tabela de Orçamentos */}
       <Card>
         <CardHeader>
-          <CardTitle>Orçamentos Ativos</CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle>Orçamentos Ativos</CardTitle>
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar por cliente, funil ou observações..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {orcamentos.length === 0 ? (
+          {filteredOrcamentos.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">Nenhum orçamento cadastrado</p>
-              {isAdmin && (
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                  onClick={() => setModalOpen(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Criar primeiro orçamento
-                </Button>
+              {orcamentos.length === 0 ? (
+                <>
+                  <p className="text-muted-foreground">Nenhum orçamento cadastrado</p>
+                  {isAdmin && (
+                    <Button 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => setModalOpen(true)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Criar primeiro orçamento
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Nenhum resultado encontrado</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Tente ajustar os termos de pesquisa
+                  </p>
+                </>
               )}
             </div>
           ) : (
@@ -253,7 +290,7 @@ export const OrcamentosView = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orcamentos.map((orcamento) => (
+                {filteredOrcamentos.map((orcamento) => (
                   <TableRow key={orcamento.id}>
                     <TableCell className="font-medium">
                       {orcamento.cliente.nome}
