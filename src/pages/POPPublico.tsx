@@ -50,14 +50,14 @@ export default function POPPublico() {
         .eq('id', id)
         .eq('categoria_documento', 'pop')
         .eq('link_publico_ativo', true)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          setError('POP não encontrado ou não está disponível publicamente');
-        } else {
-          throw error;
-        }
+        throw error;
+      }
+
+      if (!data) {
+        setError('POP não encontrado ou não está disponível publicamente');
         return;
       }
 

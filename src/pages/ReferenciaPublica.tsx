@@ -54,7 +54,7 @@ export const ReferenciaPublica = () => {
         .select('*')
         .eq('id', id)
         .eq('ativo', true)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Erro ao carregar referência:', error);

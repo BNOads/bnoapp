@@ -111,7 +111,10 @@ export const POPDocumentNovo = ({ documentId, onBack }: POPDocumentNovoProps) =>
     if (!document?.link_publico) return;
     
     try {
-      await navigator.clipboard.writeText(document.link_publico);
+      const fullLink = document.link_publico.startsWith('http') 
+        ? document.link_publico 
+        : `${window.location.origin}${document.link_publico}`;
+      await navigator.clipboard.writeText(fullLink);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
       toast({
