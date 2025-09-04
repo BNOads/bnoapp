@@ -14,40 +14,45 @@ import { TarefasList } from "@/components/Clientes/TarefasList";
 import { LinksImportantes } from "@/components/Clientes/LinksImportantes";
 import { OrcamentoPorFunil } from "@/components/Clientes/OrcamentoPorFunil";
 import type { User } from "@supabase/supabase-js";
-
 const PainelCliente = () => {
-  const { clienteId } = useParams();
+  const {
+    clienteId
+  } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const [activeTab, setActiveTab] = useState('gravacoes');
   const [cliente, setCliente] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-
   useEffect(() => {
     console.log('=== PAINEL CLIENTE DEBUG ===');
     console.log('clienteId from useParams:', clienteId);
     console.log('typeof clienteId:', typeof clienteId);
     console.log('location.pathname:', window.location.pathname);
-    
     setDebugInfo({
       clienteId,
       pathname: window.location.pathname,
-      params: { clienteId }
+      params: {
+        clienteId
+      }
     });
 
     // Verificar autenticação
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       setUser(user);
       setIsAuthenticated(!!user);
       console.log('Usuario autenticado:', !!user, user?.email);
     };
-
     checkAuth();
-
     if (clienteId) {
       carregarDadosCliente();
     } else {
@@ -55,75 +60,64 @@ const PainelCliente = () => {
       setLoading(false);
     }
   }, [clienteId]);
-
   const carregarDadosCliente = async () => {
     console.log('=== CARREGAR DADOS CLIENTE ===');
     console.log('Tentando carregar cliente com ID:', clienteId);
-    
     try {
       // Primeiro vamos verificar se o usuário está autenticado
-      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const {
+        data: authData,
+        error: authError
+      } = await supabase.auth.getUser();
       console.log('Usuario autenticado:', authData.user?.email, authError);
-      
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('*')
-        .eq('id', clienteId);
-
-      console.log('Query result:', { data, error, count: data?.length });
-      
+      const {
+        data,
+        error
+      } = await supabase.from('clientes').select('*').eq('id', clienteId);
+      console.log('Query result:', {
+        data,
+        error,
+        count: data?.length
+      });
       if (error) {
         console.error('Erro na query:', error);
         throw error;
       }
-      
       if (!data || data.length === 0) {
         console.log('Nenhum cliente encontrado com este ID');
         setCliente(null);
         setLoading(false);
         return;
       }
-      
       console.log('Cliente encontrado:', data[0]);
       setCliente(data[0]);
       setLoading(false);
-
     } catch (error: any) {
       console.error('Erro ao carregar dados do cliente:', error);
       toast({
         title: "Erro",
         description: `Erro ao carregar dados do cliente: ${error.message}`,
-        variant: "destructive",
+        variant: "destructive"
       });
       setLoading(false);
     }
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        {isAuthenticated ? (
-          <Header activeTab="clientes" onTabChange={(tab) => {
-            if (tab === 'clientes') return;
-            navigate(`/?tab=${tab}`);
-          }} />
-        ) : (
-          <div className="bg-background border-b border-border">
+    return <div className="min-h-screen bg-background">
+        {isAuthenticated ? <Header activeTab="clientes" onTabChange={tab => {
+        if (tab === 'clientes') return;
+        navigate(`/?tab=${tab}`);
+      }} /> : <div className="bg-background border-b border-border">
             <div className="container mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold">Painel do Cliente</h1>
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/auth')}
-                  size="sm"
-                >
+                <Button variant="outline" onClick={() => navigate('/auth')} size="sm">
                   <LogIn className="h-4 w-4 mr-2" />
                   Fazer Login
                 </Button>
               </div>
             </div>
-          </div>
-        )}
+          </div>}
         <div className="container mx-auto px-6 py-8">
           <div className="flex justify-center items-center h-64">
             <div className="text-center">
@@ -138,35 +132,24 @@ const PainelCliente = () => {
             </div>
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
   if (!cliente) {
-    return (
-      <div className="min-h-screen bg-background">
-        {isAuthenticated ? (
-          <Header activeTab="clientes" onTabChange={(tab) => {
-            if (tab === 'clientes') return;
-            navigate(`/?tab=${tab}`);
-          }} />
-        ) : (
-          <div className="bg-background border-b border-border">
+    return <div className="min-h-screen bg-background">
+        {isAuthenticated ? <Header activeTab="clientes" onTabChange={tab => {
+        if (tab === 'clientes') return;
+        navigate(`/?tab=${tab}`);
+      }} /> : <div className="bg-background border-b border-border">
             <div className="container mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold">Painel do Cliente</h1>
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/auth')}
-                  size="sm"
-                >
+                <Button variant="outline" onClick={() => navigate('/auth')} size="sm">
                   <LogIn className="h-4 w-4 mr-2" />
                   Fazer Login
                 </Button>
               </div>
             </div>
-          </div>
-        )}
+          </div>}
         <div className="container mx-auto px-6 py-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Cliente não encontrado</h1>
@@ -176,34 +159,23 @@ const PainelCliente = () => {
             </Button>
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background">
-      {isAuthenticated ? (
-        <Header activeTab="clientes" onTabChange={(tab) => {
-          if (tab === 'clientes') return;
-          navigate(`/?tab=${tab}`);
-        }} />
-      ) : (
-        <div className="bg-background border-b border-border">
+  return <div className="min-h-screen bg-background">
+      {isAuthenticated ? <Header activeTab="clientes" onTabChange={tab => {
+      if (tab === 'clientes') return;
+      navigate(`/?tab=${tab}`);
+    }} /> : <div className="bg-background border-b border-border">
           <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-xl font-bold">Painel do Cliente</h1>
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/auth')}
-                size="sm"
-              >
+              <Button variant="outline" onClick={() => navigate('/auth')} size="sm">
                 <LogIn className="h-4 w-4 mr-2" />
                 Fazer Login
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        </div>}
       
       {/* Header do Cliente */}
       <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border">
@@ -211,29 +183,19 @@ const PainelCliente = () => {
           <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
             <div className="flex-1">
               <div className="flex items-start gap-2 sm:gap-4 mb-4">
-                {isAuthenticated && (
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => navigate('/')}
-                    className="p-2 flex-shrink-0"
-                  >
+                {isAuthenticated && <Button variant="ghost" onClick={() => navigate('/')} className="p-2 flex-shrink-0">
                     <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                )}
+                  </Button>}
                 <div className="min-w-0 flex-1">
                   <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground break-words">
                     {cliente.nome}
                   </h1>
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <Badge variant="outline" className="text-xs sm:text-sm">{cliente.categoria}</Badge>
-                    <Badge variant="outline" className="text-xs sm:text-sm">{cliente.nicho}</Badge>
-                  </div>
+                  
                 </div>
               </div>
             </div>
             
-            {cliente.whatsapp_grupo_url && (
-              <div className="flex-shrink-0">
+            {cliente.whatsapp_grupo_url && <div className="flex-shrink-0">
                 <Button asChild size="sm" className="w-full sm:w-auto">
                   <a href={cliente.whatsapp_grupo_url} target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="h-4 w-4 mr-2" />
@@ -241,8 +203,7 @@ const PainelCliente = () => {
                     <span className="sm:hidden">WhatsApp</span>
                   </a>
                 </Button>
-              </div>
-            )}
+              </div>}
           </div>
           
         </div>
@@ -265,7 +226,7 @@ const PainelCliente = () => {
           {/* Orçamento por Funil - Adaptativo */}
           <section className="space-y-3 sm:space-y-4">
             <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
-              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0 mx-0" />
               <span className="truncate">Orçamento por Funil</span>
             </h2>
             <div className="w-full overflow-hidden">
@@ -297,8 +258,6 @@ const PainelCliente = () => {
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default PainelCliente;
