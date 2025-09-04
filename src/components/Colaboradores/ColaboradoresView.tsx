@@ -95,18 +95,36 @@ export const ColaboradoresView = () => {
 
   const handleEditarColaborador = (colaborador: any) => {
     console.log('Editando colaborador:', colaborador);
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: `A edição de ${colaborador.nome} será implementada em breve.`,
-    });
+    try {
+      if (!toast) {
+        console.error('Toast function não está disponível');
+        return;
+      }
+      toast({
+        title: "Funcionalidade em desenvolvimento",
+        description: `A edição de ${colaborador.nome} será implementada em breve.`,
+      });
+      console.log('Toast executado com sucesso para edição');
+    } catch (error) {
+      console.error('Erro ao mostrar toast de edição:', error);
+    }
   };
 
   const handleDeletarColaborador = (colaborador: any) => {
     console.log('Deletando colaborador:', colaborador);
-    toast({
-      title: "Funcionalidade em desenvolvimento", 
-      description: `A exclusão de ${colaborador.nome} será implementada em breve.`,
-    });
+    try {
+      if (!toast) {
+        console.error('Toast function não está disponível');
+        return;
+      }
+      toast({
+        title: "Funcionalidade em desenvolvimento", 
+        description: `A exclusão de ${colaborador.nome} será implementada em breve.`,
+      });
+      console.log('Toast executado com sucesso para exclusão');
+    } catch (error) {
+      console.error('Erro ao mostrar toast de exclusão:', error);
+    }
   };
 
   return (
