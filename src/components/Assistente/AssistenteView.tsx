@@ -497,7 +497,7 @@ export const AssistenteView = () => {
           </CardHeader>
 
           <CardContent className="flex-1 p-0">
-            <ScrollArea className="h-[calc(100vh-120px)] p-4">{/* Reduzido para 120px para diminuir mais o espaço */}
+            <ScrollArea className="h-[calc(100vh-80px)] p-2">{/* Reduzido significativamente o espaço */}
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                   <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center">
