@@ -3,11 +3,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Plus, User, Mail, Calendar, MoreVertical, Cake, Trash2, Edit } from "lucide-react";
+import { Search, Plus, User, Mail, Calendar, MoreVertical, Cake, Trash2, Edit, Key } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoColaboradorModal } from "./NovoColaboradorModal";
 import { EditarColaboradorModal } from "./EditarColaboradorModal";
+import { AlterarSenhaModal } from "./AlterarSenhaModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
@@ -18,6 +19,7 @@ export const ColaboradoresView = () => {
   const { canCreateContent, isAdmin } = useUserPermissions();
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [senhaModalOpen, setSenhaModalOpen] = useState(false);
   const [selectedColaborador, setSelectedColaborador] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [colaboradorToDelete, setColaboradorToDelete] = useState<any>(null);
@@ -103,6 +105,12 @@ export const ColaboradoresView = () => {
     console.log('Editando colaborador:', colaborador);
     setSelectedColaborador(colaborador);
     setEditModalOpen(true);
+  };
+
+  const handleAlterarSenha = (colaborador: any) => {
+    console.log('Alterando senha do colaborador:', colaborador);
+    setSelectedColaborador(colaborador);
+    setSenhaModalOpen(true);
   };
 
   const handleDeletarColaborador = (colaborador: any) => {
@@ -304,10 +312,14 @@ export const ColaboradoresView = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem onClick={() => handleEditarColaborador(colaborador)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Editar Colaborador
-                              </DropdownMenuItem>
+                               <DropdownMenuItem onClick={() => handleEditarColaborador(colaborador)}>
+                                 <Edit className="h-4 w-4 mr-2" />
+                                 Editar Colaborador
+                               </DropdownMenuItem>
+                               <DropdownMenuItem onClick={() => handleAlterarSenha(colaborador)}>
+                                 <Key className="h-4 w-4 mr-2" />
+                                 Alterar Senha
+                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleDeletarColaborador(colaborador)}
                                 className="text-destructive focus:text-destructive"
@@ -341,6 +353,16 @@ export const ColaboradoresView = () => {
       <EditarColaboradorModal 
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
+        colaborador={selectedColaborador}
+        onSuccess={() => {
+          carregarColaboradores();
+        }}
+      />
+
+      {/* Modal de Alterar Senha */}
+      <AlterarSenhaModal 
+        open={senhaModalOpen}
+        onOpenChange={setSenhaModalOpen}
         colaborador={selectedColaborador}
         onSuccess={() => {
           carregarColaboradores();

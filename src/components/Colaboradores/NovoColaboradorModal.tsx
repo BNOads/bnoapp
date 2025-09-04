@@ -115,7 +115,7 @@ export const NovoColaboradorModal = ({
         <DialogHeader>
           <DialogTitle>Novo Colaborador</DialogTitle>
           <DialogDescription>
-            Adicione um novo membro à equipe BNOads
+            Adicione um novo membro à equipe BNOads. A senha inicial será o próprio email para facilitar o primeiro acesso.
           </DialogDescription>
         </DialogHeader>
 
