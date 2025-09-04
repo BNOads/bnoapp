@@ -76,19 +76,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log('Usuário encontrado no auth:', existingUser.id);
         authUserId = existingUser.id;
         isNewUser = false;
-        
-        // Verificar se já tem perfil de colaborador
-        const { data: existingProfile } = await supabaseClient
-          .from('colaboradores')
-          .select('user_id')
-          .eq('user_id', authUserId)
-          .single();
-
-        if (existingProfile) {
-          throw new Error('Este usuário já está cadastrado como colaborador.');
-        }
-        
-        console.log('Usuário existe no auth mas não tem perfil de colaborador, prosseguindo...');
+        console.log('Usuário existe no auth, reutilizando para novo colaborador...');
       } else {
         console.log('Usuário não encontrado, criando novo...');
         
