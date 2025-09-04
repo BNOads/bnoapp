@@ -203,11 +203,13 @@ const GanttChart: React.FC<GanttChartProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os gestores</SelectItem>
-                {gestores.map((gestor) => (
-                  <SelectItem key={gestor.id} value={gestor.id}>
-                    {gestor.nome}
-                  </SelectItem>
-                ))}
+                {gestores
+                  .filter(gestor => gestor.id && gestor.id.trim() !== '') // Filtrar IDs vazios
+                  .map((gestor) => (
+                    <SelectItem key={gestor.id} value={gestor.id}>
+                      {gestor.nome}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
 
