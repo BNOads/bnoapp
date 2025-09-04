@@ -10,6 +10,7 @@ import { Plus, BarChart3, Calendar, FileText, Import, Filter, Search, X, Edit } 
 import NovoLancamentoModal from './NovoLancamentoModal';
 import ImportarLancamentosModal from './ImportarLancamentosModal';
 import LancamentosTable from './LancamentosTable';
+import { ImportCSVButton } from './ImportCSVButton';
 import EdicaoMassaLancamentosModal from './EdicaoMassaLancamentosModal';
 import GanttChart from './GanttChart';
 import DashboardLancamentos from './DashboardLancamentos';
@@ -276,6 +277,8 @@ export const LancamentosView: React.FC = () => {
             <Import className="h-4 w-4" />
             Importar
           </Button>
+          
+          <ImportCSVButton onImportComplete={handleImportacaoConcluida} />
           <Button
             onClick={() => setShowNovoModal(true)}
             className="gap-2"
