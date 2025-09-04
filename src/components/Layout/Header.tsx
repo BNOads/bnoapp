@@ -34,10 +34,6 @@ export const Header = ({
     label: 'Clientes',
     icon: Calendar
   }, {
-    id: 'lancamentos',
-    label: 'Lançamentos',
-    icon: Rocket
-  }, {
     id: 'assistente',
     label: 'Assistente',
     icon: UserCheck
