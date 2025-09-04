@@ -14,14 +14,18 @@ interface NovoLancamentoModalProps {
   onLancamentoCriado: () => void;
 }
 
-const NovoLancamentoModal = ({ open, onOpenChange, onLancamentoCriado }: NovoLancamentoModalProps) => {
+const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ 
+  open, 
+  onOpenChange, 
+  onLancamentoCriado 
+}) => {
   const [formData, setFormData] = useState({
     nome_lancamento: '',
     descricao: '',
     gestor_responsavel: '',
     cliente_id: '',
-    status_lancamento: 'em_captacao' as 'em_captacao' | 'cpl' | 'remarketing' | 'finalizado' | 'pausado' | 'cancelado',
-    tipo_lancamento: '' as 'semente' | 'interno' | 'externo' | 'perpetuo' | 'flash' | 'evento' | 'outro' | '',
+    status_lancamento: 'em_captacao' as const,
+    tipo_lancamento: '',
     data_inicio_captacao: '',
     data_fim_captacao: '',
     investimento_total: '',
@@ -30,8 +34,9 @@ const NovoLancamentoModal = ({ open, onOpenChange, onLancamentoCriado }: NovoLan
     link_briefing: '',
     observacoes: ''
   });
-  const [colaboradores, setColaboradores] = useState<any[]>([]);
-  const [clientes, setClientes] = useState<any[]>([]);
+  
+  const [colaboradores, setColaboradores] = useState<Array<{id: string, nome: string}>>([]);
+  const [clientes, setClientes] = useState<Array<{id: string, nome: string}>>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -72,11 +77,29 @@ const NovoLancamentoModal = ({ open, onOpenChange, onLancamentoCriado }: NovoLan
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      nome_lancamento: '',
+      descricao: '',
+      gestor_responsavel: '',
+      cliente_id: '',
+      status_lancamento: 'em_captacao' as const,
+      tipo_lancamento: '',
+      data_inicio_captacao: '',
+      data_fim_captacao: '',
+      investimento_total: '',
+      meta_investimento: '',
+      link_dashboard: '',
+      link_briefing: '',
+      observacoes: ''
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,22 +136,11 @@ const NovoLancamentoModal = ({ open, onOpenChange, onLancamentoCriado }: NovoLan
       if (error) throw error;
 
       onLancamentoCriado();
+      resetForm();
       
-      // Reset form
-      setFormData({
-        nome_lancamento: '',
-        descricao: '',
-        gestor_responsavel: '',
-        cliente_id: '',
-        status_lancamento: 'em_captacao' as any,
-        tipo_lancamento: '' as any,
-        data_inicio_captacao: '',
-        data_fim_captacao: '',
-        investimento_total: '',
-        meta_investimento: '',
-        link_dashboard: '',
-        link_briefing: '',
-        observacoes: ''
+      toast({
+        title: "Lançamento criado",
+        description: "O lançamento foi criado com sucesso.",
       });
 
     } catch (error: any) {
