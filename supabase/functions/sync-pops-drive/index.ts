@@ -181,21 +181,26 @@ Deno.serve(async (req) => {
       throw fetchError
     }
 
+    console.log(`📚 POPs existentes no banco: ${existingPops?.length || 0}`)
     const existingTitles = new Set(existingPops?.map(pop => pop.titulo) || [])
+    
+    console.log('📝 Títulos existentes:', Array.from(existingTitles))
 
     let syncedCount = 0
     let updatedCount = 0
     let errorCount = 0
+    let skippedCount = 0
 
     // Processar cada Google Doc
     for (const doc of allDocs) {
       try {
-        console.log(`Processando: ${doc.name}`)
+        console.log(`🔄 Processando: "${doc.name}" da pasta: ${doc.folderPath || 'Raiz'}`)
         
         const content = await getDocContent(doc.id)
         
-        if (!content) {
-          console.log(`Pulando ${doc.name} - sem conteúdo`)
+        if (!content || content.trim().length < 10) {
+          console.log(`⏭️  Pulando "${doc.name}" - conteúdo insuficiente (${content?.length || 0} caracteres)`)
+          skippedCount++
           continue
         }
 
