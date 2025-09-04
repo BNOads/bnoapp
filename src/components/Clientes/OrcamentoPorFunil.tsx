@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2 } from "lucide-react";
+import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useSearch } from "@/hooks/useSearch";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -44,6 +46,7 @@ export const OrcamentoPorFunil = ({ clienteId }: OrcamentoPorFunilProps) => {
   const [showEditarModal, setShowEditarModal] = useState(false);
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
   const [selectedOrcamento, setSelectedOrcamento] = useState<OrcamentoFunil | null>(null);
+  const [selectedFunil, setSelectedFunil] = useState<string>("todos");
   const [formData, setFormData] = useState({
     nome_funil: "",
     valor_investimento: "",
@@ -52,6 +55,17 @@ export const OrcamentoPorFunil = ({ clienteId }: OrcamentoPorFunilProps) => {
   
   const { toast } = useToast();
   const { isAdmin } = useUserPermissions();
+  
+  // Hook de pesquisa
+  const { searchTerm, setSearchTerm, filteredItems } = useSearch(orcamentos, ['nome_funil', 'observacoes']);
+  
+  // Filtro por funil
+  const orcamentosFiltrados = filteredItems.filter(orcamento => 
+    selectedFunil === "todos" || orcamento.nome_funil === selectedFunil
+  );
+  
+  // Lista única de funis para o filtro
+  const funisUnicos = Array.from(new Set(orcamentos.map(o => o.nome_funil))).sort();
 
   useEffect(() => {
     carregarOrcamentos();
@@ -266,9 +280,38 @@ export const OrcamentoPorFunil = ({ clienteId }: OrcamentoPorFunilProps) => {
         </div>
       </div>
 
+      {/* Filtros de Pesquisa */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar por nome do funil ou observações..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex items-center gap-2 sm:min-w-[200px]">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedFunil} onValueChange={setSelectedFunil}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filtrar por funil" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os funis</SelectItem>
+              {funisUnicos.map((funil) => (
+                <SelectItem key={funil} value={funil}>
+                  {funil}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* Cards de Orçamentos - Mobile First Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-        {orcamentos.map((orcamento) => (
+        {orcamentosFiltrados.map((orcamento) => (
           <Card key={orcamento.id} className="relative w-full">
             <CardHeader className="pb-2 sm:pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
@@ -338,6 +381,18 @@ export const OrcamentoPorFunil = ({ clienteId }: OrcamentoPorFunilProps) => {
             <h3 className="text-lg font-medium">Nenhum orçamento cadastrado</h3>
             <p className="text-muted-foreground">
               {isAdmin ? "Clique em 'Novo Orçamento' para adicionar o primeiro." : "Os orçamentos serão exibidos aqui quando cadastrados."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {orcamentos.length > 0 && orcamentosFiltrados.length === 0 && (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium">Nenhum resultado encontrado</h3>
+            <p className="text-muted-foreground">
+              Tente ajustar os filtros de pesquisa ou remover alguns termos.
             </p>
           </CardContent>
         </Card>
