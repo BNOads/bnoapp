@@ -172,7 +172,7 @@ export function DashboardView() {
           <Button 
             variant="secondary" 
             size="sm" 
-            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')} 
+            onClick={() => window.open('https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0cWtPyvaNzPZUaGIaDsYjDGshuYHKA_BhbvCN1YOWxny-lU4EfOpteOvNPjfzj8aBxfbP9baoo', '_blank')} 
             className="flex-1 border border-white/20 bg-slate-50 text-blue-950 text-xs sm:text-sm"
           >
             Marcar 1x1
