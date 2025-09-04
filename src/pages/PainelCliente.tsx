@@ -244,28 +244,6 @@ const PainelCliente = () => {
       {/* Conteúdo Principal - Mobile-First */}
       <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
         <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-          {/* Gravações - Prioridade Mobile */}
-          <section className="space-y-3 sm:space-y-4">
-            <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
-              <Video className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
-              <span className="truncate">Gravações e Reuniões</span>
-            </h2>
-            <div className="w-full overflow-hidden">
-              <GravacoesReunioes clienteId={clienteId} />
-            </div>
-          </section>
-
-          {/* Orçamento por Funil - Adaptativo */}
-          <section className="space-y-3 sm:space-y-4">
-            <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
-              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0 mx-0" />
-              <span className="truncate">Orçamento por Funil</span>
-            </h2>
-            <div className="w-full overflow-hidden">
-              <OrcamentoPorFunil clienteId={clienteId} />
-            </div>
-          </section>
-
           {/* Links e Tarefas - Stack em Mobile, Grid em Desktop */}
           <div className="space-y-4 sm:space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 xl:gap-6 2xl:gap-8">
             <section className="space-y-3 sm:space-y-4 min-w-0">
@@ -288,6 +266,28 @@ const PainelCliente = () => {
               </div>
             </section>
           </div>
+
+          {/* Gravações - Prioridade Mobile */}
+          <section className="space-y-3 sm:space-y-4">
+            <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
+              <Video className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+              <span className="truncate">Gravações e Reuniões</span>
+            </h2>
+            <div className="w-full overflow-hidden">
+              <GravacoesReunioes clienteId={clienteId} />
+            </div>
+          </section>
+
+          {/* Orçamento por Funil - Adaptativo */}
+          <section className="space-y-3 sm:space-y-4">
+            <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0 mx-0" />
+              <span className="truncate">Orçamento por Funil</span>
+            </h2>
+            <div className="w-full overflow-hidden">
+              <OrcamentoPorFunil clienteId={clienteId} />
+            </div>
+          </section>
         </div>
       </div>
     </div>;
