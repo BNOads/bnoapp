@@ -144,7 +144,7 @@ export default function POPPublico() {
                 <p className="text-sm text-muted-foreground">Procedimento Operacional Padrão</p>
               </div>
             </div>
-            <Button variant="outline" onClick={() => window.open('https://app.bnoads.com', '_blank')}>
+            <Button variant="outline" onClick={() => window.open('https://bnoapp.lovable.app', '_blank')}>
               <ExternalLink className="h-4 w-4 mr-2" />
               Acessar Sistema
             </Button>

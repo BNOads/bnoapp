@@ -52,7 +52,7 @@ export const NovoClienteModal = ({
     try {
       // Gerar link do painel automaticamente se não fornecido
       const linkPainel = formData.link_painel || 
-        `${window.location.origin}/painel/${formData.nome.toLowerCase().replace(/\s+/g, '-')}`;
+        `https://bnoapp.lovable.app/painel/${formData.nome.toLowerCase().replace(/\s+/g, '-')}`;
 
       const { error } = await supabase
         .from('clientes')
@@ -229,7 +229,7 @@ export const NovoClienteModal = ({
               id="link_painel"
               value={formData.link_painel}
               onChange={(e) => handleInputChange("link_painel", e.target.value)}
-              placeholder="https://painel.bnoads.com/..."
+              placeholder="https://bnoapp.lovable.app/painel/..."
               type="url"
             />
           </div>
