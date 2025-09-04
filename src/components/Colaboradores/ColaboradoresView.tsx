@@ -3,18 +3,24 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Plus, User, Mail, Calendar, MoreVertical, Cake } from "lucide-react";
+import { Search, Plus, User, Mail, Calendar, MoreVertical, Cake, Trash2, Edit } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoColaboradorModal } from "./NovoColaboradorModal";
+import { EditarColaboradorModal } from "./EditarColaboradorModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export const ColaboradoresView = () => {
   const { canCreateContent, isAdmin } = useUserPermissions();
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedColaborador, setSelectedColaborador] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [colaboradorToDelete, setColaboradorToDelete] = useState<any>(null);
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -95,35 +101,44 @@ export const ColaboradoresView = () => {
 
   const handleEditarColaborador = (colaborador: any) => {
     console.log('Editando colaborador:', colaborador);
-    try {
-      if (!toast) {
-        console.error('Toast function não está disponível');
-        return;
-      }
-      toast({
-        title: "Funcionalidade em desenvolvimento",
-        description: `A edição de ${colaborador.nome} será implementada em breve.`,
-      });
-      console.log('Toast executado com sucesso para edição');
-    } catch (error) {
-      console.error('Erro ao mostrar toast de edição:', error);
-    }
+    setSelectedColaborador(colaborador);
+    setEditModalOpen(true);
   };
 
   const handleDeletarColaborador = (colaborador: any) => {
-    console.log('Deletando colaborador:', colaborador);
+    console.log('Preparando para deletar colaborador:', colaborador);
+    setColaboradorToDelete(colaborador);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmarDelecao = async () => {
+    if (!colaboradorToDelete) return;
+    
     try {
-      if (!toast) {
-        console.error('Toast function não está disponível');
-        return;
+      const { error } = await supabase
+        .from('colaboradores')
+        .delete()
+        .eq('id', colaboradorToDelete.id);
+
+      if (error) {
+        throw error;
       }
+
       toast({
-        title: "Funcionalidade em desenvolvimento", 
-        description: `A exclusão de ${colaborador.nome} será implementada em breve.`,
+        title: "Colaborador excluído!",
+        description: `${colaboradorToDelete.nome} foi removido da equipe.`,
       });
-      console.log('Toast executado com sucesso para exclusão');
-    } catch (error) {
-      console.error('Erro ao mostrar toast de exclusão:', error);
+
+      carregarColaboradores();
+      setDeleteDialogOpen(false);
+      setColaboradorToDelete(null);
+    } catch (error: any) {
+      console.error('Erro ao deletar colaborador:', error);
+      toast({
+        title: "Erro ao excluir colaborador",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -290,12 +305,14 @@ export const ColaboradoresView = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem onClick={() => handleEditarColaborador(colaborador)}>
+                                <Edit className="h-4 w-4 mr-2" />
                                 Editar Colaborador
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleDeletarColaborador(colaborador)}
                                 className="text-destructive focus:text-destructive"
                               >
+                                <Trash2 className="h-4 w-4 mr-2" />
                                 Deletar Colaborador
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -311,7 +328,7 @@ export const ColaboradoresView = () => {
         </div>
       </Card>
 
-      {/* Modal */}
+      {/* Modal de Novo Colaborador */}
       <NovoColaboradorModal 
         open={modalOpen}
         onOpenChange={setModalOpen}
@@ -319,6 +336,38 @@ export const ColaboradoresView = () => {
           carregarColaboradores();
         }}
       />
+
+      {/* Modal de Editar Colaborador */}
+      <EditarColaboradorModal 
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        colaborador={selectedColaborador}
+        onSuccess={() => {
+          carregarColaboradores();
+        }}
+      />
+
+      {/* Dialog de Confirmação para Deletar */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza de que deseja excluir {colaboradorToDelete?.nome}? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmarDelecao}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
