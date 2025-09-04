@@ -39,7 +39,7 @@ interface Lancamento {
   };
 }
 
-const LancamentosView: React.FC = () => {
+export const LancamentosView: React.FC = () => {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNovoModal, setShowNovoModal] = useState(false);
