@@ -142,30 +142,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Verificar autenticação através do header
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('Header de autorização inválido');
-      return new Response(JSON.stringify({ 
-        success: false,
-        error: 'Token de autorização não fornecido' 
-      }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      });
-    }
-
-    // Verificar o usuário através do token JWT
-    const jwt = authHeader.replace('Bearer ', '');
-    
-    // Verificar se o usuário existe na tabela profiles
-    const { data: userProfile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('user_id, nivel_acesso')
-      .eq('user_id', jwt.split('.')[1]) // Tentativa básica de obter o user_id do JWT
-      .single();
-
-    // Se não conseguir verificar pelo JWT, usar um usuário admin existente
+    // Usar um usuário admin existente para a importação
     const { data: adminUser, error: adminError } = await supabaseClient
       .from('profiles')
       .select('user_id')
@@ -175,10 +152,10 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
     
     if (!adminUser) {
-      console.error('Nenhum usuário admin encontrado');
+      console.error('Nenhum usuário admin encontrado para importação');
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'Sistema não configurado adequadamente' 
+        error: 'Sistema não configurado - nenhum admin encontrado' 
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
