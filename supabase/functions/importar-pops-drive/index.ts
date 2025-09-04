@@ -106,7 +106,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Obter o usuário autenticado
     const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Header de autorização inválido');
       return new Response(JSON.stringify({ 
         success: false,
         error: 'Token de autorização não fornecido' 
@@ -116,19 +117,9 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const userSupabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: {
-            authorization: authHeader
-          }
-        }
-      }
-    );
-
-    const { data: { user }, error: userError } = await userSupabaseClient.auth.getUser();
+    // Verificar usuário usando o service role client
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(jwt);
     if (userError || !user) {
       console.error('Erro ao obter usuário:', userError);
       return new Response(JSON.stringify({ 
