@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Share2 } from "lucide-react";
 import { MessageCircle, ArrowLeft, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -102,6 +102,26 @@ const PainelCliente = () => {
       setLoading(false);
     }
   };
+
+  const handleSharePanel = async () => {
+    const panelLink = `https://app.bnoads.com/painel/${clienteId}`;
+    
+    try {
+      await navigator.clipboard.writeText(panelLink);
+      toast({
+        title: "Link copiado!",
+        description: "O link do painel foi copiado para a área de transferência.",
+      });
+    } catch (error) {
+      console.error('Erro ao copiar link:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível copiar o link. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen bg-background">
         {isAuthenticated ? <Header activeTab="clientes" onTabChange={tab => {
@@ -195,7 +215,18 @@ const PainelCliente = () => {
               </div>
             </div>
             
-            {cliente.whatsapp_grupo_url && <div className="flex-shrink-0">
+            <div className="flex-shrink-0 flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSharePanel}
+                className="flex items-center gap-2"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Compartilhar</span>
+              </Button>
+              
+              {cliente.whatsapp_grupo_url && (
                 <Button asChild size="sm" className="w-full sm:w-auto">
                   <a href={cliente.whatsapp_grupo_url} target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="h-4 w-4 mr-2" />
@@ -203,7 +234,8 @@ const PainelCliente = () => {
                     <span className="sm:hidden">WhatsApp</span>
                   </a>
                 </Button>
-              </div>}
+              )}
+            </div>
           </div>
           
         </div>
