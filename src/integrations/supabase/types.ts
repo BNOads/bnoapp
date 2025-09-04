@@ -418,6 +418,7 @@ export type Database = {
           id: string
           nivel_acesso: Database["public"]["Enums"]["nivel_acesso"]
           nome: string
+          primeiro_login: boolean | null
           progresso_treinamentos: Json | null
           tamanho_camisa: string | null
           tempo_plataforma: number | null
@@ -435,6 +436,7 @@ export type Database = {
           id?: string
           nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
           nome: string
+          primeiro_login?: boolean | null
           progresso_treinamentos?: Json | null
           tamanho_camisa?: string | null
           tempo_plataforma?: number | null
@@ -452,6 +454,7 @@ export type Database = {
           id?: string
           nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
           nome?: string
+          primeiro_login?: boolean | null
           progresso_treinamentos?: Json | null
           tamanho_camisa?: string | null
           tempo_plataforma?: number | null
@@ -1075,6 +1078,33 @@ export type Database = {
         }
         Relationships: []
       }
+      password_reset_tokens: {
+        Row: {
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          token: string
+          used: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          token: string
+          used?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          used?: boolean | null
+        }
+        Relationships: []
+      }
       pdi_aulas: {
         Row: {
           aula_id: string
@@ -1241,6 +1271,7 @@ export type Database = {
           id: string
           nivel_acesso: Database["public"]["Enums"]["nivel_acesso"]
           nome: string
+          primeiro_login: boolean | null
           updated_at: string
           user_id: string
         }
@@ -1251,6 +1282,7 @@ export type Database = {
           id?: string
           nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
           nome: string
+          primeiro_login?: boolean | null
           updated_at?: string
           user_id: string
         }
@@ -1261,6 +1293,7 @@ export type Database = {
           id?: string
           nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
           nome?: string
+          primeiro_login?: boolean | null
           updated_at?: string
           user_id?: string
         }
@@ -1812,6 +1845,10 @@ export type Database = {
       check_admin_access: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      generate_initial_password: {
+        Args: { email_input: string }
+        Returns: string
       }
       get_colaborador_dados_sensíveis: {
         Args: { _colaborador_id: string; _motivo?: string }
