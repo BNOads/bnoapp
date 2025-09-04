@@ -26,14 +26,21 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log('=== INÍCIO DA FUNÇÃO alterar-senha-colaborador ===');
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
+    console.log('Cliente Supabase criado com service role');
+
     // Obter o token de autorização do header
     const authHeader = req.headers.get('authorization');
+    console.log('Auth header presente:', !!authHeader);
+    
     if (!authHeader) {
+      console.error('Token de autorização não encontrado');
       return new Response(JSON.stringify({ 
         success: false,
         error: 'Token de autorização não fornecido' 
@@ -123,7 +130,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (updateError) {
       console.error('Erro ao alterar senha:', updateError);
-      throw new Error(`Erro ao alterar senha: ${updateError.message}`);
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: `Erro ao alterar senha: ${updateError.message}` 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     console.log('Senha alterada com sucesso para:', email);

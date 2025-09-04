@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +52,13 @@ export const AlterarSenhaModal = ({ open, onOpenChange, colaborador, onSuccess }
     setLoading(true);
 
     try {
+      console.log('Iniciando alteração de senha para:', colaborador.email);
+      console.log('Dados enviados:', {
+        user_id: colaborador.user_id,
+        email: colaborador.email,
+        nova_senha_length: formData.nova_senha.length
+      });
+
       const { data, error } = await supabase.functions.invoke('alterar-senha-colaborador', {
         body: {
           user_id: colaborador.user_id,
@@ -60,14 +67,19 @@ export const AlterarSenhaModal = ({ open, onOpenChange, colaborador, onSuccess }
         }
       });
 
+      console.log('Resposta da função:', { data, error });
+
       if (error) {
         console.error('Erro da função:', error);
-        throw new Error(error.message || 'Erro ao comunicar com o servidor');
+        throw new Error(`Erro na função: ${error.message || JSON.stringify(error)}`);
       }
 
       if (data && !data.success) {
-        throw new Error(data.error || 'Erro ao alterar senha');
+        console.error('Erro retornado pela função:', data.error);
+        throw new Error(data.error || 'Erro desconhecido ao alterar senha');
       }
+
+      console.log('Senha alterada com sucesso!');
 
       toast({
         title: "Senha alterada!",
@@ -78,10 +90,11 @@ export const AlterarSenhaModal = ({ open, onOpenChange, colaborador, onSuccess }
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Erro ao alterar senha:', error);
+      console.error('Erro completo ao alterar senha:', error);
+      console.error('Stack trace:', error.stack);
       toast({
         title: "Erro ao alterar senha",
-        description: error.message || "Tente novamente.",
+        description: error.message || "Erro desconhecido. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -94,6 +107,9 @@ export const AlterarSenhaModal = ({ open, onOpenChange, colaborador, onSuccess }
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>Alterar Senha</DialogTitle>
+          <DialogDescription>
+            Altere a senha de acesso do colaborador selecionado.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="mb-4 p-3 bg-muted rounded-lg">
