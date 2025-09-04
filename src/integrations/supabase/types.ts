@@ -682,11 +682,18 @@ export type Database = {
       }
       documentos: {
         Row: {
+          autor: string | null
+          categoria_documento: string | null
           cliente_id: string | null
           conteudo: string | null
           created_at: string
           created_by: string
+          icone: string | null
           id: string
+          link_publico: string | null
+          link_publico_ativo: boolean | null
+          tags: string[] | null
+          tamanho_arquivo: string | null
           tipo: string
           titulo: string
           updated_at: string
@@ -694,11 +701,18 @@ export type Database = {
           versao: number | null
         }
         Insert: {
+          autor?: string | null
+          categoria_documento?: string | null
           cliente_id?: string | null
           conteudo?: string | null
           created_at?: string
           created_by: string
+          icone?: string | null
           id?: string
+          link_publico?: string | null
+          link_publico_ativo?: boolean | null
+          tags?: string[] | null
+          tamanho_arquivo?: string | null
           tipo: string
           titulo: string
           updated_at?: string
@@ -706,11 +720,18 @@ export type Database = {
           versao?: number | null
         }
         Update: {
+          autor?: string | null
+          categoria_documento?: string | null
           cliente_id?: string | null
           conteudo?: string | null
           created_at?: string
           created_by?: string
+          icone?: string | null
           id?: string
+          link_publico?: string | null
+          link_publico_ativo?: boolean | null
+          tags?: string[] | null
+          tamanho_arquivo?: string | null
           tipo?: string
           titulo?: string
           updated_at?: string

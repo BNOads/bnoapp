@@ -13,6 +13,7 @@ import CriativosCliente from "./pages/CriativosCliente";
 import CursoDetalhes from "./pages/CursoDetalhes";
 import AulaDetalhes from "./pages/AulaDetalhes";
 import Perfil from "./pages/Perfil";
+import POPPublico from "./pages/POPPublico";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ function App() {
           <AuthProvider>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/pop/publico/:id" element={<POPPublico />} />
               <Route path="/pdi/:id" element={
                 <ProtectedRoute>
                   <PDIDetalhes />

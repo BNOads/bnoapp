@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
 import { useNavigate } from "react-router-dom";
-import { POPView } from "./POPView";
+import { POPViewNova } from "./POPViewNova";
 export const TreinamentosView = () => {
   const {
     canCreateContent
@@ -222,7 +222,7 @@ export const TreinamentosView = () => {
         </TabsContent>
 
         <TabsContent value="pops">
-          <POPView />
+          <POPViewNova />
         </TabsContent>
       </Tabs>
 
