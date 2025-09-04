@@ -452,9 +452,9 @@ export const AssistenteView = () => {
       )}
 
       {/* Chat Principal */}
-      <div className="flex-1 flex flex-col">
-        <Card className="flex-1 border-0 rounded-none">
-          <CardHeader className="border-b border-border">
+      <div className="flex-1 flex flex-col h-screen">
+        <Card className="flex-1 border-0 rounded-none flex flex-col">
+          <CardHeader className="border-b border-border flex-shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Bot className="h-6 w-6 text-primary" />
@@ -496,8 +496,8 @@ export const AssistenteView = () => {
             )}
           </CardHeader>
 
-          <CardContent className="flex-1 p-0">
-            <ScrollArea className="h-[calc(100vh-80px)] p-2">{/* Reduzido significativamente o espaço */}
+          <CardContent className="flex-1 p-0 flex flex-col">
+            <ScrollArea className="flex-1 p-4">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                   <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center">
@@ -590,7 +590,7 @@ export const AssistenteView = () => {
 
             <Separator />
             
-            <div className="p-4">
+            <div className="p-4 flex-shrink-0">
               <div className="flex gap-3 items-end">
                 <Textarea
                   placeholder="Digite sua mensagem... (Shift+Enter para quebra de linha)"
