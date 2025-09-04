@@ -156,59 +156,62 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Erro ao criar colaborador: ${colaboradorError.message}`);
     }
 
-    // Enviar email com senha inicial apenas para novos usuários
-    if (isNewUser) {
-      try {
-        console.log('Enviando email para:', email);
-        const emailResponse = await resend.emails.send({
-          from: "BNOads <noreply@resend.dev>",
-          to: [email],
-          subject: "Bem-vindo ao Sistema BNOads - Acesso Criado",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #2563eb;">Bem-vindo ao Sistema BNOads!</h1>
-              <p>Olá <strong>${nome}</strong>,</p>
-              <p>Sua conta foi criada com sucesso no Sistema BNOads. Abaixo estão suas credenciais de acesso:</p>
-              
-              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p><strong>Email:</strong> ${email}</p>
-                <p><strong>Senha inicial:</strong> ${senhaInicial}</p>
-              </div>
-              
-              <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
-                <p><strong>⚠️ IMPORTANTE:</strong> Por segurança, você será obrigado a alterar sua senha no primeiro login.</p>
-              </div>
-              
-              <p>Para acessar o sistema, visite: <a href="https://app.bnoads.com.br/auth" style="color: #2563eb;">https://app.bnoads.com.br/auth</a></p>
-              
-              <p>Se você tiver alguma dúvida, entre em contato com nossa equipe.</p>
-              
-              <p>Bem-vindo à equipe!<br>
-              <strong>Equipe BNOads</strong></p>
+    // Sempre enviar email com credenciais para novos colaboradores
+    let emailSent = false;
+    try {
+      console.log('Enviando email para:', email);
+      const emailResponse = await resend.emails.send({
+        from: "BNOads <noreply@resend.dev>",
+        to: [email],
+        subject: "Bem-vindo ao Sistema BNOads - Acesso Criado",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #2563eb;">Bem-vindo ao Sistema BNOads!</h1>
+            <p>Olá <strong>${nome}</strong>,</p>
+            <p>Sua conta foi ${isNewUser ? 'criada' : 'configurada'} com sucesso no Sistema BNOads. Abaixo estão suas credenciais de acesso:</p>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Senha:</strong> ${senhaInicial}</p>
             </div>
-          `,
-        });
+            
+            <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+              <p><strong>⚠️ IMPORTANTE:</strong> ${isNewUser ? 'Por segurança, você será obrigado a alterar sua senha no primeiro login.' : 'Use suas credenciais para acessar o sistema.'}</p>
+            </div>
+            
+            <p>Para acessar o sistema, visite: <a href="https://app.bnoads.com.br/auth" style="color: #2563eb;">https://app.bnoads.com.br/auth</a></p>
+            
+            <p>Se você tiver alguma dúvida, entre em contato com nossa equipe.</p>
+            
+            <p>Bem-vindo à equipe!<br>
+            <strong>Equipe BNOads</strong></p>
+          </div>
+        `,
+      });
 
-        console.log('Email enviado com sucesso:', emailResponse);
-        
-        if (emailResponse.error) {
-          console.error('Erro do Resend:', emailResponse.error);
-          throw new Error(`Erro ao enviar email: ${emailResponse.error.message}`);
-        }
-      } catch (emailError: any) {
-        console.error('Erro ao enviar email:', emailError);
-        // Não falhar a criação do colaborador por causa do email
-        console.log('Colaborador criado mas email não foi enviado devido ao erro:', emailError.message);
+      console.log('Email enviado com sucesso:', emailResponse);
+      
+      if (emailResponse.error) {
+        console.error('Erro do Resend:', emailResponse.error);
+        throw new Error(`Erro ao enviar email: ${emailResponse.error.message}`);
       }
-    } else {
-      console.log('Usuário já existia, email não enviado');
+      emailSent = true;
+    } catch (emailError: any) {
+      console.error('Erro ao enviar email:', emailError);
+      console.log('Colaborador criado mas email não foi enviado devido ao erro:', emailError.message);
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
       message: isNewUser ? 'Colaborador criado com sucesso' : 'Colaborador adicionado ao sistema (usuário já existia)',
       user_id: authUserId,
-      is_new_user: isNewUser
+      is_new_user: isNewUser,
+      email_sent: emailSent,
+      debug_info: {
+        existing_user_found: !isNewUser,
+        profile_created: needsProfile,
+        colaborador_created: true
+      }
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
