@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap, CheckCircle, DollarSign, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap, CheckCircle, DollarSign, ChevronLeft, ChevronRight, Play, UserPlus, Plus, FileText, Award, Palette } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
@@ -138,6 +138,31 @@ export function DashboardView() {
   }, []);
   const handleViewPdiDetails = (pdiId: string) => {
     navigate(`/pdi/${pdiId}`);
+  };
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'lesson_completed':
+        return { icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100' };
+      case 'course_started':
+        return { icon: Play, color: 'text-blue-600', bgColor: 'bg-blue-100' };
+      case 'new_collaborator':
+        return { icon: UserPlus, color: 'text-purple-600', bgColor: 'bg-purple-100' };
+      case 'new_course':
+        return { icon: BookOpen, color: 'text-indigo-600', bgColor: 'bg-indigo-100' };
+      case 'new_class':
+        return { icon: Plus, color: 'text-cyan-600', bgColor: 'bg-cyan-100' };
+      case 'new_client':
+        return { icon: Users, color: 'text-orange-600', bgColor: 'bg-orange-100' };
+      case 'new_pop':
+        return { icon: FileText, color: 'text-amber-600', bgColor: 'bg-amber-100' };
+      case 'pdi_completed':
+        return { icon: Award, color: 'text-emerald-600', bgColor: 'bg-emerald-100' };
+      case 'new_reference':
+        return { icon: Palette, color: 'text-pink-600', bgColor: 'bg-pink-100' };
+      default:
+        return { icon: Clock, color: 'text-gray-600', bgColor: 'bg-gray-100' };
+    }
   };
   // Se estiver mostrando orçamentos, renderizar a view de orçamentos
   if (showOrcamentos) {
@@ -360,22 +385,27 @@ export function DashboardView() {
             )}
           </div>
           <div className="space-y-4">
-            {activities.map((activity, index) => <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50">
-                <div className="bg-primary/10 p-2 rounded-lg">
-                  <Clock className="h-4 w-4 text-primary" />
+            {activities.map((activity, index) => {
+              const { icon: ActivityIcon, color, bgColor } = getActivityIcon(activity.type);
+              return (
+                <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
+                  <div className={`${bgColor} p-2 rounded-lg`}>
+                    <ActivityIcon className={`h-4 w-4 ${color}`} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {activity.user}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {activity.action}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {activity.time}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">
-                    {activity.user}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {activity.action}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {activity.time}
-                  </p>
-                </div>
-              </div>)}
+              );
+            })}
           </div>
         </Card>
       </div>
