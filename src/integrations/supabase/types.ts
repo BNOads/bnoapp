@@ -1006,6 +1006,7 @@ export type Database = {
       lancamentos: {
         Row: {
           ativo: boolean
+          cliente_id: string | null
           created_at: string
           created_by: string
           data_fim_captacao: string | null
@@ -1030,6 +1031,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          cliente_id?: string | null
           created_at?: string
           created_by: string
           data_fim_captacao?: string | null
@@ -1054,6 +1056,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          cliente_id?: string | null
           created_at?: string
           created_by?: string
           data_fim_captacao?: string | null
@@ -1076,7 +1079,15 @@ export type Database = {
           tipo_lancamento?: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lancamentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       links_importantes: {
         Row: {

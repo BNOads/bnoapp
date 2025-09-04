@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, BarChart3, Calendar, FileText, Import, Filter } from 'lucide-react';
+import { Plus, BarChart3, Calendar, FileText, Import, Filter, Search, X } from 'lucide-react';
 import NovoLancamentoModal from './NovoLancamentoModal';
 import ImportarLancamentosModal from './ImportarLancamentosModal';
 import LancamentosTable from './LancamentosTable';
@@ -31,11 +32,15 @@ interface Lancamento {
   meta_investimento?: number;
   resultado_obtido?: number;
   roi_percentual?: number;
+  cliente_id?: string;
   created_at: string;
   updated_at: string;
   colaboradores?: {
     nome: string;
     avatar_url?: string;
+  };
+  clientes?: {
+    nome: string;
   };
 }
 
@@ -45,10 +50,13 @@ export const LancamentosView: React.FC = () => {
   const [showNovoModal, setShowNovoModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('lista');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [filtros, setFiltros] = useState({
     status: '',
     tipo: '',
-    gestor: ''
+    gestor: '',
+    cliente: ''
   });
   const { toast } = useToast();
 
@@ -89,6 +97,9 @@ export const LancamentosView: React.FC = () => {
           colaboradores:gestor_responsavel (
             nome,
             avatar_url
+          ),
+          clientes:cliente_id (
+            nome
           )
         `)
         .eq('ativo', true)
@@ -103,6 +114,9 @@ export const LancamentosView: React.FC = () => {
       }
       if (filtros.gestor) {
         query = query.eq('gestor_responsavel', filtros.gestor);
+      }
+      if (filtros.cliente) {
+        query = query.eq('cliente_id', filtros.cliente);
       }
 
       const { data, error } = await query;
@@ -132,7 +146,7 @@ export const LancamentosView: React.FC = () => {
 
   useEffect(() => {
     fetchLancamentos();
-  }, [filtros]);
+  }, [filtros, searchTerm]);
 
   const handleLancamentoCriado = () => {
     fetchLancamentos();
@@ -179,11 +193,23 @@ export const LancamentosView: React.FC = () => {
     );
   }
 
+  // Filtrar por termo de pesquisa
+  const lancamentosFiltrados = lancamentos.filter(l => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      l.nome_lancamento.toLowerCase().includes(searchLower) ||
+      l.descricao?.toLowerCase().includes(searchLower) ||
+      l.colaboradores?.nome.toLowerCase().includes(searchLower) ||
+      l.clientes?.nome.toLowerCase().includes(searchLower)
+    );
+  });
+
   const stats = {
-    total: lancamentos.length,
-    ativos: lancamentos.filter(l => ['em_captacao', 'cpl', 'remarketing'].includes(l.status_lancamento)).length,
-    investimentoTotal: lancamentos.reduce((sum, l) => sum + Number(l.investimento_total), 0),
-    finalizados: lancamentos.filter(l => l.status_lancamento === 'finalizado').length
+    total: lancamentosFiltrados.length,
+    ativos: lancamentosFiltrados.filter(l => ['em_captacao', 'cpl', 'remarketing'].includes(l.status_lancamento)).length,
+    investimentoTotal: lancamentosFiltrados.reduce((sum, l) => sum + Number(l.investimento_total), 0),
+    finalizados: lancamentosFiltrados.filter(l => l.status_lancamento === 'finalizado').length
   };
 
   return (
@@ -196,6 +222,33 @@ export const LancamentosView: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <div className="relative">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar lançamentos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-64"
+            />
+            {searchTerm && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          <Button
+            variant={showFilters ? "default" : "outline"}
+            onClick={() => setShowFilters(!showFilters)}
+            className="gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filtros
+          </Button>
           <Button
             variant="outline"
             onClick={() => setShowImportModal(true)}
@@ -267,17 +320,20 @@ export const LancamentosView: React.FC = () => {
 
         <TabsContent value="lista" className="space-y-4">
           <LancamentosTable 
-            lancamentos={lancamentos}
+            lancamentos={lancamentosFiltrados}
             onRefresh={fetchLancamentos}
             statusColors={statusColors}
             statusLabels={statusLabels}
             tipoLabels={tipoLabels}
+            showFilters={showFilters}
+            filtros={filtros}
+            onFiltrosChange={setFiltros}
           />
         </TabsContent>
 
         <TabsContent value="gantt" className="space-y-4">
           <GanttChart 
-            lancamentos={lancamentos}
+            lancamentos={lancamentosFiltrados}
             statusColors={statusColors}
             statusLabels={statusLabels}
           />
@@ -285,7 +341,7 @@ export const LancamentosView: React.FC = () => {
 
         <TabsContent value="dashboard" className="space-y-4">
           <DashboardLancamentos 
-            lancamentos={lancamentos}
+            lancamentos={lancamentosFiltrados}
             statusLabels={statusLabels}
             tipoLabels={tipoLabels}
           />
