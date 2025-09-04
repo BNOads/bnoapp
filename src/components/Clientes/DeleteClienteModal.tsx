@@ -39,94 +39,70 @@ export const DeleteClienteModal = ({
       setLoading(true);
       console.log('Iniciando exclusão do cliente:', cliente.id, cliente.nome);
 
-      // Excluir todas as referências do cliente em cascata
-      console.log('Excluindo tarefas...');
-      const { error: tarefasError } = await supabase
+      // Primeiro, verificar se existem tarefas e excluí-las
+      console.log('Verificando e excluindo tarefas...');
+      const { data: tarefasData, error: tarefasSelectError } = await supabase
         .from('tarefas')
-        .delete()
+        .select('id')
         .eq('cliente_id', cliente.id);
-      if (tarefasError && tarefasError.code !== 'PGRST116') throw tarefasError;
 
+      if (tarefasSelectError) {
+        console.error('Erro ao verificar tarefas:', tarefasSelectError);
+      } else if (tarefasData && tarefasData.length > 0) {
+        console.log(`Encontradas ${tarefasData.length} tarefas para excluir`);
+        const { error: tarefasDeleteError } = await supabase
+          .from('tarefas')
+          .delete()
+          .eq('cliente_id', cliente.id);
+        
+        if (tarefasDeleteError) {
+          console.error('Erro ao excluir tarefas:', tarefasDeleteError);
+          throw tarefasDeleteError;
+        }
+        console.log('Tarefas excluídas com sucesso');
+      }
+
+      // Excluir outras referências do cliente
       console.log('Excluindo gravações...');
-      const { error: gravacoesError } = await supabase
-        .from('gravacoes')
-        .delete()
-        .eq('cliente_id', cliente.id);
-      if (gravacoesError && gravacoesError.code !== 'PGRST116') throw gravacoesError;
+      await supabase.from('gravacoes').delete().eq('cliente_id', cliente.id);
 
       console.log('Excluindo reuniões...');
-      const { error: reunioesError } = await supabase
-        .from('reunioes')
-        .delete()
-        .eq('cliente_id', cliente.id);
-      if (reunioesError && reunioesError.code !== 'PGRST116') throw reunioesError;
+      await supabase.from('reunioes').delete().eq('cliente_id', cliente.id);
 
       console.log('Excluindo links importantes...');
-      const { error: linksError } = await supabase
-        .from('links_importantes')
-        .delete()
-        .eq('cliente_id', cliente.id);
-      if (linksError && linksError.code !== 'PGRST116') throw linksError;
+      await supabase.from('links_importantes').delete().eq('cliente_id', cliente.id);
 
       console.log('Excluindo orçamentos...');
-      const { error: orcamentosError } = await supabase
-        .from('orcamentos_funil')
-        .delete()
-        .eq('cliente_id', cliente.id);
-      if (orcamentosError && orcamentosError.code !== 'PGRST116') throw orcamentosError;
+      await supabase.from('orcamentos_funil').delete().eq('cliente_id', cliente.id);
 
       console.log('Excluindo documentos...');
-      const { error: documentosError } = await supabase
-        .from('documentos')
-        .delete()
-        .eq('cliente_id', cliente.id);
-      if (documentosError && documentosError.code !== 'PGRST116') throw documentosError;
+      await supabase.from('documentos').delete().eq('cliente_id', cliente.id);
 
       console.log('Excluindo interações...');
-      const { error: interacoesError } = await supabase
-        .from('interacoes')
-        .delete()
-        .eq('cliente_id', cliente.id);
-      if (interacoesError && interacoesError.code !== 'PGRST116') throw interacoesError;
+      await supabase.from('interacoes').delete().eq('cliente_id', cliente.id);
 
       console.log('Excluindo criativos...');
-      const { error: criativosError } = await supabase
-        .from('criativos')
-        .delete()
-        .eq('cliente_id', cliente.id);
-      if (criativosError && criativosError.code !== 'PGRST116') throw criativosError;
+      await supabase.from('criativos').delete().eq('cliente_id', cliente.id);
 
       console.log('Excluindo creatives...');
-      const { error: creativesError } = await supabase
-        .from('creatives')
-        .delete()
-        .eq('client_id', cliente.id);
-      if (creativesError && creativesError.code !== 'PGRST116') throw creativesError;
+      await supabase.from('creatives').delete().eq('client_id', cliente.id);
 
       console.log('Excluindo referências...');
-      const { error: referenciasError } = await supabase
-        .from('referencias_criativos')
-        .delete()
-        .eq('cliente_id', cliente.id);
-      if (referenciasError && referenciasError.code !== 'PGRST116') throw referenciasError;
+      await supabase.from('referencias_criativos').delete().eq('cliente_id', cliente.id);
 
       console.log('Excluindo layout...');
-      const { error: layoutError } = await supabase
-        .from('clientes_layout')
-        .delete()
-        .eq('cliente_id', cliente.id);
-      if (layoutError && layoutError.code !== 'PGRST116') throw layoutError;
+      await supabase.from('clientes_layout').delete().eq('cliente_id', cliente.id);
 
-      // Depois, excluir o cliente
+      // Por último, excluir o cliente
       console.log('Excluindo cliente...');
-      const { error } = await supabase
+      const { error: clienteError } = await supabase
         .from('clientes')
         .delete()
         .eq('id', cliente.id);
 
-      if (error) {
-        console.error('Erro ao excluir cliente:', error);
-        throw error;
+      if (clienteError) {
+        console.error('Erro ao excluir cliente:', clienteError);
+        throw clienteError;
       }
 
       console.log('Cliente excluído com sucesso');
@@ -141,7 +117,7 @@ export const DeleteClienteModal = ({
       console.error('Erro ao excluir cliente:', error);
       toast({
         title: "Erro ao excluir painel",
-        description: error.message,
+        description: error.message || "Erro desconhecido ao excluir o painel",
         variant: "destructive",
       });
     } finally {
