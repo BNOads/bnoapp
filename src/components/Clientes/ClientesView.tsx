@@ -5,13 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
 import { DeleteClienteModal } from "./DeleteClienteModal";
 import { ImportarClientesModal } from "./ImportarClientesModal";
 import { EditarClienteModal } from "./EditarClienteModal";
+import { EdicaoMassaModal } from "./EdicaoMassaModal";
 import { AlocacaoClientes } from "./AlocacaoClientes";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +26,7 @@ export const ClientesView = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [edicaoMassaModalOpen, setEdicaoMassaModalOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<{id: string, nome: string} | null>(null);
   const [clienteToEdit, setClienteToEdit] = useState<any | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
@@ -31,6 +34,9 @@ export const ClientesView = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoriaFilter, setCategoriaFilter] = useState<string>('all');
   const [nichoFilter, setNichoFilter] = useState<string>('all');
+  const [clientesSelecionados, setClientesSelecionados] = useState<string[]>([]);
+  const [sortField, setSortField] = useState<string>('nome');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -141,7 +147,13 @@ export const ClientesView = () => {
     setClienteToEdit(null);
     carregarClientes();
   };
-  
+
+  const handleEdicaoMassaSuccess = () => {
+    setEdicaoMassaModalOpen(false);
+    setClientesSelecionados([]);
+    carregarClientes();
+  };
+
   // Filtrar clientes baseado nos filtros ativos
   const filteredClientes = clientes.filter(cliente => {
     const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -154,6 +166,55 @@ export const ClientesView = () => {
     return matchesSearch && matchesCategoria && matchesNicho;
   });
 
+  // Funções de seleção múltipla
+  const toggleClienteSelection = (clienteId: string) => {
+    setClientesSelecionados(prev => 
+      prev.includes(clienteId) 
+        ? prev.filter(id => id !== clienteId)
+        : [...prev, clienteId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (clientesSelecionados.length === filteredClientes.length) {
+      setClientesSelecionados([]);
+    } else {
+      setClientesSelecionados(filteredClientes.map(c => c.id));
+    }
+  };
+
+  // Função de ordenação
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Aplicar ordenação aos clientes filtrados
+  const sortedAndFilteredClientes = [...filteredClientes].sort((a, b) => {
+    let aValue = a[sortField];
+    let bValue = b[sortField];
+
+    // Tratar valores nulos
+    if (!aValue) aValue = '';
+    if (!bValue) bValue = '';
+
+    // Para campos de string
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+
+    if (sortDirection === 'asc') {
+      return aValue > bValue ? 1 : -1;
+    } else {
+      return aValue < bValue ? 1 : -1;
+    }
+  });
+
   // Obter listas únicas para os filtros
   const categorias = [...new Set(clientes.map(c => c.categoria).filter(Boolean))];
   const nichos = [...new Set(clientes.map(c => c.nicho).filter(Boolean))];
@@ -162,6 +223,7 @@ export const ClientesView = () => {
     setCategoriaFilter('all');
     setNichoFilter('all');
     setSearchTerm('');
+    setClientesSelecionados([]);
   };
 
   return (
@@ -300,16 +362,28 @@ export const ClientesView = () => {
       {/* Tabela de Clientes */}
       <Card className="bg-card border border-border shadow-card">
         <div className="p-6 border-b border-border">
-          <h3 className="text-lg font-semibold text-foreground">
-            Lista de Clientes ({filteredClientes.length})
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-foreground">
+              Lista de Clientes ({sortedAndFilteredClientes.length})
+            </h3>
+            {clientesSelecionados.length > 0 && canCreateContent && (
+              <Button 
+                onClick={() => setEdicaoMassaModalOpen(true)}
+                variant="outline"
+                size="sm"
+              >
+                <EditIcon className="h-4 w-4 mr-2" />
+                Editar {clientesSelecionados.length} selecionado(s)
+              </Button>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
           {loading ? (
             <div className="flex justify-center items-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          ) : filteredClientes.length === 0 ? (
+          ) : sortedAndFilteredClientes.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">
                 {clientes.length === 0 
@@ -339,16 +413,64 @@ export const ClientesView = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Nicho</TableHead>
-                  <TableHead>Status</TableHead>
+                  {canCreateContent && (
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={clientesSelecionados.length === sortedAndFilteredClientes.length}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
+                  )}
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort('nome')}
+                  >
+                    <div className="flex items-center">
+                      Cliente
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort('categoria')}
+                  >
+                    <div className="flex items-center">
+                      Categoria
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort('nicho')}
+                  >
+                    <div className="flex items-center">
+                      Nicho
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort('status_cliente')}
+                  >
+                    <div className="flex items-center">
+                      Status
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </div>
+                  </TableHead>
                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredClientes.map((cliente) => (
+                {sortedAndFilteredClientes.map((cliente) => (
                   <TableRow key={cliente.id} className="hover:bg-muted/50">
+                    {canCreateContent && (
+                      <TableCell>
+                        <Checkbox
+                          checked={clientesSelecionados.includes(cliente.id)}
+                          onCheckedChange={() => toggleClienteSelection(cliente.id)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       <div>
                         <div className="font-medium text-foreground">{cliente.nome}</div>
@@ -388,8 +510,8 @@ export const ClientesView = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge className={`${getStatusColor(cliente.etapa_atual)} text-xs`}>
-                        {getStatusLabel(cliente.etapa_atual)}
+                      <Badge className={`${getStatusColor(cliente.status_cliente || cliente.etapa_atual)} text-xs`}>
+                        {getStatusLabel(cliente.status_cliente || cliente.etapa_atual)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -495,6 +617,13 @@ export const ClientesView = () => {
         }}
         cliente={clienteToEdit}
         onSuccess={handleEditSuccess}
+      />
+
+      <EdicaoMassaModal
+        isOpen={edicaoMassaModalOpen}
+        onClose={() => setEdicaoMassaModalOpen(false)}
+        onSuccess={handleEdicaoMassaSuccess}
+        clientesSelecionados={clientes.filter(c => clientesSelecionados.includes(c.id))}
       />
     </div>
   );
