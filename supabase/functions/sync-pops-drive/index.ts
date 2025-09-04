@@ -150,12 +150,26 @@ Deno.serve(async (req) => {
     // ID da pasta principal dos POPs
     const popsFolderId = '1apPP6j8av3TV64uuyX9ck8YwWg_MTFXy'
     
-    console.log('Buscando Google Docs na pasta dos POPs:', popsFolderId)
+    console.log('🚀 Iniciando busca recursiva completa na pasta dos POPs:', popsFolderId)
+    console.log('📋 Configuração: pageSize=1000, busca recursiva completa ativada')
 
     // Buscar todos os Google Docs da pasta recursivamente
-    const allDocs = await getAllFilesRecursively(popsFolderId, 'POPs', '')
+    const allDocs = await getAllFilesRecursively(popsFolderId, 'POPs-Raiz', '')
     
-    console.log(`Total de Google Docs encontrados: ${allDocs.length}`)
+    console.log(`📊 RESULTADO DA BUSCA COMPLETA:`)
+    console.log(`   Total de Google Docs encontrados: ${allDocs.length}`)
+    
+    // Agrupar por pasta para estatísticas
+    const docsByFolder = allDocs.reduce((acc, doc) => {
+      const key = doc.folderPath || 'Raiz'
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {})
+    
+    console.log(`📁 Distribuição por pastas:`)
+    Object.entries(docsByFolder).forEach(([folder, count]) => {
+      console.log(`   ${folder}: ${count} documentos`)
+    })
 
     // Verificar POPs existentes
     const { data: existingPops, error: fetchError } = await supabase
