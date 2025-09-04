@@ -31,9 +31,10 @@ interface Cliente {
 
 interface LinksImportantesProps {
   clienteId: string;
+  isPublicView?: boolean;
 }
 
-export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
+export const LinksImportantes = ({ clienteId, isPublicView = false }: LinksImportantesProps) => {
   const navigate = useNavigate();
   const [links, setLinks] = useState<LinkImportante[]>([]);
   const [cliente, setCliente] = useState<Cliente | null>(null);
@@ -55,23 +56,27 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setIsAuthenticated(!!user);
+      if (!isPublicView) {
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsAuthenticated(!!user);
+      } else {
+        setIsAuthenticated(false);
+      }
     };
     checkAuth();
     loadClienteData();
     loadLinks();
-  }, [clienteId]);
+  }, [clienteId, isPublicView]);
 
-  // Buscar dashboards automaticamente após carregar dados do cliente
+  // Buscar dashboards automaticamente após carregar dados do cliente (só se autenticado)
   useEffect(() => {
-    if (cliente?.nome) {
+    if (cliente?.nome && isAuthenticated && !isPublicView) {
       buscarDashboardsAutomaticos();
     }
-  }, [cliente?.nome]);
+  }, [cliente?.nome, isAuthenticated, isPublicView]);
 
   const buscarDashboardsAutomaticos = async () => {
-    if (!cliente?.nome) return;
+    if (!cliente?.nome || isPublicView) return;
     
     try {
       setLoadingDashboards(true);
@@ -143,7 +148,14 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
 
   const loadClienteData = async () => {
     try {
-      const { data, error } = await supabase
+      let clientInstance = supabase;
+      
+      if (isPublicView) {
+        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        clientInstance = createPublicSupabaseClient();
+      }
+      
+      const { data, error } = await clientInstance
         .from('clientes')
         .select('nome, pasta_drive_url, dashboards_looker')
         .eq('id', clienteId)
@@ -160,7 +172,14 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
 
   const loadLinks = async () => {
     try {
-      const { data, error } = await supabase
+      let clientInstance = supabase;
+      
+      if (isPublicView) {
+        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        clientInstance = createPublicSupabaseClient();
+      }
+      
+      const { data, error } = await clientInstance
         .from('links_importantes')
         .select('*')
         .eq('cliente_id', clienteId)

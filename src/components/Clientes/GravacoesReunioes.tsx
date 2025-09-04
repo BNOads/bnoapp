@@ -21,9 +21,10 @@ interface Gravacao {
 
 interface GravacoesReunioesProps {
   clienteId: string;
+  isPublicView?: boolean;
 }
 
-export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
+export const GravacoesReunioes = ({ clienteId, isPublicView = false }: GravacoesReunioesProps) => {
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -36,19 +37,30 @@ export const GravacoesReunioes = ({ clienteId }: GravacoesReunioesProps) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setIsAuthenticated(!!user);
+      if (!isPublicView) {
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsAuthenticated(!!user);
+      } else {
+        setIsAuthenticated(false);
+      }
     };
     checkAuth();
     loadGravacoes();
-  }, [clienteId]);
+  }, [clienteId, isPublicView]);
 
   const loadGravacoes = async () => {
     try {
       setLoading(true);
       console.log('🎥 Carregando gravações para cliente:', clienteId);
       
-      const { data, error } = await supabase
+      let clientInstance = supabase;
+      
+      if (isPublicView) {
+        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        clientInstance = createPublicSupabaseClient();
+      }
+      
+      const { data, error } = await clientInstance
         .from('gravacoes')
         .select('*')
         .eq('cliente_id', clienteId)

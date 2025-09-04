@@ -24,9 +24,10 @@ interface Tarefa {
 interface TarefasListProps {
   clienteId: string;
   tipo: 'equipe' | 'cliente';
+  isPublicView?: boolean;
 }
 
-export const TarefasList = ({ clienteId, tipo }: TarefasListProps) => {
+export const TarefasList = ({ clienteId, tipo, isPublicView = false }: TarefasListProps) => {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -41,16 +42,27 @@ export const TarefasList = ({ clienteId, tipo }: TarefasListProps) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setIsAuthenticated(!!user);
+      if (!isPublicView) {
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsAuthenticated(!!user);
+      } else {
+        setIsAuthenticated(false);
+      }
     };
     checkAuth();
     loadTarefas();
-  }, [clienteId, tipo]);
+  }, [clienteId, tipo, isPublicView]);
 
   const loadTarefas = async () => {
     try {
-      const { data, error } = await supabase
+      let clientInstance = supabase;
+      
+      if (isPublicView) {
+        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        clientInstance = createPublicSupabaseClient();
+      }
+      
+      const { data, error } = await clientInstance
         .from('tarefas')
         .select('*')
         .eq('cliente_id', clienteId)

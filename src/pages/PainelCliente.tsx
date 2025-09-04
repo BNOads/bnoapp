@@ -67,13 +67,12 @@ const PainelCliente = () => {
     console.log('=== CARREGAR DADOS CLIENTE ===');
     console.log('Tentando carregar cliente com ID:', clienteId);
     try {
-      // Primeiro vamos verificar se o usuário está autenticado (opcional)
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      console.log('Usuario autenticado:', authData.user?.email, authError);
+      // Use public supabase client for unauthenticated access
+      const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+      const publicSupabase = createPublicSupabaseClient();
       
-      // Tentar consulta pública primeiro
       console.log('Fazendo query pública para cliente:', clienteId);
-      const { data, error } = await supabase
+      const { data, error } = await publicSupabase
         .from('clientes')
         .select('*')
         .eq('id', clienteId);
@@ -258,7 +257,7 @@ const PainelCliente = () => {
                 <span className="truncate">Links Importantes</span>
               </h2>
               <div className="w-full overflow-hidden">
-                <LinksImportantes clienteId={clienteId} />
+               <LinksImportantes clienteId={clienteId} isPublicView={!isAuthenticated} />
               </div>
             </section>
 
@@ -268,7 +267,7 @@ const PainelCliente = () => {
                 <span className="truncate">Tarefas</span>
               </h2>
               <div className="w-full overflow-hidden">
-                <TarefasList clienteId={clienteId} tipo="cliente" />
+                <TarefasList clienteId={clienteId} tipo="cliente" isPublicView={!isAuthenticated} />
               </div>
             </section>
           </div>
@@ -280,7 +279,7 @@ const PainelCliente = () => {
               <span className="truncate">Gravações e Reuniões</span>
             </h2>
             <div className="w-full overflow-hidden">
-              <GravacoesReunioes clienteId={clienteId} />
+              <GravacoesReunioes clienteId={clienteId} isPublicView={!isAuthenticated} />
             </div>
           </section>
 
@@ -291,7 +290,7 @@ const PainelCliente = () => {
               <span className="truncate">Orçamento por Funil</span>
             </h2>
             <div className="w-full overflow-hidden">
-              <OrcamentoPorFunil clienteId={clienteId} />
+              <OrcamentoPorFunil clienteId={clienteId} isPublicView={!isAuthenticated} />
             </div>
           </section>
         </div>

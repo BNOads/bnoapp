@@ -33,9 +33,11 @@ interface HistoricoOrcamento {
 }
 interface OrcamentoPorFunilProps {
   clienteId: string;
+  isPublicView?: boolean;
 }
 export const OrcamentoPorFunil = ({
-  clienteId
+  clienteId,
+  isPublicView = false
 }: OrcamentoPorFunilProps) => {
   const [orcamentos, setOrcamentos] = useState<OrcamentoFunil[]>([]);
   const [historico, setHistorico] = useState<HistoricoOrcamento[]>([]);
@@ -74,10 +76,17 @@ export const OrcamentoPorFunil = ({
   }, [clienteId]);
   const carregarOrcamentos = async () => {
     try {
+      let clientInstance = supabase;
+      
+      if (isPublicView) {
+        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        clientInstance = createPublicSupabaseClient();
+      }
+      
       const {
         data,
         error
-      } = await supabase.from('orcamentos_funil').select('*').eq('cliente_id', clienteId).eq('ativo', true).order('created_at', {
+      } = await clientInstance.from('orcamentos_funil').select('*').eq('cliente_id', clienteId).eq('ativo', true).order('created_at', {
         ascending: false
       });
       if (error) throw error;
