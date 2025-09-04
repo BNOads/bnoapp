@@ -52,6 +52,7 @@ export const POPViewNova = () => {
   const [loading, setLoading] = useState(true);
   const [showNovoPOPModal, setShowNovoPOPModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [syncLoading, setSyncLoading] = useState(false);
   const [novoPOPData, setNovoPOPData] = useState({
     titulo: "",
     tipo: "Procedimento",
@@ -148,15 +149,37 @@ export const POPViewNova = () => {
   };
 
   const sincronizarPOPs = async () => {
+    setSyncLoading(true);
     toast({
-      title: "Sincronizando",
-      description: "Atualizando lista de POPs...",
+      title: "Sincronização iniciada",
+      description: "Buscando POPs do Google Drive...",
     });
-    await carregarPOPs();
-    toast({
-      title: "Sincronizado",
-      description: "POPs atualizados com sucesso!",
-    });
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-pops-drive');
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Sincronização concluída",
+        description: data.message,
+      });
+      
+      // Recarregar a lista de POPs
+      carregarPOPs();
+      
+    } catch (error: any) {
+      console.error('Erro na sincronização:', error);
+      toast({
+        title: "Erro na sincronização",
+        description: "Não foi possível sincronizar os POPs. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncLoading(false);
+    }
   };
 
   const toggleLinkPublico = async (popId: string, ativo: boolean) => {
@@ -269,9 +292,9 @@ export const POPViewNova = () => {
 
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={sincronizarPOPs}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Sincronizar
+            <Button variant="outline" onClick={sincronizarPOPs} disabled={syncLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${syncLoading ? 'animate-spin' : ''}`} />
+              {syncLoading ? 'Sincronizando...' : 'Sincronizar'}
             </Button>
             <Button variant="outline" onClick={() => { setLoading(true); carregarPOPs(); }}>
               <Eye className="h-4 w-4 mr-2" />
