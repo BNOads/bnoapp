@@ -56,27 +56,36 @@ export const ColaboradoresView = () => {
   const calcularDiasParaAniversario = (dataNascimento: string) => {
     if (!dataNascimento) return null;
     
-    const hoje = new Date();
-    const nascimento = new Date(dataNascimento);
-    const anoAtual = hoje.getFullYear();
-    
-    // Criar data de aniversário para o ano atual
-    const aniversarioEsteAno = new Date(anoAtual, nascimento.getMonth(), nascimento.getDate());
-    
-    // Se o aniversário já passou este ano, calcular para o próximo ano
-    if (aniversarioEsteAno < hoje) {
-      aniversarioEsteAno.setFullYear(anoAtual + 1);
+    try {
+      const hoje = new Date();
+      const nascimento = new Date(dataNascimento);
+      
+      // Verificar se a data é válida
+      if (isNaN(nascimento.getTime())) return null;
+      
+      const anoAtual = hoje.getFullYear();
+      
+      // Criar data de aniversário para o ano atual
+      const aniversarioEsteAno = new Date(anoAtual, nascimento.getMonth(), nascimento.getDate());
+      
+      // Se o aniversário já passou este ano, calcular para o próximo ano
+      if (aniversarioEsteAno < hoje) {
+        aniversarioEsteAno.setFullYear(anoAtual + 1);
+      }
+      
+      // Calcular diferença em dias
+      const diferenca = Math.ceil((aniversarioEsteAno.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+      return diferenca;
+    } catch (error) {
+      console.error('Erro ao calcular aniversário:', error);
+      return null;
     }
-    
-    // Calcular diferença em dias
-    const diferenca = Math.ceil((aniversarioEsteAno.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-    return diferenca;
   };
 
   const formatarAniversario = (dataNascimento: string) => {
-    if (!dataNascimento) return 'N/A';
+    if (!dataNascimento) return 'Não informado';
     const diasRestantes = calcularDiasParaAniversario(dataNascimento);
-    if (diasRestantes === null) return 'N/A';
+    if (diasRestantes === null) return 'Data inválida';
     
     if (diasRestantes === 0) return 'Hoje! 🎂';
     if (diasRestantes === 1) return 'Amanhã! 🎂';
@@ -85,18 +94,18 @@ export const ColaboradoresView = () => {
   };
 
   const handleEditarColaborador = (colaborador: any) => {
-    // Implementar edição
+    console.log('Editando colaborador:', colaborador);
     toast({
-      title: "Editar Colaborador",
-      description: `Editando ${colaborador.nome}`,
+      title: "Funcionalidade em desenvolvimento",
+      description: `A edição de ${colaborador.nome} será implementada em breve.`,
     });
   };
 
   const handleDelegarColaborador = (colaborador: any) => {
-    // Implementar delegação
+    console.log('Delegando colaborador:', colaborador);
     toast({
-      title: "Delegar Colaborador",
-      description: `Delegando responsabilidades para ${colaborador.nome}`,
+      title: "Funcionalidade em desenvolvimento", 
+      description: `A delegação para ${colaborador.nome} será implementada em breve.`,
     });
   };
 
