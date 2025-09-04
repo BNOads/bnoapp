@@ -104,7 +104,9 @@ const PainelCliente = () => {
   };
 
   const handleSharePanel = async () => {
-    const panelLink = `https://app.bnoads.com/painel/${clienteId}`;
+    // Use the current domain instead of hardcoded one
+    const currentDomain = window.location.origin;
+    const panelLink = `${currentDomain}/painel/${clienteId}`;
     
     try {
       await navigator.clipboard.writeText(panelLink);
