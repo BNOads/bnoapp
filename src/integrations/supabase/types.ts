@@ -885,6 +885,50 @@ export type Database = {
           },
         ]
       }
+      historico_status_lancamentos: {
+        Row: {
+          alterado_por: string
+          data_alteracao: string
+          id: string
+          lancamento_id: string
+          motivo: string | null
+          status_anterior:
+            | Database["public"]["Enums"]["status_lancamento"]
+            | null
+          status_novo: Database["public"]["Enums"]["status_lancamento"]
+        }
+        Insert: {
+          alterado_por: string
+          data_alteracao?: string
+          id?: string
+          lancamento_id: string
+          motivo?: string | null
+          status_anterior?:
+            | Database["public"]["Enums"]["status_lancamento"]
+            | null
+          status_novo: Database["public"]["Enums"]["status_lancamento"]
+        }
+        Update: {
+          alterado_por?: string
+          data_alteracao?: string
+          id?: string
+          lancamento_id?: string
+          motivo?: string | null
+          status_anterior?:
+            | Database["public"]["Enums"]["status_lancamento"]
+            | null
+          status_novo?: Database["public"]["Enums"]["status_lancamento"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_status_lancamentos_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interacoes: {
         Row: {
           cliente_id: string | null
@@ -958,6 +1002,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lancamentos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string
+          data_fim_captacao: string | null
+          data_fim_remarketing: string | null
+          data_inicio_captacao: string
+          data_inicio_remarketing: string | null
+          datas_cpls: string[] | null
+          descricao: string | null
+          gestor_responsavel: string
+          id: string
+          investimento_total: number
+          link_briefing: string | null
+          link_dashboard: string | null
+          meta_investimento: number | null
+          nome_lancamento: string
+          observacoes: string | null
+          resultado_obtido: number | null
+          roi_percentual: number | null
+          status_lancamento: Database["public"]["Enums"]["status_lancamento"]
+          tipo_lancamento: Database["public"]["Enums"]["tipo_lancamento"]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by: string
+          data_fim_captacao?: string | null
+          data_fim_remarketing?: string | null
+          data_inicio_captacao: string
+          data_inicio_remarketing?: string | null
+          datas_cpls?: string[] | null
+          descricao?: string | null
+          gestor_responsavel: string
+          id?: string
+          investimento_total?: number
+          link_briefing?: string | null
+          link_dashboard?: string | null
+          meta_investimento?: number | null
+          nome_lancamento: string
+          observacoes?: string | null
+          resultado_obtido?: number | null
+          roi_percentual?: number | null
+          status_lancamento?: Database["public"]["Enums"]["status_lancamento"]
+          tipo_lancamento: Database["public"]["Enums"]["tipo_lancamento"]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string
+          data_fim_captacao?: string | null
+          data_fim_remarketing?: string | null
+          data_inicio_captacao?: string
+          data_inicio_remarketing?: string | null
+          datas_cpls?: string[] | null
+          descricao?: string | null
+          gestor_responsavel?: string
+          id?: string
+          investimento_total?: number
+          link_briefing?: string | null
+          link_dashboard?: string | null
+          meta_investimento?: number | null
+          nome_lancamento?: string
+          observacoes?: string | null
+          resultado_obtido?: number | null
+          roi_percentual?: number | null
+          status_lancamento?: Database["public"]["Enums"]["status_lancamento"]
+          tipo_lancamento?: Database["public"]["Enums"]["tipo_lancamento"]
+          updated_at?: string
+        }
+        Relationships: []
       }
       links_importantes: {
         Row: {
@@ -2016,11 +2135,26 @@ export type Database = {
         | "viuvo"
         | "uniao_estavel"
       nivel_acesso: "admin" | "gestor_trafego" | "cs" | "designer"
+      status_lancamento:
+        | "em_captacao"
+        | "cpl"
+        | "remarketing"
+        | "finalizado"
+        | "pausado"
+        | "cancelado"
       tipo_acesso_dados:
         | "leitura_propria"
         | "leitura_limitada"
         | "leitura_completa"
         | "administracao"
+      tipo_lancamento:
+        | "semente"
+        | "interno"
+        | "externo"
+        | "perpetuo"
+        | "flash"
+        | "evento"
+        | "outro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2157,11 +2291,28 @@ export const Constants = {
         "uniao_estavel",
       ],
       nivel_acesso: ["admin", "gestor_trafego", "cs", "designer"],
+      status_lancamento: [
+        "em_captacao",
+        "cpl",
+        "remarketing",
+        "finalizado",
+        "pausado",
+        "cancelado",
+      ],
       tipo_acesso_dados: [
         "leitura_propria",
         "leitura_limitada",
         "leitura_completa",
         "administracao",
+      ],
+      tipo_lancamento: [
+        "semente",
+        "interno",
+        "externo",
+        "perpetuo",
+        "flash",
+        "evento",
+        "outro",
       ],
     },
   },
