@@ -45,49 +45,77 @@ export const DeleteClienteModal = ({
         .from('tarefas')
         .delete()
         .eq('cliente_id', cliente.id);
-      if (tarefasError) throw tarefasError;
+      if (tarefasError && tarefasError.code !== 'PGRST116') throw tarefasError;
 
       console.log('Excluindo gravações...');
       const { error: gravacoesError } = await supabase
         .from('gravacoes')
         .delete()
         .eq('cliente_id', cliente.id);
-      if (gravacoesError) throw gravacoesError;
+      if (gravacoesError && gravacoesError.code !== 'PGRST116') throw gravacoesError;
 
       console.log('Excluindo reuniões...');
       const { error: reunioesError } = await supabase
         .from('reunioes')
         .delete()
         .eq('cliente_id', cliente.id);
-      if (reunioesError) throw reunioesError;
+      if (reunioesError && reunioesError.code !== 'PGRST116') throw reunioesError;
 
       console.log('Excluindo links importantes...');
       const { error: linksError } = await supabase
         .from('links_importantes')
         .delete()
         .eq('cliente_id', cliente.id);
-      if (linksError) throw linksError;
+      if (linksError && linksError.code !== 'PGRST116') throw linksError;
 
-      console.log('Excluindo uploads...');
-      const { error: uploadsError } = await supabase
-        .from('uploads_clientes')
+      console.log('Excluindo orçamentos...');
+      const { error: orcamentosError } = await supabase
+        .from('orcamentos_funil')
         .delete()
         .eq('cliente_id', cliente.id);
-      if (uploadsError) throw uploadsError;
+      if (orcamentosError && orcamentosError.code !== 'PGRST116') throw orcamentosError;
 
       console.log('Excluindo documentos...');
       const { error: documentosError } = await supabase
         .from('documentos')
         .delete()
         .eq('cliente_id', cliente.id);
-      if (documentosError) throw documentosError;
+      if (documentosError && documentosError.code !== 'PGRST116') throw documentosError;
 
       console.log('Excluindo interações...');
       const { error: interacoesError } = await supabase
         .from('interacoes')
         .delete()
         .eq('cliente_id', cliente.id);
-      if (interacoesError) throw interacoesError;
+      if (interacoesError && interacoesError.code !== 'PGRST116') throw interacoesError;
+
+      console.log('Excluindo criativos...');
+      const { error: criativosError } = await supabase
+        .from('criativos')
+        .delete()
+        .eq('cliente_id', cliente.id);
+      if (criativosError && criativosError.code !== 'PGRST116') throw criativosError;
+
+      console.log('Excluindo creatives...');
+      const { error: creativesError } = await supabase
+        .from('creatives')
+        .delete()
+        .eq('client_id', cliente.id);
+      if (creativesError && creativesError.code !== 'PGRST116') throw creativesError;
+
+      console.log('Excluindo referências...');
+      const { error: referenciasError } = await supabase
+        .from('referencias_criativos')
+        .delete()
+        .eq('cliente_id', cliente.id);
+      if (referenciasError && referenciasError.code !== 'PGRST116') throw referenciasError;
+
+      console.log('Excluindo layout...');
+      const { error: layoutError } = await supabase
+        .from('clientes_layout')
+        .delete()
+        .eq('cliente_id', cliente.id);
+      if (layoutError && layoutError.code !== 'PGRST116') throw layoutError;
 
       // Depois, excluir o cliente
       console.log('Excluindo cliente...');

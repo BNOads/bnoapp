@@ -318,47 +318,6 @@ export const ClientesView = () => {
             </div>
           </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        <Card className="p-4 sm:p-6 bg-card border border-border shadow-card">
-          <div className="flex items-center space-x-3">
-            <div className="bg-primary/10 p-2 sm:p-3 rounded-xl">
-              <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-bold text-foreground">{clientes.length}</p>
-              <p className="text-xs sm:text-sm text-muted-foreground">Total de Painéis</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4 sm:p-6 bg-card border border-border shadow-card">
-          <div className="flex items-center space-x-3">
-            <div className="bg-primary-glow/10 p-2 sm:p-3 rounded-xl">
-              <Eye className="h-5 w-5 sm:h-6 sm:w-6 text-primary-glow" />
-            </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-bold text-foreground">
-                {clientes.reduce((acc, cliente) => acc + (cliente.total_acessos || 0), 0)}
-              </p>
-              <p className="text-xs sm:text-sm text-muted-foreground">Total de Acessos</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4 sm:p-6 bg-card border border-border shadow-card sm:col-span-2 lg:col-span-1">
-          <div className="flex items-center space-x-3">
-            <div className="bg-secondary/10 p-2 sm:p-3 rounded-xl">
-              <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-secondary" />
-            </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-bold text-foreground">
-                {clientes.filter(c => c.etapa_atual === 'ativo').length}
-              </p>
-              <p className="text-xs sm:text-sm text-muted-foreground">Painéis Ativos</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
       {/* Tabela de Clientes */}
       <Card className="bg-card border border-border shadow-card">
         <div className="p-6 border-b border-border">
