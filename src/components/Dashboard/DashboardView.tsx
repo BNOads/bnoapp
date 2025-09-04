@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap, CheckCircle, DollarSign } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap, CheckCircle, DollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
@@ -21,7 +21,13 @@ export function DashboardView() {
     isAdmin
   } = useUserPermissions();
   const {
-    activities
+    activities,
+    currentPage,
+    totalPages,
+    nextPage,
+    prevPage,
+    hasNextPage,
+    hasPrevPage
   } = useRecentActivities();
   const {
     stats,
@@ -321,9 +327,38 @@ export function DashboardView() {
 
         {/* Recent Activity */}
         <Card className={`p-6 bg-card border border-border shadow-card ${!canCreateContent ? 'lg:col-span-2' : ''}`}>
-          <h3 className="text-xl font-semibold mb-6 text-foreground">
-            Atividade Recente
-          </h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-foreground">
+              Atividade Recente
+            </h3>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {currentPage} de {totalPages}
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={prevPage}
+                    disabled={!hasPrevPage}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={nextPage}
+                    disabled={!hasNextPage}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="space-y-4">
             {activities.map((activity, index) => <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50">
                 <div className="bg-primary/10 p-2 rounded-lg">

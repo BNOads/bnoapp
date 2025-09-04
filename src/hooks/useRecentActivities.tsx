@@ -10,8 +10,14 @@ interface RecentActivity {
 }
 
 export const useRecentActivities = () => {
-  const [activities, setActivities] = useState<RecentActivity[]>([]);
+  const [allActivities, setAllActivities] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const activitiesPerPage = 5;
+
+  const totalPages = Math.ceil(allActivities.length / activitiesPerPage);
+  const startIndex = (currentPage - 1) * activitiesPerPage;
+  const activities = allActivities.slice(startIndex, startIndex + activitiesPerPage);
 
   useEffect(() => {
     loadRecentActivities();
@@ -211,11 +217,11 @@ export const useRecentActivities = () => {
         return timeB - timeA;
       });
 
-      setActivities(allActivities.slice(0, 10));
+      setAllActivities(allActivities.slice(0, 50)); // Manter até 50 atividades total
     } catch (error) {
       console.error('Erro ao carregar atividades recentes:', error);
       // Fallback para dados estáticos em caso de erro
-      setActivities([
+      setAllActivities([
         { id: '1', user: "Maria Silva", action: "Concluiu módulo de Facebook Ads", time: "2h atrás", type: 'lesson_completed' },
         { id: '2', user: "João Santos", action: "Criou painel do cliente XYZ", time: "4h atrás", type: 'new_client' },
         { id: '3', user: "Ana Costa", action: "Iniciou curso de Google Analytics", time: "6h atrás", type: 'course_started' },
@@ -254,5 +260,27 @@ export const useRecentActivities = () => {
     return now;
   };
 
-  return { activities, loading, refreshActivities: loadRecentActivities };
+  const nextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const prevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  return { 
+    activities, 
+    loading, 
+    refreshActivities: loadRecentActivities,
+    currentPage,
+    totalPages,
+    nextPage,
+    prevPage,
+    hasNextPage: currentPage < totalPages,
+    hasPrevPage: currentPage > 1
+  };
 };
