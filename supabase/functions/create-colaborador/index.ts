@@ -16,26 +16,6 @@ interface CreateColaboradorRequest {
   tamanho_camisa?: string;
 }
 
-// Função para gerar senha aleatória segura
-function generateRandomPassword(): string {
-  const length = 12;
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*";
-  let password = "";
-  
-  // Garantir pelo menos um de cada tipo
-  password += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)]; // maiúscula
-  password += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)]; // minúscula  
-  password += "0123456789"[Math.floor(Math.random() * 10)]; // número
-  password += "!@#$%&*"[Math.floor(Math.random() * 7)]; // símbolo
-  
-  // Completar o restante
-  for (let i = 4; i < length; i++) {
-    password += charset[Math.floor(Math.random() * charset.length)];
-  }
-  
-  // Embaralhar a senha
-  return password.split('').sort(() => Math.random() - 0.5).join('');
-}
 
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
@@ -62,8 +42,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Criando colaborador:', { nome, email, nivel_acesso });
 
-    // Gerar senha aleatória e segura
-    const senhaInicial = generateRandomPassword();
+    // Gerar senha inicial (email do usuário)
+    const senhaInicial = email;
 
     let authUserId: string;
     let isNewUser = false;
