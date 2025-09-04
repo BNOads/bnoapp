@@ -41,18 +41,21 @@ const PainelCliente = () => {
       }
     });
 
-    // Verificar autenticação
+    // Verificar autenticação (opcional - não bloqueia o acesso)
     const checkAuth = async () => {
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
-      setUser(user);
-      setIsAuthenticated(!!user);
-      console.log('Usuario autenticado:', !!user, user?.email);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+        setIsAuthenticated(!!user);
+        console.log('Usuario autenticado:', !!user, user?.email);
+      } catch (error) {
+        console.log('Erro na autenticação (não crítico):', error);
+        setUser(null);
+        setIsAuthenticated(false);
+      }
     };
     checkAuth();
+    
     if (clienteId) {
       carregarDadosCliente();
     } else {
