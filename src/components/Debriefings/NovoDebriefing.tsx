@@ -90,7 +90,8 @@ export default function NovoDebriefing() {
         .from('debriefings')
         .insert([{
           ...debriefingData,
-          status: 'rascunho'
+          status: 'rascunho',
+          created_by: (await supabase.auth.getUser()).data.user?.id
         }])
         .select()
         .single();

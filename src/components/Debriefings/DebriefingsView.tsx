@@ -41,7 +41,10 @@ export default function DebriefingsView() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDebriefings(data || []);
+      setDebriefings((data || []).map(item => ({
+        ...item,
+        status: item.status as 'rascunho' | 'processando' | 'concluido'
+      })));
     } catch (error) {
       console.error('Erro ao buscar debriefings:', error);
       toast.error('Erro ao carregar debriefings');

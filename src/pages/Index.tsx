@@ -9,6 +9,7 @@ import { TreinamentosView } from "@/components/Treinamentos/TreinamentosView";
 import { ReferenciasView } from "@/components/Referencias/ReferenciasView";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
 import { EscalaReunioes } from "@/components/Meetings/EscalaReunioes";
+import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,6 +31,8 @@ const Index = () => {
         return <ColaboradoresView />;
       case 'clientes':
         return <ClientesView />;
+      case 'debriefings':
+        return <DebriefingsView />;
       case 'lancamentos':
         return <LancamentosView />;
       case 'assistente':

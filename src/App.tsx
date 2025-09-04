@@ -18,6 +18,9 @@ import { ReferenciaViewer } from "./pages/ReferenciaViewer";
 import { ReferenciaPublica } from "./pages/ReferenciaPublica";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import DebriefingsView from "@/components/Debriefings/DebriefingsView";
+import NovoDebriefing from "@/components/Debriefings/NovoDebriefing";
+import DebriefingDetalhes from "@/components/Debriefings/DebriefingDetalhes";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +62,21 @@ function App() {
               <Route path="/perfil" element={
                 <ProtectedRoute>
                   <Perfil />
+                </ProtectedRoute>
+              } />
+              <Route path="/debriefings" element={
+                <ProtectedRoute>
+                  <DebriefingsView />
+                </ProtectedRoute>
+              } />
+              <Route path="/debriefings/novo" element={
+                <ProtectedRoute>
+                  <NovoDebriefing />
+                </ProtectedRoute>
+              } />
+              <Route path="/debriefings/:id" element={
+                <ProtectedRoute>
+                  <DebriefingDetalhes />
                 </ProtectedRoute>
               } />
               <Route path="/" element={

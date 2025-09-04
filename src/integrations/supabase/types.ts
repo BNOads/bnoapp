@@ -683,6 +683,110 @@ export type Database = {
         }
         Relationships: []
       }
+      debriefings: {
+        Row: {
+          anexos: Json | null
+          cliente_id: string | null
+          cliente_nome: string
+          conversao_lead_venda: number | null
+          cpl: number | null
+          created_at: string
+          created_by: string
+          dados_compradores: Json | null
+          dados_leads: Json | null
+          dados_trafego: Json | null
+          faturamento_total: number | null
+          id: string
+          insights_automaticos: Json | null
+          investimento_total: number | null
+          leads_total: number | null
+          meta_cpl: number | null
+          meta_roas: number | null
+          moeda: string
+          nome_lancamento: string
+          o_que_ajustar: string[] | null
+          o_que_funcionou: string[] | null
+          periodo_fim: string
+          periodo_inicio: string
+          proximos_passos: string[] | null
+          roas: number | null
+          status: string
+          ticket_medio: number | null
+          updated_at: string
+          vendas_total: number | null
+        }
+        Insert: {
+          anexos?: Json | null
+          cliente_id?: string | null
+          cliente_nome: string
+          conversao_lead_venda?: number | null
+          cpl?: number | null
+          created_at?: string
+          created_by: string
+          dados_compradores?: Json | null
+          dados_leads?: Json | null
+          dados_trafego?: Json | null
+          faturamento_total?: number | null
+          id?: string
+          insights_automaticos?: Json | null
+          investimento_total?: number | null
+          leads_total?: number | null
+          meta_cpl?: number | null
+          meta_roas?: number | null
+          moeda?: string
+          nome_lancamento: string
+          o_que_ajustar?: string[] | null
+          o_que_funcionou?: string[] | null
+          periodo_fim: string
+          periodo_inicio: string
+          proximos_passos?: string[] | null
+          roas?: number | null
+          status?: string
+          ticket_medio?: number | null
+          updated_at?: string
+          vendas_total?: number | null
+        }
+        Update: {
+          anexos?: Json | null
+          cliente_id?: string | null
+          cliente_nome?: string
+          conversao_lead_venda?: number | null
+          cpl?: number | null
+          created_at?: string
+          created_by?: string
+          dados_compradores?: Json | null
+          dados_leads?: Json | null
+          dados_trafego?: Json | null
+          faturamento_total?: number | null
+          id?: string
+          insights_automaticos?: Json | null
+          investimento_total?: number | null
+          leads_total?: number | null
+          meta_cpl?: number | null
+          meta_roas?: number | null
+          moeda?: string
+          nome_lancamento?: string
+          o_que_ajustar?: string[] | null
+          o_que_funcionou?: string[] | null
+          periodo_fim?: string
+          periodo_inicio?: string
+          proximos_passos?: string[] | null
+          roas?: number | null
+          status?: string
+          ticket_medio?: number | null
+          updated_at?: string
+          vendas_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debriefings_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documentos: {
         Row: {
           autor: string | null

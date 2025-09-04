@@ -34,13 +34,17 @@ export const Header = ({
     label: 'Clientes',
     icon: Calendar
   }, {
+    id: 'debriefings',
+    label: 'Debriefings',
+    icon: FileText
+  }, {
     id: 'assistente',
     label: 'Assistente',
     icon: UserCheck
   }, {
     id: 'treinamentos',
     label: 'Treinamentos',
-    icon: FileText
+    icon: CalendarDays
   }, {
     id: 'referencias',
     label: 'Referências',
