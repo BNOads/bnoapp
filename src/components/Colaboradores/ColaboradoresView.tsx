@@ -187,65 +187,91 @@ export const ColaboradoresView = () => {
                 return (
                   <div
                     key={colaborador.id}
-                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border hover:shadow-card transition-all duration-300 space-y-4 sm:space-y-0 ${
-                      isAniversarioProximo ? 'bg-yellow-50 border-yellow-200' : 'bg-muted/20 border-border'
+                    className={`p-6 rounded-xl border hover:shadow-lg transition-all duration-300 ${
+                      isAniversarioProximo ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' : 'bg-card border-border'
                     }`}
                   >
-                    <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-                      <Avatar className="h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0">
-                        {colaborador.avatar_url && (
-                          <AvatarImage 
-                            src={colaborador.avatar_url} 
-                            alt={colaborador.nome} 
-                          />
-                        )}
-                        <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold text-sm">
-                          {colaborador.nome.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-semibold text-foreground text-base sm:text-lg">
-                          {colaborador.nome}
-                        </h4>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {colaborador.nivel_acesso === 'admin' ? 'Administrador' : 
-                           colaborador.nivel_acesso === 'gestor_trafego' ? 'Gestor de Tráfego' : 'Customer Success'}
-                        </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs text-muted-foreground">
-                          <div className="flex items-center space-x-1">
-                            <Mail className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{colaborador.email}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-3 w-3 flex-shrink-0" />
-                            <span>Desde {formatarData(colaborador.data_admissao)}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Cake className="h-3 w-3 flex-shrink-0" />
-                            <span>{formatarAniversario(colaborador.data_nascimento)}</span>
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                      {/* Seção Principal - Avatar e Info Básica */}
+                      <div className="flex items-center space-x-4 min-w-0 flex-1">
+                        <Avatar className="h-16 w-16 flex-shrink-0 ring-2 ring-border">
+                          {colaborador.avatar_url && (
+                            <AvatarImage 
+                              src={colaborador.avatar_url} 
+                              alt={colaborador.nome} 
+                            />
+                          )}
+                          <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold text-lg">
+                            {colaborador.nome.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-foreground text-xl mb-1">
+                            {colaborador.nome}
+                          </h4>
+                          <p className="text-sm font-medium text-primary mb-3">
+                            {colaborador.nivel_acesso === 'admin' ? 'Administrador' : 
+                             colaborador.nivel_acesso === 'gestor_trafego' ? 'Gestor de Tráfego' : 'Customer Success'}
+                          </p>
+                          
+                          {/* Informações de Contato e Datas */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                            <div className="flex items-center space-x-2 bg-muted/30 rounded-lg p-2">
+                              <Mail className="h-4 w-4 text-primary flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</p>
+                                <p className="text-sm text-foreground truncate">{colaborador.email}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2 bg-muted/30 rounded-lg p-2">
+                              <Calendar className="h-4 w-4 text-green-600 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Entrada</p>
+                                <p className="text-sm text-foreground">{formatarData(colaborador.data_admissao)}</p>
+                              </div>
+                            </div>
+                            
+                            <div className={`flex items-center space-x-2 rounded-lg p-2 ${
+                              isAniversarioProximo ? 'bg-yellow-100 border border-yellow-200' : 'bg-muted/30'
+                            }`}>
+                              <Cake className={`h-4 w-4 flex-shrink-0 ${
+                                isAniversarioProximo ? 'text-yellow-600' : 'text-pink-500'
+                              }`} />
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Aniversário</p>
+                                <p className={`text-sm font-medium ${
+                                  isAniversarioProximo ? 'text-yellow-700' : 'text-foreground'
+                                }`}>
+                                  {formatarAniversario(colaborador.data_nascimento)}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center justify-end">
-                      {isAdmin && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="flex-shrink-0">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditarColaborador(colaborador)}>
-                              Editar Colaborador
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDelegarColaborador(colaborador)}>
-                              Delegar Colaborador
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                      {/* Menu de Ações */}
+                      <div className="flex items-center justify-end lg:justify-center">
+                        {isAdmin && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="icon" className="h-10 w-10">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => handleEditarColaborador(colaborador)}>
+                                Editar Colaborador
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDelegarColaborador(colaborador)}>
+                                Delegar Colaborador
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
