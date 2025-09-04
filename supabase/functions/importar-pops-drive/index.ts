@@ -72,17 +72,49 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Buscar documentos do Google na pasta
-    const driveUrl = `https://www.googleapis.com/drive/v3/files?key=${apiKey}&q='${folderId}' in parents and mimeType='application/vnd.google-apps.document' and trashed=false&fields=files(id,name,modifiedTime,webViewLink)`;
+    console.log('Buscando documentos na pasta ID:', folderId);
     
-    console.log('Buscando documentos do Google Drive...');
-    const driveResponse = await fetch(driveUrl);
+    // Primeiro, tentar listar todos os arquivos na pasta
+    const allFilesUrl = `https://www.googleapis.com/drive/v3/files?key=${apiKey}&q='${folderId}' in parents and trashed=false&fields=files(id,name,mimeType,webViewLink,modifiedTime)`;
+    console.log('URL da API (todos os arquivos):', allFilesUrl);
+    
+    const allFilesResponse = await fetch(allFilesUrl);
+    console.log('Status da resposta (todos os arquivos):', allFilesResponse.status);
+    
+    if (!allFilesResponse.ok) {
+      const errorText = await allFilesResponse.text();
+      console.error('Erro ao buscar arquivos:', allFilesResponse.status, errorText);
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: `Erro ao acessar Google Drive: ${allFilesResponse.status} - ${errorText}` 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
+    const allFilesData = await allFilesResponse.json();
+    console.log('Todos os arquivos encontrados:', allFilesData.files?.length || 0);
+    
+    if (allFilesData.files) {
+      allFilesData.files.forEach((file: any) => {
+        console.log(`Arquivo: ${file.name} - Tipo: ${file.mimeType}`);
+      });
+    }
+
+    // Agora buscar especificamente documentos do Google
+    const docsUrl = `https://www.googleapis.com/drive/v3/files?key=${apiKey}&q='${folderId}' in parents and mimeType='application/vnd.google-apps.document' and trashed=false&fields=files(id,name,modifiedTime,webViewLink)`;
+    console.log('URL da API (só docs):', docsUrl);
+    
+    const driveResponse = await fetch(docsUrl);
+    console.log('Status da resposta (docs):', driveResponse.status);
     
     if (!driveResponse.ok) {
       const errorText = await driveResponse.text();
       console.error('Erro ao buscar documentos:', driveResponse.status, errorText);
       return new Response(JSON.stringify({ 
         success: false,
-        error: `Erro ao acessar Google Drive: ${driveResponse.status}` 
+        error: `Erro ao acessar Google Drive: ${driveResponse.status} - ${errorText}` 
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -91,7 +123,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     const driveData = await driveResponse.json();
     const documents = driveData.files || [];
-    console.log(`Encontrados ${documents.length} documentos do Google`);
+    console.log(`Encontrados ${documents.length} documentos do Google Docs`);
+    
+    if (documents.length > 0) {
+      documents.forEach((doc: any) => {
+        console.log(`Documento encontrado: ${doc.name} (ID: ${doc.id})`);
+      });
+    }
 
     if (documents.length === 0) {
       return new Response(JSON.stringify({ 
