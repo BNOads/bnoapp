@@ -47,72 +47,73 @@ const handler = async (req: Request): Promise<Response> => {
     let authUserId: string;
     let isNewUser = false;
 
-    // Primeiro tentar criar o usuário. Se falhar por já existir, buscar o existente
+    // Primeiro tentar buscar o usuário por email com paginação
     try {
-      console.log('Tentando criar novo usuário no auth...');
+      console.log('Buscando usuários existentes...');
       
-      const { data: authUser, error: authError } = await supabaseClient.auth.admin.createUser({
-        email,
-        password: senhaInicial,
-        email_confirm: true,
-        user_metadata: {
-          nome: nome,
-          primeiro_login: true
+      let existingUser = null;
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore && !existingUser) {
+        const { data: usersPage, error: listError } = await supabaseClient.auth.admin.listUsers({
+          page,
+          perPage: 1000
+        });
+        
+        if (listError) {
+          console.error('Erro ao listar usuários:', listError);
+          throw new Error(`Erro ao verificar usuários existentes: ${listError.message}`);
         }
-      });
 
-      if (authError) {
-        // Se o erro for que o usuário já existe, vamos buscá-lo
-        if (authError.message.includes('already been registered') || authError.code === 'email_exists') {
-          console.log('Usuário já existe, buscando usuário existente...');
-          
-          // Buscar o usuário existente por email
-          const { data: existingUsers, error: listError } = await supabaseClient.auth.admin.listUsers();
-          
-          if (listError) {
-            console.error('Erro ao listar usuários:', listError);
-            throw new Error(`Erro ao verificar usuários existentes: ${listError.message}`);
+        existingUser = usersPage.users.find(user => user.email === email);
+        
+        hasMore = usersPage.users.length === 1000;
+        page++;
+      }
+
+      if (existingUser) {
+        console.log('Usuário encontrado no auth:', existingUser.id);
+        authUserId = existingUser.id;
+        isNewUser = false;
+        
+        // Verificar se já tem perfil de colaborador
+        const { data: existingProfile } = await supabaseClient
+          .from('profiles')
+          .select('user_id')
+          .eq('user_id', authUserId)
+          .single();
+
+        if (existingProfile) {
+          throw new Error('Este usuário já está cadastrado como colaborador.');
+        }
+        
+        console.log('Usuário existe no auth mas não tem perfil de colaborador, prosseguindo...');
+      } else {
+        console.log('Usuário não encontrado, criando novo...');
+        
+        // Criar novo usuário
+        const { data: authUser, error: authError } = await supabaseClient.auth.admin.createUser({
+          email,
+          password: senhaInicial,
+          email_confirm: true,
+          user_metadata: {
+            nome: nome,
+            primeiro_login: true
           }
+        });
 
-          const existingUser = existingUsers.users.find(user => user.email === email);
-          
-          if (!existingUser) {
-            throw new Error('Usuário não encontrado após verificação de existência');
-          }
-
-          authUserId = existingUser.id;
-          isNewUser = false;
-          
-          console.log('Usuário existente encontrado:', authUserId);
-          
-          // Verificar se já tem perfil
-          const { data: existingProfile } = await supabaseClient
-            .from('profiles')
-            .select('user_id')
-            .eq('user_id', authUserId)
-            .single();
-
-          if (existingProfile) {
-            throw new Error('Este usuário já está cadastrado como colaborador.');
-          }
-          
-        } else {
-          // Se for outro tipo de erro, relançar
+        if (authError) {
           console.error('Erro ao criar usuário auth:', authError);
           throw new Error(`Erro ao criar usuário: ${authError.message}`);
         }
-      } else {
-        // Usuário criado com sucesso
+
         authUserId = authUser.user.id;
         isNewUser = true;
-        console.log('Usuário auth criado com sucesso:', authUserId);
+        console.log('Novo usuário criado:', authUserId);
       }
     } catch (error: any) {
-      // Se chegou aqui e não é um erro esperado, relançar
-      if (!error.message.includes('já está cadastrado')) {
-        console.error('Erro inesperado:', error);
-        throw error;
-      }
+      console.error('Erro no processo de verificação/criação de usuário:', error);
       throw error;
     }
 

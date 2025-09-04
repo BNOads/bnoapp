@@ -59,17 +59,26 @@ export const NovoColaboradorModal = ({
         }
       });
 
+      console.log('Resposta da função:', { data, error });
+
       if (error) {
-        throw new Error(error.message || 'Erro ao criar colaborador');
+        console.error('Erro da função:', error);
+        throw new Error(error.message || 'Erro ao comunicar com o servidor');
       }
 
-      if (!data?.success) {
-        throw new Error(data?.error || 'Erro ao criar colaborador');
+      if (!data) {
+        throw new Error('Nenhuma resposta recebida do servidor');
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erro desconhecido ao criar colaborador');
       }
 
       toast({
         title: "Colaborador criado com sucesso!",
-        description: `${formData.nome} foi adicionado à equipe e recebeu um email com as credenciais de acesso.`,
+        description: data.is_new_user 
+          ? `${formData.nome} foi adicionado à equipe e recebeu um email com as credenciais de acesso.`
+          : `${formData.nome} foi adicionado à equipe (usuário já existia no sistema).`,
       });
 
       // Reset form
