@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, Play, Users, Clock, Search, Plus, Star, Award, GraduationCap, FileText } from "lucide-react";
+import { BookOpen, Play, Users, Clock, Search, Plus, Star, Award, GraduationCap, FileText, Edit, MoreVertical } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoTreinamentoModal } from "./NovoTreinamentoModal";
+import { EditarTreinamentoModal } from "./EditarTreinamentoModal";
 import { NovoPDIModal } from "@/components/PDI/NovoPDIModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,9 +19,12 @@ import { useNavigate } from "react-router-dom";
 import { POPViewNova } from "./POPViewNova";
 export const TreinamentosView = () => {
   const {
-    canCreateContent
+    canCreateContent,
+    isAdmin
   } = useUserPermissions();
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [treinamentoEditandoId, setTreinamentoEditandoId] = useState<string | null>(null);
   const [pdiModalOpen, setPdiModalOpen] = useState(false);
   const [treinamentos, setTreinamentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,6 +108,11 @@ export const TreinamentosView = () => {
       processos: 'Processos'
     };
     return categorias[categoria] || categoria;
+  };
+
+  const handleEditarTreinamento = (treinamentoId: string) => {
+    setTreinamentoEditandoId(treinamentoId);
+    setEditModalOpen(true);
   };
   return (
     <div className="space-y-8">
@@ -188,6 +198,22 @@ export const TreinamentosView = () => {
                               {treinamento.nivel}
                             </Badge>
                           </div>
+                          
+                          {isAdmin && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditarTreinamento(treinamento.id)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
 
                         <h4 className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
@@ -232,6 +258,15 @@ export const TreinamentosView = () => {
         onOpenChange={setModalOpen} 
         onSuccess={() => {
           carregarTreinamentos(); // Recarregar lista após criar
+        }} 
+      />
+
+      <EditarTreinamentoModal 
+        open={editModalOpen} 
+        onOpenChange={setEditModalOpen}
+        treinamentoId={treinamentoEditandoId}
+        onSuccess={() => {
+          carregarTreinamentos(); // Recarregar lista após editar
         }} 
       />
       

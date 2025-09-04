@@ -3,10 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Play, Plus, CheckCircle } from "lucide-react";
+import { ArrowLeft, Play, Plus, CheckCircle, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NovaAulaModal } from "@/components/Treinamentos/NovaAulaModal";
+import { EditarTreinamentoModal } from "@/components/Treinamentos/EditarTreinamentoModal";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { Header } from "@/components/Layout/Header";
 
@@ -44,6 +45,7 @@ export default function CursoDetalhes() {
   const [progressoAulas, setProgressoAulas] = useState<ProgressoAula[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNovaAula, setShowNovaAula] = useState(false);
+  const [showEditarTreinamento, setShowEditarTreinamento] = useState(false);
 
   useEffect(() => {
     if (cursoId) {
@@ -146,10 +148,16 @@ export default function CursoDetalhes() {
             </div>
             
             {isAdmin && (
-              <Button onClick={() => setShowNovaAula(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Aula
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowEditarTreinamento(true)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Editar Curso
+                </Button>
+                <Button onClick={() => setShowNovaAula(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Aula
+                </Button>
+              </div>
             )}
           </div>
 
@@ -225,6 +233,15 @@ export default function CursoDetalhes() {
           }}
         />
       )}
+
+      <EditarTreinamentoModal
+        open={showEditarTreinamento}
+        onOpenChange={setShowEditarTreinamento}
+        treinamentoId={cursoId}
+        onSuccess={() => {
+          carregarDados(); // Recarregar dados após editar
+        }}
+      />
       </div>
     </div>
   );
