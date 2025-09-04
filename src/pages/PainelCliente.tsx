@@ -67,36 +67,37 @@ const PainelCliente = () => {
     console.log('=== CARREGAR DADOS CLIENTE ===');
     console.log('Tentando carregar cliente com ID:', clienteId);
     try {
-      // Primeiro vamos verificar se o usuário está autenticado
-      const {
-        data: authData,
-        error: authError
-      } = await supabase.auth.getUser();
+      // Primeiro vamos verificar se o usuário está autenticado (opcional)
+      const { data: authData, error: authError } = await supabase.auth.getUser();
       console.log('Usuario autenticado:', authData.user?.email, authError);
-      const {
-        data,
-        error
-      } = await supabase.from('clientes').select('*').eq('id', clienteId);
-      console.log('Query result:', {
-        data,
-        error,
-        count: data?.length
-      });
+      
+      // Tentar consulta pública primeiro
+      console.log('Fazendo query pública para cliente:', clienteId);
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('id', clienteId);
+
+      console.log('Query result:', { data, error, count: data?.length });
+      
       if (error) {
         console.error('Erro na query:', error);
         throw error;
       }
+
       if (!data || data.length === 0) {
         console.log('Nenhum cliente encontrado com este ID');
         setCliente(null);
         setLoading(false);
         return;
       }
+
       console.log('Cliente encontrado:', data[0]);
       setCliente(data[0]);
       setLoading(false);
     } catch (error: any) {
       console.error('Erro ao carregar dados do cliente:', error);
+      console.error('Detalhes do erro:', error.message, error.details, error.hint);
       toast({
         title: "Erro",
         description: `Erro ao carregar dados do cliente: ${error.message}`,

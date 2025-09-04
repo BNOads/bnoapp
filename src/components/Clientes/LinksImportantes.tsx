@@ -147,10 +147,12 @@ export const LinksImportantes = ({ clienteId }: LinksImportantesProps) => {
         .from('clientes')
         .select('nome, pasta_drive_url, dashboards_looker')
         .eq('id', clienteId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      setCliente(data);
+      if (data) {
+        setCliente(data);
+      }
     } catch (error) {
       console.error('Erro ao carregar dados do cliente:', error);
     }
