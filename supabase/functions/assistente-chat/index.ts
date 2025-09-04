@@ -495,13 +495,10 @@ async function searchTranscriptions(supabase: any, userId: string, query: string
     // Extrair informações da query
     const extractedInfo = extractQueryInfo(query);
     
-    // Chamar a função SQL especializada - usar a nova função semântica
-    const { data: results, error } = await supabase.rpc('buscar_transcricoes_semanticas', {
+    // Chamar a função SQL de busca em transcrições
+    const { data: results, error } = await supabase.rpc('buscar_transcricoes_reunioes', {
       _user_id: userId,
       _query: extractedInfo.searchTerms,
-      _cliente_id: extractedInfo.clienteId,
-      _data_inicio: extractedInfo.dataInicio,
-      _data_fim: extractedInfo.dataFim,
       _limit: 5
     });
     
