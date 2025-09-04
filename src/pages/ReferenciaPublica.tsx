@@ -1,16 +1,14 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { 
-  ArrowLeft, 
   Share2, 
   ExternalLink,
-  Eye,
   Calendar,
-  User,
-  Copy
+  Copy,
+  Globe
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -32,9 +30,8 @@ interface ReferenciaCreativo {
   versao_editor?: number;
 }
 
-export const ReferenciaViewer = () => {
+export const ReferenciaPublica = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [referencia, setReferencia] = useState<ReferenciaCreativo | null>(null);
   const [loading, setLoading] = useState(true);
   const [editorBlocks, setEditorBlocks] = useState<EditorBlock[]>([]);
@@ -54,6 +51,7 @@ export const ReferenciaViewer = () => {
         .from('referencias_criativos')
         .select('*')
         .eq('id', id)
+        .eq('ativo', true)
         .single();
 
       if (error) throw error;
@@ -82,33 +80,17 @@ export const ReferenciaViewer = () => {
       
     } catch (error) {
       console.error('Erro ao carregar referência:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar a referência.",
-        variant: "destructive"
-      });
-      navigate(-1);
     } finally {
       setLoading(false);
     }
   };
 
   const copiarLink = () => {
-    if (referencia?.link_publico) {
-      navigator.clipboard.writeText(referencia.link_publico);
-      toast({
-        title: "Link copiado",
-        description: "Link da referência copiado para a área de transferência!",
-      });
-    }
-  };
-
-  const copiarLinkPublico = () => {
-    const linkPublico = `${window.location.origin}/referencia/publica/${referencia?.id}`;
-    navigator.clipboard.writeText(linkPublico);
+    const link = window.location.href;
+    navigator.clipboard.writeText(link);
     toast({
-      title: "Link público copiado",
-      description: "Link público da referência copiado! Pode ser compartilhado com qualquer pessoa.",
+      title: "Link copiado",
+      description: "Link da referência copiado para a área de transferência!",
     });
   };
 
@@ -203,12 +185,14 @@ export const ReferenciaViewer = () => {
   if (!referencia) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Referência não encontrada</p>
-          <Button onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar
-          </Button>
+        <div className="text-center space-y-4 max-w-md">
+          <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
+            <Globe className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold">Referência não encontrada</h1>
+          <p className="text-muted-foreground">
+            Esta referência pode ter sido removida ou você não tem permissão para visualizá-la.
+          </p>
         </div>
       </div>
     );
@@ -221,18 +205,9 @@ export const ReferenciaViewer = () => {
         <div className="container max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => navigate(-1)}
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Voltar
-              </Button>
-              
               <div className="flex items-center gap-2">
-                <Eye className="w-5 h-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Visualização</span>
+                <Globe className="w-5 h-5 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Visualização Pública</span>
               </div>
             </div>
 
@@ -243,10 +218,6 @@ export const ReferenciaViewer = () => {
               {referencia.is_template && (
                 <Badge variant="outline">Template</Badge>
               )}
-              <Button variant="outline" size="sm" onClick={copiarLinkPublico}>
-                <Share2 className="w-4 h-4 mr-2" />
-                Compartilhar Público
-              </Button>
               <Button variant="outline" size="sm" onClick={copiarLink}>
                 <Copy className="w-4 h-4 mr-2" />
                 Copiar Link
@@ -333,7 +304,7 @@ export const ReferenciaViewer = () => {
         {/* Footer */}
         <div className="mt-16 pt-8 border-t text-center">
           <p className="text-sm text-muted-foreground">
-            Esta referência foi criada em {format(new Date(referencia.created_at), "dd/MM/yyyy", { locale: ptBR })}
+            Esta referência foi compartilhada publicamente
           </p>
         </div>
       </div>
@@ -341,4 +312,4 @@ export const ReferenciaViewer = () => {
   );
 };
 
-export default ReferenciaViewer;
+export default ReferenciaPublica;

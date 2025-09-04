@@ -106,6 +106,9 @@ export const BlockRenderer = ({
   const renderBlockContent = () => {
     switch (block.type) {
       case 'text':
+        if (readOnly && !block.content.text?.trim()) {
+          return null; // Não renderizar blocos de texto vazios no modo de visualização
+        }
         return (
           <Textarea
             value={block.content.text || ''}
@@ -113,13 +116,17 @@ export const BlockRenderer = ({
               ...block,
               content: { ...block.content, text: e.target.value }
             })}
-            placeholder="Digite seu texto..."
+            placeholder={readOnly ? "" : "Digite seu texto..."}
             className="border-none resize-none min-h-[40px] p-0 text-base leading-relaxed focus:ring-0"
             readOnly={readOnly}
           />
         );
 
       case 'heading':
+        if (readOnly && !block.content.text?.trim()) {
+          return null; // Não renderizar títulos vazios no modo de visualização
+        }
+        
         const HeadingComponent = block.content.level === 1 ? 'h1' : 
                                 block.content.level === 2 ? 'h2' : 'h3';
         const HeadingIcon = block.content.level === 1 ? Heading1 : 
@@ -136,7 +143,7 @@ export const BlockRenderer = ({
                 ...block,
                 content: { ...block.content, text: e.target.value }
               })}
-              placeholder="Título"
+              placeholder={readOnly ? "" : "Título"}
               className={`border-none p-0 font-bold focus:ring-0 ${
                 block.content.level === 1 ? 'text-3xl' :
                 block.content.level === 2 ? 'text-2xl' : 'text-xl'
@@ -197,7 +204,7 @@ export const BlockRenderer = ({
                   ...block,
                   content: { ...block.content, caption: e.target.value }
                 })}
-                placeholder="Adicione uma legenda..."
+                placeholder={readOnly ? "" : "Adicione uma legenda..."}
                 className="border-none p-0 text-sm text-muted-foreground focus:ring-0"
                 readOnly={readOnly}
               />
@@ -269,7 +276,7 @@ export const BlockRenderer = ({
                   ...block,
                   content: { ...block.content, caption: e.target.value }
                 })}
-                placeholder="Adicione uma legenda..."
+                placeholder={readOnly ? "" : "Adicione uma legenda..."}
                 className="border-none p-0 text-sm text-muted-foreground focus:ring-0"
                 readOnly={readOnly}
               />
@@ -289,6 +296,10 @@ export const BlockRenderer = ({
         );
 
       case 'link':
+        if (readOnly && !block.content.url?.trim()) {
+          return null; // Não renderizar links vazios no modo de visualização
+        }
+        
         return (
           <div className="space-y-2">
             <Input
@@ -297,7 +308,7 @@ export const BlockRenderer = ({
                 ...block,
                 content: { ...block.content, url: e.target.value }
               })}
-              placeholder="Cole ou digite um link..."
+              placeholder={readOnly ? "" : "Cole ou digite um link..."}
               className="border-none p-0 focus:ring-0"
               readOnly={readOnly}
             />
@@ -307,7 +318,7 @@ export const BlockRenderer = ({
                 ...block,
                 content: { ...block.content, title: e.target.value }
               })}
-              placeholder="Título do link (opcional)"
+              placeholder={readOnly ? "" : "Título do link (opcional)"}
               className="border-none p-0 text-sm focus:ring-0"
               readOnly={readOnly}
             />
@@ -326,6 +337,10 @@ export const BlockRenderer = ({
         );
 
       case 'checklist':
+        if (readOnly && !block.content.text?.trim()) {
+          return null; // Não renderizar checklists vazios no modo de visualização
+        }
+        
         return (
           <div className="flex items-center gap-2">
             <Checkbox
@@ -342,7 +357,7 @@ export const BlockRenderer = ({
                 ...block,
                 content: { ...block.content, text: e.target.value }
               })}
-              placeholder="Lista de tarefas"
+              placeholder={readOnly ? "" : "Lista de tarefas"}
               className={`border-none p-0 focus:ring-0 ${
                 block.content.checked ? 'line-through text-muted-foreground' : ''
               }`}
