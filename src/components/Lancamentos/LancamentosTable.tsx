@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import EditarLancamentoModal from './EditarLancamentoModal';
 
 interface LancamentosTableProps {
   lancamentos: any[];
@@ -42,6 +43,8 @@ export const LancamentosTable = ({
 }: LancamentosTableProps) => {
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
+  const [editingLancamento, setEditingLancamento] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -87,6 +90,17 @@ export const LancamentosTable = ({
 
   const isAllSelected = lancamentos.length > 0 && selectedIds.length === lancamentos.length;
   const isSomeSelected = selectedIds.length > 0 && selectedIds.length < lancamentos.length;
+
+  const handleEditLancamento = (lancamento: any) => {
+    setEditingLancamento(lancamento);
+    setShowEditModal(true);
+  };
+
+  const handleLancamentoAtualizado = () => {
+    onRefresh();
+    setShowEditModal(false);
+    setEditingLancamento(null);
+  };
 
   return (
     <div className="space-y-4">
@@ -252,6 +266,10 @@ export const LancamentosTable = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditLancamento(lancamento)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
                         {lancamento.link_dashboard && (
                           <DropdownMenuItem asChild>
                             <a href={lancamento.link_dashboard} target="_blank" rel="noopener noreferrer">
@@ -277,6 +295,13 @@ export const LancamentosTable = ({
           </Table>
         </CardContent>
       </Card>
+
+      <EditarLancamentoModal
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+        lancamento={editingLancamento}
+        onLancamentoAtualizado={handleLancamentoAtualizado}
+      />
     </div>
   );
 };
