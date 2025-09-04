@@ -6,9 +6,11 @@ const corsHeaders = {
 }
 
 // Função para buscar todos os arquivos de uma pasta e subpastas recursivamente
-async function getAllFilesRecursively(folderId: string, folderName = 'Raiz', folderPath = ''): Promise<any[]> {
+async function getAllFilesRecursively(folderId: string, folderName = 'Raiz', folderPath = '', depth = 0): Promise<any[]> {
   const API_KEY = Deno.env.get('GOOGLE_DRIVE_API_KEY');
   let allFiles: any[] = [];
+  
+  console.log(`${'  '.repeat(depth)}Analisando pasta: "${folderName}" (${folderId}) - Profundidade: ${depth}`);
   
   // Buscar arquivos na pasta atual (apenas Google Docs)
   let nextPageToken: string | undefined;
@@ -17,7 +19,7 @@ async function getAllFilesRecursively(folderId: string, folderName = 'Raiz', fol
       key: API_KEY!,
       q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.document' and trashed=false`,
       fields: 'nextPageToken,files(id,name,mimeType,webViewLink,modifiedTime,parents)',
-      pageSize: '100'
+      pageSize: '1000'
     });
     
     if (nextPageToken) {
@@ -40,21 +42,22 @@ async function getAllFilesRecursively(folderId: string, folderName = 'Raiz', fol
         ...file,
         folderName,
         folderPath,
-        parentFolderId: folderId
+        parentFolderId: folderId,
+        depth
       }));
       allFiles = allFiles.concat(filesWithFolder);
+      console.log(`${'  '.repeat(depth)}  ✓ Encontrados ${result.files.length} Google Docs na pasta "${folderName}"`);
     }
     
     nextPageToken = result.nextPageToken;
-    console.log(`Carregados ${result.files?.length || 0} Google Docs da pasta "${folderName}". Total: ${allFiles.length}`);
   } while (nextPageToken);
   
-  // Buscar subpastas
+  // Buscar subpastas recursivamente
   const foldersParams = new URLSearchParams({
     key: API_KEY!,
     q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id,name)',
-    pageSize: '100'
+    pageSize: '1000'
   });
   
   const foldersResponse = await fetch(`https://www.googleapis.com/drive/v3/files?${foldersParams}`);
@@ -62,16 +65,28 @@ async function getAllFilesRecursively(folderId: string, folderName = 'Raiz', fol
   if (foldersResponse.ok) {
     const foldersResult = await foldersResponse.json();
     if (foldersResult.files && foldersResult.files.length > 0) {
+      console.log(`${'  '.repeat(depth)}  📁 Encontradas ${foldersResult.files.length} subpastas em "${folderName}"`);
+      
       for (const folder of foldersResult.files) {
         const subFolderPath = folderPath ? `${folderPath}/${folder.name}` : folder.name;
-        console.log(`Buscando Google Docs na subpasta: ${folder.name} (${folder.id})`);
+        console.log(`${'  '.repeat(depth)}  🔍 Explorando subpasta: ${folder.name}`);
         
-        const subFolderFiles = await getAllFilesRecursively(folder.id, folder.name, subFolderPath);
-        allFiles = allFiles.concat(subFolderFiles);
+        try {
+          const subFolderFiles = await getAllFilesRecursively(folder.id, folder.name, subFolderPath, depth + 1);
+          allFiles = allFiles.concat(subFolderFiles);
+          console.log(`${'  '.repeat(depth)}  ✅ Concluída subpasta: ${folder.name} (${subFolderFiles.length} documentos)`);
+        } catch (error) {
+          console.error(`${'  '.repeat(depth)}  ❌ Erro ao processar subpasta ${folder.name}:`, error);
+        }
       }
+    } else {
+      console.log(`${'  '.repeat(depth)}  📂 Nenhuma subpasta encontrada em "${folderName}"`);
     }
+  } else {
+    console.error(`${'  '.repeat(depth)}  ❌ Erro ao buscar subpastas:`, foldersResponse.status);
   }
   
+  console.log(`${'  '.repeat(depth)}📊 Total de documentos encontrados em "${folderName}" e subpastas: ${allFiles.length}`);
   return allFiles;
 }
 
