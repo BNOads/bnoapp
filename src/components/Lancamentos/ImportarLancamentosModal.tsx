@@ -17,7 +17,6 @@ interface ImportarLancamentosModalProps {
 interface LancamentoCSV {
   nome_lancamento: string;
   descricao?: string;
-  gestor_responsavel?: string;
   tipo_lancamento: string;
   data_inicio_captacao: string;
   data_fim_captacao?: string;
@@ -68,7 +67,6 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
       const colunasEsperadas = {
         nome_lancamento: ['nome_lancamento', 'nome', 'lancamento'],
         descricao: ['descricao', 'descrição'],
-        gestor_responsavel: ['gestor_responsavel', 'gestor', 'responsavel'],
         tipo_lancamento: ['tipo_lancamento', 'tipo'],
         data_inicio_captacao: ['data_inicio_captacao', 'data_inicio', 'inicio'],
         data_fim_captacao: ['data_fim_captacao', 'data_fim', 'fim'],
@@ -106,7 +104,6 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
         const item: LancamentoCSV = {
           nome_lancamento: valores[indices.nome_lancamento] || '',
           descricao: valores[indices.descricao] || '',
-          gestor_responsavel: valores[indices.gestor_responsavel] || '',
           tipo_lancamento: valores[indices.tipo_lancamento] || '',
           data_inicio_captacao: valores[indices.data_inicio_captacao] || '',
           data_fim_captacao: valores[indices.data_fim_captacao] || '',
@@ -141,14 +138,6 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
         throw new Error('Usuário não autenticado');
       }
 
-      // Buscar colaboradores para validar gestores
-      const { data: colaboradores } = await supabase
-        .from('colaboradores')
-        .select('id, nome')
-        .eq('ativo', true);
-
-      const gestoresMap = new Map(colaboradores?.map(c => [c.nome.toLowerCase(), c.id]) || []);
-
       let sucessos = 0;
       const erros: string[] = [];
 
@@ -157,15 +146,6 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
           // Validações
           if (!item.nome_lancamento.trim()) {
             throw new Error(`Linha ${index + 2}: Nome do lançamento é obrigatório`);
-          }
-
-          // Encontrar ID do gestor (opcional)
-          let gestorId = null;
-          if (item.gestor_responsavel?.trim()) {
-            gestorId = gestoresMap.get(item.gestor_responsavel.toLowerCase());
-            if (!gestorId) {
-              throw new Error(`Linha ${index + 2}: Gestor "${item.gestor_responsavel}" não encontrado`);
-            }
           }
 
           // Validar tipo de lançamento
@@ -184,7 +164,6 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
           const lancamentoData = {
             nome_lancamento: item.nome_lancamento.trim(),
             descricao: item.descricao?.trim() || null,
-            gestor_responsavel: gestorId,
             tipo_lancamento: item.tipo_lancamento.toLowerCase(),
             status_lancamento: 'em_captacao',
             data_inicio_captacao: dataInicio.toISOString().split('T')[0],
@@ -265,7 +244,7 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 O arquivo CSV deve conter as colunas: nome_lancamento, tipo_lancamento, 
-                data_inicio_captacao, investimento_total. Campos opcionais: descricao, gestor_responsavel, data_fim_captacao, 
+                data_inicio_captacao, investimento_total. Campos opcionais: descricao, data_fim_captacao, 
                 link_dashboard, link_briefing, observacoes.
               </AlertDescription>
             </Alert>
@@ -319,7 +298,6 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
                 <thead className="bg-muted">
                   <tr>
                     <th className="p-2 text-left">Nome</th>
-                    <th className="p-2 text-left">Gestor</th>
                     <th className="p-2 text-left">Tipo</th>
                     <th className="p-2 text-left">Data Início</th>
                     <th className="p-2 text-left">Investimento</th>
@@ -329,7 +307,6 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
                   {dadosPreview.map((item, index) => (
                     <tr key={index} className="border-t">
                       <td className="p-2">{item.nome_lancamento}</td>
-                      <td className="p-2">{item.gestor_responsavel || '-'}</td>
                       <td className="p-2">{item.tipo_lancamento}</td>
                       <td className="p-2">{item.data_inicio_captacao}</td>
                       <td className="p-2">R$ {parseFloat(item.investimento_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>

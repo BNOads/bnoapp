@@ -21,7 +21,6 @@ interface LancamentosTableProps {
   filtros?: {
     status: string;
     tipo: string;
-    gestor: string;
     cliente: string;
   };
   onFiltrosChange?: (filtros: any) => void;
@@ -36,7 +35,7 @@ export const LancamentosTable = ({
   statusLabels, 
   tipoLabels,
   showFilters = false,
-  filtros = { status: '', tipo: '', gestor: '', cliente: '' },
+  filtros = { status: '', tipo: '', cliente: '' },
   onFiltrosChange = () => {},
   selectedIds = [],
   onSelectionChange = () => {}
@@ -67,7 +66,7 @@ export const LancamentosTable = ({
   };
 
   const clearFiltros = () => {
-    onFiltrosChange({ status: '', tipo: '', gestor: '', cliente: '' });
+    onFiltrosChange({ status: '', tipo: '', cliente: '' });
   };
 
   const handleSelectAll = (checked: boolean) => {

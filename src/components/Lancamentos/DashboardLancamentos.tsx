@@ -8,7 +8,6 @@ import { TrendingUp, DollarSign, Calendar, Users, Target, Activity } from 'lucid
 interface Lancamento {
   id: string;
   nome_lancamento: string;
-  gestor_responsavel: string;
   status_lancamento: string;
   tipo_lancamento: string;
   data_inicio_captacao: string;

@@ -19,7 +19,6 @@ interface Lancamento {
   id: string;
   nome_lancamento: string;
   descricao?: string;
-  gestor_responsavel: string;
   status_lancamento: string;
   tipo_lancamento: string;
   data_inicio_captacao: string;
@@ -59,7 +58,6 @@ export const LancamentosView: React.FC = () => {
   const [filtros, setFiltros] = useState({
     status: '',
     tipo: '',
-    gestor: '',
     cliente: ''
   });
   const { toast } = useToast();
@@ -98,13 +96,7 @@ export const LancamentosView: React.FC = () => {
         .from('lancamentos')
         .select(`
           *,
-          colaboradores:gestor_responsavel (
-            nome,
-            avatar_url
-          ),
-          clientes:cliente_id (
-            nome
-          )
+          clientes:cliente_id (nome)
         `)
         .eq('ativo', true)
         .order('created_at', { ascending: false });
@@ -115,9 +107,6 @@ export const LancamentosView: React.FC = () => {
       }
       if (filtros.tipo) {
         query = query.eq('tipo_lancamento', filtros.tipo as any);
-      }
-      if (filtros.gestor) {
-        query = query.eq('gestor_responsavel', filtros.gestor);
       }
       if (filtros.cliente) {
         query = query.eq('cliente_id', filtros.cliente);
@@ -210,7 +199,6 @@ export const LancamentosView: React.FC = () => {
     return (
       l.nome_lancamento.toLowerCase().includes(searchLower) ||
       l.descricao?.toLowerCase().includes(searchLower) ||
-      l.colaboradores?.nome.toLowerCase().includes(searchLower) ||
       l.clientes?.nome.toLowerCase().includes(searchLower)
     );
   });
@@ -389,7 +377,7 @@ export const LancamentosView: React.FC = () => {
         open={showEdicaoMassaModal}
         onOpenChange={setShowEdicaoMassaModal}
         selectedIds={selectedIds}
-        onEdicaoConcluida={handleEdicaoMassaConcluida}
+        onEdicaoCompleta={handleEdicaoMassaConcluida}
       />
     </div>
   );

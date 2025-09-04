@@ -10,47 +10,30 @@ interface EdicaoMassaLancamentosModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedIds: string[];
-  onEdicaoConcluida: () => void;
+  onEdicaoCompleta: () => void;
 }
 
 const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = ({
   open,
   onOpenChange,
   selectedIds,
-  onEdicaoConcluida
+  onEdicaoCompleta
 }) => {
   const [formData, setFormData] = useState({
-    gestor_responsavel: '',
     cliente_id: '',
     status_lancamento: '',
     tipo_lancamento: ''
   });
-  const [colaboradores, setColaboradores] = useState<Array<{id: string, nome: string}>>([]);
+  
   const [clientes, setClientes] = useState<Array<{id: string, nome: string}>>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
-      fetchColaboradores();
       fetchClientes();
     }
   }, [open]);
-
-  const fetchColaboradores = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('colaboradores')
-        .select('id, nome')
-        .eq('ativo', true)
-        .order('nome');
-
-      if (error) throw error;
-      setColaboradores(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar colaboradores:', error);
-    }
-  };
 
   const fetchClientes = async () => {
     try {
@@ -76,7 +59,6 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
 
   const resetForm = () => {
     setFormData({
-      gestor_responsavel: '',
       cliente_id: '',
       status_lancamento: '',
       tipo_lancamento: ''
@@ -88,12 +70,9 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
     setLoading(true);
 
     try {
-      // Filtrar apenas os campos que foram preenchidos
+      // Preparar dados de atualização
       const updateData: any = {};
       
-      if (formData.gestor_responsavel) {
-        updateData.gestor_responsavel = formData.gestor_responsavel;
-      }
       if (formData.cliente_id) {
         updateData.cliente_id = formData.cliente_id;
       }
@@ -104,7 +83,7 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
         updateData.tipo_lancamento = formData.tipo_lancamento;
       }
 
-      // Se nenhum campo foi preenchido, não fazer nada
+      // Só prosseguir se tiver algo para atualizar
       if (Object.keys(updateData).length === 0) {
         toast({
           title: "Nenhum campo selecionado",
@@ -114,7 +93,7 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
         return;
       }
 
-      // Atualizar todos os lançamentos selecionados
+      // Atualizar os lançamentos selecionados
       const { error } = await supabase
         .from('lancamentos')
         .update(updateData)
@@ -122,13 +101,13 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
 
       if (error) throw error;
 
-      onEdicaoConcluida();
+      onEdicaoCompleta();
       resetForm();
       onOpenChange(false);
       
       toast({
         title: "Edição em massa concluída",
-        description: `${selectedIds.length} lançamento(s) foram atualizados com sucesso.`,
+        description: `${selectedIds.length} lançamentos foram atualizados com sucesso.`,
       });
 
     } catch (error: any) {
@@ -145,36 +124,15 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Edição em Massa</DialogTitle>
           <DialogDescription>
-            Editar {selectedIds.length} lançamento(s) selecionado(s). 
-            Deixe em branco os campos que não deseja alterar.
+            Atualizar {selectedIds.length} lançamentos selecionados
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="gestor_responsavel">Gestor Responsável</Label>
-            <Select
-              value={formData.gestor_responsavel}
-              onValueChange={(value) => handleInputChange('gestor_responsavel', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Manter atual / Selecionar novo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Manter atual</SelectItem>
-                {colaboradores.map((colaborador) => (
-                  <SelectItem key={colaborador.id} value={colaborador.id}>
-                    {colaborador.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="cliente_id">Cliente</Label>
             <Select
@@ -182,10 +140,10 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
               onValueChange={(value) => handleInputChange('cliente_id', value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Manter atual / Selecionar novo" />
+                <SelectValue placeholder="Alterar cliente (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Manter atual</SelectItem>
+                <SelectItem value="">Não alterar</SelectItem>
                 {clientes.map((cliente) => (
                   <SelectItem key={cliente.id} value={cliente.id}>
                     {cliente.nome}
@@ -202,10 +160,10 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
               onValueChange={(value) => handleInputChange('status_lancamento', value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Manter atual / Selecionar novo" />
+                <SelectValue placeholder="Alterar status (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Manter atual</SelectItem>
+                <SelectItem value="">Não alterar</SelectItem>
                 <SelectItem value="em_captacao">Em Captação</SelectItem>
                 <SelectItem value="cpl">CPL</SelectItem>
                 <SelectItem value="remarketing">Remarketing</SelectItem>
@@ -217,16 +175,16 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tipo_lancamento">Tipo de Lançamento</Label>
+            <Label htmlFor="tipo_lancamento">Tipo</Label>
             <Select
               value={formData.tipo_lancamento}
               onValueChange={(value) => handleInputChange('tipo_lancamento', value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Manter atual / Selecionar novo" />
+                <SelectValue placeholder="Alterar tipo (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Manter atual</SelectItem>
+                <SelectItem value="">Não alterar</SelectItem>
                 <SelectItem value="semente">Semente</SelectItem>
                 <SelectItem value="interno">Interno</SelectItem>
                 <SelectItem value="externo">Externo</SelectItem>
@@ -242,8 +200,8 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading || selectedIds.length === 0}>
-              {loading ? 'Atualizando...' : 'Atualizar Selecionados'}
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Atualizando...' : 'Atualizar Lançamentos'}
             </Button>
           </div>
         </form>

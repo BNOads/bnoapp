@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Download, Upload } from 'lucide-react';
+import { Upload } from 'lucide-react';
 
 interface ImportCSVButtonProps {
   onImportComplete: () => void;
@@ -44,7 +44,6 @@ export const ImportCSVButton = ({ onImportComplete }: ImportCSVButtonProps) => {
               link_briefing: values[7] || null,
               observacoes: values[8] || null,
               status_lancamento: 'em_captacao',
-              gestor_responsavel: null, // Set as null since manager is now optional
               created_by: userData.user.id
             };
 

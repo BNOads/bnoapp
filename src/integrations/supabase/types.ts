@@ -1015,7 +1015,6 @@ export type Database = {
           data_inicio_remarketing: string | null
           datas_cpls: string[] | null
           descricao: string | null
-          gestor_responsavel: string
           id: string
           investimento_total: number
           link_briefing: string | null
@@ -1040,7 +1039,6 @@ export type Database = {
           data_inicio_remarketing?: string | null
           datas_cpls?: string[] | null
           descricao?: string | null
-          gestor_responsavel: string
           id?: string
           investimento_total?: number
           link_briefing?: string | null
@@ -1065,7 +1063,6 @@ export type Database = {
           data_inicio_remarketing?: string | null
           datas_cpls?: string[] | null
           descricao?: string | null
-          gestor_responsavel?: string
           id?: string
           investimento_total?: number
           link_briefing?: string | null

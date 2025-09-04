@@ -22,7 +22,6 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
   const [formData, setFormData] = useState({
     nome_lancamento: '',
     descricao: '',
-    gestor_responsavel: '',
     cliente_id: '',
     status_lancamento: 'em_captacao' as const,
     tipo_lancamento: '',
@@ -35,32 +34,15 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     observacoes: ''
   });
   
-  const [colaboradores, setColaboradores] = useState<Array<{id: string, nome: string}>>([]);
   const [clientes, setClientes] = useState<Array<{id: string, nome: string}>>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
-      fetchColaboradores();
       fetchClientes();
     }
   }, [open]);
-
-  const fetchColaboradores = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('colaboradores')
-        .select('id, nome')
-        .eq('ativo', true)
-        .order('nome');
-
-      if (error) throw error;
-      setColaboradores(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar colaboradores:', error);
-    }
-  };
 
   const fetchClientes = async () => {
     try {
@@ -88,7 +70,6 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     setFormData({
       nome_lancamento: '',
       descricao: '',
-      gestor_responsavel: '',
       cliente_id: '',
       status_lancamento: 'em_captacao' as const,
       tipo_lancamento: '',
@@ -115,7 +96,6 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
       const lancamentoData = {
         nome_lancamento: formData.nome_lancamento,
         descricao: formData.descricao || null,
-        gestor_responsavel: formData.gestor_responsavel,
         cliente_id: formData.cliente_id || null,
         status_lancamento: formData.status_lancamento as any,
         tipo_lancamento: formData.tipo_lancamento as any,
@@ -176,26 +156,6 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
                 placeholder="Ex: Lançamento Produto X"
                 required
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="gestor_responsavel">Gestor Responsável *</Label>
-              <Select
-                value={formData.gestor_responsavel}
-                onValueChange={(value) => handleInputChange('gestor_responsavel', value)}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o gestor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {colaboradores.map((colaborador) => (
-                    <SelectItem key={colaborador.id} value={colaborador.id}>
-                      {colaborador.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">

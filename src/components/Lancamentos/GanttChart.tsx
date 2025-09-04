@@ -10,7 +10,6 @@ import { ptBR } from 'date-fns/locale';
 interface Lancamento {
   id: string;
   nome_lancamento: string;
-  gestor_responsavel: string;
   status_lancamento: string;
   tipo_lancamento: string;
   data_inicio_captacao: string;
@@ -76,20 +75,13 @@ const GanttChart: React.FC<GanttChartProps> = ({
   const lancamentosFiltrados = useMemo(() => {
     return lancamentos.filter(l => {
       if (filtroStatus && filtroStatus !== 'todos' && l.status_lancamento !== filtroStatus) return false;
-      if (filtroGestor && filtroGestor !== 'todos' && l.gestor_responsavel !== filtroGestor) return false;
       return true;
     });
   }, [lancamentos, filtroStatus, filtroGestor]);
 
-  // Gestores únicos para filtro
+  // Gestores únicos para filtro (não mais necessário)
   const gestores = useMemo(() => {
-    const gestoresUnicos = new Map();
-    lancamentos.forEach(l => {
-      if (l.colaboradores) {
-        gestoresUnicos.set(l.gestor_responsavel, l.colaboradores.nome);
-      }
-    });
-    return Array.from(gestoresUnicos.entries()).map(([id, nome]) => ({ id, nome }));
+    return [];
   }, [lancamentos]);
 
   const calcularPosicao = (data: string) => {
@@ -197,21 +189,6 @@ const GanttChart: React.FC<GanttChartProps> = ({
               </SelectContent>
             </Select>
 
-            <Select value={filtroGestor} onValueChange={setFiltroGestor}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Filtrar por gestor" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os gestores</SelectItem>
-                {gestores
-                  .filter(gestor => gestor.id && gestor.id.trim() !== '') // Filtrar IDs vazios
-                  .map((gestor) => (
-                    <SelectItem key={gestor.id} value={gestor.id}>
-                      {gestor.nome}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
 
             <Select value={escalaVisao} onValueChange={(value: any) => setEscalaVisao(value)}>
               <SelectTrigger className="w-32">
