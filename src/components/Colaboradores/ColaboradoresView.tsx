@@ -101,11 +101,11 @@ export const ColaboradoresView = () => {
     });
   };
 
-  const handleDelegarColaborador = (colaborador: any) => {
-    console.log('Delegando colaborador:', colaborador);
+  const handleDeletarColaborador = (colaborador: any) => {
+    console.log('Deletando colaborador:', colaborador);
     toast({
       title: "Funcionalidade em desenvolvimento", 
-      description: `A delegação para ${colaborador.nome} será implementada em breve.`,
+      description: `A exclusão de ${colaborador.nome} será implementada em breve.`,
     });
   };
 
@@ -191,7 +191,7 @@ export const ColaboradoresView = () => {
             <div className="space-y-4">
               {filteredItems.map((colaborador) => {
                 const diasAniversario = calcularDiasParaAniversario(colaborador.data_nascimento);
-                const isAniversarioProximo = diasAniversario !== null && diasAniversario <= 7;
+                const isAniversarioProximo = diasAniversario !== null && diasAniversario >= 0 && diasAniversario <= 7;
                 
                 return (
                   <div
@@ -274,8 +274,11 @@ export const ColaboradoresView = () => {
                               <DropdownMenuItem onClick={() => handleEditarColaborador(colaborador)}>
                                 Editar Colaborador
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDelegarColaborador(colaborador)}>
-                                Delegar Colaborador
+                              <DropdownMenuItem 
+                                onClick={() => handleDeletarColaborador(colaborador)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                Deletar Colaborador
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
