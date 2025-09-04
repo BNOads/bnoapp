@@ -47,34 +47,10 @@ const handler = async (req: Request): Promise<Response> => {
     let authUserId: string;
     let isNewUser = false;
 
-    // Verificar se o usuário já existe no auth
-    const { data: existingUsers, error: listError } = await supabaseClient.auth.admin.listUsers();
-    
-    if (listError) {
-      console.error('Erro ao listar usuários:', listError);
-      throw new Error(`Erro ao verificar usuários existentes: ${listError.message}`);
-    }
-
-    const existingUser = existingUsers.users.find(user => user.email === email);
-
-    if (existingUser) {
-      console.log('Usuário já existe no auth:', existingUser.id);
-      authUserId = existingUser.id;
+    // Primeiro tentar criar o usuário. Se falhar por já existir, buscar o existente
+    try {
+      console.log('Tentando criar novo usuário no auth...');
       
-      // Verificar se já tem perfil
-      const { data: existingProfile } = await supabaseClient
-        .from('profiles')
-        .select('user_id')
-        .eq('user_id', authUserId)
-        .single();
-
-      if (existingProfile) {
-        throw new Error('Este usuário já está cadastrado como colaborador.');
-      }
-    } else {
-      console.log('Criando novo usuário no auth...');
-      
-      // Criar usuário no auth
       const { data: authUser, error: authError } = await supabaseClient.auth.admin.createUser({
         email,
         password: senhaInicial,
@@ -86,13 +62,58 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
       if (authError) {
-        console.error('Erro ao criar usuário auth:', authError);
-        throw new Error(`Erro ao criar usuário: ${authError.message}`);
-      }
+        // Se o erro for que o usuário já existe, vamos buscá-lo
+        if (authError.message.includes('already been registered') || authError.code === 'email_exists') {
+          console.log('Usuário já existe, buscando usuário existente...');
+          
+          // Buscar o usuário existente por email
+          const { data: existingUsers, error: listError } = await supabaseClient.auth.admin.listUsers();
+          
+          if (listError) {
+            console.error('Erro ao listar usuários:', listError);
+            throw new Error(`Erro ao verificar usuários existentes: ${listError.message}`);
+          }
 
-      authUserId = authUser.user.id;
-      isNewUser = true;
-      console.log('Usuário auth criado:', authUserId);
+          const existingUser = existingUsers.users.find(user => user.email === email);
+          
+          if (!existingUser) {
+            throw new Error('Usuário não encontrado após verificação de existência');
+          }
+
+          authUserId = existingUser.id;
+          isNewUser = false;
+          
+          console.log('Usuário existente encontrado:', authUserId);
+          
+          // Verificar se já tem perfil
+          const { data: existingProfile } = await supabaseClient
+            .from('profiles')
+            .select('user_id')
+            .eq('user_id', authUserId)
+            .single();
+
+          if (existingProfile) {
+            throw new Error('Este usuário já está cadastrado como colaborador.');
+          }
+          
+        } else {
+          // Se for outro tipo de erro, relançar
+          console.error('Erro ao criar usuário auth:', authError);
+          throw new Error(`Erro ao criar usuário: ${authError.message}`);
+        }
+      } else {
+        // Usuário criado com sucesso
+        authUserId = authUser.user.id;
+        isNewUser = true;
+        console.log('Usuário auth criado com sucesso:', authUserId);
+      }
+    } catch (error: any) {
+      // Se chegou aqui e não é um erro esperado, relançar
+      if (!error.message.includes('já está cadastrado')) {
+        console.error('Erro inesperado:', error);
+        throw error;
+      }
+      throw error;
     }
 
     // Criar perfil
