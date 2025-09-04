@@ -36,8 +36,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
   statusColors,
   statusLabels
 }) => {
-  const [filtroStatus, setFiltroStatus] = useState('');
-  const [filtroGestor, setFiltroGestor] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('todos');
+  const [filtroGestor, setFiltroGestor] = useState('todos');
   const [escalaVisao, setEscalaVisao] = useState<'mensal' | 'semanal' | 'diaria'>('mensal');
 
   // Calcular intervalo de datas
@@ -75,8 +75,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
   // Filtrar lançamentos
   const lancamentosFiltrados = useMemo(() => {
     return lancamentos.filter(l => {
-      if (filtroStatus && l.status_lancamento !== filtroStatus) return false;
-      if (filtroGestor && l.gestor_responsavel !== filtroGestor) return false;
+      if (filtroStatus && filtroStatus !== 'todos' && l.status_lancamento !== filtroStatus) return false;
+      if (filtroGestor && filtroGestor !== 'todos' && l.gestor_responsavel !== filtroGestor) return false;
       return true;
     });
   }, [lancamentos, filtroStatus, filtroGestor]);
@@ -187,7 +187,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="todos">Todos os status</SelectItem>
                 <SelectItem value="em_captacao">Em Captação</SelectItem>
                 <SelectItem value="cpl">CPL</SelectItem>
                 <SelectItem value="remarketing">Remarketing</SelectItem>
@@ -202,7 +202,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
                 <SelectValue placeholder="Filtrar por gestor" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os gestores</SelectItem>
+                <SelectItem value="todos">Todos os gestores</SelectItem>
                 {gestores.map((gestor) => (
                   <SelectItem key={gestor.id} value={gestor.id}>
                     {gestor.nome}
