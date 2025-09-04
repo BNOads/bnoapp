@@ -61,11 +61,12 @@ export const AlterarSenhaModal = ({ open, onOpenChange, colaborador, onSuccess }
       });
 
       if (error) {
-        throw error;
+        console.error('Erro da função:', error);
+        throw new Error(error.message || 'Erro ao comunicar com o servidor');
       }
 
-      if (!data?.success) {
-        throw new Error(data?.error || 'Erro ao alterar senha');
+      if (data && !data.success) {
+        throw new Error(data.error || 'Erro ao alterar senha');
       }
 
       toast({

@@ -31,6 +31,31 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
+    // Obter o token de autorização do header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Token de autorização não fornecido' 
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
+    // Criar cliente com o token do usuário para verificar permissões
+    const userSupabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            authorization: authHeader
+          }
+        }
+      }
+    );
+
     const { user_id, email, nova_senha }: AlterarSenhaRequest = await req.json();
 
     console.log('Alterando senha do colaborador:', { user_id, email });
@@ -46,8 +71,9 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Verificar se o usuário que está fazendo a requisição é admin
-    const authUser = await supabaseClient.auth.getUser();
-    if (!authUser.data.user) {
+    const { data: { user }, error: userError } = await userSupabaseClient.auth.getUser();
+    if (userError || !user) {
+      console.error('Erro ao obter usuário:', userError);
       return new Response(JSON.stringify({ 
         success: false,
         error: 'Usuário não autenticado' 
@@ -57,14 +83,27 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    console.log('Usuário autenticado:', user.id);
+
     // Verificar se é admin
-    const { data: profile } = await supabaseClient
+    const { data: profile, error: profileError } = await userSupabaseClient
       .from('profiles')
       .select('nivel_acesso')
-      .eq('user_id', authUser.data.user.id)
+      .eq('user_id', user.id)
       .single();
 
-    if (!profile || profile.nivel_acesso !== 'admin') {
+    if (profileError || !profile) {
+      console.error('Erro ao buscar perfil:', profileError);
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Erro ao verificar permissões do usuário' 
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
+    if (profile.nivel_acesso !== 'admin') {
       return new Response(JSON.stringify({ 
         success: false,
         error: 'Acesso negado - apenas administradores podem alterar senhas' 
@@ -74,7 +113,9 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Alterar a senha do usuário
+    console.log('Usuário autorizado, alterando senha...');
+
+    // Alterar a senha do usuário usando o service role key
     const { error: updateError } = await supabaseClient.auth.admin.updateUserById(
       user_id,
       { password: nova_senha }
