@@ -15,10 +15,13 @@ import {
   Download,
   ExternalLink,
   Clock,
-  Eye
+  Eye,
+  Upload
 } from "lucide-react";
 import { useSearch } from "@/hooks/useSearch";
 import { POPDocument } from "./POPDocument";
+import { ImportarGoogleDriveModal } from "./ImportarGoogleDriveModal";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 // Mock data baseado na pasta do Google Drive
 const mockPOPs = [
@@ -93,12 +96,19 @@ const mockPOPs = [
 export const POPView = () => {
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const { isAdmin } = useUserPermissions();
   
   const {
     searchTerm,
     setSearchTerm,
     filteredItems
   } = useSearch(mockPOPs, ['title', 'category', 'description']);
+
+  const handleImportSuccess = () => {
+    // Recarregar a lista de POPs após a importação
+    console.log('POPs importados com sucesso, atualizando lista...');
+  };
 
   useEffect(() => {
     // Load favorites from localStorage
@@ -225,9 +235,21 @@ export const POPView = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">Todos os Documentos</h3>
-          <Badge variant="outline" className="text-xs">
-            {filteredItems.length} documentos
-          </Badge>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Button
+                onClick={() => setShowImportModal(true)}
+                className="gap-2"
+                size="sm"
+              >
+                <Upload className="h-4 w-4" />
+                Importar do Google Drive
+              </Button>
+            )}
+            <Badge variant="outline" className="text-xs">
+              {filteredItems.length} documentos
+            </Badge>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -294,6 +316,13 @@ export const POPView = () => {
           ))}
         </div>
       </div>
+
+      {/* Modal de Importação */}
+      <ImportarGoogleDriveModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        onSuccess={handleImportSuccess}
+      />
     </div>
   );
 };

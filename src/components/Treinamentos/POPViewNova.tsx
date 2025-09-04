@@ -17,7 +17,7 @@ import {
   Star, 
   Clock,
   Plus,
-  RefreshCw,
+  Upload,
   Eye,
   Copy,
   Link,
@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useSearch } from "@/hooks/useSearch";
 import { POPDocumentNovo } from "./POPDocumentNovo";
+import { ImportarGoogleDriveModal } from "./ImportarGoogleDriveModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -51,8 +52,8 @@ export const POPViewNova = () => {
   const [pops, setPOPs] = useState<POP[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNovoPOPModal, setShowNovoPOPModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
-  const [syncLoading, setSyncLoading] = useState(false);
   const [novoPOPData, setNovoPOPData] = useState({
     titulo: "",
     tipo: "Procedimento",
@@ -148,38 +149,9 @@ export const POPViewNova = () => {
     }
   };
 
-  const sincronizarPOPs = async () => {
-    setSyncLoading(true);
-    toast({
-      title: "Sincronização iniciada",
-      description: "Buscando POPs do Google Drive...",
-    });
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-pops-drive');
-      
-      if (error) {
-        throw error;
-      }
-      
-      toast({
-        title: "Sincronização concluída",
-        description: data.message,
-      });
-      
-      // Recarregar a lista de POPs
-      carregarPOPs();
-      
-    } catch (error: any) {
-      console.error('Erro na sincronização:', error);
-      toast({
-        title: "Erro na sincronização",
-        description: "Não foi possível sincronizar os POPs. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setSyncLoading(false);
-    }
+  const handleImportSuccess = () => {
+    // Recarregar a lista de POPs após a importação
+    carregarPOPs();
   };
 
   const toggleLinkPublico = async (popId: string, ativo: boolean) => {
@@ -295,10 +267,16 @@ export const POPViewNova = () => {
 
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={sincronizarPOPs} disabled={syncLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncLoading ? 'animate-spin' : ''}`} />
-              {syncLoading ? 'Sincronizando...' : 'Sincronizar'}
-            </Button>
+            {isAdmin && (
+              <Button 
+                variant="outline" 
+                onClick={() => setShowImportModal(true)}
+                className="gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Importar do Google Drive
+              </Button>
+            )}
             <Button variant="outline" onClick={() => { setLoading(true); carregarPOPs(); }}>
               <Eye className="h-4 w-4 mr-2" />
               Verificar POPs
@@ -568,6 +546,13 @@ export const POPViewNova = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Importação */}
+      <ImportarGoogleDriveModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        onSuccess={handleImportSuccess}
+      />
     </div>
   );
 };
