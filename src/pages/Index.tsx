@@ -7,6 +7,7 @@ import { ClientesView } from "@/components/Clientes/ClientesView";
 import { AssistenteView } from "@/components/Assistente/AssistenteView";
 import { TreinamentosView } from "@/components/Treinamentos/TreinamentosView";
 import { ReferenciasView } from "@/components/Referencias/ReferenciasView";
+import LancamentosView from "@/components/Lancamentos/LancamentosView";
 import { EscalaReunioes } from "@/components/Meetings/EscalaReunioes";
 
 const Index = () => {
@@ -29,6 +30,8 @@ const Index = () => {
         return <ColaboradoresView />;
       case 'clientes':
         return <ClientesView />;
+      case 'lancamentos':
+        return <LancamentosView />;
       case 'assistente':
         return <AssistenteView />;
       case 'treinamentos':
