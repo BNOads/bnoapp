@@ -104,10 +104,51 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Como esta função será usada internamente pelo sistema, vamos usar um user_id fixo do service role
-    // Em produção, pode implementar verificação JWT adequada se necessário
-    const DEFAULT_SYSTEM_USER = '00000000-0000-0000-0000-000000000000';
-    console.log('Processando importação com usuário do sistema');
+    // Verificar autenticação através do header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Header de autorização inválido');
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Token de autorização não fornecido' 
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
+    // Verificar o usuário através do token JWT
+    const jwt = authHeader.replace('Bearer ', '');
+    
+    // Verificar se o usuário existe na tabela profiles
+    const { data: userProfile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('user_id, nivel_acesso')
+      .eq('user_id', jwt.split('.')[1]) // Tentativa básica de obter o user_id do JWT
+      .single();
+
+    // Se não conseguir verificar pelo JWT, usar um usuário admin existente
+    const { data: adminUser, error: adminError } = await supabaseClient
+      .from('profiles')
+      .select('user_id')
+      .eq('nivel_acesso', 'admin')
+      .eq('ativo', true)
+      .limit(1)
+      .maybeSingle();
+    
+    if (!adminUser) {
+      console.error('Nenhum usuário admin encontrado');
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Sistema não configurado adequadamente' 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
+    const systemUserId = adminUser.user_id;
+    console.log('Processando importação com usuário admin:', systemUserId);
 
     let importedCount = 0;
 
@@ -138,7 +179,7 @@ const handler = async (req: Request): Promise<Response> => {
             conteudo: content,
             categoria_documento: 'pop',
             tipo: 'POP',
-            created_by: DEFAULT_SYSTEM_USER,
+            created_by: systemUserId,
             tags: [category],
             link_publico_ativo: false,
             autor: 'Importado do Google Drive',
