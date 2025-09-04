@@ -196,6 +196,10 @@ export const LancamentosView: React.FC = () => {
     );
   }
 
+  const getNestedValue = (obj: any, path: string) => {
+    return path.split('.').reduce((current, key) => current?.[key], obj) || '';
+  };
+
   // Filtrar por termo de pesquisa
   let lancamentosFiltrados = lancamentos.filter(l => {
     if (!searchTerm) return true;
@@ -229,10 +233,6 @@ export const LancamentosView: React.FC = () => {
       direction = 'desc';
     }
     setSortConfig({ key, direction });
-  };
-
-  const getNestedValue = (obj: any, path: string) => {
-    return path.split('.').reduce((current, key) => current?.[key], obj) || '';
   };
 
   const stats = {
