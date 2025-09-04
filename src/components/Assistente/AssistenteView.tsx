@@ -7,9 +7,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Bot, User, Send, Mic, MessageSquare, Plus, Search, History, X, Edit3, Trash2, Check } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Bot, User, Send, Mic, MessageSquare, Plus, Search, History, X, Edit3, Trash2, Check, Menu } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
 interface Message {
@@ -34,12 +36,14 @@ export const AssistenteView = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(true); // Começar com histórico visível
+  const [showHistory, setShowHistory] = useState(false); // Iniciar fechado para mobile
   const [searchQuery, setSearchQuery] = useState('');
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { userData } = useCurrentUser();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,8 +51,11 @@ export const AssistenteView = () => {
 
   useEffect(() => {
     loadConversations();
-    setShowHistory(true); // Mostrar histórico automaticamente
-  }, []);
+    // Só mostrar histórico automaticamente em desktop
+    if (!isMobile) {
+      setShowHistory(true);
+    }
+  }, [isMobile]);
 
   const loadConversations = async () => {
     try {
@@ -97,7 +104,10 @@ export const AssistenteView = () => {
 
       setMessages(formattedMessages);
       setCurrentConversationId(conversationId);
-      // Não fechar o histórico
+      // Fechar histórico mobile após selecionar
+      if (isMobile) {
+        setMobileHistoryOpen(false);
+      }
     } catch (error) {
       console.error('Erro ao carregar conversa:', error);
       toast.error('Erro ao carregar conversa');
@@ -240,7 +250,10 @@ export const AssistenteView = () => {
   const startNewChat = () => {
     setMessages([]);
     setCurrentConversationId(null);
-    // Não fechar o histórico automaticamente
+    // Fechar histórico mobile após nova conversa
+    if (isMobile) {
+      setMobileHistoryOpen(false);
+    }
   };
 
   const deleteConversation = async (conversationId: string) => {
@@ -299,6 +312,147 @@ export const AssistenteView = () => {
     conv.titulo.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Componente do histórico para reutilização
+  const HistoryContent = () => (
+    <div className="w-full h-full bg-card border-r border-border">
+      <div className="p-4 border-b border-border">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Histórico
+          </h2>
+          {!isMobile && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setShowHistory(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar conversas..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <Button 
+          onClick={startNewChat}
+          className="w-full flex items-center gap-2"
+          variant="outline"
+        >
+          <Plus className="h-4 w-4" />
+          Nova Conversa
+        </Button>
+      </div>
+
+      <ScrollArea className="h-[calc(100vh-200px)]">
+        <div className="p-2">
+          {filteredConversations.map((conversation) => (
+            <div
+              key={conversation.id}
+              className={`group relative rounded-lg mb-2 transition-colors ${
+                currentConversationId === conversation.id
+                  ? 'bg-primary/10 border border-primary/20'
+                  : 'hover:bg-muted'
+              }`}
+            >
+              {editingConversationId === conversation.id ? (
+                <div className="p-3">
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="flex-1 text-sm"
+                      placeholder="Título da conversa"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          editConversation(conversation.id, editTitle);
+                        } else if (e.key === 'Escape') {
+                          cancelEditing();
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => editConversation(conversation.id, editTitle)}
+                      disabled={!editTitle.trim()}
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={cancelEditing}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="p-3 cursor-pointer"
+                  onClick={() => loadConversation(conversation.id)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-sm leading-relaxed break-words">
+                        {conversation.titulo || 'Conversa sem título'}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(conversation.updated_at).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Badge variant="secondary" className="text-xs">
+                        {conversation.message_count}
+                      </Badge>
+                      
+                      <div className="flex gap-1 ml-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditing(conversation);
+                          }}
+                          className="h-6 w-6 p-0 hover:bg-primary/20"
+                          title="Editar título"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteConversation(conversation.id);
+                          }}
+                          className="h-6 w-6 p-0 text-destructive hover:bg-destructive/20 hover:text-destructive"
+                          title="Excluir conversa"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+
   const formatMessageContent = (content: string) => {
     // Formatação básica de markdown
     return content
@@ -311,181 +465,67 @@ export const AssistenteView = () => {
 
   return (
     <div className="flex h-screen max-h-screen bg-background">
-      {/* Sidebar de Histórico */}
-      {showHistory && (
-        <div className="w-80 border-r border-border bg-card">
-          <div className="p-4 border-b border-border">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <History className="h-5 w-5" />
-                Histórico
-              </h2>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setShowHistory(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar conversas..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            <Button 
-              onClick={startNewChat}
-              className="w-full flex items-center gap-2"
-              variant="outline"
-            >
-              <Plus className="h-4 w-4" />
-              Nova Conversa
-            </Button>
-          </div>
-
-          <ScrollArea className="h-[calc(100vh-200px)]">
-            <div className="p-2">
-              {filteredConversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  className={`group relative rounded-lg mb-2 transition-colors ${
-                    currentConversationId === conversation.id
-                      ? 'bg-primary/10 border border-primary/20'
-                      : 'hover:bg-muted'
-                  }`}
-                >
-                  {editingConversationId === conversation.id ? (
-                    <div className="p-3">
-                      <div className="flex gap-2 items-center">
-                        <Input
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          className="flex-1 text-sm"
-                          placeholder="Título da conversa"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              editConversation(conversation.id, editTitle);
-                            } else if (e.key === 'Escape') {
-                              cancelEditing();
-                            }
-                          }}
-                          autoFocus
-                        />
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => editConversation(conversation.id, editTitle)}
-                          disabled={!editTitle.trim()}
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={cancelEditing}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      className="p-3 cursor-pointer"
-                      onClick={() => loadConversation(conversation.id)}
-                    >
-                       <div className="flex items-start justify-between gap-2">
-                         <div className="flex-1 min-w-0">
-                           <h3 className="font-medium text-sm leading-relaxed break-words">
-                             {conversation.titulo || 'Conversa sem título'}
-                           </h3>
-                           <p className="text-xs text-muted-foreground mt-1">
-                             {new Date(conversation.updated_at).toLocaleDateString('pt-BR')}
-                           </p>
-                         </div>
-                         <div className="flex items-center gap-1 flex-shrink-0">
-                           <Badge variant="secondary" className="text-xs">
-                             {conversation.message_count}
-                           </Badge>
-                           
-                           {/* Botões de ação - sempre visíveis agora */}
-                           <div className="flex gap-1 ml-1">
-                             <Button
-                               size="sm"
-                               variant="ghost"
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 startEditing(conversation);
-                               }}
-                               className="h-6 w-6 p-0 hover:bg-primary/20"
-                               title="Editar título"
-                             >
-                               <Edit3 className="h-3 w-3" />
-                             </Button>
-                             <Button
-                               size="sm"
-                               variant="ghost"
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 deleteConversation(conversation.id);
-                               }}
-                               className="h-6 w-6 p-0 text-destructive hover:bg-destructive/20 hover:text-destructive"
-                               title="Excluir conversa"
-                             >
-                               <Trash2 className="h-3 w-3" />
-                             </Button>
-                           </div>
-                         </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+      {/* Desktop Sidebar */}
+      {!isMobile && showHistory && (
+        <div className="w-80 flex-shrink-0">
+          <HistoryContent />
         </div>
       )}
 
+      {/* Mobile Sidebar */}
+      {isMobile && (
+        <Sheet open={mobileHistoryOpen} onOpenChange={setMobileHistoryOpen}>
+          <SheetContent side="left" className="w-80 p-0">
+            <HistoryContent />
+          </SheetContent>
+        </Sheet>
+      )}
+
       {/* Chat Principal */}
-      <div className="flex-1 flex flex-col h-screen">
+      <div className="flex-1 flex flex-col h-screen min-w-0">
         <Card className="flex-1 border-0 rounded-none flex flex-col">
           <CardHeader className="border-b border-border flex-shrink-0">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-6 w-6 text-primary" />
-                Assistente BNOads
-                <Badge variant="secondary" className="text-xs">
+              <CardTitle className="flex items-center gap-2 min-w-0">
+                {isMobile && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setMobileHistoryOpen(true)}
+                    className="p-2 mr-2"
+                  >
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                )}
+                <Bot className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
+                <span className="text-sm sm:text-base truncate">Assistente BNOads</span>
+                <Badge variant="secondary" className="text-xs hidden sm:inline-flex">
                   IA Integrada
                 </Badge>
               </CardTitle>
               
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowHistory(!showHistory)}
-                  className="flex items-center gap-2"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Histórico
-                </Button>
-                
-                {currentConversationId && (
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                {!isMobile && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={startNewChat}
+                    onClick={() => setShowHistory(!showHistory)}
                     className="flex items-center gap-2"
                   >
-                    <Plus className="h-4 w-4" />
-                    Nova
+                    <MessageSquare className="h-4 w-4" />
+                    <span className="hidden md:inline">Histórico</span>
                   </Button>
                 )}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={startNewChat}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Nova</span>
+                </Button>
               </div>
             </div>
             
@@ -510,7 +550,7 @@ export const AssistenteView = () => {
                     <p className="text-muted-foreground max-w-md">
                       Sou seu assistente inteligente integrado ao sistema. Posso ajudar com:
                     </p>
-                    <div className="grid grid-cols-2 gap-2 mt-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 text-sm">
                       <div className="p-2 bg-muted rounded">📊 Painéis de cliente</div>
                       <div className="p-2 bg-muted rounded">🎨 Referências criativas</div>
                       <div className="p-2 bg-muted rounded">🎓 Aulas e cursos</div>
@@ -531,7 +571,7 @@ export const AssistenteView = () => {
                         </Avatar>
                       )}
                       
-                      <div className={`max-w-[85%] ${message.role === 'user' ? 'order-1' : ''}`}>
+                      <div className={`max-w-[85%] sm:max-w-[70%] ${message.role === 'user' ? 'order-1' : ''}`}>
                         <div className={`rounded-lg px-3 py-2 ${
                           message.role === 'user' 
                             ? 'bg-primary text-primary-foreground ml-auto' 
@@ -590,36 +630,36 @@ export const AssistenteView = () => {
 
             <Separator />
             
-            <div className="p-4 flex-shrink-0">
-              <div className="flex gap-3 items-end">
+            <div className="p-3 sm:p-4 flex-shrink-0">
+              <div className="flex gap-2 sm:gap-3 items-end">
                 <Textarea
-                  placeholder="Digite sua mensagem... (Shift+Enter para quebra de linha)"
+                  placeholder={isMobile ? "Digite sua mensagem..." : "Digite sua mensagem... (Shift+Enter para quebra de linha)"}
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={handleKeyPress}
                   disabled={isLoading}
-                  className="flex-1 min-h-[60px] max-h-40 resize-none text-base"
-                  rows={2}
+                  className="flex-1 min-h-[50px] sm:min-h-[60px] max-h-40 resize-none text-sm sm:text-base"
+                  rows={isMobile ? 1 : 2}
                 />
                 <Button
                   variant="outline"
                   size="icon"
                   disabled={isLoading}
-                  className="flex-shrink-0 h-12 w-12"
+                  className="flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12"
                 >
-                  <Mic className="h-5 w-5" />
+                  <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
                 <Button
                   onClick={sendMessage}
                   disabled={isLoading || !inputMessage.trim()}
-                  className="flex-shrink-0 h-12 px-6"
+                  className="flex-shrink-0 h-10 sm:h-12 px-3 sm:px-6"
                 >
-                  <Send className="h-5 w-5 mr-2" />
-                  Enviar
+                  <Send className="h-4 w-4 sm:h-5 sm:w-5 sm:mr-2" />
+                  <span className="hidden sm:inline">Enviar</span>
                 </Button>
               </div>
               
-              <div className="text-xs text-muted-foreground mt-2 text-center">
+              <div className="text-xs text-muted-foreground mt-2 text-center hidden sm:block">
                 🔒 Integração segura • 🚀 Respostas em tempo real • 📊 Dados do sistema
               </div>
             </div>
