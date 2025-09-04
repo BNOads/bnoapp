@@ -55,6 +55,8 @@ export const LancamentosView: React.FC = () => {
   const [activeTab, setActiveTab] = useState('lista');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [sortField, setSortField] = useState('created_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filtros, setFiltros] = useState({
     status: 'all',
     tipo: 'all',
@@ -98,8 +100,7 @@ export const LancamentosView: React.FC = () => {
           *,
           clientes:cliente_id (nome)
         `)
-        .eq('ativo', true)
-        .order('created_at', { ascending: false });
+        .eq('ativo', true);
 
       // Aplicar filtros
       if (filtros.status && filtros.status !== 'all') {
@@ -110,6 +111,14 @@ export const LancamentosView: React.FC = () => {
       }
       if (filtros.cliente && filtros.cliente !== 'all') {
         query = query.eq('cliente_id', filtros.cliente);
+      }
+
+      // Aplicar ordenação
+      if (sortField === 'cliente_nome') {
+        // Para ordenar por nome do cliente, precisamos de uma abordagem diferente
+        query = query.order('created_at', { ascending: sortDirection === 'asc' });
+      } else {
+        query = query.order(sortField as any, { ascending: sortDirection === 'asc' });
       }
 
       const { data, error } = await query;
@@ -124,7 +133,22 @@ export const LancamentosView: React.FC = () => {
         return;
       }
 
-      setLancamentos(data as any || []);
+      let sortedData = data as any || [];
+      
+      // Ordenação manual para campos relacionados
+      if (sortField === 'cliente_nome') {
+        sortedData.sort((a: any, b: any) => {
+          const aName = a.clientes?.nome || '';
+          const bName = b.clientes?.nome || '';
+          if (sortDirection === 'asc') {
+            return aName.localeCompare(bName);
+          } else {
+            return bName.localeCompare(aName);
+          }
+        });
+      }
+
+      setLancamentos(sortedData);
     } catch (error) {
       console.error('Erro ao buscar lançamentos:', error);
       toast({
@@ -139,7 +163,7 @@ export const LancamentosView: React.FC = () => {
 
   useEffect(() => {
     fetchLancamentos();
-  }, [filtros, searchTerm]);
+  }, [filtros, searchTerm, sortField, sortDirection]);
 
   const handleLancamentoCriado = () => {
     fetchLancamentos();
@@ -163,6 +187,15 @@ export const LancamentosView: React.FC = () => {
     fetchLancamentos();
     setSelectedIds([]);
     setShowEdicaoMassaModal(false);
+  };
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
   };
 
   if (loading) {
@@ -340,6 +373,9 @@ export const LancamentosView: React.FC = () => {
             onFiltrosChange={setFiltros}
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSort={handleSort}
           />
         </TabsContent>
 

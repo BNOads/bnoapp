@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import EditarLancamentoModal from './EditarLancamentoModal';
@@ -27,6 +27,9 @@ interface LancamentosTableProps {
   onFiltrosChange?: (filtros: any) => void;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
+  onSort?: (field: string) => void;
 }
 
 export const LancamentosTable = ({ 
@@ -39,7 +42,10 @@ export const LancamentosTable = ({
   filtros = { status: 'all', tipo: 'all', cliente: 'all' },
   onFiltrosChange = () => {},
   selectedIds = [],
-  onSelectionChange = () => {}
+  onSelectionChange = () => {},
+  sortField = '',
+  sortDirection = 'desc',
+  onSort = () => {}
 }: LancamentosTableProps) => {
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
@@ -101,6 +107,27 @@ export const LancamentosTable = ({
     setShowEditModal(false);
     setEditingLancamento(null);
   };
+
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 opacity-50" />;
+    }
+    return sortDirection === 'asc' ? 
+      <ArrowUp className="h-4 w-4" /> : 
+      <ArrowDown className="h-4 w-4" />;
+  };
+
+  const SortableHeader = ({ field, children }: { field: string; children: React.ReactNode }) => (
+    <TableHead 
+      className="cursor-pointer hover:bg-muted/50 select-none"
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-2">
+        {children}
+        {getSortIcon(field)}
+      </div>
+    </TableHead>
+  );
 
   return (
     <div className="space-y-4">
@@ -187,12 +214,12 @@ export const LancamentosTable = ({
                     aria-label="Selecionar todos"
                   />
                 </TableHead>
-                <TableHead>Lançamento</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Investimento</TableHead>
-                <TableHead>Data Início</TableHead>
+                <SortableHeader field="nome_lancamento">Lançamento</SortableHeader>
+                <SortableHeader field="cliente_nome">Cliente</SortableHeader>
+                <SortableHeader field="status_lancamento">Status</SortableHeader>
+                <SortableHeader field="tipo_lancamento">Tipo</SortableHeader>
+                <SortableHeader field="investimento_total">Investimento</SortableHeader>
+                <SortableHeader field="data_inicio_captacao">Data Início</SortableHeader>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
