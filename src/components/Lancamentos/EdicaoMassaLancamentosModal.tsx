@@ -20,9 +20,9 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
   onEdicaoCompleta
 }) => {
   const [formData, setFormData] = useState({
-    cliente_id: '',
-    status_lancamento: '',
-    tipo_lancamento: ''
+    cliente_id: 'none',
+    status_lancamento: 'none',
+    tipo_lancamento: 'none'
   });
   
   const [clientes, setClientes] = useState<Array<{id: string, nome: string}>>([]);
@@ -59,9 +59,9 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
 
   const resetForm = () => {
     setFormData({
-      cliente_id: '',
-      status_lancamento: '',
-      tipo_lancamento: ''
+      cliente_id: 'none',
+      status_lancamento: 'none',
+      tipo_lancamento: 'none'
     });
   };
 
@@ -73,13 +73,13 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
       // Preparar dados de atualização
       const updateData: any = {};
       
-      if (formData.cliente_id) {
+      if (formData.cliente_id && formData.cliente_id !== 'none') {
         updateData.cliente_id = formData.cliente_id;
       }
-      if (formData.status_lancamento) {
+      if (formData.status_lancamento && formData.status_lancamento !== 'none') {
         updateData.status_lancamento = formData.status_lancamento;
       }
-      if (formData.tipo_lancamento) {
+      if (formData.tipo_lancamento && formData.tipo_lancamento !== 'none') {
         updateData.tipo_lancamento = formData.tipo_lancamento;
       }
 
@@ -143,7 +143,7 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
                 <SelectValue placeholder="Alterar cliente (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Não alterar</SelectItem>
+                <SelectItem value="none">Não alterar</SelectItem>
                 {clientes.map((cliente) => (
                   <SelectItem key={cliente.id} value={cliente.id}>
                     {cliente.nome}
@@ -163,7 +163,7 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
                 <SelectValue placeholder="Alterar status (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Não alterar</SelectItem>
+                <SelectItem value="none">Não alterar</SelectItem>
                 <SelectItem value="em_captacao">Em Captação</SelectItem>
                 <SelectItem value="cpl">CPL</SelectItem>
                 <SelectItem value="remarketing">Remarketing</SelectItem>
@@ -184,7 +184,7 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
                 <SelectValue placeholder="Alterar tipo (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Não alterar</SelectItem>
+                <SelectItem value="none">Não alterar</SelectItem>
                 <SelectItem value="semente">Semente</SelectItem>
                 <SelectItem value="interno">Interno</SelectItem>
                 <SelectItem value="externo">Externo</SelectItem>

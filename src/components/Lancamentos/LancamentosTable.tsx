@@ -35,7 +35,7 @@ export const LancamentosTable = ({
   statusLabels, 
   tipoLabels,
   showFilters = false,
-  filtros = { status: '', tipo: '', cliente: '' },
+  filtros = { status: 'all', tipo: 'all', cliente: 'all' },
   onFiltrosChange = () => {},
   selectedIds = [],
   onSelectionChange = () => {}
@@ -66,7 +66,7 @@ export const LancamentosTable = ({
   };
 
   const clearFiltros = () => {
-    onFiltrosChange({ status: '', tipo: '', cliente: '' });
+    onFiltrosChange({ status: 'all', tipo: 'all', cliente: 'all' });
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -110,7 +110,7 @@ export const LancamentosTable = ({
                     <SelectValue placeholder="Todos os status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os status</SelectItem>
+                    <SelectItem value="all">Todos os status</SelectItem>
                     <SelectItem value="em_captacao">Em Captação</SelectItem>
                     <SelectItem value="cpl">CPL</SelectItem>
                     <SelectItem value="remarketing">Remarketing</SelectItem>
@@ -128,7 +128,7 @@ export const LancamentosTable = ({
                     <SelectValue placeholder="Todos os tipos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os tipos</SelectItem>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
                     <SelectItem value="semente">Semente</SelectItem>
                     <SelectItem value="interno">Interno</SelectItem>
                     <SelectItem value="externo">Externo</SelectItem>
@@ -147,7 +147,7 @@ export const LancamentosTable = ({
                     <SelectValue placeholder="Todos os clientes" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os clientes</SelectItem>
+                    <SelectItem value="all">Todos os clientes</SelectItem>
                     {clientes.map((cliente) => (
                       <SelectItem key={cliente.id} value={cliente.id}>
                         {cliente.nome}

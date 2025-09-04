@@ -56,9 +56,9 @@ export const LancamentosView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filtros, setFiltros] = useState({
-    status: '',
-    tipo: '',
-    cliente: ''
+    status: 'all',
+    tipo: 'all',
+    cliente: 'all'
   });
   const { toast } = useToast();
 
@@ -102,13 +102,13 @@ export const LancamentosView: React.FC = () => {
         .order('created_at', { ascending: false });
 
       // Aplicar filtros
-      if (filtros.status) {
+      if (filtros.status && filtros.status !== 'all') {
         query = query.eq('status_lancamento', filtros.status as any);
       }
-      if (filtros.tipo) {
+      if (filtros.tipo && filtros.tipo !== 'all') {
         query = query.eq('tipo_lancamento', filtros.tipo as any);
       }
-      if (filtros.cliente) {
+      if (filtros.cliente && filtros.cliente !== 'all') {
         query = query.eq('cliente_id', filtros.cliente);
       }
 
