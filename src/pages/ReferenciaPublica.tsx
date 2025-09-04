@@ -47,6 +47,8 @@ export const ReferenciaPublica = () => {
     try {
       setLoading(true);
       
+      console.log('Carregando referência pública:', id);
+      
       const { data, error } = await supabase
         .from('referencias_criativos')
         .select('*')
@@ -54,8 +56,17 @@ export const ReferenciaPublica = () => {
         .eq('ativo', true)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar referência:', error);
+        throw error;
+      }
 
+      if (!data) {
+        console.log('Referência não encontrada');
+        return;
+      }
+
+      console.log('Referência carregada:', data);
       setReferencia(data as ReferenciaCreativo);
 
       // Converter conteúdo para blocos do editor se for versão 2+
@@ -76,10 +87,16 @@ export const ReferenciaPublica = () => {
           updated_at: new Date().toISOString()
         }));
         setEditorBlocks(convertedBlocks);
+        console.log('Blocos convertidos:', convertedBlocks);
       }
       
     } catch (error) {
       console.error('Erro ao carregar referência:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar a referência.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
