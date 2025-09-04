@@ -17,7 +17,7 @@ interface ImportarLancamentosModalProps {
 interface LancamentoCSV {
   nome_lancamento: string;
   descricao?: string;
-  gestor_responsavel: string;
+  gestor_responsavel?: string;
   tipo_lancamento: string;
   data_inicio_captacao: string;
   data_fim_captacao?: string;
@@ -92,7 +92,7 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
       });
 
       // Verificar campos obrigatórios
-      const camposObrigatorios = ['nome_lancamento', 'gestor_responsavel', 'tipo_lancamento', 'data_inicio_captacao', 'investimento_total'];
+      const camposObrigatorios = ['nome_lancamento', 'tipo_lancamento', 'data_inicio_captacao', 'investimento_total'];
       const camposFaltando = camposObrigatorios.filter(campo => indices[campo] === undefined);
       
       if (camposFaltando.length > 0) {
@@ -159,10 +159,13 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
             throw new Error(`Linha ${index + 2}: Nome do lançamento é obrigatório`);
           }
 
-          // Encontrar ID do gestor
-          const gestorId = gestoresMap.get(item.gestor_responsavel.toLowerCase());
-          if (!gestorId) {
-            throw new Error(`Linha ${index + 2}: Gestor "${item.gestor_responsavel}" não encontrado`);
+          // Encontrar ID do gestor (opcional)
+          let gestorId = null;
+          if (item.gestor_responsavel?.trim()) {
+            gestorId = gestoresMap.get(item.gestor_responsavel.toLowerCase());
+            if (!gestorId) {
+              throw new Error(`Linha ${index + 2}: Gestor "${item.gestor_responsavel}" não encontrado`);
+            }
           }
 
           // Validar tipo de lançamento
@@ -261,8 +264,8 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                O arquivo CSV deve conter as colunas: nome_lancamento, gestor_responsavel, tipo_lancamento, 
-                data_inicio_captacao, investimento_total. Campos opcionais: descricao, data_fim_captacao, 
+                O arquivo CSV deve conter as colunas: nome_lancamento, tipo_lancamento, 
+                data_inicio_captacao, investimento_total. Campos opcionais: descricao, gestor_responsavel, data_fim_captacao, 
                 link_dashboard, link_briefing, observacoes.
               </AlertDescription>
             </Alert>
@@ -326,7 +329,7 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
                   {dadosPreview.map((item, index) => (
                     <tr key={index} className="border-t">
                       <td className="p-2">{item.nome_lancamento}</td>
-                      <td className="p-2">{item.gestor_responsavel}</td>
+                      <td className="p-2">{item.gestor_responsavel || '-'}</td>
                       <td className="p-2">{item.tipo_lancamento}</td>
                       <td className="p-2">{item.data_inicio_captacao}</td>
                       <td className="p-2">R$ {parseFloat(item.investimento_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
