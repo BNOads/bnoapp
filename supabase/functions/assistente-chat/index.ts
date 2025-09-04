@@ -495,14 +495,13 @@ async function searchTranscriptions(supabase: any, userId: string, query: string
     // Extrair informações da query
     const extractedInfo = extractQueryInfo(query);
     
-    // Chamar a função SQL especializada
-    const { data: results, error } = await supabase.rpc('buscar_transcricoes_reunioes', {
+    // Chamar a função SQL especializada - usar a nova função semântica
+    const { data: results, error } = await supabase.rpc('buscar_transcricoes_semanticas', {
       _user_id: userId,
       _query: extractedInfo.searchTerms,
       _cliente_id: extractedInfo.clienteId,
       _data_inicio: extractedInfo.dataInicio,
       _data_fim: extractedInfo.dataFim,
-      _responsavel: extractedInfo.responsavel,
       _limit: 5
     });
     
@@ -527,8 +526,27 @@ async function searchTranscriptions(supabase: any, userId: string, query: string
         context += `**Link:** ${result.url_gravacao}\n`;
       }
       
+      // Mostrar informações estruturadas da IA
+      if (result.topicos_principais && result.topicos_principais.length > 0) {
+        context += `**Tópicos Principais:** ${result.topicos_principais.join(', ')}\n`;
+      }
+      
+      if (result.decisoes_tomadas && result.decisoes_tomadas.length > 0) {
+        context += `**Decisões Tomadas:**\n`;
+        result.decisoes_tomadas.slice(0, 3).forEach((decisao: any) => {
+          context += `  • ${decisao.decisao}${decisao.responsavel ? ` (${decisao.responsavel})` : ''}\n`;
+        });
+      }
+      
+      if (result.pendencias && result.pendencias.length > 0) {
+        context += `**Pendências/Tarefas:**\n`;
+        result.pendencias.slice(0, 3).forEach((pendencia: any) => {
+          context += `  • ${pendencia.tarefa}${pendencia.responsavel ? ` - ${pendencia.responsavel}` : ''}${pendencia.prazo ? ` (${pendencia.prazo})` : ''}\n`;
+        });
+      }
+      
       if (result.resumo_ia) {
-        context += `**Resumo IA:** ${result.resumo_ia.substring(0, 300)}...\n`;
+        context += `**Resumo IA:** ${result.resumo_ia.substring(0, 200)}...\n`;
       }
       
       if (result.palavras_chave && result.palavras_chave.length > 0) {

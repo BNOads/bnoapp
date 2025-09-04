@@ -756,18 +756,23 @@ export type Database = {
           cliente_id: string | null
           created_at: string
           created_by: string
+          decisoes_tomadas: Json | null
           descricao: string | null
           duracao: number | null
+          embedding: string | null
           id: string
           indexacao_busca: unknown | null
           palavras_chave: string[] | null
+          participantes_identificados: string[] | null
           participantes_mencionados: string[] | null
+          pendencias: Json | null
           resumo_ia: string | null
           reuniao_id: string | null
           tags: string[] | null
           temas: Json | null
           thumbnail_url: string | null
           titulo: string
+          topicos_principais: Json | null
           transcricao: string | null
           updated_at: string
           url_gravacao: string
@@ -777,18 +782,23 @@ export type Database = {
           cliente_id?: string | null
           created_at?: string
           created_by: string
+          decisoes_tomadas?: Json | null
           descricao?: string | null
           duracao?: number | null
+          embedding?: string | null
           id?: string
           indexacao_busca?: unknown | null
           palavras_chave?: string[] | null
+          participantes_identificados?: string[] | null
           participantes_mencionados?: string[] | null
+          pendencias?: Json | null
           resumo_ia?: string | null
           reuniao_id?: string | null
           tags?: string[] | null
           temas?: Json | null
           thumbnail_url?: string | null
           titulo: string
+          topicos_principais?: Json | null
           transcricao?: string | null
           updated_at?: string
           url_gravacao: string
@@ -798,18 +808,23 @@ export type Database = {
           cliente_id?: string | null
           created_at?: string
           created_by?: string
+          decisoes_tomadas?: Json | null
           descricao?: string | null
           duracao?: number | null
+          embedding?: string | null
           id?: string
           indexacao_busca?: unknown | null
           palavras_chave?: string[] | null
+          participantes_identificados?: string[] | null
           participantes_mencionados?: string[] | null
+          pendencias?: Json | null
           resumo_ia?: string | null
           reuniao_id?: string | null
           tags?: string[] | null
           temas?: Json | null
           thumbnail_url?: string | null
           titulo?: string
+          topicos_principais?: Json | null
           transcricao?: string | null
           updated_at?: string
           url_gravacao?: string
@@ -1464,18 +1479,22 @@ export type Database = {
           created_at: string
           created_by: string
           data_hora: string
+          decisoes_tomadas: Json | null
           descricao: string | null
           duracao: number | null
+          embedding: string | null
           id: string
           indexacao_busca: unknown | null
           link_gravacao: string | null
           link_meet: string | null
           palavras_chave: string[] | null
           participantes: string[] | null
+          pendencias: Json | null
           resumo_ia: string | null
           status: string | null
           temas_discutidos: Json | null
           titulo: string
+          topicos_principais: Json | null
           transcricao: string | null
           updated_at: string
         }
@@ -1484,18 +1503,22 @@ export type Database = {
           created_at?: string
           created_by: string
           data_hora: string
+          decisoes_tomadas?: Json | null
           descricao?: string | null
           duracao?: number | null
+          embedding?: string | null
           id?: string
           indexacao_busca?: unknown | null
           link_gravacao?: string | null
           link_meet?: string | null
           palavras_chave?: string[] | null
           participantes?: string[] | null
+          pendencias?: Json | null
           resumo_ia?: string | null
           status?: string | null
           temas_discutidos?: Json | null
           titulo: string
+          topicos_principais?: Json | null
           transcricao?: string | null
           updated_at?: string
         }
@@ -1504,18 +1527,22 @@ export type Database = {
           created_at?: string
           created_by?: string
           data_hora?: string
+          decisoes_tomadas?: Json | null
           descricao?: string | null
           duracao?: number | null
+          embedding?: string | null
           id?: string
           indexacao_busca?: unknown | null
           link_gravacao?: string | null
           link_meet?: string | null
           palavras_chave?: string[] | null
           participantes?: string[] | null
+          pendencias?: Json | null
           resumo_ia?: string | null
           status?: string | null
           temas_discutidos?: Json | null
           titulo?: string
+          topicos_principais?: Json | null
           transcricao?: string | null
           updated_at?: string
         }
@@ -1817,6 +1844,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
       buscar_transcricoes_reunioes: {
         Args: {
           _cliente_id?: string
@@ -1868,12 +1899,44 @@ export type Database = {
         Args: { _email: string }
         Returns: undefined
       }
+      halfvec_avg: {
+        Args: { "": number[] }
+        Returns: unknown
+      }
+      halfvec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      halfvec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
       has_sensitive_data_permission: {
         Args: {
           _permission_type: Database["public"]["Enums"]["tipo_acesso_dados"]
           _user_id: string
         }
         Returns: boolean
+      }
+      hnsw_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_sparsevec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnswhandler: {
+        Args: { "": unknown }
+        Returns: unknown
       }
       is_admin_with_valid_reason: {
         Args: { _user_id: string }
@@ -1883,9 +1946,65 @@ export type Database = {
         Args: { _profile_user_id: string; _user_id: string }
         Returns: boolean
       }
+      ivfflat_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflathandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: string
+      }
+      sparsevec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      sparsevec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
       update_creative_status: {
         Args: { creative_id: string; new_status: boolean }
         Returns: Json
+      }
+      vector_avg: {
+        Args: { "": number[] }
+        Returns: string
+      }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
+      vector_norm: {
+        Args: { "": string }
+        Returns: number
+      }
+      vector_out: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      vector_send: {
+        Args: { "": string }
+        Returns: string
+      }
+      vector_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
       }
     }
     Enums: {
