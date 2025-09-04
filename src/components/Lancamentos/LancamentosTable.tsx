@@ -103,7 +103,7 @@ export const LancamentosTable = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">Status</label>
                 <Select value={filtros.status} onValueChange={(value) => onFiltrosChange({...filtros, status: value})}>
@@ -137,23 +137,6 @@ export const LancamentosTable = ({
                     <SelectItem value="flash">Flash</SelectItem>
                     <SelectItem value="evento">Evento</SelectItem>
                     <SelectItem value="outro">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Gestor</label>
-                <Select value={filtros.gestor} onValueChange={(value) => onFiltrosChange({...filtros, gestor: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os gestores" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Todos os gestores</SelectItem>
-                    {colaboradores.map((colaborador) => (
-                      <SelectItem key={colaborador.id} value={colaborador.id}>
-                        {colaborador.nome}
-                      </SelectItem>
-                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -193,7 +176,6 @@ export const LancamentosTable = ({
                 </TableHead>
                 <TableHead>Lançamento</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Gestor</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Investimento</TableHead>
@@ -230,24 +212,6 @@ export const LancamentosTable = ({
                       </div>
                     ) : (
                       <span className="text-muted-foreground">Cliente não definido</span>
-                    )}
-                  </TableCell>
-
-                  <TableCell>
-                    {lancamento.colaboradores?.nome ? (
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          {lancamento.colaboradores.avatar_url && (
-                            <AvatarImage src={lancamento.colaboradores.avatar_url} />
-                          )}
-                          <AvatarFallback className="text-xs">
-                            {lancamento.colaboradores.nome.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{lancamento.colaboradores.nome}</span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">Gestor não definido</span>
                     )}
                   </TableCell>
 
