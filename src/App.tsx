@@ -40,11 +40,7 @@ function App() {
                   <PDIDetalhes />
                 </ProtectedRoute>
               } />
-              <Route path="/painel/:clienteId" element={
-                <ProtectedRoute>
-                  <PainelCliente />
-                </ProtectedRoute>
-              } />
+              <Route path="/painel/:clienteId" element={<PainelCliente />} />
               <Route path="/criativos/:clienteId" element={
                 <ProtectedRoute>
                   <CriativosCliente />
