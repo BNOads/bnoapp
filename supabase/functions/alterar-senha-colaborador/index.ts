@@ -50,23 +50,6 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Criar cliente com o token do usuário para verificar permissões
-    const userSupabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        },
-        global: {
-          headers: {
-            authorization: authHeader
-          }
-        }
-      }
-    );
-
     const { user_id, email, nova_senha }: AlterarSenhaRequest = await req.json();
 
     console.log('Alterando senha do colaborador:', { user_id, email });
@@ -81,26 +64,31 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Verificar se o usuário que está fazendo a requisição é admin
-    const { data: { user }, error: userError } = await userSupabaseClient.auth.getUser();
-    if (userError || !user) {
-      console.error('Erro ao obter usuário:', userError);
+    // Extrair o token JWT do header
+    const token = authHeader.replace('Bearer ', '');
+    console.log('Token extraído, tamanho:', token.length);
+
+    // Usar o service role para verificar se o usuário é admin
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (userError || !userData?.user) {
+      console.error('Erro ao verificar usuário:', userError);
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'Usuário não autenticado' 
+        error: 'Token de autorização inválido' 
       }), {
         status: 401,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
-    console.log('Usuário autenticado:', user.id);
+    console.log('Usuário autenticado:', userData.user.id);
 
-    // Verificar se é admin
-    const { data: profile, error: profileError } = await userSupabaseClient
+    // Verificar se é admin usando service role
+    const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('nivel_acesso')
-      .eq('user_id', user.id)
+      .eq('user_id', userData.user.id)
       .single();
 
     if (profileError || !profile) {
@@ -113,6 +101,8 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
+
+    console.log('Nível de acesso do usuário:', profile.nivel_acesso);
 
     if (profile.nivel_acesso !== 'admin') {
       return new Response(JSON.stringify({ 
