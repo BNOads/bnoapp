@@ -14,6 +14,7 @@ import CursoDetalhes from "./pages/CursoDetalhes";
 import AulaDetalhes from "./pages/AulaDetalhes";
 import Perfil from "./pages/Perfil";
 import POPPublico from "./pages/POPPublico";
+import { ReferenciaViewer } from "./pages/ReferenciaViewer";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ function App() {
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/pop/publico/:id" element={<POPPublico />} />
+              <Route path="/referencia/:id" element={<ReferenciaViewer />} />
               <Route path="/pdi/:id" element={
                 <ProtectedRoute>
                   <PDIDetalhes />

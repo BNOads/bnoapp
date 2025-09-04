@@ -624,13 +624,14 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                              <ExternalLink className="h-4 w-4" />
                            </Button>
                          )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => abrirVisualizacao(referencia)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => window.open(`/referencia/${referencia.id}`, '_blank')}
+                               title="Visualizar em nova aba"
+                             >
+                               <Eye className="h-4 w-4" />
+                             </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -968,61 +969,19 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Visualização */}
+      {/* Modal de Visualização - Agora só para compatibilidade */}
       <Dialog open={showVisualizacao} onOpenChange={setShowVisualizacao}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <div className="flex justify-between items-start">
-              <div>
-                <DialogTitle className="text-2xl">{selectedReferencia?.titulo}</DialogTitle>
-                <div className="flex items-center gap-2 mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => selectedReferencia && copiarLink(selectedReferencia.link_publico)}
-                  >
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Compartilhar
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <DialogTitle>Abrindo referência...</DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Links Externos */}
-            {selectedReferencia?.links_externos && selectedReferencia.links_externos.length > 0 && (
-              <div>
-                <h3 className="font-semibold mb-3">Links Externos</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {selectedReferencia.links_externos.map((link: any, index: number) => (
-                    <a
-                      key={index}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      <span>{link.titulo || link.url}</span>
-                    </a>
-                  ))}
-                </div>
-                <Separator className="my-6" />
-              </div>
-            )}
-
-            {/* Conteúdo */}
-            <div className="space-y-6">
-              {selectedReferencia?.conteudo?.map((bloco, index) => (
-                <div key={index} className="space-y-4">
-                  {renderizarBloco(bloco)}
-                  {index < (selectedReferencia.conteudo?.length || 0) - 1 && (
-                    <Separator className="my-6" />
-                  )}
-                </div>
-              ))}
-            </div>
+          <div className="text-center py-8">
+            <p className="text-muted-foreground mb-4">
+              A referência será aberta em uma nova aba para melhor visualização.
+            </p>
+            <Button onClick={() => setShowVisualizacao(false)}>
+              Fechar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
