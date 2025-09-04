@@ -44,29 +44,62 @@ const handler = async (req: Request): Promise<Response> => {
     // Gerar senha inicial (email do usuário)
     const senhaInicial = email;
 
-    // Criar usuário no auth
-    const { data: authUser, error: authError } = await supabaseClient.auth.admin.createUser({
-      email,
-      password: senhaInicial,
-      email_confirm: true,
-      user_metadata: {
-        nome: nome,
-        primeiro_login: true
-      }
-    });
+    let authUserId: string;
+    let isNewUser = false;
 
-    if (authError) {
-      console.error('Erro ao criar usuário auth:', authError);
-      throw new Error(`Erro ao criar usuário: ${authError.message}`);
+    // Verificar se o usuário já existe no auth
+    const { data: existingUsers, error: listError } = await supabaseClient.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('Erro ao listar usuários:', listError);
+      throw new Error(`Erro ao verificar usuários existentes: ${listError.message}`);
     }
 
-    console.log('Usuário auth criado:', authUser.user.id);
+    const existingUser = existingUsers.users.find(user => user.email === email);
+
+    if (existingUser) {
+      console.log('Usuário já existe no auth:', existingUser.id);
+      authUserId = existingUser.id;
+      
+      // Verificar se já tem perfil
+      const { data: existingProfile } = await supabaseClient
+        .from('profiles')
+        .select('user_id')
+        .eq('user_id', authUserId)
+        .single();
+
+      if (existingProfile) {
+        throw new Error('Este usuário já está cadastrado como colaborador.');
+      }
+    } else {
+      console.log('Criando novo usuário no auth...');
+      
+      // Criar usuário no auth
+      const { data: authUser, error: authError } = await supabaseClient.auth.admin.createUser({
+        email,
+        password: senhaInicial,
+        email_confirm: true,
+        user_metadata: {
+          nome: nome,
+          primeiro_login: true
+        }
+      });
+
+      if (authError) {
+        console.error('Erro ao criar usuário auth:', authError);
+        throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      }
+
+      authUserId = authUser.user.id;
+      isNewUser = true;
+      console.log('Usuário auth criado:', authUserId);
+    }
 
     // Criar perfil
     const { error: profileError } = await supabaseClient
       .from('profiles')
       .insert({
-        user_id: authUser.user.id,
+        user_id: authUserId,
         nome,
         email,
         nivel_acesso,
@@ -80,7 +113,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Criar colaborador
     const colaboradorData: any = {
-      user_id: authUser.user.id,
+      user_id: authUserId,
       nome,
       email,
       nivel_acesso,
@@ -100,42 +133,47 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Erro ao criar colaborador: ${colaboradorError.message}`);
     }
 
-    // Enviar email com senha inicial
-    const emailResponse = await resend.emails.send({
-      from: "BNOads <noreply@resend.dev>",
-      to: [email],
-      subject: "Bem-vindo ao Sistema BNOads - Acesso Criado",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #2563eb;">Bem-vindo ao Sistema BNOads!</h1>
-          <p>Olá <strong>${nome}</strong>,</p>
-          <p>Sua conta foi criada com sucesso no Sistema BNOads. Abaixo estão suas credenciais de acesso:</p>
-          
-          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Senha inicial:</strong> ${senhaInicial}</p>
+    // Enviar email com senha inicial apenas para novos usuários
+    if (isNewUser) {
+      const emailResponse = await resend.emails.send({
+        from: "BNOads <noreply@resend.dev>",
+        to: [email],
+        subject: "Bem-vindo ao Sistema BNOads - Acesso Criado",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #2563eb;">Bem-vindo ao Sistema BNOads!</h1>
+            <p>Olá <strong>${nome}</strong>,</p>
+            <p>Sua conta foi criada com sucesso no Sistema BNOads. Abaixo estão suas credenciais de acesso:</p>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Senha inicial:</strong> ${senhaInicial}</p>
+            </div>
+            
+            <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+              <p><strong>⚠️ IMPORTANTE:</strong> Por segurança, você será obrigado a alterar sua senha no primeiro login.</p>
+            </div>
+            
+            <p>Para acessar o sistema, visite: <a href="https://app.bnoads.com.br/auth" style="color: #2563eb;">https://app.bnoads.com.br/auth</a></p>
+            
+            <p>Se você tiver alguma dúvida, entre em contato com nossa equipe.</p>
+            
+            <p>Bem-vindo à equipe!<br>
+            <strong>Equipe BNOads</strong></p>
           </div>
-          
-          <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
-            <p><strong>⚠️ IMPORTANTE:</strong> Por segurança, você será obrigado a alterar sua senha no primeiro login.</p>
-          </div>
-          
-          <p>Para acessar o sistema, visite: <a href="https://app.bnoads.com.br/auth" style="color: #2563eb;">https://app.bnoads.com.br/auth</a></p>
-          
-          <p>Se você tiver alguma dúvida, entre em contato com nossa equipe.</p>
-          
-          <p>Bem-vindo à equipe!<br>
-          <strong>Equipe BNOads</strong></p>
-        </div>
-      `,
-    });
+        `,
+      });
 
-    console.log('Email enviado:', emailResponse);
+      console.log('Email enviado:', emailResponse);
+    } else {
+      console.log('Usuário já existia, email não enviado');
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: 'Colaborador criado com sucesso',
-      user_id: authUser.user.id 
+      message: isNewUser ? 'Colaborador criado com sucesso' : 'Colaborador adicionado ao sistema (usuário já existia)',
+      user_id: authUserId,
+      is_new_user: isNewUser
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
