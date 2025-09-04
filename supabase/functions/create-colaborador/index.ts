@@ -79,7 +79,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         // Verificar se já tem perfil de colaborador
         const { data: existingProfile } = await supabaseClient
-          .from('profiles')
+          .from('colaboradores')
           .select('user_id')
           .eq('user_id', authUserId)
           .single();
