@@ -47,34 +47,29 @@ export const NovoColaboradorModal = ({
     setLoading(true);
 
     try {
-      // Criar registro direto na tabela colaboradores (sem criar usuário auth)
-      const colaboradorData: any = {
-        nome: formData.nome,
-        email: formData.email,
-        nivel_acesso: formData.nivel_acesso,
-      };
+      // Usar edge function para criar colaborador com senha automática
+      const { data, error } = await supabase.functions.invoke('create-colaborador', {
+        body: {
+          nome: formData.nome,
+          email: formData.email,
+          nivel_acesso: formData.nivel_acesso,
+          data_nascimento: formData.data_nascimento || undefined,
+          estado_civil: formData.estado_civil || undefined,
+          tamanho_camisa: formData.tamanho_camisa || undefined,
+        }
+      });
 
-      if (formData.data_nascimento) {
-        colaboradorData.data_nascimento = formData.data_nascimento;
-      }
-      if (formData.estado_civil) {
-        colaboradorData.estado_civil = formData.estado_civil;
-      }
-      if (formData.tamanho_camisa) {
-        colaboradorData.tamanho_camisa = formData.tamanho_camisa;
+      if (error) {
+        throw new Error(error.message || 'Erro ao criar colaborador');
       }
 
-      const { error: colaboradorError } = await supabase
-        .from('colaboradores')
-        .insert(colaboradorData);
-
-      if (colaboradorError) {
-        throw colaboradorError;
+      if (!data?.success) {
+        throw new Error(data?.error || 'Erro ao criar colaborador');
       }
 
       toast({
         title: "Colaborador criado com sucesso!",
-        description: `${formData.nome} foi adicionado à equipe. Ele deve se registrar no sistema usando o email ${formData.email}.`,
+        description: `${formData.nome} foi adicionado à equipe e recebeu um email com as credenciais de acesso.`,
       });
 
       // Reset form

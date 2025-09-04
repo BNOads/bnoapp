@@ -1,23 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/components/Auth/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { ForgotPasswordModal } from '@/components/Auth/ForgotPasswordModal';
+import { PasswordChangeModal } from '@/components/Auth/PasswordChangeModal';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
   const { user, loading, signIn } = useAuth();
+  const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
 
-  // Redirecionar se já estiver logado
-  if (user) {
+  // Verificar se é redefinição de senha
+  useEffect(() => {
+    const token = searchParams.get('token');
+    if (token) {
+      setResetToken(token);
+      setShowPasswordChange(true);
+    }
+  }, [searchParams]);
+
+  // Verificar primeiro login após autenticação
+  useEffect(() => {
+    if (user) {
+      checkFirstLogin();
+    }
+  }, [user]);
+
+  const checkFirstLogin = async () => {
+    if (!user) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('primeiro_login')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profile?.primeiro_login) {
+        setForcedPasswordChange(true);
+        setShowPasswordChange(true);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar primeiro login:', error);
+    }
+  };
+
+  // Redirecionar se já estiver logado e não for primeiro login
+  if (user && !forcedPasswordChange && !resetToken) {
     return <Navigate to="/" replace />;
   }
 
@@ -31,8 +76,25 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await signIn(formData.email, formData.password);
+    const { error } = await signIn(formData.email, formData.password);
+    if (!error) {
+      // Verificação de primeiro login será feita no useEffect
+    }
     setIsSubmitting(false);
+  };
+
+  const handlePasswordResetSuccess = async () => {
+    if (resetToken) {
+      // Lógica para redefinição via token será implementada
+      toast({
+        title: "Senha redefinida!",
+        description: "Faça login com sua nova senha.",
+      });
+      setResetToken(null);
+    } else {
+      setForcedPasswordChange(false);
+    }
+    setShowPasswordChange(false);
   };
 
   if (loading) {
@@ -99,9 +161,30 @@ const Auth = () => {
                 'Entrar'
               )}
             </Button>
+            
+            <Button 
+              type="button" 
+              variant="link" 
+              className="w-full text-sm text-muted-foreground"
+              onClick={() => setShowForgotPassword(true)}
+            >
+              Esqueci minha senha
+            </Button>
           </form>
         </CardContent>
       </Card>
+
+      <ForgotPasswordModal 
+        open={showForgotPassword}
+        onOpenChange={setShowForgotPassword}
+      />
+
+      <PasswordChangeModal 
+        open={showPasswordChange}
+        onOpenChange={setShowPasswordChange}
+        onSuccess={handlePasswordResetSuccess}
+        forced={forcedPasswordChange}
+      />
     </div>
   );
 };

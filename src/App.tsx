@@ -16,6 +16,7 @@ import Perfil from "./pages/Perfil";
 import POPPublico from "./pages/POPPublico";
 import { ReferenciaViewer } from "./pages/ReferenciaViewer";
 import { ReferenciaPublica } from "./pages/ReferenciaPublica";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ function App() {
           <AuthProvider>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/reset-password" element={<ResetPassword />} />
               <Route path="/pop/publico/:id" element={<POPPublico />} />
               <Route path="/referencia/:id" element={<ReferenciaViewer />} />
               <Route path="/referencia/publica/:id" element={<ReferenciaPublica />} />
