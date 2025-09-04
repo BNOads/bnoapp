@@ -76,7 +76,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log('Usuário encontrado no auth:', existingUser.id);
         authUserId = existingUser.id;
         isNewUser = false;
-        console.log('Usuário existe no auth, reutilizando para novo colaborador...');
+        console.log('Usuário existe no auth, verificando perfil...');
       } else {
         console.log('Usuário não encontrado, criando novo...');
         
@@ -105,20 +105,33 @@ const handler = async (req: Request): Promise<Response> => {
       throw error;
     }
 
-    // Criar perfil
-    const { error: profileError } = await supabaseClient
+    // Verificar se já existe perfil e criar apenas se necessário
+    let needsProfile = false;
+    const { data: existingProfile } = await supabaseClient
       .from('profiles')
-      .insert({
-        user_id: authUserId,
-        nome,
-        email,
-        nivel_acesso,
-        primeiro_login: true
-      });
+      .select('user_id')
+      .eq('user_id', authUserId)
+      .single();
 
-    if (profileError) {
-      console.error('Erro ao criar perfil:', profileError);
-      throw new Error(`Erro ao criar perfil: ${profileError.message}`);
+    if (!existingProfile) {
+      needsProfile = true;
+      console.log('Criando perfil para o usuário...');
+      const { error: profileError } = await supabaseClient
+        .from('profiles')
+        .insert({
+          user_id: authUserId,
+          nome,
+          email,
+          nivel_acesso,
+          primeiro_login: true
+        });
+
+      if (profileError) {
+        console.error('Erro ao criar perfil:', profileError);
+        throw new Error(`Erro ao criar perfil: ${profileError.message}`);
+      }
+    } else {
+      console.log('Perfil já existe para este usuário');
     }
 
     // Criar colaborador
