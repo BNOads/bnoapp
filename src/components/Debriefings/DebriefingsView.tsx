@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Debriefing {
   id: string;
@@ -34,36 +35,30 @@ export default function DebriefingsView() {
 
   const fetchDebriefings = async () => {
     try {
-      // Temporariamente usando dados mockados até os tipos serem atualizados
-      const mockData: Debriefing[] = [
-        {
-          id: '1',
-          cliente_nome: 'Cliente Exemplo',
-          nome_lancamento: 'Lançamento Agosto 2025',
-          periodo_inicio: '2025-08-01',
-          periodo_fim: '2025-08-31',
-          status: 'concluido',
-          created_at: '2025-08-01T00:00:00Z',
-          leads_total: 1250,
-          vendas_total: 85,
-          investimento_total: 15000,
-          roas: 3.2
-        },
-        {
-          id: '2',
-          cliente_nome: 'BNOads Digital',
-          nome_lancamento: 'Campanha Black Friday',
-          periodo_inicio: '2024-11-20',
-          periodo_fim: '2024-11-30',
-          status: 'processando',
-          created_at: '2024-11-20T00:00:00Z',
-          leads_total: 2100,
-          vendas_total: 156,
-          investimento_total: 25000,
-          roas: 4.1
-        }
-      ];
-      setDebriefings(mockData);
+      const { data: debriefingsData, error } = await supabase
+        .from('debriefings')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      if (debriefingsData) {
+        setDebriefings(debriefingsData.map(item => ({
+          id: item.id,
+          cliente_nome: item.cliente_nome,
+          nome_lancamento: item.nome_lancamento,
+          periodo_inicio: item.periodo_inicio,
+          periodo_fim: item.periodo_fim,
+          status: item.status as 'rascunho' | 'processando' | 'concluido',
+          created_at: item.created_at,
+          leads_total: item.leads_total,
+          vendas_total: item.vendas_total,
+          investimento_total: item.investimento_total,
+          roas: item.roas
+        })));
+      }
     } catch (error) {
       console.error('Erro ao buscar debriefings:', error);
       toast.error('Erro ao carregar debriefings');
