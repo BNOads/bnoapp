@@ -60,10 +60,16 @@ serve(async (req) => {
       console.log(`Processados ${metricas.leads_total} leads`);
     }
 
-    // Processar dados de compradores
+    // Processar dados de compradores (cruzamento por email)
     if (dados_compradores && dados_compradores.length > 0) {
-      metricas.vendas_total = dados_compradores.length;
-      metricas.faturamento_total = dados_compradores.reduce((sum, comprador) => {
+      // Cross-reference buyers with leads by email
+      const compradores_validados = dados_compradores.filter(comprador => {
+        if (!dados_leads || dados_leads.length === 0) return true;
+        return dados_leads.some(lead => lead.email === comprador.email);
+      });
+      
+      metricas.vendas_total = compradores_validados.length;
+      metricas.faturamento_total = compradores_validados.reduce((sum, comprador) => {
         return sum + (parseFloat(comprador.valor) || 0);
       }, 0);
       
@@ -71,7 +77,7 @@ serve(async (req) => {
         metricas.ticket_medio = metricas.faturamento_total / metricas.vendas_total;
       }
       
-      console.log(`Processados ${metricas.vendas_total} compradores, faturamento: ${metricas.faturamento_total}`);
+      console.log(`Processados ${metricas.vendas_total} compradores (${dados_compradores.length - compradores_validados.length} descartados por não ter lead correspondente), faturamento: ${metricas.faturamento_total}`);
     }
 
     // Processar dados de tráfego

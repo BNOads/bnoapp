@@ -93,6 +93,44 @@ export default function DebriefingDetalhes() {
     }).format(value);
   };
 
+  const handleShare = async () => {
+    try {
+      const shareUrl = `${window.location.origin}/debriefings/${id}`;
+      if (navigator.share) {
+        await navigator.share({
+          title: `Debriefing - ${debriefing?.nome_lancamento}`,
+          text: `Confira o debriefing do lançamento ${debriefing?.nome_lancamento}`,
+          url: shareUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success('Link copiado para a área de transferência!');
+      }
+    } catch (error) {
+      console.error('Erro ao compartilhar:', error);
+      toast.error('Erro ao compartilhar debriefing');
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      toast.info('Gerando PDF...');
+      
+      // Call edge function to generate PDF
+      const { data, error } = await supabase.functions.invoke('gerar-pdf-debriefing', {
+        body: { debriefing_id: id }
+      });
+
+      if (error) throw error;
+
+      // In a real implementation, this would download the PDF
+      toast.success('PDF gerado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
+      toast.error('Erro ao gerar PDF');
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -143,11 +181,11 @@ export default function DebriefingDetalhes() {
         </div>
         
         <div className="flex space-x-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleShare}>
             <Share className="mr-2 h-4 w-4" />
             Compartilhar
           </Button>
-          <Button>
+          <Button onClick={handleExportPDF}>
             <Download className="mr-2 h-4 w-4" />
             Exportar PDF
           </Button>

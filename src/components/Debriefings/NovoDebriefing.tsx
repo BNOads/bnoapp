@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Upload, FileText, Users, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import FileUploadSection from "./FileUploadSection";
+import GoogleSheetsSection from "./GoogleSheetsSection";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Cliente {
   id: string;
@@ -45,14 +46,17 @@ export default function NovoDebriefing() {
 
   const fetchClientes = async () => {
     try {
-      // Temporariamente usando dados mockados até os tipos serem atualizados
-      const mockClientes: Cliente[] = [
-        { id: '1', nome: 'Cliente Exemplo' },
-        { id: '2', nome: 'BNOads Digital' },
-        { id: '3', nome: 'Tech Solutions' },
-        { id: '4', nome: 'Marketing Pro' }
-      ];
-      setClientes(mockClientes);
+      const { data: clientes, error } = await supabase
+        .from('clientes')
+        .select('id, nome')
+        .eq('ativo', true)
+        .order('nome');
+
+      if (error) {
+        throw error;
+      }
+
+      setClientes(clientes || []);
     } catch (error) {
       console.error('Erro ao buscar clientes:', error);
       toast.error('Erro ao carregar clientes');
@@ -84,16 +88,30 @@ export default function NovoDebriefing() {
 
     setLoading(true);
     try {
-      // Temporariamente simulando criação até os tipos serem atualizados
-      const mockId = Math.random().toString(36).substr(2, 9);
-      
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simula delay da API
+      const { data: debriefing, error } = await supabase
+        .from('debriefings')
+        .insert({
+          cliente_id: debriefingData.cliente_id,
+          cliente_nome: debriefingData.cliente_nome,
+          nome_lancamento: debriefingData.nome_lancamento,
+          periodo_inicio: debriefingData.periodo_inicio,
+          periodo_fim: debriefingData.periodo_fim,
+          moeda: debriefingData.moeda,
+          meta_roas: debriefingData.meta_roas,
+          meta_cpl: debriefingData.meta_cpl,
+          status: 'rascunho',
+          created_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
       
       toast.success('Debriefing criado com sucesso!');
       setCurrentStep(2);
       
-      // Store debriefing ID for file uploads
-      sessionStorage.setItem('current_debriefing_id', mockId);
+      // Store debriefing ID for Google Sheets processing
+      sessionStorage.setItem('current_debriefing_id', debriefing.id);
     } catch (error) {
       console.error('Erro ao criar debriefing:', error);
       toast.error('Erro ao criar debriefing');
@@ -248,12 +266,12 @@ export default function NovoDebriefing() {
           <Card>
             <CardHeader>
               <CardTitle>Upload de Dados</CardTitle>
-              <CardDescription>
-                Faça upload dos arquivos com dados de leads, compradores e tráfego
-              </CardDescription>
+            <CardDescription>
+              Conecte suas planilhas do Google Sheets com dados de leads, compradores e tráfego
+            </CardDescription>
             </CardHeader>
             <CardContent>
-              <FileUploadSection 
+              <GoogleSheetsSection 
                 debriefingData={debriefingData}
                 onComplete={handleFileUploadComplete}
               />
