@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 
 interface DebriefingDetalhes {
   id: string;
@@ -24,6 +25,9 @@ interface DebriefingDetalhes {
   ticket_medio?: number;
   conversao_lead_venda?: number;
   created_at: string;
+  dados_leads?: any;
+  dados_compradores?: any;
+  dados_trafego?: any;
 }
 
 export default function DebriefingDetalhes() {
@@ -44,13 +48,14 @@ export default function DebriefingDetalhes() {
         .from('debriefings')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         throw error;
       }
 
       if (debriefingData) {
+        console.log('Dados do debriefing carregados:', debriefingData);
         setDebriefing({
           id: debriefingData.id,
           cliente_nome: debriefingData.cliente_nome,
@@ -66,8 +71,15 @@ export default function DebriefingDetalhes() {
           roas: debriefingData.roas,
           cpl: debriefingData.cpl,
           ticket_medio: debriefingData.ticket_medio,
-          conversao_lead_venda: debriefingData.conversao_lead_venda
+          conversao_lead_venda: debriefingData.conversao_lead_venda,
+          dados_leads: debriefingData.dados_leads,
+          dados_compradores: debriefingData.dados_compradores,
+          dados_trafego: debriefingData.dados_trafego
         });
+      } else {
+        console.log('Nenhum debriefing encontrado para o ID:', id);
+        toast.error('Debriefing não encontrado');
+        navigate('/debriefings');
       }
     } catch (error) {
       console.error('Erro ao buscar debriefing:', error);
@@ -277,23 +289,50 @@ export default function DebriefingDetalhes() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Performance por Etapa</CardTitle>
+                    <CardTitle>Performance Resumo</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center text-muted-foreground">
-                      Gráfico de barras - Investimento e Leads por etapa
-                    </div>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={[
+                        { name: 'Leads', value: debriefing.leads_total || 0, fill: '#8884d8' },
+                        { name: 'Vendas', value: debriefing.vendas_total || 0, fill: '#82ca9d' },
+                      ]}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="value" />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Distribuição por Plataforma</CardTitle>
+                    <CardTitle>Distribuição Financeira</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center text-muted-foreground">
-                      Gráfico de pizza - Investimento por plataforma
-                    </div>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Investimento', value: Number(debriefing.investimento_total) || 0, fill: '#ff7c7c' },
+                            { name: 'Faturamento', value: Number(debriefing.faturamento_total) || 0, fill: '#8dd1e1' },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          <Cell fill="#ff7c7c" />
+                          <Cell fill="#8dd1e1" />
+                        </Pie>
+                        <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, '']} />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </CardContent>
                 </Card>
               </div>
@@ -302,12 +341,23 @@ export default function DebriefingDetalhes() {
             <TabsContent value="evolucao" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Evolução Diária</CardTitle>
+                  <CardTitle>Métricas Principais</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center text-muted-foreground">
-                    Gráfico de linhas - Leads, Investimento, Vendas por dia
-                  </div>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={[
+                      { name: 'CPL', value: Number(debriefing.cpl) || 0 },
+                      { name: 'ROAS', value: Number(debriefing.roas) || 0 },
+                      { name: 'Ticket Médio', value: Number(debriefing.ticket_medio) || 0 },
+                      { name: 'Conv %', value: Number(debriefing.conversao_lead_venda) * 100 || 0 },
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [Number(value).toFixed(2), '']} />
+                      <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -315,12 +365,35 @@ export default function DebriefingDetalhes() {
             <TabsContent value="campanhas" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Top Campanhas</CardTitle>
+                  <CardTitle>Dados de Tráfego</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center text-muted-foreground">
-                    Tabela com ranking de campanhas por performance
-                  </div>
+                  {debriefing.dados_trafego && debriefing.dados_trafego.length > 0 ? (
+                    <div className="space-y-4">
+                      {debriefing.dados_trafego.map((item: any, index: number) => (
+                        <div key={index} className="border p-4 rounded-lg">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium">Data:</span> {item.data}
+                            </div>
+                            <div>
+                              <span className="font-medium">Investimento:</span> R$ {item.investimento}
+                            </div>
+                            <div>
+                              <span className="font-medium">Plataforma:</span> {item.plataforma}
+                            </div>
+                            <div>
+                              <span className="font-medium">Campanha:</span> {item.campanha}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      Nenhum dado de tráfego disponível
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -329,23 +402,52 @@ export default function DebriefingDetalhes() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>O que funcionou</CardTitle>
+                    <CardTitle>Dados de Leads</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center text-muted-foreground">
-                      Pontos positivos identificados
-                    </div>
+                    {debriefing.dados_leads && debriefing.dados_leads.length > 0 ? (
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {debriefing.dados_leads.slice(0, 5).map((lead: any, index: number) => (
+                          <div key={index} className="border p-2 rounded text-sm">
+                            <div><strong>Email:</strong> {lead.email}</div>
+                            <div><strong>Nome:</strong> {lead.nome}</div>
+                            <div><strong>Data:</strong> {lead.data_captura}</div>
+                          </div>
+                        ))}
+                        {debriefing.dados_leads.length > 5 && (
+                          <div className="text-center text-muted-foreground text-sm">
+                            ... e mais {debriefing.dados_leads.length - 5} leads
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center text-muted-foreground">
+                        Nenhum dado de leads disponível
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>O que ajustar</CardTitle>
+                    <CardTitle>Dados de Compradores</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center text-muted-foreground">
-                      Oportunidades de melhoria
-                    </div>
+                    {debriefing.dados_compradores && debriefing.dados_compradores.length > 0 ? (
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {debriefing.dados_compradores.map((comprador: any, index: number) => (
+                          <div key={index} className="border p-2 rounded text-sm">
+                            <div><strong>Email:</strong> {comprador.email}</div>
+                            <div><strong>Valor:</strong> R$ {comprador.valor}</div>
+                            <div><strong>Data:</strong> {comprador.data_compra}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center text-muted-foreground">
+                        Nenhum dado de compradores disponível
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
