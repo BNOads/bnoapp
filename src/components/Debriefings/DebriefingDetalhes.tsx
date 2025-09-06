@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Download, Share, FileText, TrendingUp, Target, DollarSign } from "lucide-react";
+import { ArrowLeft, Download, Share, FileText, TrendingUp, Target, DollarSign, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
@@ -117,7 +118,7 @@ export default function DebriefingDetalhes() {
 
   const handleShare = async () => {
     try {
-      const shareUrl = `${window.location.origin}/debriefings/${id}`;
+      const shareUrl = `${window.location.origin}/debriefing/publico/${id}`;
       if (navigator.share) {
         await navigator.share({
           title: `Debriefing - ${debriefing?.nome_lancamento}`,
@@ -126,7 +127,7 @@ export default function DebriefingDetalhes() {
         });
       } else {
         await navigator.clipboard.writeText(shareUrl);
-        toast.success('Link copiado para a área de transferência!');
+        toast.success('Link público copiado para a área de transferência!');
       }
     } catch (error) {
       console.error('Erro ao compartilhar:', error);
@@ -138,18 +139,45 @@ export default function DebriefingDetalhes() {
     try {
       toast.info('Gerando PDF...');
       
-      // Call edge function to generate PDF
       const { data, error } = await supabase.functions.invoke('gerar-pdf-debriefing', {
         body: { debriefing_id: id }
       });
 
       if (error) throw error;
 
-      // In a real implementation, this would download the PDF
-      toast.success('PDF gerado com sucesso!');
+      if (data?.pdf_url) {
+        // Create a temporary link to download the PDF
+        const link = document.createElement('a');
+        link.href = data.pdf_url;
+        link.download = data.filename || `debriefing_${debriefing?.nome_lancamento}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success('PDF baixado com sucesso!');
+      } else {
+        toast.success('PDF gerado com sucesso!');
+      }
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
       toast.error('Erro ao gerar PDF');
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from('debriefings')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Debriefing excluído com sucesso!');
+      navigate('/debriefings');
+    } catch (error) {
+      console.error('Erro ao excluir debriefing:', error);
+      toast.error('Erro ao excluir debriefing');
     }
   };
 
@@ -207,10 +235,32 @@ export default function DebriefingDetalhes() {
             <Share className="mr-2 h-4 w-4" />
             Compartilhar
           </Button>
-          <Button onClick={handleExportPDF}>
+          <Button variant="outline" onClick={handleExportPDF}>
             <Download className="mr-2 h-4 w-4" />
-            Exportar PDF
+            Baixar PDF
           </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir Debriefing</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir este debriefing? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 

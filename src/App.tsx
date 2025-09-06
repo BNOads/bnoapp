@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import NovoDebriefing from "@/components/Debriefings/NovoDebriefing";
 import DebriefingDetalhes from "@/components/Debriefings/DebriefingDetalhes";
+import DebriefingPublico from "./pages/DebriefingPublico";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ function App() {
               <Route path="/pop/publico/:id" element={<POPPublico />} />
               <Route path="/referencia/:id" element={<ReferenciaViewer />} />
               <Route path="/referencia/publica/:id" element={<ReferenciaPublica />} />
+              <Route path="/debriefing/publico/:id" element={<DebriefingPublico />} />
               <Route path="/pdi/:id" element={
                 <ProtectedRoute>
                   <PDIDetalhes />
