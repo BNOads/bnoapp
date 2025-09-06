@@ -51,28 +51,65 @@ export default function GoogleSheetsSection({ debriefingData, onComplete }: Goog
         throw new Error('URL inválida do Google Sheets');
       }
 
-      // Here we would validate and process the Google Sheets data
-      // For now, simulating the process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log(`Conectando planilha ${type} com ID: ${sheetId}`);
+
+      // Convert Google Sheets URL to CSV export URL
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
+      
+      console.log(`Fazendo fetch dos dados: ${csvUrl}`);
+      
+      // Fetch the CSV data
+      const response = await fetch(csvUrl);
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados: ${response.status}. Verifique se a planilha é pública.`);
+      }
+
+      const csvText = await response.text();
+      console.log(`Dados CSV recebidos (${csvText.length} caracteres)`);
+      
+      // Parse CSV to JSON
+      const lines = csvText.split('\n').filter(line => line.trim());
+      if (lines.length === 0) {
+        throw new Error('Planilha vazia');
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      const data = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+        if (values.length >= headers.length) {
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header.toLowerCase()] = values[index] || '';
+          });
+          data.push(row);
+        }
+      }
+
+      console.log(`Processados ${data.length} registros para ${type}`);
+      console.log('Headers encontrados:', headers);
+      console.log('Primeiro registro:', data[0]);
 
       setSheetsData(prev => prev.map(s => 
         s.type === type ? { 
           ...s, 
           status: 'validated',
-          data: getMockData(type) // In real implementation, this would be the actual data
+          data: data
         } : s
       ));
 
-      toast.success(`Planilha ${sheet.name} conectada com sucesso!`);
+      toast.success(`Planilha ${sheet.name} conectada com sucesso! ${data.length} registros encontrados`);
     } catch (error) {
+      console.error(`Erro ao conectar planilha ${type}:`, error);
       setSheetsData(prev => prev.map(s => 
         s.type === type ? { 
           ...s, 
           status: 'error', 
-          errors: ['Erro ao conectar com a planilha. Verifique se a URL está correta e se a planilha é pública.']
+          errors: [error.message || 'Erro ao conectar com a planilha. Verifique se a URL está correta e se a planilha é pública.']
         } : s
       ));
-      toast.error(`Erro ao conectar planilha ${sheet.name}`);
+      toast.error(`Erro ao conectar planilha ${sheet.name}: ${error.message}`);
     }
   };
 
