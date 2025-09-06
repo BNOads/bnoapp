@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, TrendingUp, FileSpreadsheet, CheckCircle, AlertCircle } from "lucide-react";
+import { Users, TrendingUp, FileSpreadsheet, CheckCircle, AlertCircle, Eye, Database } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,6 +30,7 @@ export default function GoogleSheetsSection({ debriefingData, onComplete }: Goog
     { name: 'Tráfego', type: 'trafego', status: 'none', url: '' }
   ]);
   const [activeTab, setActiveTab] = useState("leads");
+  const [showPreview, setShowPreview] = useState(false);
 
   const handleUrlChange = (type: 'leads' | 'compradores' | 'trafego', url: string) => {
     setSheetsData(prev => prev.map(sheet => 
@@ -141,6 +143,15 @@ export default function GoogleSheetsSection({ debriefingData, onComplete }: Goog
 
   const canProceed = () => {
     return sheetsData.some(s => s.status === 'validated');
+  };
+
+  const getTotalRecords = () => {
+    return sheetsData.reduce((total, sheet) => {
+      if (sheet.status === 'validated' && sheet.data) {
+        return total + sheet.data.length;
+      }
+      return total;
+    }, 0);
   };
 
   const processDebriefing = async () => {
@@ -307,20 +318,114 @@ export default function GoogleSheetsSection({ debriefingData, onComplete }: Goog
 
       <div className="flex justify-between items-center pt-6 border-t">
         <p className="text-sm text-muted-foreground">
-          {sheetsData.filter(s => s.status === 'validated').length} planilha(s) conectada(s) com sucesso
+          {sheetsData.filter(s => s.status === 'validated').length} planilha(s) conectada(s) • {getTotalRecords()} registros no total
         </p>
         <div className="flex space-x-4">
           <Button variant="outline" onClick={() => window.history.back()}>
             Voltar
           </Button>
+          {canProceed() && (
+            <Button 
+              variant="outline"
+              onClick={() => setShowPreview(!showPreview)}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              {showPreview ? 'Ocultar' : 'Visualizar'} Dados
+            </Button>
+          )}
           <Button 
             onClick={processDebriefing}
             disabled={!canProceed()}
           >
+            <Database className="h-4 w-4 mr-2" />
             Processar Debriefing
           </Button>
         </div>
       </div>
+
+      {showPreview && canProceed() && (
+        <div className="mt-6 space-y-6">
+          <div className="flex items-center space-x-2 pb-4 border-b">
+            <Eye className="h-5 w-5" />
+            <h3 className="text-lg font-semibold">Prévia dos Dados Importados</h3>
+          </div>
+          
+          {sheetsData.map((sheet) => {
+            if (sheet.status !== 'validated' || !sheet.data || sheet.data.length === 0) return null;
+            
+            return (
+              <Card key={sheet.type}>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>{sheet.name} ({sheet.data.length} registros)</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-lg border max-h-64 overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {Object.keys(sheet.data[0] || {}).slice(0, 6).map((key) => (
+                            <TableHead key={key} className="font-medium">
+                              {key}
+                            </TableHead>
+                          ))}
+                          {Object.keys(sheet.data[0] || {}).length > 6 && (
+                            <TableHead>...</TableHead>
+                          )}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sheet.data.slice(0, 5).map((row, index) => (
+                          <TableRow key={index}>
+                            {Object.values(row).slice(0, 6).map((value, cellIndex) => (
+                              <TableCell key={cellIndex} className="text-sm">
+                                {String(value).length > 30 
+                                  ? String(value).substring(0, 30) + '...' 
+                                  : String(value)
+                                }
+                              </TableCell>
+                            ))}
+                            {Object.values(row).length > 6 && (
+                              <TableCell>...</TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                        {sheet.data.length > 5 && (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center text-muted-foreground text-sm">
+                              ... e mais {sheet.data.length - 5} registros
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-blue-900 mb-1">Validação dos Dados</h4>
+                <p className="text-sm text-blue-700 mb-2">
+                  Revise os dados importados acima antes de continuar. Certifique-se de que:
+                </p>
+                <ul className="text-sm text-blue-700 space-y-1 ml-4">
+                  <li>• Os emails estão corretos para cruzamento entre leads e compradores</li>
+                  <li>• As datas estão no formato adequado</li>
+                  <li>• Os valores monetários estão corretos</li>
+                  <li>• Não há dados faltando ou incorretos</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
