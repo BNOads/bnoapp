@@ -78,7 +78,7 @@ export default function DebriefingPublico() {
           dados_compradores: debriefingData.dados_compradores,
           dados_trafego: debriefingData.dados_trafego,
           insights_automaticos: Array.isArray(debriefingData.insights_automaticos) 
-            ? debriefingData.insights_automaticos 
+            ? debriefingData.insights_automaticos.map(item => String(item))
             : []
         });
       } else {
