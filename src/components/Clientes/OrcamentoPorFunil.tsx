@@ -56,7 +56,8 @@ export const OrcamentoPorFunil = ({
     toast
   } = useToast();
   const {
-    isAdmin
+    isAdmin,
+    canManageBudgets
   } = useUserPermissions();
 
   // Hook de pesquisa
@@ -253,7 +254,7 @@ export const OrcamentoPorFunil = ({
             <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             <span className="truncate">Exportar CSV</span>
           </Button>
-          {isAdmin && <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
+          {canManageBudgets && !isPublicView && <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
               <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               <span className="truncate">Novo Orçamento</span>
             </Button>}
@@ -294,13 +295,13 @@ export const OrcamentoPorFunil = ({
                   <Button variant="ghost" size="sm" onClick={() => abrirHistorico(orcamento)} className="h-7 w-7 p-0 sm:h-8 sm:w-8">
                     <History className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
-                  {isAdmin && <>
+                  {canManageBudgets && !isPublicView && <>
                       <Button variant="ghost" size="sm" onClick={() => abrirEdicao(orcamento)} className="h-7 w-7 p-0 sm:h-8 sm:w-8">
                         <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => excluirOrcamento(orcamento)} className="text-destructive hover:text-destructive h-7 w-7 p-0 sm:h-8 sm:w-8">
+                      {isAdmin && <Button variant="ghost" size="sm" onClick={() => excluirOrcamento(orcamento)} className="text-destructive hover:text-destructive h-7 w-7 p-0 sm:h-8 sm:w-8">
                         <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
+                      </Button>}
                     </>}
                 </div>
               </div>
@@ -333,7 +334,7 @@ export const OrcamentoPorFunil = ({
             <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium">Nenhum orçamento cadastrado</h3>
             <p className="text-muted-foreground">
-              {isAdmin ? "Clique em 'Novo Orçamento' para adicionar o primeiro." : "Os orçamentos serão exibidos aqui quando cadastrados."}
+              {canManageBudgets && !isPublicView ? "Clique em 'Novo Orçamento' para adicionar o primeiro." : "Os orçamentos serão exibidos aqui quando cadastrados."}
             </p>
           </CardContent>
         </Card>}

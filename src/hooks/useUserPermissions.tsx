@@ -6,6 +6,8 @@ interface UserPermissions {
   isAdmin: boolean;
   isMaster: boolean;
   canCreateContent: boolean;
+  canManageBudgets: boolean;
+  canManageReferences: boolean;
   loading: boolean;
 }
 
@@ -15,6 +17,8 @@ export const useUserPermissions = (): UserPermissions => {
     isAdmin: false,
     isMaster: false,
     canCreateContent: false,
+    canManageBudgets: false,
+    canManageReferences: false,
     loading: true,
   });
 
@@ -24,6 +28,8 @@ export const useUserPermissions = (): UserPermissions => {
         isAdmin: false,
         isMaster: false,
         canCreateContent: false,
+        canManageBudgets: false,
+        canManageReferences: false,
         loading: authLoading,
       });
       return;
@@ -43,11 +49,14 @@ export const useUserPermissions = (): UserPermissions => {
         throw error;
       }
 
-      // Para evitar problemas com RLS na tabela master_emails, 
-      // vamos considerar master qualquer usuário que seja admin
+      // Definir permissões baseadas no nível de acesso
       const isAdmin = profile?.nivel_acesso === 'admin';
       const isMaster = isAdmin; // Simplificado: se é admin, é master
       const canCreateContent = isAdmin;
+      
+      // CS, gestor_trafego e admin podem gerenciar orçamentos e referências
+      const canManageBudgets = ['admin', 'gestor_trafego', 'cs'].includes(profile?.nivel_acesso);
+      const canManageReferences = ['admin', 'gestor_trafego', 'cs'].includes(profile?.nivel_acesso);
 
       console.log('Permissões verificadas:', {
         email: user.email,
@@ -60,6 +69,8 @@ export const useUserPermissions = (): UserPermissions => {
         isAdmin,
         isMaster,
         canCreateContent,
+        canManageBudgets,
+        canManageReferences,
         loading: false,
       });
       } catch (error) {
@@ -68,6 +79,8 @@ export const useUserPermissions = (): UserPermissions => {
           isAdmin: false,
           isMaster: false,
           canCreateContent: false,
+          canManageBudgets: false,
+          canManageReferences: false,
           loading: false,
         });
       }
