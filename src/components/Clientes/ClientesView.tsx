@@ -430,9 +430,14 @@ export const ClientesView = () => {
                         />
                       </TableCell>
                     )}
-                    <TableCell>
+                     <TableCell>
                       <div>
-                        <div className="font-medium text-foreground">{cliente.nome}</div>
+                        <button 
+                          onClick={() => navigate(`/painel/${cliente.id}`)}
+                          className="font-medium text-foreground hover:text-primary transition-colors text-left"
+                        >
+                          {cliente.nome}
+                        </button>
                         {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => (

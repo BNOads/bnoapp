@@ -2,7 +2,7 @@ import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Cal
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Auth/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 interface HeaderProps {
@@ -21,6 +21,7 @@ export const Header = ({
     userData
   } = useCurrentUser();
   const navigate = useNavigate();
+  const location = useLocation();
   const tabs = [{
     id: 'dashboard',
     label: 'Dashboard',
@@ -124,7 +125,13 @@ export const Header = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40 sm:w-48">
-                <DropdownMenuItem onClick={() => navigate('/perfil')} className="flex items-center space-x-2 cursor-pointer">
+                <DropdownMenuItem 
+                  onClick={() => {
+                    const currentPath = location.pathname + location.search;
+                    navigate('/perfil', { state: { from: currentPath } });
+                  }} 
+                  className="flex items-center space-x-2 cursor-pointer"
+                >
                   <Settings className="h-4 w-4" />
                   <span>Meu Perfil</span>
                 </DropdownMenuItem>

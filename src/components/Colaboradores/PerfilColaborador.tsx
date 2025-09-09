@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Save, User, ArrowLeft } from "lucide-react";
+import { Camera, Save, User, ArrowLeft, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { PasswordChangeModal } from "@/components/Auth/PasswordChangeModal";
 import {
   Select,
   SelectContent,
@@ -31,8 +32,10 @@ export const PerfilColaborador = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -217,11 +220,14 @@ export const PerfilColaborador = () => {
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={() => navigate('/')}
+          onClick={() => {
+            const from = location.state?.from || '/';
+            navigate(from);
+          }}
           className="flex items-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
-          Voltar ao Dashboard
+          Voltar
         </Button>
       </div>
       
@@ -341,7 +347,16 @@ export const PerfilColaborador = () => {
             </div>
           </div>
 
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-between pt-4">
+            <Button 
+              variant="outline"
+              onClick={() => setPasswordModalOpen(true)}
+              className="px-6"
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              Alterar Senha
+            </Button>
+            
             <Button 
               onClick={handleSave}
               disabled={saving}
@@ -353,6 +368,19 @@ export const PerfilColaborador = () => {
           </div>
         </div>
       </Card>
+
+      {/* Modal de Alteração de Senha */}
+      <PasswordChangeModal
+        open={passwordModalOpen}
+        onOpenChange={setPasswordModalOpen}
+        onSuccess={() => {
+          setPasswordModalOpen(false);
+          toast({
+            title: "Senha alterada!",
+            description: "Sua senha foi alterada com sucesso.",
+          });
+        }}
+      />
     </div>
   );
 };

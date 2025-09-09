@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Share2 } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Share2, Edit2 } from "lucide-react";
 import { MessageCircle, ArrowLeft, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,8 @@ import { GravacoesReunioes } from "@/components/Clientes/GravacoesReunioes";
 import { TarefasList } from "@/components/Clientes/TarefasList";
 import { LinksImportantes } from "@/components/Clientes/LinksImportantes";
 import { OrcamentoPorFunil } from "@/components/Clientes/OrcamentoPorFunil";
+import { EditarClienteModal } from "@/components/Clientes/EditarClienteModal";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import type { User } from "@supabase/supabase-js";
 const PainelCliente = () => {
   const {
@@ -28,6 +30,8 @@ const PainelCliente = () => {
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const { canManageBudgets } = useUserPermissions();
   useEffect(() => {
     console.log('=== PAINEL CLIENTE DEBUG ===');
     console.log('clienteId from useParams:', clienteId);
@@ -127,6 +131,11 @@ const PainelCliente = () => {
     }
   };
 
+  const handleEditSuccess = () => {
+    setEditModalOpen(false);
+    carregarDadosCliente();
+  };
+
   if (loading) {
     return <div className="min-h-screen bg-background">
         {isAuthenticated ? <Header activeTab="clientes" onTabChange={tab => {
@@ -221,6 +230,18 @@ const PainelCliente = () => {
             </div>
             
             <div className="flex-shrink-0 flex gap-2">
+              {isAuthenticated && canManageBudgets && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setEditModalOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Editar Cliente</span>
+                </Button>
+              )}
+              
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -295,6 +316,14 @@ const PainelCliente = () => {
           </section>
         </div>
       </div>
+
+      {/* Modal de Edição */}
+      <EditarClienteModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        cliente={cliente}
+        onSuccess={handleEditSuccess}
+      />
     </div>;
 };
 export default PainelCliente;
