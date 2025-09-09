@@ -433,7 +433,9 @@ export const ClientesView = () => {
                      <TableCell>
                       <div>
                         <button 
-                          onClick={() => navigate(`/painel/${cliente.id}`)}
+                          onClick={() => navigate(`/painel/${cliente.id}`, { 
+                            state: { from: '/?tab=clientes' } 
+                          })}
                           className="font-medium text-foreground hover:text-primary transition-colors text-left"
                         >
                           {cliente.nome}
@@ -480,14 +482,16 @@ export const ClientesView = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center space-x-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => navigate(`/painel/${cliente.id}`)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                         <Button 
+                           variant="ghost" 
+                           size="sm"
+                           onClick={() => navigate(`/painel/${cliente.id}`, { 
+                             state: { from: '/?tab=clientes' } 
+                           })}
+                           className="h-8 w-8 p-0"
+                         >
+                           <Eye className="h-4 w-4" />
+                         </Button>
                         
                         {canCreateContent && (
                           <Button 

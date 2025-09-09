@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ const PainelCliente = () => {
     clienteId
   } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     toast
   } = useToast();
@@ -187,10 +188,13 @@ const PainelCliente = () => {
         <div className="container mx-auto px-6 py-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Cliente não encontrado</h1>
-            <Button onClick={() => navigate('/')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {isAuthenticated ? 'Voltar ao Dashboard' : 'Voltar'}
-            </Button>
+             <Button onClick={() => {
+               const from = location.state?.from || '/?tab=clientes';
+               navigate(from);
+             }}>
+               <ArrowLeft className="h-4 w-4 mr-2" />
+               {isAuthenticated ? 'Voltar' : 'Voltar'}
+             </Button>
           </div>
         </div>
       </div>;
@@ -217,9 +221,12 @@ const PainelCliente = () => {
           <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
             <div className="flex-1">
               <div className="flex items-start gap-2 sm:gap-4 mb-4">
-                {isAuthenticated && <Button variant="ghost" onClick={() => navigate('/')} className="p-2 flex-shrink-0">
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>}
+                 {isAuthenticated && <Button variant="ghost" onClick={() => {
+                     const from = location.state?.from || '/?tab=clientes';
+                     navigate(from);
+                   }} className="p-2 flex-shrink-0">
+                     <ArrowLeft className="h-4 w-4" />
+                   </Button>}
                 <div className="min-w-0 flex-1">
                   <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground break-words">
                     {cliente.nome}

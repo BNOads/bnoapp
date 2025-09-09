@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle, Play } from "lucide-react";
@@ -25,6 +25,7 @@ interface Treinamento {
 export default function AulaDetalhes() {
   const { cursoId, aulaId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   
   const [aula, setAula] = useState<Aula | null>(null);
@@ -157,14 +158,17 @@ export default function AulaDetalhes() {
       <Header activeTab="treinamentos" onTabChange={(tab) => { console.log('Header navigation clicked:', tab); navigate(`/${tab}`); }} />
       <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-6">
-        <Button 
-          variant="ghost" 
-          onClick={() => navigate(`/curso/${cursoId}`)}
-          className="mb-4"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar para o curso
-        </Button>
+          <Button 
+            variant="ghost" 
+            onClick={() => {
+              const from = location.state?.from || `/curso/${cursoId}`;
+              navigate(from);
+            }}
+            className="mb-4"
+          >
+           <ArrowLeft className="w-4 h-4 mr-2" />
+           Voltar para o curso
+         </Button>
 
         <div className="mb-4">
           <p className="text-sm text-muted-foreground mb-1">{treinamento.titulo}</p>

@@ -348,10 +348,12 @@ export const LinksImportantes = ({ clienteId, isPublicView = false }: LinksImpor
           {isAuthenticated && (
             <div className="flex gap-2">
               <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => navigate(`/criativos/${clienteId}`)}
-              >
+                 size="sm" 
+                 variant="outline"
+                 onClick={() => navigate(`/criativos/${clienteId}`, { 
+                   state: { from: `/painel/${clienteId}` } 
+                 })}
+               >
                 <FolderOpen className="h-4 w-4 mr-2" />
                 Criativos
               </Button>

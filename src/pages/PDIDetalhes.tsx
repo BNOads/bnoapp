@@ -183,7 +183,7 @@ export default function PDIDetalhes() {
         description: "PDI concluído com sucesso!"
       });
 
-      navigate('/');
+      navigate('/?tab=colaboradores');
     } catch (error) {
       console.error('Erro ao concluir PDI:', error);
       toast({
@@ -214,10 +214,10 @@ export default function PDIDetalhes() {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">PDI não encontrado</h1>
-          <Button onClick={() => navigate('/')} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Dashboard
-          </Button>
+           <Button onClick={() => navigate('/?tab=colaboradores')} variant="outline">
+             <ArrowLeft className="h-4 w-4 mr-2" />
+             Voltar ao Dashboard
+           </Button>
         </div>
       </div>
     );
@@ -251,10 +251,10 @@ export default function PDIDetalhes() {
     <div className="container mx-auto px-4 py-8 space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button onClick={() => navigate('/')} variant="outline" size="sm">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar
-        </Button>
+         <Button onClick={() => navigate('/?tab=colaboradores')} variant="outline" size="sm">
+           <ArrowLeft className="h-4 w-4 mr-2" />
+           Voltar
+         </Button>
         <div>
           <h1 className="text-3xl font-bold">{pdi.titulo}</h1>
           <p className="text-muted-foreground">{pdi.descricao}</p>

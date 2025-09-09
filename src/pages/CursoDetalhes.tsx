@@ -123,14 +123,14 @@ export default function CursoDetalhes() {
       <Header activeTab="treinamentos" onTabChange={(tab) => { console.log('Header navigation clicked:', tab); navigate(`/${tab}`); }} />
       <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-6">
-        <Button 
-          variant="ghost" 
-          onClick={() => navigate('/')}
-          className="mb-4"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar para Treinamentos
-        </Button>
+         <Button 
+           variant="ghost" 
+           onClick={() => navigate('/?tab=treinamentos')}
+           className="mb-4"
+         >
+           <ArrowLeft className="w-4 h-4 mr-2" />
+           Voltar para Treinamentos
+         </Button>
 
         <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 mb-6">
           <div className="flex justify-between items-start mb-4">
@@ -188,10 +188,12 @@ export default function CursoDetalhes() {
         ) : (
           aulas.map((aula, index) => (
             <Card 
-              key={aula.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => navigate(`/curso/${cursoId}/aula/${aula.id}`)}
-            >
+               key={aula.id}
+               className="cursor-pointer hover:shadow-lg transition-shadow"
+               onClick={() => navigate(`/curso/${cursoId}/aula/${aula.id}`, { 
+                 state: { from: `/curso/${cursoId}` } 
+               })}
+             >
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">

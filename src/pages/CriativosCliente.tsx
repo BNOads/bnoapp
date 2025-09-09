@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { DriveCreativesView } from "@/components/Criativos/DriveCreativesView";
@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function CriativosCliente() {
   const { clienteId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
   if (!clienteId) {
@@ -26,11 +27,14 @@ export default function CriativosCliente() {
       
       <div className="container mx-auto p-6 max-w-7xl">
         <div className="mb-6">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate(`/painel/${clienteId}`)}
-            className="mb-4"
-          >
+           <Button 
+             variant="ghost" 
+             onClick={() => {
+               const from = location.state?.from || `/painel/${clienteId}`;
+               navigate(from);
+             }}
+             className="mb-4"
+           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Voltar para Painel do Cliente
           </Button>
