@@ -52,7 +52,7 @@ export const useUserPermissions = (): UserPermissions => {
       // Definir permissões baseadas no nível de acesso
       const isAdmin = profile?.nivel_acesso === 'admin';
       const isMaster = isAdmin; // Simplificado: se é admin, é master
-      const canCreateContent = isAdmin;
+      const canCreateContent = ['admin', 'gestor_trafego', 'cs'].includes(profile?.nivel_acesso);
       
       // CS, gestor_trafego e admin podem gerenciar orçamentos e referências
       const canManageBudgets = ['admin', 'gestor_trafego', 'cs'].includes(profile?.nivel_acesso);
