@@ -9,7 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface ExternalLink {
-  id?: string;
   titulo: string;
   url: string;
 }
@@ -40,12 +39,12 @@ export function PDIExternalLinks({ pdiId, links, onLinksUpdate, canEdit = false 
     }
   };
 
-  const handleOpenModal = (link?: ExternalLink) => {
-    if (link) {
-      setEditingLink(link);
+  const handleOpenModal = (linkIndex?: number) => {
+    if (linkIndex !== undefined && links[linkIndex]) {
+      setEditingLink(links[linkIndex]);
       setFormData({
-        titulo: link.titulo,
-        url: link.url
+        titulo: links[linkIndex].titulo,
+        url: links[linkIndex].url
       });
     } else {
       setEditingLink(null);
@@ -86,21 +85,24 @@ export function PDIExternalLinks({ pdiId, links, onLinksUpdate, canEdit = false 
 
       let updatedLinks: ExternalLink[];
 
-      if (editingLink && editingLink.id) {
+      if (editingLink) {
         // Editando link existente
-        updatedLinks = links.map(link => 
-          link.id === editingLink.id ? { ...link, ...newLink } : link
+        const linkIndex = links.findIndex(link => 
+          link.titulo === editingLink.titulo && link.url === editingLink.url
+        );
+        updatedLinks = links.map((link, index) => 
+          index === linkIndex ? newLink : link
         );
       } else {
         // Adicionando novo link
-        updatedLinks = [...links, { ...newLink, id: Date.now().toString() }];
+        updatedLinks = [...links, newLink];
       }
 
-      // Salvar no banco de dados
+      // Salvar no banco de dados usando typecasting
       const { error } = await supabase
         .from('pdis')
         .update({
-          links_externos: updatedLinks
+          links_externos: updatedLinks as any
         })
         .eq('id', pdiId);
 
@@ -127,14 +129,14 @@ export function PDIExternalLinks({ pdiId, links, onLinksUpdate, canEdit = false 
     }
   };
 
-  const handleDeleteLink = async (linkId: string) => {
+  const handleDeleteLink = async (linkIndex: number) => {
     try {
-      const updatedLinks = links.filter(link => link.id !== linkId);
+      const updatedLinks = links.filter((_, index) => index !== linkIndex);
 
       const { error } = await supabase
         .from('pdis')
         .update({
-          links_externos: updatedLinks
+          links_externos: updatedLinks as any
         })
         .eq('id', pdiId);
 
@@ -216,8 +218,8 @@ export function PDIExternalLinks({ pdiId, links, onLinksUpdate, canEdit = false 
       <CardContent>
         {links.length > 0 ? (
           <div className="space-y-2">
-            {links.map((link) => (
-              <div key={link.id} className="flex items-center justify-between p-3 border rounded-lg">
+            {links.map((link, index) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <div className="min-w-0 flex-1">
@@ -241,7 +243,7 @@ export function PDIExternalLinks({ pdiId, links, onLinksUpdate, canEdit = false 
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleOpenModal(link)}
+                        onClick={() => handleOpenModal(index)}
                         title="Editar link"
                       >
                         <Edit2 className="h-4 w-4" />
@@ -250,7 +252,7 @@ export function PDIExternalLinks({ pdiId, links, onLinksUpdate, canEdit = false 
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteLink(link.id!)}
+                        onClick={() => handleDeleteLink(index)}
                         title="Remover link"
                         className="text-destructive hover:text-destructive"
                       >

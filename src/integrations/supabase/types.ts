@@ -1401,6 +1401,7 @@ export type Database = {
           data_limite: string
           descricao: string | null
           id: string
+          links_externos: Json | null
           status: string
           titulo: string
           updated_at: string
@@ -1412,6 +1413,7 @@ export type Database = {
           data_limite: string
           descricao?: string | null
           id?: string
+          links_externos?: Json | null
           status?: string
           titulo: string
           updated_at?: string
@@ -1423,6 +1425,7 @@ export type Database = {
           data_limite?: string
           descricao?: string | null
           id?: string
+          links_externos?: Json | null
           status?: string
           titulo?: string
           updated_at?: string

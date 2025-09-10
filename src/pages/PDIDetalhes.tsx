@@ -18,7 +18,6 @@ interface PDIDetalhes {
   data_limite: string;
   status: string;
   links_externos?: Array<{
-    id: string;
     titulo: string;
     url: string;
   }>;
@@ -90,7 +89,7 @@ export default function PDIDetalhes() {
           descricao: data.descricao,
           data_limite: data.data_limite,
           status: data.status,
-          links_externos: data.links_externos || [],
+          links_externos: (data.links_externos as any) || [],
           aulas: data.pdi_aulas.map((pa: any) => ({
             id: pa.id,
             aula_id: pa.aula_id,
