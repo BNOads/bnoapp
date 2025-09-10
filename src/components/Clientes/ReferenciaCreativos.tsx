@@ -84,7 +84,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
   const [linksExternos, setLinksExternos] = useState<{url: string, titulo: string}[]>([]);
   
   const { toast } = useToast();
-  const { isAdmin } = useUserPermissions();
+  const { canCreateContent } = useUserPermissions();
 
   useEffect(() => {
     carregarReferencias();
@@ -493,7 +493,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
           </p>
         </div>
         <div className="flex gap-2">
-          {isAdmin && (
+          {canCreateContent && (
             <>
               <Button 
                 variant="outline" 
@@ -624,14 +624,24 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                              <ExternalLink className="h-4 w-4" />
                            </Button>
                          )}
-                             <Button
-                               variant="ghost"
-                               size="sm"
-                               onClick={() => window.open(`/referencia/${referencia.id}`, '_blank')}
-                               title="Visualizar em nova aba"
-                             >
-                               <Eye className="h-4 w-4" />
-                             </Button>
+                          {/* Não mostrar botão de visualizar para referências importadas sem conteúdo */}
+                          {(() => {
+                            const conteudoParsed = typeof referencia.conteudo === 'string' 
+                              ? JSON.parse(referencia.conteudo) 
+                              : (referencia.conteudo || []);
+                            const hasContent = Array.isArray(conteudoParsed) && conteudoParsed.length > 0;
+                            
+                            return hasContent && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(`/referencia/${referencia.id}`, '_blank')}
+                                title="Visualizar em nova aba"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            );
+                          })()}
                          <Button
                            variant="ghost"
                            size="sm"
@@ -644,7 +654,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                          >
                            <Copy className="h-4 w-4" />
                          </Button>
-                        {isAdmin && (
+                        {canCreateContent && (
                           <>
                              <Button
                                variant="ghost"
@@ -697,7 +707,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                   <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium">Nenhuma referência criada</h3>
                   <p className="text-muted-foreground">
-                    {isAdmin ? "Clique em 'Nova Referência' para criar a primeira." : "As referências serão exibidas aqui quando criadas."}
+                    {canCreateContent ? "Clique em 'Nova Referência' para criar a primeira." : "As referências serão exibidas aqui quando criadas."}
                   </p>
                 </>
               )}

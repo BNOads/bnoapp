@@ -157,13 +157,7 @@ const PainelCliente = () => {
           <div className="flex justify-center items-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p>Carregando cliente...</p>
-              <div className="mt-4 text-sm text-muted-foreground">
-                <p>Debug Info:</p>
-                <pre className="bg-muted p-2 rounded text-xs">
-                  {JSON.stringify(debugInfo, null, 2)}
-                </pre>
-              </div>
+              <p>Carregando dados do cliente...</p>
             </div>
           </div>
         </div>

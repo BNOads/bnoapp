@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, BookOpen, CheckCircle, ArrowLeft, Play } from "lucide-react";
+import { Calendar, Clock, BookOpen, CheckCircle, ArrowLeft, Play, ExternalLink } from "lucide-react";
+import { PDIExternalLinks } from "@/components/PDI/PDIExternalLinks";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistance } from "date-fns";
@@ -16,6 +17,11 @@ interface PDIDetalhes {
   descricao: string;
   data_limite: string;
   status: string;
+  links_externos?: Array<{
+    id: string;
+    titulo: string;
+    url: string;
+  }>;
   aulas: Array<{
     id: string;
     aula_id: string;
@@ -33,6 +39,7 @@ interface PDIDetalhes {
 export default function PDIDetalhes() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [pdi, setPdi] = useState<PDIDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +61,7 @@ export default function PDIDetalhes() {
           descricao,
           data_limite,
           status,
+          links_externos,
           pdi_aulas (
             id,
             aula_id,
@@ -82,6 +90,7 @@ export default function PDIDetalhes() {
           descricao: data.descricao,
           data_limite: data.data_limite,
           status: data.status,
+          links_externos: data.links_externos || [],
           aulas: data.pdi_aulas.map((pa: any) => ({
             id: pa.id,
             aula_id: pa.aula_id,
@@ -183,7 +192,8 @@ export default function PDIDetalhes() {
         description: "PDI concluído com sucesso!"
       });
 
-      navigate('/?tab=colaboradores');
+      const from = location.state?.from || '/?tab=colaboradores';
+      navigate(from);
     } catch (error) {
       console.error('Erro ao concluir PDI:', error);
       toast({
@@ -214,9 +224,12 @@ export default function PDIDetalhes() {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">PDI não encontrado</h1>
-           <Button onClick={() => navigate('/?tab=colaboradores')} variant="outline">
+           <Button onClick={() => {
+             const from = location.state?.from || '/?tab=colaboradores';
+             navigate(from);
+           }} variant="outline">
              <ArrowLeft className="h-4 w-4 mr-2" />
-             Voltar ao Dashboard
+             Voltar
            </Button>
         </div>
       </div>
@@ -251,7 +264,10 @@ export default function PDIDetalhes() {
     <div className="container mx-auto px-4 py-8 space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
-         <Button onClick={() => navigate('/?tab=colaboradores')} variant="outline" size="sm">
+          <Button onClick={() => {
+            const from = location.state?.from || '/?tab=colaboradores';
+            navigate(from);
+          }} variant="outline" size="sm">
            <ArrowLeft className="h-4 w-4 mr-2" />
            Voltar
          </Button>
@@ -387,6 +403,16 @@ export default function PDIDetalhes() {
           ))}
         </div>
       </div>
+
+      {/* Links Externos */}
+      {pdi.links_externos && pdi.links_externos.length > 0 && (
+        <PDIExternalLinks
+          pdiId={pdi.id}
+          links={pdi.links_externos}
+          onLinksUpdate={(links) => setPdi(prev => prev ? { ...prev, links_externos: links } : null)}
+          canEdit={false}
+        />
+      )}
     </div>
   );
 }
