@@ -21,6 +21,12 @@ interface PDIDetalhes {
     titulo: string;
     url: string;
   }>;
+  aulas_externas?: Array<{
+    titulo: string;
+    descricao: string;
+    url: string;
+    duracao: number;
+  }>;
   aulas: Array<{
     id: string;
     aula_id: string;
@@ -61,6 +67,7 @@ export default function PDIDetalhes() {
           data_limite,
           status,
           links_externos,
+          aulas_externas,
           pdi_aulas (
             id,
             aula_id,
@@ -90,6 +97,7 @@ export default function PDIDetalhes() {
           data_limite: data.data_limite,
           status: data.status,
           links_externos: (data.links_externos as any) || [],
+          aulas_externas: (data.aulas_externas as any) || [],
           aulas: data.pdi_aulas.map((pa: any) => ({
             id: pa.id,
             aula_id: pa.aula_id,
@@ -236,7 +244,7 @@ export default function PDIDetalhes() {
   }
 
   const aulasCompletas = pdi.aulas.filter(aula => aula.concluida).length;
-  const totalAulas = pdi.aulas.length;
+  const totalAulas = pdi.aulas.length + (pdi.aulas_externas?.length || 0);
   const progresso = totalAulas > 0 ? (aulasCompletas / totalAulas) * 100 : 0;
   
   const dataLimite = new Date(pdi.data_limite);
@@ -400,6 +408,66 @@ export default function PDIDetalhes() {
               </CardContent>
             </Card>
           ))}
+
+          {/* Aulas Externas */}
+          {pdi.aulas_externas && pdi.aulas_externas.length > 0 && (
+            <>
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-3">Aulas Externas</h3>
+                {pdi.aulas_externas.map((aulaExt, index) => (
+                  <Card key={`externa-${index}`} className="border-orange-200 bg-orange-50">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2">
+                            <ExternalLink className="h-4 w-4 text-orange-600" />
+                            <CardTitle className="text-lg">{aulaExt.titulo}</CardTitle>
+                          </div>
+                          <CardDescription className="text-sm">
+                            Aula Externa
+                          </CardDescription>
+                          {aulaExt.descricao && (
+                            <p className="text-sm text-muted-foreground mt-2">
+                              {aulaExt.descricao}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {aulaExt.duracao}min
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="pt-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-orange-600 font-medium">
+                            Link externo
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            onClick={() => window.open(aulaExt.url, '_blank')}
+                            variant="outline"
+                            size="sm"
+                            className="border-orange-200 text-orange-700 hover:bg-orange-100"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Abrir Link
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

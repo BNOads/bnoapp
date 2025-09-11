@@ -155,7 +155,7 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
           descricao: formData.descricao,
           colaborador_id: formData.colaborador_id,
           data_limite: formData.data_limite,
-          aulas_externas: formData.aulas_externas,
+          aulas_externas: formData.aulas_externas as any,
           created_by: (await supabase.auth.getUser()).data.user?.id
         })
         .select()
@@ -288,285 +288,286 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>Criar Novo PDI</DialogTitle>
-          <DialogDescription>
-            Crie um Plano de Desenvolvimento Individual para um colaborador
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Criar Novo PDI</DialogTitle>
+            <DialogDescription>
+              Crie um Plano de Desenvolvimento Individual para um colaborador
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="titulo">Título *</Label>
+                <Input
+                  id="titulo"
+                  value={formData.titulo}
+                  onChange={(e) => setFormData(prev => ({ ...prev, titulo: e.target.value }))}
+                  placeholder="Ex: Desenvolvimento em Tráfego Pago"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="colaborador">Colaborador *</Label>
+                <Select
+                  value={formData.colaborador_id}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, colaborador_id: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um colaborador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {colaboradores.map((colaborador) => (
+                      <SelectItem key={colaborador.id} value={colaborador.id}>
+                        {colaborador.nome} ({colaborador.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="titulo">Título *</Label>
-              <Input
-                id="titulo"
-                value={formData.titulo}
-                onChange={(e) => setFormData(prev => ({ ...prev, titulo: e.target.value }))}
-                placeholder="Ex: Desenvolvimento em Tráfego Pago"
+              <Label htmlFor="descricao">Descrição</Label>
+              <Textarea
+                id="descricao"
+                value={formData.descricao}
+                onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+                placeholder="Descreva os objetivos e expectativas do PDI"
+                rows={3}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="colaborador">Colaborador *</Label>
-              <Select
-                value={formData.colaborador_id}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, colaborador_id: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um colaborador" />
-                </SelectTrigger>
-                <SelectContent>
-                  {colaboradores.map((colaborador) => (
-                    <SelectItem key={colaborador.id} value={colaborador.id}>
-                      {colaborador.nome} ({colaborador.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
-            <Textarea
-              id="descricao"
-              value={formData.descricao}
-              onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-              placeholder="Descreva os objetivos e expectativas do PDI"
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="data_limite">Data Limite *</Label>
-            <Input
-              id="data_limite"
-              type="date"
-              value={formData.data_limite}
-              onChange={(e) => setFormData(prev => ({ ...prev, data_limite: e.target.value }))}
-            />
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Aulas do PDI *</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAulaExternaForm(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Aula Externa
-              </Button>
+              <Label htmlFor="data_limite">Data Limite *</Label>
+              <Input
+                id="data_limite"
+                type="date"
+                value={formData.data_limite}
+                onChange={(e) => setFormData(prev => ({ ...prev, data_limite: e.target.value }))}
+              />
             </div>
 
-            {/* Aulas Externas Adicionadas */}
-            {formData.aulas_externas.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Aulas Externas</Label>
-                {formData.aulas_externas.map((aulaExt, index) => (
-                  <Card key={index} className="border-orange-200 bg-orange-50">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <ExternalLink className="h-4 w-4 text-orange-600" />
-                          <div>
-                            <CardTitle className="text-sm">{aulaExt.titulo}</CardTitle>
-                            <CardDescription className="text-xs">
-                              Aula Externa • {aulaExt.duracao}min
-                            </CardDescription>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Aulas do PDI *</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAulaExternaForm(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Aula Externa
+                </Button>
+              </div>
+
+              {/* Aulas Externas Adicionadas */}
+              {formData.aulas_externas.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Aulas Externas</Label>
+                  {formData.aulas_externas.map((aulaExt, index) => (
+                    <Card key={index} className="border-orange-200 bg-orange-50">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <ExternalLink className="h-4 w-4 text-orange-600" />
+                            <div>
+                              <CardTitle className="text-sm">{aulaExt.titulo}</CardTitle>
+                              <CardDescription className="text-xs">
+                                Aula Externa • {aulaExt.duracao}min
+                              </CardDescription>
+                            </div>
                           </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removerAulaExterna(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removerAulaExterna(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                      </CardHeader>
+                      {aulaExt.descricao && (
+                        <CardContent className="pt-0">
+                          <p className="text-xs text-muted-foreground">{aulaExt.descricao}</p>
+                        </CardContent>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+              
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar aulas internas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {/* Single Aula Display */}
+              {filteredAulas.length > 0 && currentAula ? (
+                <div className="space-y-3">
+                  {/* Navigation Controls */}
+                  <div className="flex items-center justify-between">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={prevAula}
+                      disabled={currentAulaIndex === 0}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Anterior
+                    </Button>
+                    
+                    <span className="text-sm text-muted-foreground">
+                      {currentAulaIndex + 1} de {filteredAulas.length}
+                    </span>
+                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={nextAula}
+                      disabled={currentAulaIndex === filteredAulas.length - 1}
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Current Aula Card */}
+                  <Card
+                    className={`transition-colors ${
+                      formData.aulas_selecionadas.includes(currentAula.id) 
+                        ? 'border-primary bg-primary/5' 
+                        : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={formData.aulas_selecionadas.includes(currentAula.id)}
+                          onCheckedChange={() => toggleAula(currentAula.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="space-y-1 flex-1">
+                          <CardTitle className="text-sm">{currentAula.titulo}</CardTitle>
+                          <CardDescription className="text-xs">
+                            {currentAula.treinamentos.titulo}
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <CalendarDays className="h-3 w-3" />
+                          {currentAula.duracao}min
+                        </div>
                       </div>
                     </CardHeader>
-                    {aulaExt.descricao && (
+                    {currentAula.descricao && (
                       <CardContent className="pt-0">
-                        <p className="text-xs text-muted-foreground">{aulaExt.descricao}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {currentAula.descricao}
+                        </p>
                       </CardContent>
                     )}
                   </Card>
-                ))}
-              </div>
-            )}
-            
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar aulas internas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            {/* Single Aula Display */}
-            {filteredAulas.length > 0 && currentAula ? (
-              <div className="space-y-3">
-                {/* Navigation Controls */}
-                <div className="flex items-center justify-between">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={prevAula}
-                    disabled={currentAulaIndex === 0}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Anterior
-                  </Button>
-                  
-                  <span className="text-sm text-muted-foreground">
-                    {currentAulaIndex + 1} de {filteredAulas.length}
-                  </span>
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={nextAula}
-                    disabled={currentAulaIndex === filteredAulas.length - 1}
-                  >
-                    Próxima
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
                 </div>
-
-                {/* Current Aula Card */}
-                <Card
-                  className={`transition-colors ${
-                    formData.aulas_selecionadas.includes(currentAula.id) 
-                      ? 'border-primary bg-primary/5' 
-                      : 'hover:bg-muted/50'
-                  }`}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        checked={formData.aulas_selecionadas.includes(currentAula.id)}
-                        onCheckedChange={() => toggleAula(currentAula.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <div className="space-y-1 flex-1">
-                        <CardTitle className="text-sm">{currentAula.titulo}</CardTitle>
-                        <CardDescription className="text-xs">
-                          {currentAula.treinamentos.titulo}
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <CalendarDays className="h-3 w-3" />
-                        {currentAula.duracao}min
-                      </div>
-                    </div>
-                  </CardHeader>
-                  {currentAula.descricao && (
-                    <CardContent className="pt-0">
-                      <p className="text-xs text-muted-foreground">
-                        {currentAula.descricao}
-                      </p>
-                    </CardContent>
-                  )}
-                </Card>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                {searchTerm ? 'Nenhuma aula encontrada' : 'Nenhuma aula disponível'}
-              </div>
-            )}
-            
-            <p className="text-sm text-muted-foreground">
-              {formData.aulas_selecionadas.length} aulas internas + {formData.aulas_externas.length} aulas externas selecionadas
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Criando..." : "Criar PDI"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-
-      {/* Modal para Adicionar Aula Externa */}
-        <Dialog open={showAulaExternaForm} onOpenChange={setShowAulaExternaForm}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Adicionar Aula Externa</DialogTitle>
-              <DialogDescription>
-                Adicione uma aula externa ao PDI
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="titulo-externa">Título *</Label>
-                <Input
-                  id="titulo-externa"
-                  value={aulaExterna.titulo}
-                  onChange={(e) => setAulaExterna(prev => ({ ...prev, titulo: e.target.value }))}
-                  placeholder="Ex: Curso de Google Ads"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="url-externa">URL *</Label>
-                <Input
-                  id="url-externa"
-                  value={aulaExterna.url}
-                  onChange={(e) => setAulaExterna(prev => ({ ...prev, url: e.target.value }))}
-                  placeholder="https://exemplo.com/curso"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="descricao-externa">Descrição</Label>
-                <Textarea
-                  id="descricao-externa"
-                  value={aulaExterna.descricao}
-                  onChange={(e) => setAulaExterna(prev => ({ ...prev, descricao: e.target.value }))}
-                  placeholder="Descreva o conteúdo da aula"
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="duracao-externa">Duração (minutos)</Label>
-                <Input
-                  id="duracao-externa"
-                  type="number"
-                  min="1"
-                  value={aulaExterna.duracao}
-                  onChange={(e) => setAulaExterna(prev => ({ ...prev, duracao: parseInt(e.target.value) || 30 }))}
-                />
-              </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  {searchTerm ? 'Nenhuma aula encontrada' : 'Nenhuma aula disponível'}
+                </div>
+              )}
+              
+              <p className="text-sm text-muted-foreground">
+                {formData.aulas_selecionadas.length} aulas internas + {formData.aulas_externas.length} aulas externas selecionadas
+              </p>
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowAulaExternaForm(false)}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="button" onClick={adicionarAulaExterna}>
-                Adicionar Aula
+              <Button type="submit" disabled={loading}>
+                {loading ? "Criando..." : "Criar PDI"}
               </Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para Adicionar Aula Externa */}
+      <Dialog open={showAulaExternaForm} onOpenChange={setShowAulaExternaForm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Aula Externa</DialogTitle>
+            <DialogDescription>
+              Adicione uma aula externa ao PDI
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="titulo-externa">Título *</Label>
+              <Input
+                id="titulo-externa"
+                value={aulaExterna.titulo}
+                onChange={(e) => setAulaExterna(prev => ({ ...prev, titulo: e.target.value }))}
+                placeholder="Ex: Curso de Google Ads"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="url-externa">URL *</Label>
+              <Input
+                id="url-externa"
+                value={aulaExterna.url}
+                onChange={(e) => setAulaExterna(prev => ({ ...prev, url: e.target.value }))}
+                placeholder="https://exemplo.com/curso"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="descricao-externa">Descrição</Label>
+              <Textarea
+                id="descricao-externa"
+                value={aulaExterna.descricao}
+                onChange={(e) => setAulaExterna(prev => ({ ...prev, descricao: e.target.value }))}
+                placeholder="Descreva o conteúdo da aula"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="duracao-externa">Duração (minutos)</Label>
+              <Input
+                id="duracao-externa"
+                type="number"
+                min="1"
+                value={aulaExterna.duracao}
+                onChange={(e) => setAulaExterna(prev => ({ ...prev, duracao: parseInt(e.target.value) || 30 }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowAulaExternaForm(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={adicionarAulaExterna}>
+              Adicionar Aula
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

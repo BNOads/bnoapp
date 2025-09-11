@@ -1395,6 +1395,7 @@ export type Database = {
       }
       pdis: {
         Row: {
+          aulas_externas: Json | null
           colaborador_id: string
           created_at: string
           created_by: string
@@ -1407,6 +1408,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aulas_externas?: Json | null
           colaborador_id: string
           created_at?: string
           created_by: string
@@ -1419,6 +1421,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aulas_externas?: Json | null
           colaborador_id?: string
           created_at?: string
           created_by?: string
