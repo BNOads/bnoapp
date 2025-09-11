@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CalendarDays, BookOpen, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, BookOpen, Search, ChevronLeft, ChevronRight, Plus, ExternalLink, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,6 +35,13 @@ interface Aula {
   };
 }
 
+interface AulaExterna {
+  titulo: string;
+  descricao: string;
+  url: string;
+  duracao: number;
+}
+
 export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -48,8 +55,18 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
     descricao: "",
     colaborador_id: "",
     data_limite: "",
-    aulas_selecionadas: [] as string[]
+    aulas_selecionadas: [] as string[],
+    aulas_externas: [] as AulaExterna[]
   });
+
+  const [aulaExterna, setAulaExterna] = useState({
+    titulo: "",
+    descricao: "",
+    url: "",
+    duracao: 30
+  });
+
+  const [showAulaExternaForm, setShowAulaExternaForm] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -117,10 +134,11 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.titulo || !formData.colaborador_id || !formData.data_limite || formData.aulas_selecionadas.length === 0) {
+    if (!formData.titulo || !formData.colaborador_id || !formData.data_limite || 
+        (formData.aulas_selecionadas.length === 0 && formData.aulas_externas.length === 0)) {
       toast({
         title: "Erro",
-        description: "Preencha todos os campos obrigatórios",
+        description: "Preencha todos os campos obrigatórios e adicione pelo menos uma aula",
         variant: "destructive"
       });
       return;
@@ -137,6 +155,7 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
           descricao: formData.descricao,
           colaborador_id: formData.colaborador_id,
           data_limite: formData.data_limite,
+          aulas_externas: formData.aulas_externas,
           created_by: (await supabase.auth.getUser()).data.user?.id
         })
         .select()
@@ -144,17 +163,19 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
 
       if (pdiError) throw pdiError;
 
-      // Associar aulas ao PDI
-      const aulasData = formData.aulas_selecionadas.map(aula_id => ({
-        pdi_id: pdiData.id,
-        aula_id
-      }));
+      // Associar aulas ao PDI (se houver aulas internas selecionadas)
+      if (formData.aulas_selecionadas.length > 0) {
+        const aulasData = formData.aulas_selecionadas.map(aula_id => ({
+          pdi_id: pdiData.id,
+          aula_id
+        }));
 
-      const { error: aulasError } = await supabase
-        .from('pdi_aulas')
-        .insert(aulasData);
+        const { error: aulasError } = await supabase
+          .from('pdi_aulas')
+          .insert(aulasData);
 
-      if (aulasError) throw aulasError;
+        if (aulasError) throw aulasError;
+      }
 
       toast({
         title: "Sucesso",
@@ -167,8 +188,16 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
         descricao: "",
         colaborador_id: "",
         data_limite: "",
-        aulas_selecionadas: []
+        aulas_selecionadas: [],
+        aulas_externas: []
       });
+      setAulaExterna({
+        titulo: "",
+        descricao: "",
+        url: "",
+        duracao: 30
+      });
+      setShowAulaExternaForm(false);
 
       onSuccess();
       onOpenChange(false);
@@ -204,6 +233,57 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
       aulas_selecionadas: prev.aulas_selecionadas.includes(aulaId)
         ? prev.aulas_selecionadas.filter(id => id !== aulaId)
         : [...prev.aulas_selecionadas, aulaId]
+    }));
+  };
+
+  const validateUrl = (url: string): boolean => {
+    const urlPattern = /^https?:\/\/.+/i;
+    return urlPattern.test(url);
+  };
+
+  const adicionarAulaExterna = () => {
+    if (!aulaExterna.titulo || !aulaExterna.url) {
+      toast({
+        title: "Erro",
+        description: "Título e URL são obrigatórios",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!validateUrl(aulaExterna.url)) {
+      toast({
+        title: "Erro",
+        description: "URL deve começar com http:// ou https://",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      aulas_externas: [...prev.aulas_externas, aulaExterna]
+    }));
+
+    setAulaExterna({
+      titulo: "",
+      descricao: "",
+      url: "",
+      duracao: 30
+    });
+
+    setShowAulaExternaForm(false);
+
+    toast({
+      title: "Sucesso",
+      description: "Aula externa adicionada!"
+    });
+  };
+
+  const removerAulaExterna = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      aulas_externas: prev.aulas_externas.filter((_, i) => i !== index)
     }));
   };
 
@@ -271,13 +351,61 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
           </div>
 
           <div className="space-y-3">
-            <Label>Aulas do PDI *</Label>
+            <div className="flex items-center justify-between">
+              <Label>Aulas do PDI *</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAulaExternaForm(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Aula Externa
+              </Button>
+            </div>
+
+            {/* Aulas Externas Adicionadas */}
+            {formData.aulas_externas.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Aulas Externas</Label>
+                {formData.aulas_externas.map((aulaExt, index) => (
+                  <Card key={index} className="border-orange-200 bg-orange-50">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 text-orange-600" />
+                          <div>
+                            <CardTitle className="text-sm">{aulaExt.titulo}</CardTitle>
+                            <CardDescription className="text-xs">
+                              Aula Externa • {aulaExt.duracao}min
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removerAulaExterna(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    {aulaExt.descricao && (
+                      <CardContent className="pt-0">
+                        <p className="text-xs text-muted-foreground">{aulaExt.descricao}</p>
+                      </CardContent>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
             
             {/* Search Bar */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Pesquisar aulas..."
+                placeholder="Pesquisar aulas internas..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -359,7 +487,7 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
             )}
             
             <p className="text-sm text-muted-foreground">
-              {formData.aulas_selecionadas.length} aulas selecionadas
+              {formData.aulas_selecionadas.length} aulas internas + {formData.aulas_externas.length} aulas externas selecionadas
             </p>
           </div>
 
@@ -372,6 +500,72 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+
+      {/* Modal para Adicionar Aula Externa */}
+        <Dialog open={showAulaExternaForm} onOpenChange={setShowAulaExternaForm}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Adicionar Aula Externa</DialogTitle>
+              <DialogDescription>
+                Adicione uma aula externa ao PDI
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="titulo-externa">Título *</Label>
+                <Input
+                  id="titulo-externa"
+                  value={aulaExterna.titulo}
+                  onChange={(e) => setAulaExterna(prev => ({ ...prev, titulo: e.target.value }))}
+                  placeholder="Ex: Curso de Google Ads"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="url-externa">URL *</Label>
+                <Input
+                  id="url-externa"
+                  value={aulaExterna.url}
+                  onChange={(e) => setAulaExterna(prev => ({ ...prev, url: e.target.value }))}
+                  placeholder="https://exemplo.com/curso"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="descricao-externa">Descrição</Label>
+                <Textarea
+                  id="descricao-externa"
+                  value={aulaExterna.descricao}
+                  onChange={(e) => setAulaExterna(prev => ({ ...prev, descricao: e.target.value }))}
+                  placeholder="Descreva o conteúdo da aula"
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="duracao-externa">Duração (minutos)</Label>
+                <Input
+                  id="duracao-externa"
+                  type="number"
+                  min="1"
+                  value={aulaExterna.duracao}
+                  onChange={(e) => setAulaExterna(prev => ({ ...prev, duracao: parseInt(e.target.value) || 30 }))}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowAulaExternaForm(false)}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={adicionarAulaExterna}>
+                Adicionar Aula
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
