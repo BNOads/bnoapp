@@ -35,6 +35,7 @@ interface Creative {
   activated_by: string | null;
   observacao_personalizada?: string | null;
   nomenclatura_trafego?: string | null;
+  pagina_destino?: string | null;
   status?: 'subir' | 'ativo' | 'inativo' | 'erro';
   activated_user?: {
     nome: string;
@@ -59,7 +60,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [editingCreative, setEditingCreative] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ observacao: string; nomenclatura: string }>({ observacao: '', nomenclatura: '' });
+  const [editForm, setEditForm] = useState<{ observacao: string; nomenclatura: string; pagina_destino: string }>({ observacao: '', nomenclatura: '', pagina_destino: '' });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -371,7 +372,8 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     setEditingCreative(creative.id);
     setEditForm({
       observacao: creative.observacao_personalizada || '',
-      nomenclatura: creative.nomenclatura_trafego || ''
+      nomenclatura: creative.nomenclatura_trafego || '',
+      pagina_destino: creative.pagina_destino || ''
     });
   };
 
@@ -379,11 +381,22 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     if (!editingCreative) return;
 
     try {
+      // Validar URL se fornecida
+      if (editForm.pagina_destino && !editForm.pagina_destino.match(/^https?:\/\/.+/)) {
+        toast({
+          title: "URL inválida",
+          description: "A página de destino deve começar com http:// ou https://",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('creatives')
         .update({
           observacao_personalizada: editForm.observacao || null,
-          nomenclatura_trafego: editForm.nomenclatura || null
+          nomenclatura_trafego: editForm.nomenclatura || null,
+          pagina_destino: editForm.pagina_destino || null
         })
         .eq('id', editingCreative);
 
@@ -407,7 +420,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
 
   const handleCancelEdit = () => {
     setEditingCreative(null);
-    setEditForm({ observacao: '', nomenclatura: '' });
+    setEditForm({ observacao: '', nomenclatura: '', pagina_destino: '' });
   };
 
   return (
@@ -635,6 +648,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                 <TableHead className="w-32">Data Upload</TableHead>
                 <TableHead className="w-48">Nomenclatura</TableHead>
                 <TableHead className="w-48">Observação</TableHead>
+                <TableHead className="w-48">Página de Destino</TableHead>
                 <TableHead className="w-48">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -803,9 +817,58 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                         )}
                       </div>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
+                   </TableCell>
+                   <TableCell>
+                     {editingCreative === creative.id ? (
+                       <Input
+                         value={editForm.pagina_destino}
+                         onChange={(e) => setEditForm(prev => ({ ...prev, pagina_destino: e.target.value }))}
+                         placeholder="https://example.com/landing-page"
+                         className="h-8 text-xs"
+                         type="url"
+                       />
+                     ) : (
+                       <div className="flex items-center gap-2">
+                         {creative.pagina_destino ? (
+                           <div className="flex items-center gap-2">
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={() => window.open(creative.pagina_destino!, '_blank')}
+                               className="h-8 px-3 text-xs"
+                               title="Abrir página de destino"
+                             >
+                               <ExternalLink className="h-3 w-3 mr-1" />
+                               Abrir
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => copyToClipboard(creative.pagina_destino!, "Página de destino")}
+                               className="h-6 w-6 p-0"
+                               title="Copiar URL"
+                             >
+                               <Copy className="h-3 w-3" />
+                             </Button>
+                           </div>
+                         ) : (
+                           <span className="text-sm text-muted-foreground">-</span>
+                         )}
+                         {editingCreative !== creative.id && (
+                           <Button 
+                             size="sm" 
+                             variant="ghost" 
+                             onClick={() => handleEditCreative(creative)}
+                             className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                           >
+                             <Edit2 className="h-3 w-3" />
+                           </Button>
+                         )}
+                       </div>
+                     )}
+                   </TableCell>
+                   <TableCell>
+                     <div className="flex gap-2">
                       <Button 
                         variant="outline" 
                         size="sm"

@@ -579,6 +579,7 @@ export type Database = {
           name: string
           nomenclatura_trafego: string | null
           observacao_personalizada: string | null
+          pagina_destino: string | null
           parent_folder_id: string | null
           thumbnail_link: string | null
           updated_at: string
@@ -603,6 +604,7 @@ export type Database = {
           name: string
           nomenclatura_trafego?: string | null
           observacao_personalizada?: string | null
+          pagina_destino?: string | null
           parent_folder_id?: string | null
           thumbnail_link?: string | null
           updated_at?: string
@@ -627,6 +629,7 @@ export type Database = {
           name?: string
           nomenclatura_trafego?: string | null
           observacao_personalizada?: string | null
+          pagina_destino?: string | null
           parent_folder_id?: string | null
           thumbnail_link?: string | null
           updated_at?: string
