@@ -3,15 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2, Save, X } from "lucide-react";
+import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { EditarCriativoGoogleDriveModal } from "./EditarCriativoGoogleDriveModal";
 
 interface Creative {
   id: string;
@@ -59,8 +59,8 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
-  const [editingCreative, setEditingCreative] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ observacao: string; nomenclatura: string; pagina_destino: string }>({ observacao: '', nomenclatura: '', pagina_destino: '' });
+  const [editingCreative, setEditingCreative] = useState<Creative | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -369,58 +369,14 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   };
 
   const handleEditCreative = (creative: Creative) => {
-    setEditingCreative(creative.id);
-    setEditForm({
-      observacao: creative.observacao_personalizada || '',
-      nomenclatura: creative.nomenclatura_trafego || '',
-      pagina_destino: creative.pagina_destino || ''
-    });
+    setEditingCreative(creative);
+    setEditModalOpen(true);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingCreative) return;
-
-    try {
-      // Validar URL se fornecida
-      if (editForm.pagina_destino && !editForm.pagina_destino.match(/^https?:\/\/.+/)) {
-        toast({
-          title: "URL inválida",
-          description: "A página de destino deve começar com http:// ou https://",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('creatives')
-        .update({
-          observacao_personalizada: editForm.observacao || null,
-          nomenclatura_trafego: editForm.nomenclatura || null,
-          pagina_destino: editForm.pagina_destino || null
-        })
-        .eq('id', editingCreative);
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso",
-        description: "Informações atualizadas com sucesso!",
-      });
-
-      setEditingCreative(null);
-      await carregarCreatives();
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao atualizar informações",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCancelEdit = () => {
+  const handleEditSuccess = async () => {
+    await carregarCreatives();
     setEditingCreative(null);
-    setEditForm({ observacao: '', nomenclatura: '', pagina_destino: '' });
+    setEditModalOpen(false);
   };
 
   return (
@@ -757,148 +713,91 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {editingCreative === creative.id ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={editForm.nomenclatura}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, nomenclatura: e.target.value }))}
-                          placeholder="Ex: Criativo A, Variação 1..."
-                          className="h-8 text-xs"
-                        />
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onClick={handleSaveEdit} className="h-6 w-6 p-0">
-                            <Save className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-6 w-6 p-0">
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm truncate" title={creative.nomenclatura_trafego || ''}>
-                          {creative.nomenclatura_trafego || '-'}
-                        </span>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => handleEditCreative(creative)}
-                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {editingCreative === creative.id ? (
-                      <Textarea
-                        value={editForm.observacao}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, observacao: e.target.value }))}
-                        placeholder="Observações sobre o criativo..."
-                        className="h-8 text-xs resize-none"
-                        rows={2}
-                      />
-                    ) : (
-                      <div className="flex items-start gap-2">
-                        <span className="text-sm text-muted-foreground truncate" title={creative.observacao_personalizada || ''}>
-                          {creative.observacao_personalizada || '-'}
-                        </span>
-                        {editingCreative !== creative.id && (
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            onClick={() => handleEditCreative(creative)}
-                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
+                   <TableCell>
+                     <div className="flex items-center gap-2">
+                       <span className="text-sm truncate" title={creative.nomenclatura_trafego || ''}>
+                         {creative.nomenclatura_trafego || '-'}
+                       </span>
+                     </div>
                    </TableCell>
                    <TableCell>
-                     {editingCreative === creative.id ? (
-                       <Input
-                         value={editForm.pagina_destino}
-                         onChange={(e) => setEditForm(prev => ({ ...prev, pagina_destino: e.target.value }))}
-                         placeholder="https://example.com/landing-page"
-                         className="h-8 text-xs"
-                         type="url"
-                       />
-                     ) : (
-                       <div className="flex items-center gap-2">
-                         {creative.pagina_destino ? (
-                           <div className="flex items-center gap-2">
-                             <Button
-                               variant="outline"
-                               size="sm"
-                               onClick={() => window.open(creative.pagina_destino!, '_blank')}
-                               className="h-8 px-3 text-xs"
-                               title="Abrir página de destino"
-                             >
-                               <ExternalLink className="h-3 w-3 mr-1" />
-                               Abrir
-                             </Button>
-                             <Button
-                               variant="ghost"
-                               size="sm"
-                               onClick={() => copyToClipboard(creative.pagina_destino!, "Página de destino")}
-                               className="h-6 w-6 p-0"
-                               title="Copiar URL"
-                             >
-                               <Copy className="h-3 w-3" />
-                             </Button>
-                           </div>
-                         ) : (
-                           <span className="text-sm text-muted-foreground">-</span>
-                         )}
-                         {editingCreative !== creative.id && (
-                           <Button 
-                             size="sm" 
-                             variant="ghost" 
-                             onClick={() => handleEditCreative(creative)}
-                             className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                     <div className="flex items-start gap-2">
+                       <span className="text-sm text-muted-foreground truncate" title={creative.observacao_personalizada || ''}>
+                         {creative.observacao_personalizada || '-'}
+                       </span>
+                     </div>
+                   </TableCell>
+                   <TableCell>
+                     <div className="flex items-center gap-2">
+                       {creative.pagina_destino ? (
+                         <div className="flex items-center gap-2">
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => window.open(creative.pagina_destino!, '_blank')}
+                             className="h-8 px-3 text-xs"
+                             title="Abrir página de destino"
                            >
-                             <Edit2 className="h-3 w-3" />
+                             <ExternalLink className="h-3 w-3 mr-1" />
+                             Abrir
                            </Button>
-                         )}
-                       </div>
-                     )}
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => copyToClipboard(creative.pagina_destino!, "Página de destino")}
+                             className="h-6 w-6 p-0"
+                             title="Copiar URL"
+                           >
+                             <Copy className="h-3 w-3" />
+                           </Button>
+                         </div>
+                       ) : (
+                         <span className="text-sm text-muted-foreground">-</span>
+                       )}
+                     </div>
                    </TableCell>
                    <TableCell>
                      <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(creative.link_direct, "Link direto")}
-                        className="h-8 w-8 p-0"
-                        title="Copiar link direto"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(creative.link_web_view, "Link do Drive")}
-                        className="h-8 px-3"
-                        title="Copiar link do Drive"
-                      >
-                        Link
-                      </Button>
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={() => window.open(creative.link_web_view, '_blank')}
-                        className="h-8 px-3"
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Abrir
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => handleEditCreative(creative)}
+                         className="h-8 px-3 text-xs"
+                         title="Editar informações"
+                       >
+                         <Edit2 className="h-3 w-3 mr-1" />
+                         Editar
+                       </Button>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => copyToClipboard(creative.link_direct, "Link direto")}
+                         className="h-8 w-8 p-0"
+                         title="Copiar link direto"
+                       >
+                         <Copy className="h-3 w-3" />
+                       </Button>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => copyToClipboard(creative.link_web_view, "Link do Drive")}
+                         className="h-8 px-3"
+                         title="Copiar link do Drive"
+                       >
+                         Link
+                       </Button>
+                       <Button 
+                         variant="default" 
+                         size="sm"
+                         onClick={() => window.open(creative.link_web_view, '_blank')}
+                         className="h-8 px-3"
+                       >
+                         <ExternalLink className="h-3 w-3 mr-1" />
+                         Abrir
+                       </Button>
+                     </div>
+                   </TableCell>
+                 </TableRow>
               ))}
             </TableBody>
           </Table>
@@ -929,8 +828,16 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
               Próxima
             </Button>
           </div>
-        </div>
-      )}
-    </div>
-  );
-};
+         </div>
+       )}
+
+       {/* Modal de Edição */}
+       <EditarCriativoGoogleDriveModal
+         open={editModalOpen}
+         onOpenChange={setEditModalOpen}
+         creative={editingCreative}
+         onSuccess={handleEditSuccess}
+       />
+     </div>
+   );
+ };
