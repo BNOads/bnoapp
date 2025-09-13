@@ -285,12 +285,14 @@ export function PautaReuniaoView() {
     }
     
     autosaveTimeout.current = setTimeout(() => {
-      saveDocument();
-    }, 2000);
+      if (currentDocument) {
+        saveDocument();
+      }
+    }, 2000); // Auto-save a cada 2 segundos
   };
 
   const saveDocument = async () => {
-    if (!currentDocument) return;
+    if (!currentDocument || saving) return;
     
     try {
       setSaving(true);
@@ -303,22 +305,29 @@ export function PautaReuniaoView() {
         })
         .eq('id', currentDocument.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
       // Recarregar documentos para atualizar a sidebar
       await loadDocuments();
       
       setLastSaveTime(new Date());
-      toast({
-        title: "✅ Alterações salvas",
-        description: "Documento salvo com sucesso",
-      });
+      
+      // Mostrar toast apenas para salvamento manual, não auto-save
+      if (!autosaveTimeout.current) {
+        toast({
+          title: "✅ Alterações salvas",
+          description: "Documento salvo com sucesso",
+        });
+      }
       
     } catch (error) {
       console.error('Error saving document:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao salvar documento",
+        title: "Erro ao salvar",
+        description: "Erro ao salvar documento. Tente novamente.",
         variant: "destructive"
       });
     } finally {
@@ -330,6 +339,8 @@ export function PautaReuniaoView() {
     if (!currentDocument) return;
     
     setCurrentDocument(prev => prev ? { ...prev, conteudo_texto: content } : null);
+    
+    // Agendar auto-save sempre que o conteúdo mudar
     scheduleAutosave();
   };
 
@@ -753,9 +764,9 @@ export function PautaReuniaoView() {
                   ? `${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}`
                   : `${MONTHS[selectedDate.mes - 1]} ${selectedDate.ano}`
                 }
-                {lastSaveTime && (
-                  <span className="ml-2 text-xs">
-                    (Último salvamento: {lastSaveTime.toLocaleTimeString()})
+                {lastSaveTime && !saving && (
+                  <span className="ml-4 text-xs text-muted-foreground">
+                    Último salvamento: {lastSaveTime.toLocaleTimeString()}
                   </span>
                 )}
               </p>
@@ -763,11 +774,16 @@ export function PautaReuniaoView() {
           </div>
           
           <div className="flex items-center gap-2">
-            {saving && <span className="text-sm text-muted-foreground">Salvando...</span>}
+            {saving && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                Salvando automaticamente...
+              </div>
+            )}
             
-            <Button size="sm" onClick={saveDocument}>
+            <Button size="sm" onClick={() => saveDocument()}>
               <Save className="h-4 w-4 mr-2" />
-              Salvar
+              Salvar Agora
             </Button>
           </div>
         </div>
