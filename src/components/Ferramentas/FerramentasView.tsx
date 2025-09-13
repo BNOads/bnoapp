@@ -7,10 +7,11 @@ import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
 import { PautaReuniaoView } from "@/components/Reunioes/PautaReuniaoView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar } from "lucide-react";
+import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
+import { UTMBuilderView } from "./UTMBuilderView";
 
 interface Tool {
   id: string;
@@ -90,6 +91,14 @@ export const FerramentasView = () => {
       icon: BarChart3,
       component: <LancamentosView />,
       color: "text-blue-500"
+    },
+    {
+      id: "utm-builder",
+      title: "Criador de UTM",
+      description: "Gere URLs com parâmetros UTM padronizados individual ou em massa",
+      icon: Link,
+      component: <UTMBuilderView />,
+      color: "text-cyan-600"
     }
   ];
 
