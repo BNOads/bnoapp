@@ -283,24 +283,77 @@ export const AcessosLoginsView = () => {
     }
   };
 
+  const parseCSV = (text: string): any[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      throw new Error('O arquivo CSV deve ter pelo menos uma linha de cabeçalho e uma linha de dados.');
+    }
+
+    const parseCSVLine = (line: string): string[] => {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const nextChar = line[i + 1];
+        
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            // Escaped quote
+            current += '"';
+            i++; // Skip next quote
+          } else {
+            // Toggle quote mode
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          // End of field
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      
+      // Add the last field
+      result.push(current.trim());
+      return result;
+    };
+
+    const headers = parseCSVLine(lines[0]).map(h => h.replace(/^["']|["']$/g, ''));
+    console.log('CSV Headers detectados:', headers);
+    
+    const data = lines.slice(1).map((line, index) => {
+      try {
+        const values = parseCSVLine(line);
+        const obj: any = {};
+        
+        headers.forEach((header, idx) => {
+          let value = values[idx] || '';
+          // Remove quotes if present
+          value = value.replace(/^["']|["']$/g, '');
+          obj[header] = value;
+        });
+        
+        return obj;
+      } catch (error) {
+        console.error(`Erro na linha ${index + 2}:`, error);
+        throw new Error(`Erro ao processar linha ${index + 2}: ${error}`);
+      }
+    });
+
+    return data;
+  };
+
   const processImportFile = async (file: File) => {
     try {
       const text = await file.text();
       let data: any[] = [];
 
       if (file.name.endsWith('.csv')) {
-        // Parse CSV
-        const lines = text.split('\n').filter(line => line.trim());
-        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        
-        data = lines.slice(1).map(line => {
-          const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-          const obj: any = {};
-          headers.forEach((header, index) => {
-            obj[header] = values[index] || '';
-          });
-          return obj;
-        });
+        // Parse CSV with better handling
+        data = parseCSV(text);
       } else if (file.name.endsWith('.json')) {
         // Parse JSON
         data = JSON.parse(text);
@@ -308,24 +361,58 @@ export const AcessosLoginsView = () => {
         throw new Error('Formato de arquivo não suportado. Use CSV ou JSON.');
       }
 
-      // Convert to our format
-      const converted: AcessoFormData[] = data.map((item: any) => ({
-        nome_acesso: item.nome_acesso || item.nome || item.name || '',
-        categoria: item.categoria || item.category || 'outros',
-        login_usuario: item.login_usuario || item.login || item.usuario || item.user || '',
-        senha: item.senha || item.password || '',
-        link_acesso: item.link_acesso || item.link || item.url || '',
-        notas_adicionais: item.notas_adicionais || item.notas || item.notes || ''
-      }));
+      // Convert to our format with better field mapping
+      const converted: AcessoFormData[] = data.map((item: any, index: number) => {
+        try {
+          // Try multiple possible field names for each property
+          const getNormalizedValue = (possibleNames: string[]) => {
+            for (const name of possibleNames) {
+              if (item[name] !== undefined && item[name] !== null && item[name] !== '') {
+                return String(item[name]).trim();
+              }
+            }
+            return '';
+          };
 
+          const result = {
+            nome_acesso: getNormalizedValue(['nome_acesso', 'nome', 'name', 'titulo', 'title', 'servico', 'service']),
+            categoria: getNormalizedValue(['categoria', 'category', 'tipo', 'type']).toLowerCase() || 'outros',
+            login_usuario: getNormalizedValue(['login_usuario', 'login', 'usuario', 'user', 'email', 'username']),
+            senha: getNormalizedValue(['senha', 'password', 'pass', 'pwd']),
+            link_acesso: getNormalizedValue(['link_acesso', 'link', 'url', 'site', 'website']),
+            notas_adicionais: getNormalizedValue(['notas_adicionais', 'notas', 'notes', 'observacoes', 'description', 'descricao'])
+          };
+
+          // Validate category
+          const validCategories = Object.keys(CATEGORIAS);
+          if (!validCategories.includes(result.categoria)) {
+            result.categoria = 'outros';
+          }
+
+          console.log(`Item ${index + 1} processado:`, result);
+          return result;
+        } catch (error) {
+          console.error(`Erro ao converter item ${index + 1}:`, error);
+          throw new Error(`Erro ao processar item ${index + 1}`);
+        }
+      });
+
+      console.log('Dados convertidos:', converted);
       setImportPreview(converted);
+      
+      toast({
+        title: "Arquivo processado",
+        description: `${converted.length} itens encontrados no arquivo`
+      });
     } catch (error) {
       console.error('Error processing file:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao processar arquivo. Verifique o formato.",
+        title: "Erro ao processar arquivo",
+        description: error instanceof Error ? error.message : "Erro desconhecido. Verifique o formato do arquivo.",
         variant: "destructive"
       });
+      setImportFile(null);
+      setImportPreview([]);
     }
   };
 
@@ -335,30 +422,46 @@ export const AcessosLoginsView = () => {
     try {
       setImporting(true);
       
+      let successCount = 0;
+      let errorCount = 0;
+      
       for (const item of importPreview) {
-        if (!item.nome_acesso.trim()) continue; // Skip empty names
+        if (!item.nome_acesso.trim()) {
+          console.log('Pulando item sem nome:', item);
+          continue; // Skip empty names
+        }
         
-        const dataToSave = {
-          nome_acesso: item.nome_acesso,
-          categoria: item.categoria,
-          login_usuario: item.login_usuario || null,
-          senha_criptografada: item.senha ? encryptPassword(item.senha) : null,
-          link_acesso: item.link_acesso || null,
-          notas_adicionais: item.notas_adicionais || null,
-          created_by: user?.id
-        };
+        try {
+          const dataToSave = {
+            nome_acesso: item.nome_acesso,
+            categoria: item.categoria,
+            login_usuario: item.login_usuario || null,
+            senha_criptografada: item.senha ? encryptPassword(item.senha) : null,
+            link_acesso: item.link_acesso || null,
+            notas_adicionais: item.notas_adicionais || null,
+            created_by: user?.id
+          };
 
-        const { error } = await supabase
-          .from('acessos_logins')
-          .insert(dataToSave);
+          const { error } = await supabase
+            .from('acessos_logins')
+            .insert(dataToSave);
 
-        if (error) throw error;
+          if (error) throw error;
+          successCount++;
+        } catch (error) {
+          console.error('Erro ao inserir item:', item, error);
+          errorCount++;
+        }
       }
 
-      toast({
-        title: "Sucesso",
-        description: `${importPreview.length} acessos importados com sucesso`
-      });
+      if (successCount > 0) {
+        toast({
+          title: "Sucesso",
+          description: `${successCount} acessos importados com sucesso${errorCount > 0 ? `, ${errorCount} falharam` : ''}`
+        });
+      } else {
+        throw new Error('Nenhum item foi importado com sucesso');
+      }
 
       setShowImportModal(false);
       setImportFile(null);
@@ -379,17 +482,25 @@ export const AcessosLoginsView = () => {
   const downloadTemplate = () => {
     const template = [
       'nome_acesso,categoria,login_usuario,senha,link_acesso,notas_adicionais',
-      'Exemplo Meta Ads,ferramentas_ads,usuario@exemplo.com,senha123,https://business.facebook.com,Conta principal do cliente',
-      'Instagram Cliente X,redes_sociais,@clientex,,https://instagram.com/clientex,Perfil verificado'
+      '"Exemplo Meta Ads","ferramentas_ads","usuario@exemplo.com","senha123","https://business.facebook.com","Conta principal do cliente"',
+      '"Instagram Cliente X","redes_sociais","@clientex","","https://instagram.com/clientex","Perfil verificado"',
+      '"Google Ads - Cliente Y","ferramentas_ads","gestorY@agencia.com","minhasenha","https://ads.google.com","Conta de teste"'
     ].join('\n');
 
-    const blob = new Blob([template], { type: 'text/csv' });
+    const blob = new Blob([template], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'template_acessos.csv';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Template baixado",
+      description: "Use o arquivo template_acessos.csv como exemplo"
+    });
   };
 
   if (loading) {
@@ -738,10 +849,13 @@ export const AcessosLoginsView = () => {
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">Formato esperado:</h4>
                   <p className="text-sm text-muted-foreground mb-2">
-                    Para CSV, use as colunas: nome_acesso, categoria, login_usuario, senha, link_acesso, notas_adicionais
+                    <strong>CSV:</strong> Colunas aceitas: nome_acesso, categoria, login_usuario, senha, link_acesso, notas_adicionais
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    <strong>Categorias válidas:</strong> redes_sociais, ferramentas_ads, plataforma_cursos, emails, outros
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Para JSON, use um array de objetos com as mesmas propriedades.
+                    <strong>JSON:</strong> Array de objetos com as mesmas propriedades
                   </p>
                 </div>
               </div>
