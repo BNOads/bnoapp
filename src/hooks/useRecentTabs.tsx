@@ -9,8 +9,12 @@ export interface RecentTab {
   timestamp: number;
 }
 
+const RECENT_TABS_LIMIT = 50; // Store more but paginate display
+const ITEMS_PER_PAGE = 10;
+
 export function useRecentTabs() {
   const [recentTabs, setRecentTabs] = useState<RecentTab[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const location = useLocation();
 
   const getPageInfo = (pathname: string, search: string = ''): RecentTab | null => {
@@ -33,6 +37,25 @@ export function useRecentTabs() {
       '/perfil': { id: 'perfil', name: 'Perfil', icon: 'User', path: '/perfil' },
       '/reset-password': { id: 'reset-password', name: 'Redefinir Senha', icon: 'Lock', path: '/reset-password' },
     };
+
+    // Handle Ferramentas sub-pages
+    if (pathname.startsWith('/ferramentas/')) {
+      const subPage = pathname.split('/')[2];
+      const ferramantasMap: Record<string, Omit<RecentTab, 'timestamp'>> = {
+        'referencias': { id: 'ferramentas-referencias', name: 'Referências', icon: 'FileText', path: pathname },
+        'debriefings': { id: 'ferramentas-debriefings', name: 'Debriefings', icon: 'ClipboardList', path: pathname },
+        'mapas-mentais': { id: 'ferramentas-mapas', name: 'Mapas Mentais', icon: 'Network', path: pathname },
+        'funis': { id: 'ferramentas-funis', name: 'Funis', icon: 'TrendingDown', path: pathname },
+        'orcamentos': { id: 'ferramentas-orcamentos', name: 'Orçamentos', icon: 'DollarSign', path: pathname },
+        'bloco-notas': { id: 'ferramentas-notas', name: 'Bloco de Notas', icon: 'NotebookPen', path: pathname },
+        'pauta-reuniao': { id: 'ferramentas-pauta', name: 'Pauta de Reunião', icon: 'BookOpen', path: pathname },
+        'criador-funis': { id: 'ferramentas-criador-funis', name: 'Criador de Funis', icon: 'Workflow', path: pathname },
+      };
+      
+      if (ferramantasMap[subPage]) {
+        return { ...ferramantasMap[subPage], timestamp: Date.now() };
+      }
+    }
 
     // Handle dynamic routes
     if (pathname.startsWith('/pdi/')) {
@@ -172,10 +195,37 @@ export function useRecentTabs() {
   const addRecentTab = (pageInfo: RecentTab) => {
     setRecentTabs(prev => {
       const filtered = prev.filter(t => t.id !== pageInfo.id);
-      const updated = [pageInfo, ...filtered].slice(0, 5);
+      const updated = [pageInfo, ...filtered].slice(0, RECENT_TABS_LIMIT);
       localStorage.setItem('recentTabs', JSON.stringify(updated));
       return updated;
     });
+  };
+
+  // Pagination functions
+  const getPaginatedTabs = () => {
+    const startIndex = currentPage * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return recentTabs.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = () => {
+    return Math.ceil(recentTabs.length / ITEMS_PER_PAGE);
+  };
+
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, getTotalPages() - 1));
+  };
+
+  const goToPreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 0));
+  };
+
+  const canGoNext = () => {
+    return currentPage < getTotalPages() - 1;
+  };
+
+  const canGoPrevious = () => {
+    return currentPage > 0;
   };
 
   useEffect(() => {
@@ -198,5 +248,15 @@ export function useRecentTabs() {
     }
   }, [location.pathname, location.search]);
 
-  return { recentTabs, addRecentTab };
+  return { 
+    recentTabs: getPaginatedTabs(),
+    allRecentTabs: recentTabs,
+    addRecentTab,
+    currentPage,
+    totalPages: getTotalPages(),
+    goToNextPage,
+    goToPreviousPage,
+    canGoNext: canGoNext(),
+    canGoPrevious: canGoPrevious()
+  };
 }

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X, Filter } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
@@ -12,10 +12,19 @@ import { useRecentTabs } from "@/hooks/useRecentTabs";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
 export function DashboardView() {
   const navigate = useNavigate();
   const { canCreateContent, isAdmin } = useUserPermissions();
-  const { recentTabs } = useRecentTabs();
+  const { 
+    recentTabs, 
+    currentPage, 
+    totalPages, 
+    goToNextPage, 
+    goToPreviousPage, 
+    canGoNext, 
+    canGoPrevious 
+  } = useRecentTabs();
   const { favorites, toggleCurrentPageFavorite, isCurrentPageFavorite, renameFavorite } = useFavoriteTabs();
   const [showOrcamentos, setShowOrcamentos] = useState(false);
   const [pdis, setPdis] = useState<any[]>([]);
@@ -182,10 +191,37 @@ export function DashboardView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Tabs */}
         <Card className="p-6">
-          <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            Abas Recentes
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              Abas Recentes
+            </h3>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousPage}
+                  disabled={!canGoPrevious}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {currentPage + 1} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToNextPage}
+                  disabled={!canGoNext}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
           {recentTabs.length === 0 ? (
             <p className="text-muted-foreground text-sm">Nenhuma aba visitada recentemente</p>
           ) : (
