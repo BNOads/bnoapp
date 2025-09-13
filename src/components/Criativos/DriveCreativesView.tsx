@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { EditarCriativoGoogleDriveModal } from "./EditarCriativoGoogleDriveModal";
 import { EdicaoMassaCriativosModal } from "./EdicaoMassaCriativosModal";
+import { NovoCriativoExternoModal } from "./NovoCriativoExternoModal";
 
 interface Creative {
   id: string;
@@ -63,6 +64,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [editingCreative, setEditingCreative] = useState<Creative | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [bulkEditModalOpen, setBulkEditModalOpen] = useState(false);
+  const [novoExternoModalOpen, setNovoExternoModalOpen] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -422,15 +424,26 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
             </p>
           </div>
           
-          <Button 
-            variant="outline" 
-            onClick={sincronizarDrive}
-            disabled={syncing}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Sincronizando...' : 'Sincronizar'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setNovoExternoModalOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Criativo Externo
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              onClick={sincronizarDrive}
+              disabled={syncing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </Button>
+          </div>
         </div>
 
         {/* Status da Sincronização */}
@@ -893,6 +906,16 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           carregarCreatives();
           setSelectedCreatives([]);
           setBulkEditModalOpen(false);
+        }}
+      />
+
+      <NovoCriativoExternoModal
+        open={novoExternoModalOpen}
+        onOpenChange={setNovoExternoModalOpen}
+        clienteId={clienteId}
+        onSuccess={() => {
+          carregarCreatives();
+          setNovoExternoModalOpen(false);
         }}
       />
      </div>
