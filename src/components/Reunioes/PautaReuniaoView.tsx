@@ -17,7 +17,6 @@ import {
   Users, 
   List, 
   CheckSquare, 
-  Download,
   Share2,
   Search,
   ChevronLeft,
@@ -389,10 +388,10 @@ export function PautaReuniaoView() {
       const { error: docError } = await supabase
         .from('reunioes_documentos')
         .update({
-          titulo_reuniao: currentDocument.titulo_reuniao,
-          descricao: currentDocument.descricao,
-          participantes: currentDocument.participantes,
-          contribuidores: currentDocument.contribuidores,
+          titulo_reuniao: currentDocument.titulo_reuniao || 'Reunião',
+          descricao: currentDocument.descricao || '',
+          participantes: currentDocument.participantes ?? [],
+          contribuidores: currentDocument.contribuidores ?? (user?.id ? [user.id] : []),
           ultima_atualizacao: new Date().toISOString()
         })
         .eq('id', currentDocument.id);
@@ -446,7 +445,7 @@ export function PautaReuniaoView() {
       
       toast({
         title: "❌ Erro ao salvar",
-        description: "Verifique sua conexão e tente novamente",
+        description: error instanceof Error ? error.message : "Verifique sua conexão e tente novamente",
         variant: "destructive"
       });
     } finally {
@@ -682,10 +681,6 @@ export function PautaReuniaoView() {
             {currentDocument && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  PDF
-                </Button>
-                <Button variant="outline" size="sm">
                   <Share2 className="h-4 w-4 mr-2" />
                   Compartilhar
                 </Button>
@@ -770,24 +765,6 @@ export function PautaReuniaoView() {
                   </Card>
                 ))}
 
-                {/* Add Block Buttons */}
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(BLOCK_TYPES).map(([tipo, config]) => (
-                        <Button
-                          key={tipo}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addBlock(tipo)}
-                        >
-                          <config.icon className="h-4 w-4 mr-2" />
-                          {config.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             ) : (
               <Card>
