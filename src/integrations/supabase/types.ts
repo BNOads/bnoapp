@@ -1911,8 +1911,10 @@ export type Database = {
         Row: {
           atribuido_para: string | null
           cliente_id: string | null
+          concluida_por: string | null
           created_at: string
           created_by: string
+          data_conclusao: string | null
           data_vencimento: string | null
           descricao: string | null
           id: string
@@ -1925,8 +1927,10 @@ export type Database = {
         Insert: {
           atribuido_para?: string | null
           cliente_id?: string | null
+          concluida_por?: string | null
           created_at?: string
           created_by: string
+          data_conclusao?: string | null
           data_vencimento?: string | null
           descricao?: string | null
           id?: string
@@ -1939,8 +1943,10 @@ export type Database = {
         Update: {
           atribuido_para?: string | null
           cliente_id?: string | null
+          concluida_por?: string | null
           created_at?: string
           created_by?: string
+          data_conclusao?: string | null
           data_vencimento?: string | null
           descricao?: string | null
           id?: string

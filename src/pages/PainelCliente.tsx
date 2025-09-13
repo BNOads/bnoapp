@@ -10,8 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Layout/Header";
 import { StatusCliente } from "@/components/Clientes/StatusCliente";
 import { GravacoesReunioes } from "@/components/Clientes/GravacoesReunioes";
-import { TarefasList } from "@/components/Clientes/TarefasList";
-import { LinksImportantes } from "@/components/Clientes/LinksImportantes";
+import { TarefasListEnhanced } from "@/components/Clientes/TarefasListEnhanced";
+import { LinksImportantesEnhanced } from "@/components/Clientes/LinksImportantesEnhanced";
 import { OrcamentoPorFunil } from "@/components/Clientes/OrcamentoPorFunil";
 import { EditarClienteModal } from "@/components/Clientes/EditarClienteModal";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -279,7 +279,7 @@ const PainelCliente = () => {
                 <span className="truncate">Links Importantes</span>
               </h2>
               <div className="w-full overflow-hidden">
-               <LinksImportantes clienteId={clienteId} isPublicView={!isAuthenticated} />
+               <LinksImportantesEnhanced clienteId={clienteId} isPublicView={!isAuthenticated} />
               </div>
             </section>
 
@@ -289,7 +289,7 @@ const PainelCliente = () => {
                 <span className="truncate">Tarefas</span>
               </h2>
               <div className="w-full overflow-hidden">
-                <TarefasList clienteId={clienteId} tipo="cliente" isPublicView={!isAuthenticated} />
+                <TarefasListEnhanced clienteId={clienteId} tipo="cliente" isPublicView={!isAuthenticated} />
               </div>
             </section>
           </div>
