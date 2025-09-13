@@ -19,14 +19,14 @@ export function useRecentTabs() {
     
     // Map paths and tabs to page information
     const pageMap: Record<string, Omit<RecentTab, 'timestamp'>> = {
-      // Main tabs
+      // Main tabs - updated to use direct paths
       '/': { id: 'dashboard', name: 'Dashboard', icon: 'LayoutDashboard', path: '/' },
-      '/?tab=colaboradores': { id: 'colaboradores', name: 'Colaboradores', icon: 'Users', path: '/?tab=colaboradores' },
-      '/?tab=clientes': { id: 'clientes', name: 'Clientes', icon: 'Calendar', path: '/?tab=clientes' },
-      '/?tab=lancamentos': { id: 'lancamentos', name: 'Lançamentos', icon: 'BarChart3', path: '/?tab=lancamentos' },
-      '/?tab=assistente': { id: 'assistente', name: 'Assistente', icon: 'MessageSquare', path: '/?tab=assistente' },
-      '/?tab=treinamentos': { id: 'treinamentos', name: 'Treinamentos', icon: 'BookOpen', path: '/?tab=treinamentos' },
-      '/?tab=ferramentas': { id: 'ferramentas', name: 'Ferramentas', icon: 'Wrench', path: '/?tab=ferramentas' },
+      '/colaboradores': { id: 'colaboradores', name: 'Colaboradores', icon: 'Users', path: '/colaboradores' },
+      '/clientes': { id: 'clientes', name: 'Clientes', icon: 'Calendar', path: '/clientes' },
+      '/lancamentos': { id: 'lancamentos', name: 'Lançamentos', icon: 'BarChart3', path: '/lancamentos' },
+      '/assistente': { id: 'assistente', name: 'Assistente', icon: 'MessageSquare', path: '/assistente' },
+      '/treinamentos': { id: 'treinamentos', name: 'Treinamentos', icon: 'BookOpen', path: '/treinamentos' },
+      '/ferramentas': { id: 'ferramentas', name: 'Ferramentas', icon: 'Wrench', path: '/ferramentas' },
       
       // Specific pages
       '/auth': { id: 'auth', name: 'Login', icon: 'LogIn', path: '/auth' },
@@ -88,6 +88,28 @@ export function useRecentTabs() {
       };
     }
 
+    if (pathname.startsWith('/painel/')) {
+      const id = pathname.split('/')[2];
+      return { 
+        id: `painel-${id}`, 
+        name: 'Painel do Cliente', 
+        icon: 'Calendar', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+
+    if (pathname.startsWith('/criativos/')) {
+      const id = pathname.split('/')[2];
+      return { 
+        id: `criativos-${id}`, 
+        name: 'Criativos do Cliente', 
+        icon: 'Palette', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+
     if (pathname.startsWith('/referencia/')) {
       const id = pathname.split('/')[2];
       return { 
@@ -143,7 +165,7 @@ export function useRecentTabs() {
       };
     }
 
-    const currentPath = tab ? `${pathname}?tab=${tab}` : pathname;
+    const currentPath = pathname;
     return pageMap[currentPath] ? { ...pageMap[currentPath], timestamp: Date.now() } : null;
   };
 

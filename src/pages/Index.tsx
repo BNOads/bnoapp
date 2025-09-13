@@ -13,42 +13,32 @@ import { EscalaReunioes } from "@/components/Meetings/EscalaReunioes";
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
     if (tabFromUrl) {
-      setActiveTab(tabFromUrl);
-      // Remove o parâmetro da URL após definir a aba
-      searchParams.delete('tab');
-      setSearchParams(searchParams, { replace: true });
+      // Redirect to the new route structure
+      const routeMap: Record<string, string> = {
+        'colaboradores': '/colaboradores',
+        'clientes': '/clientes', 
+        'lancamentos': '/lancamentos',
+        'assistente': '/assistente',
+        'treinamentos': '/treinamentos',
+        'ferramentas': '/ferramentas'
+      };
+      
+      const newRoute = routeMap[tabFromUrl];
+      if (newRoute) {
+        window.location.href = newRoute;
+      }
     }
-  }, [searchParams, setSearchParams]);
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'colaboradores':
-        return <ColaboradoresView />;
-      case 'clientes':
-        return <ClientesView />;
-      case 'lancamentos':
-        return <LancamentosView />;
-      case 'assistente':
-        return <AssistenteView />;
-      case 'treinamentos':
-        return <TreinamentosView />;
-      case 'ferramentas':
-        return <FerramentasView />;
-      default:
-        return <DashboardView />;
-    }
-  };
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-background">
-      <Header activeTab={activeTab} onTabChange={setActiveTab} />
+      <Header />
       <main className="container mx-auto px-6 py-8">
-        {renderContent()}
+        <DashboardView />
       </main>
     </div>
   );

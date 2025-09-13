@@ -17,13 +17,7 @@ export default function CriativosCliente() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header 
-        activeTab="clientes" 
-        onTabChange={(tab) => {
-          if (tab === 'clientes') return; // Já estamos na seção de clientes
-          navigate(`/?tab=${tab}`);
-        }} 
-      />
+      <Header />
       
       <div className="container mx-auto p-6 max-w-7xl">
         <div className="mb-6">

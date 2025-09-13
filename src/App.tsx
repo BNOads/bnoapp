@@ -7,6 +7,12 @@ import { AuthProvider } from "@/components/Auth/AuthContext";
 import { ProtectedRoute } from "@/components/Auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ColaboradoresPage from "./pages/Colaboradores";
+import ClientesPage from "./pages/Clientes";
+import LancamentosPage from "./pages/Lancamentos";
+import AssistentePage from "./pages/Assistente";
+import TreinamentosPage from "./pages/Treinamentos";
+import FerramentasPage from "./pages/Ferramentas";
 import PDIDetalhes from "./pages/PDIDetalhes";
 import PainelCliente from "./pages/PainelCliente";
 import CriativosCliente from "./pages/CriativosCliente";
@@ -85,6 +91,41 @@ function App() {
               <Route path="/debriefings/:id" element={
                 <ProtectedRoute>
                   <DebriefingDetalhes />
+                </ProtectedRoute>
+              } />
+              <Route path="/colaboradores" element={
+                <ProtectedRoute>
+                  <ColaboradoresPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/clientes" element={
+                <ProtectedRoute>
+                  <ClientesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/lancamentos" element={
+                <ProtectedRoute>
+                  <LancamentosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/assistente" element={
+                <ProtectedRoute>
+                  <AssistentePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/treinamentos" element={
+                <ProtectedRoute>
+                  <TreinamentosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/ferramentas" element={
+                <ProtectedRoute>
+                  <FerramentasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/ferramentas/:toolName" element={
+                <ProtectedRoute>
+                  <FerramentasPage />
                 </ProtectedRoute>
               } />
               <Route path="/" element={

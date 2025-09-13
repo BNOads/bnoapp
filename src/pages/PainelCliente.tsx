@@ -139,10 +139,7 @@ const PainelCliente = () => {
 
   if (loading) {
     return <div className="min-h-screen bg-background">
-        {isAuthenticated ? <Header activeTab="clientes" onTabChange={tab => {
-        if (tab === 'clientes') return;
-        navigate(`/?tab=${tab}`);
-      }} /> : <div className="bg-background border-b border-border">
+        {isAuthenticated ? <Header /> : <div className="bg-background border-b border-border">
             <div className="container mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold">Painel do Cliente</h1>
@@ -165,10 +162,7 @@ const PainelCliente = () => {
   }
   if (!cliente) {
     return <div className="min-h-screen bg-background">
-        {isAuthenticated ? <Header activeTab="clientes" onTabChange={tab => {
-        if (tab === 'clientes') return;
-        navigate(`/?tab=${tab}`);
-      }} /> : <div className="bg-background border-b border-border">
+        {isAuthenticated ? <Header /> : <div className="bg-background border-b border-border">
             <div className="container mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold">Painel do Cliente</h1>
@@ -194,10 +188,7 @@ const PainelCliente = () => {
       </div>;
   }
   return <div className="min-h-screen bg-background">
-      {isAuthenticated ? <Header activeTab="clientes" onTabChange={tab => {
-      if (tab === 'clientes') return;
-      navigate(`/?tab=${tab}`);
-    }} /> : <div className="bg-background border-b border-border">
+      {isAuthenticated ? <Header /> : <div className="bg-background border-b border-border">
           <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-xl font-bold">Painel do Cliente</h1>

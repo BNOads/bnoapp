@@ -155,7 +155,7 @@ export default function AulaDetalhes() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header activeTab="treinamentos" onTabChange={(tab) => { console.log('Header navigation clicked:', tab); navigate(`/${tab}`); }} />
+      <Header />
       <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-6">
           <Button 

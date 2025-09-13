@@ -2,48 +2,64 @@ import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Cal
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Auth/AuthContext";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-interface HeaderProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-}
-export const Header = ({
-  activeTab,
-  onTabChange
-}: HeaderProps) => {
+interface HeaderProps {}
+
+export const Header = ({}: HeaderProps) => {
   const { user, signOut } = useAuth();
   const { userData } = useCurrentUser();
   const { toggleCurrentPageFavorite, isCurrentPageFavorite } = useFavoriteTabs();
   const navigate = useNavigate();
   const location = useLocation();
-  const tabs = [{
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard
-  }, {
-    id: 'colaboradores',
-    label: 'Colaboradores',
-    icon: Users
-  }, {
-    id: 'clientes',
-    label: 'Clientes',
-    icon: Calendar
-  }, {
-    id: 'assistente',
-    label: 'Assistente',
-    icon: UserCheck
-  }, {
-    id: 'treinamentos',
-    label: 'Treinamentos',
-    icon: CalendarDays
-  }, {
-    id: 'ferramentas',
-    label: 'Ferramentas',
-    icon: Rocket
-  }];
+  const tabs = [
+    {
+      id: 'dashboard',
+      label: 'Dashboard', 
+      icon: LayoutDashboard,
+      path: '/'
+    },
+    {
+      id: 'colaboradores',
+      label: 'Colaboradores',
+      icon: Users,
+      path: '/colaboradores'
+    },
+    {
+      id: 'clientes',
+      label: 'Clientes',
+      icon: Calendar,
+      path: '/clientes'
+    },
+    {
+      id: 'assistente',
+      label: 'Assistente',
+      icon: UserCheck,
+      path: '/assistente'
+    },
+    {
+      id: 'treinamentos',
+      label: 'Treinamentos',
+      icon: CalendarDays,
+      path: '/treinamentos'
+    },
+    {
+      id: 'ferramentas',
+      label: 'Ferramentas',
+      icon: Rocket,
+      path: '/ferramentas'
+    }
+  ];
+
+  const getActiveTab = () => {
+    const currentPath = location.pathname;
+    const tab = tabs.find(t => t.path === currentPath);
+    return tab ? tab.id : 'dashboard';
+  };
+
+  const activeTab = getActiveTab();
   return <header className="bg-gradient-subtle border-b border-border shadow-card">
       <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
@@ -68,12 +84,14 @@ export const Header = ({
                 key={tab.id} 
                 variant={activeTab === tab.id ? "hero" : "ghost"} 
                 size="sm"
-                onClick={() => onTabChange(tab.id)} 
+                asChild
                 className="flex items-center space-x-1 xl:space-x-2 px-2 xl:px-3 text-xs xl:text-sm"
               >
-                    <Icon className="h-3 w-3 xl:h-4 xl:w-4 flex-shrink-0" />
-                    <span className="hidden xl:inline truncate">{tab.label}</span>
-                  </Button>;
+                <Link to={tab.path}>
+                  <Icon className="h-3 w-3 xl:h-4 xl:w-4 flex-shrink-0" />
+                  <span className="hidden xl:inline truncate">{tab.label}</span>
+                </Link>
+                </Button>;
             })}
             </nav>
 
@@ -91,12 +109,14 @@ export const Header = ({
                   const Icon = tab.icon;
                   return <DropdownMenuItem 
                     key={tab.id} 
-                    onClick={() => onTabChange(tab.id)} 
+                    asChild
                     className={`flex items-center space-x-2 text-sm ${activeTab === tab.id ? "bg-accent" : ""}`}
                   >
-                        <Icon className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">{tab.label}</span>
-                      </DropdownMenuItem>;
+                    <Link to={tab.path}>
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{tab.label}</span>
+                    </Link>
+                    </DropdownMenuItem>;
                 })}
                 </DropdownMenuContent>
               </DropdownMenu>
