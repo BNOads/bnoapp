@@ -17,7 +17,11 @@ import {
   ExternalLink,
   Lock,
   User,
-  Globe
+  Globe,
+  Upload,
+  Download,
+  FileText,
+  X
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -91,6 +95,10 @@ export const AcessosLoginsView = () => {
   const [editingAcesso, setEditingAcesso] = useState<AcessoLogin | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<AcessoFormData[]>([]);
+  const [importing, setImporting] = useState(false);
   
   const [formData, setFormData] = useState<AcessoFormData>({
     nome_acesso: '',
@@ -275,6 +283,115 @@ export const AcessosLoginsView = () => {
     }
   };
 
+  const processImportFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      let data: any[] = [];
+
+      if (file.name.endsWith('.csv')) {
+        // Parse CSV
+        const lines = text.split('\n').filter(line => line.trim());
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        
+        data = lines.slice(1).map(line => {
+          const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+          const obj: any = {};
+          headers.forEach((header, index) => {
+            obj[header] = values[index] || '';
+          });
+          return obj;
+        });
+      } else if (file.name.endsWith('.json')) {
+        // Parse JSON
+        data = JSON.parse(text);
+      } else {
+        throw new Error('Formato de arquivo não suportado. Use CSV ou JSON.');
+      }
+
+      // Convert to our format
+      const converted: AcessoFormData[] = data.map((item: any) => ({
+        nome_acesso: item.nome_acesso || item.nome || item.name || '',
+        categoria: item.categoria || item.category || 'outros',
+        login_usuario: item.login_usuario || item.login || item.usuario || item.user || '',
+        senha: item.senha || item.password || '',
+        link_acesso: item.link_acesso || item.link || item.url || '',
+        notas_adicionais: item.notas_adicionais || item.notas || item.notes || ''
+      }));
+
+      setImportPreview(converted);
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao processar arquivo. Verifique o formato.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importPreview.length) return;
+
+    try {
+      setImporting(true);
+      
+      for (const item of importPreview) {
+        if (!item.nome_acesso.trim()) continue; // Skip empty names
+        
+        const dataToSave = {
+          nome_acesso: item.nome_acesso,
+          categoria: item.categoria,
+          login_usuario: item.login_usuario || null,
+          senha_criptografada: item.senha ? encryptPassword(item.senha) : null,
+          link_acesso: item.link_acesso || null,
+          notas_adicionais: item.notas_adicionais || null,
+          created_by: user?.id
+        };
+
+        const { error } = await supabase
+          .from('acessos_logins')
+          .insert(dataToSave);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `${importPreview.length} acessos importados com sucesso`
+      });
+
+      setShowImportModal(false);
+      setImportFile(null);
+      setImportPreview([]);
+      loadAcessos();
+    } catch (error) {
+      console.error('Error importing:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao importar acessos",
+        variant: "destructive"
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const template = [
+      'nome_acesso,categoria,login_usuario,senha,link_acesso,notas_adicionais',
+      'Exemplo Meta Ads,ferramentas_ads,usuario@exemplo.com,senha123,https://business.facebook.com,Conta principal do cliente',
+      'Instagram Cliente X,redes_sociais,@clientex,,https://instagram.com/clientex,Perfil verificado'
+    ].join('\n');
+
+    const blob = new Blob([template], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'template_acessos.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -294,10 +411,16 @@ export const AcessosLoginsView = () => {
           </p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setShowModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Acesso
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setShowModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Acesso
+            </Button>
+            <Button variant="outline" onClick={() => setShowImportModal(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Importar
+            </Button>
+          </div>
         )}
       </div>
 
@@ -561,6 +684,140 @@ export const AcessosLoginsView = () => {
             >
               Excluir
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Importação */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Importar Acessos</DialogTitle>
+            <DialogDescription>
+              Importe vários acessos de uma vez usando um arquivo CSV ou JSON
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {!importFile ? (
+              <div className="space-y-4">
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Selecione um arquivo</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Arraste e solte ou clique para selecionar um arquivo CSV ou JSON
+                  </p>
+                  <input
+                    type="file"
+                    accept=".csv,.json"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setImportFile(file);
+                        processImportFile(file);
+                      }
+                    }}
+                    className="hidden"
+                    id="import-file"
+                  />
+                  <label htmlFor="import-file">
+                    <Button variant="outline" className="cursor-pointer">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Selecionar Arquivo
+                    </Button>
+                  </label>
+                </div>
+                
+                <div className="flex items-center justify-center">
+                  <Button variant="ghost" onClick={downloadTemplate}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Baixar Template CSV
+                  </Button>
+                </div>
+                
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Formato esperado:</h4>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Para CSV, use as colunas: nome_acesso, categoria, login_usuario, senha, link_acesso, notas_adicionais
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Para JSON, use um array de objetos com as mesmas propriedades.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Arquivo: {importFile.name}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {importPreview.length} itens encontrados
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setImportFile(null);
+                      setImportPreview([]);
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {importPreview.length > 0 && (
+                  <div className="max-h-64 overflow-auto border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead>Usuário</TableHead>
+                          <TableHead>Link</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importPreview.slice(0, 5).map((item, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{item.nome_acesso}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {CATEGORIAS[item.categoria as keyof typeof CATEGORIAS] || 'Outros'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{item.login_usuario}</TableCell>
+                            <TableCell>{item.link_acesso}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    {importPreview.length > 5 && (
+                      <div className="p-2 text-center text-sm text-muted-foreground">
+                        ... e mais {importPreview.length - 5} itens
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowImportModal(false);
+                setImportFile(null);
+                setImportPreview([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            {importPreview.length > 0 && (
+              <Button onClick={handleImport} disabled={importing}>
+                {importing ? 'Importando...' : `Importar ${importPreview.length} itens`}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
