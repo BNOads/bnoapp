@@ -1,47 +1,97 @@
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReferenciasView } from "@/components/Referencias/ReferenciasView";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
-import { FileText, Palette, NotebookPen, Brain, Workflow } from "lucide-react";
+import { FileText, Palette, NotebookPen, Brain, Workflow, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+interface Tool {
+  id: string;
+  title: string;
+  description: string;
+  icon: any;
+  component: React.ReactNode;
+  color: string;
+}
 
 export const FerramentasView = () => {
-  const [activeTab, setActiveTab] = useState("referencias");
+  const [selectedTool, setSelectedTool] = useState<string | null>(null);
 
-  const tabs = [
+  const tools: Tool[] = [
     {
       id: "referencias",
-      label: "Referências",
+      title: "Referências",
+      description: "Gerencie documentos multimídia para referência da equipe criativa",
       icon: Palette,
-      component: <ReferenciasView />
+      component: <ReferenciasView />,
+      color: "text-purple-600"
     },
     {
       id: "debriefings", 
-      label: "Debriefings",
+      title: "Debriefings",
+      description: "Crie e analise relatórios detalhados de campanhas e resultados",
       icon: FileText,
-      component: <DebriefingsView />
+      component: <DebriefingsView />,
+      color: "text-blue-600"
     },
     {
       id: "notas",
-      label: "Bloco de Notas",
+      title: "Bloco de Notas",
+      description: "Suas anotações pessoais e lembretes organizados em um só lugar",
       icon: NotebookPen,
-      component: <BlocoNotasView />
+      component: <BlocoNotasView />,
+      color: "text-green-600"
     },
     {
       id: "mapa-mental",
-      label: "Mapa Mental",
+      title: "Mapa Mental",
+      description: "Organize suas ideias visualmente com mapas mentais interativos",
       icon: Brain,
-      component: <MapaMentalView />
+      component: <MapaMentalView />,
+      color: "text-orange-600"
     },
     {
       id: "criador-funil",
-      label: "Criador de Funil",
+      title: "Criador de Funil",
+      description: "Projete e visualize funis de marketing completos",
       icon: Workflow,
-      component: <CriadorFunilView />
+      component: <CriadorFunilView />,
+      color: "text-red-600"
     }
   ];
+
+  const selectedToolData = tools.find(tool => tool.id === selectedTool);
+
+  if (selectedTool && selectedToolData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline" 
+            size="sm" 
+            onClick={() => setSelectedTool(null)}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar às Ferramentas
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <selectedToolData.icon className={`h-8 w-8 ${selectedToolData.color}`} />
+              {selectedToolData.title}
+            </h1>
+            <p className="text-muted-foreground">
+              {selectedToolData.description}
+            </p>
+          </div>
+        </div>
+        {selectedToolData.component}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -52,29 +102,32 @@ export const FerramentasView = () => {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                className="flex items-center gap-2 text-xs sm:text-sm"
-              >
-                <Icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-
-        {tabs.map((tab) => (
-          <TabsContent key={tab.id} value={tab.id} className="mt-6">
-            {tab.component}
-          </TabsContent>
-        ))}
-      </Tabs>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {tools.map((tool) => {
+          const Icon = tool.icon;
+          return (
+            <Card 
+              key={tool.id} 
+              className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group"
+              onClick={() => setSelectedTool(tool.id)}
+            >
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-muted transition-colors">
+                    <Icon className={`h-6 w-6 ${tool.color}`} />
+                  </div>
+                </div>
+                <CardTitle className="text-xl">{tool.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {tool.description}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 };
