@@ -20,18 +20,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
 import { useNavigate } from "react-router-dom";
-
 export const ClientesView = () => {
-  const { canCreateContent } = useUserPermissions();
+  const {
+    canCreateContent
+  } = useUserPermissions();
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [edicaoMassaModalOpen, setEdicaoMassaModalOpen] = useState(false);
-  const [clienteToDelete, setClienteToDelete] = useState<{id: string, nome: string} | null>(null);
+  const [clienteToDelete, setClienteToDelete] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
   const [clienteToEdit, setClienteToEdit] = useState<any | null>(null);
   const [kickoffModalOpen, setKickoffModalOpen] = useState(false);
-  const [clienteKickoff, setClienteKickoff] = useState<{id: string, nome: string} | null>(null);
+  const [clienteKickoff, setClienteKickoff] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,37 +47,36 @@ export const ClientesView = () => {
   const [clientesSelecionados, setClientesSelecionados] = useState<string[]>([]);
   const [sortField, setSortField] = useState<string>('nome');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const navigate = useNavigate();
-
   const carregarClientes = async () => {
     try {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from('clientes').select('*').order('created_at', {
+        ascending: false
+      });
       if (error) {
         throw error;
       }
-
       setClientes(data || []);
     } catch (error: any) {
       console.error('Erro ao carregar clientes:', error);
       toast({
         title: "Erro ao carregar clientes",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     carregarClientes();
   }, []);
-
   const getStatusColor = (etapa: string) => {
     switch (etapa) {
       case 'ativo':
@@ -85,7 +91,6 @@ export const ClientesView = () => {
         return 'bg-muted text-muted-foreground';
     }
   };
-
   const getStatusLabel = (etapa: string) => {
     switch (etapa) {
       case 'ativo':
@@ -106,7 +111,6 @@ export const ClientesView = () => {
         return 'Indefinido';
     }
   };
-
   const formatarDataAcesso = (data: string) => {
     if (!data) return 'Nunca';
     const agora = new Date();
@@ -114,43 +118,39 @@ export const ClientesView = () => {
     const diff = agora.getTime() - acesso.getTime();
     const horas = Math.floor(diff / (1000 * 60 * 60));
     const dias = Math.floor(horas / 24);
-
     if (horas < 1) return 'Agora há pouco';
     if (horas < 24) return `${horas}h atrás`;
     if (dias === 1) return '1 dia atrás';
     return `${dias} dias atrás`;
   };
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({
       title: "Link copiado!",
-      description: "O link foi copiado para a área de transferência.",
+      description: "O link foi copiado para a área de transferência."
     });
   };
-
   const handleDeleteClick = (cliente: any) => {
-    setClienteToDelete({ id: cliente.id, nome: cliente.nome });
+    setClienteToDelete({
+      id: cliente.id,
+      nome: cliente.nome
+    });
     setDeleteModalOpen(true);
   };
-
   const handleDeleteSuccess = () => {
     setDeleteModalOpen(false);
     setClienteToDelete(null);
     carregarClientes();
   };
-
   const handleEditClick = (cliente: any) => {
     setClienteToEdit(cliente);
     setEditModalOpen(true);
   };
-
   const handleEditSuccess = () => {
     setEditModalOpen(false);
     setClienteToEdit(null);
     carregarClientes();
   };
-
   const handleEdicaoMassaSuccess = () => {
     setEdicaoMassaModalOpen(false);
     setClientesSelecionados([]);
@@ -159,25 +159,16 @@ export const ClientesView = () => {
 
   // Filtrar clientes baseado nos filtros ativos
   const filteredClientes = clientes.filter(cliente => {
-    const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         cliente.nicho?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         cliente.categoria?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.nicho?.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.categoria?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategoria = categoriaFilter === 'all' || !categoriaFilter || cliente.categoria === categoriaFilter;
     const matchesNicho = nichoFilter === 'all' || !nichoFilter || cliente.nicho === nichoFilter;
-    
     return matchesSearch && matchesCategoria && matchesNicho;
   });
 
   // Funções de seleção múltipla
   const toggleClienteSelection = (clienteId: string) => {
-    setClientesSelecionados(prev => 
-      prev.includes(clienteId) 
-        ? prev.filter(id => id !== clienteId)
-        : [...prev, clienteId]
-    );
+    setClientesSelecionados(prev => prev.includes(clienteId) ? prev.filter(id => id !== clienteId) : [...prev, clienteId]);
   };
-
   const toggleSelectAll = () => {
     if (clientesSelecionados.length === filteredClientes.length) {
       setClientesSelecionados([]);
@@ -210,7 +201,6 @@ export const ClientesView = () => {
       aValue = aValue.toLowerCase();
       bValue = bValue.toLowerCase();
     }
-
     if (sortDirection === 'asc') {
       return aValue > bValue ? 1 : -1;
     } else {
@@ -221,16 +211,13 @@ export const ClientesView = () => {
   // Obter listas únicas para os filtros
   const categorias = [...new Set(clientes.map(c => c.categoria).filter(Boolean))];
   const nichos = [...new Set(clientes.map(c => c.nicho).filter(Boolean))];
-
   const limparFiltros = () => {
     setCategoriaFilter('all');
     setNichoFilter('all');
     setSearchTerm('');
     setClientesSelecionados([]);
   };
-
-  return (
-    <div className="space-y-8">
+  return <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
         <div>
@@ -240,29 +227,17 @@ export const ClientesView = () => {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:space-x-2">
-          {canCreateContent && (
-            <>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="sm:size-default lg:size-lg w-full sm:w-auto"
-                onClick={() => setImportModalOpen(true)}
-              >
+          {canCreateContent && <>
+              <Button variant="outline" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => setImportModalOpen(true)}>
                 <Upload className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 <span className="hidden sm:inline">Importar em Massa</span>
                 <span className="sm:hidden">Importar</span>
               </Button>
-              <Button 
-                variant="hero" 
-                size="sm"
-                className="sm:size-default lg:size-lg w-full sm:w-auto"
-                onClick={() => setModalOpen(true)}
-              >
+              <Button variant="hero" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => setModalOpen(true)}>
                 <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Novo Painel
               </Button>
-            </>
-          )}
+            </>}
         </div>
       </div>
 
@@ -277,12 +252,7 @@ export const ClientesView = () => {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar clientes por nome, nicho ou categoria..."
-                className="pl-10 bg-background border-border"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+              <Input placeholder="Buscar clientes por nome, nicho ou categoria..." className="pl-10 bg-background border-border" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
             
             <div className="flex flex-col sm:flex-row gap-2">
@@ -292,11 +262,9 @@ export const ClientesView = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas categorias</SelectItem>
-                  {categorias.map(categoria => (
-                    <SelectItem key={categoria} value={categoria}>
+                  {categorias.map(categoria => <SelectItem key={categoria} value={categoria}>
                       {categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
 
@@ -306,11 +274,9 @@ export const ClientesView = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos nichos</SelectItem>
-                  {nichos.map(nicho => (
-                    <SelectItem key={nicho} value={nicho}>
+                  {nichos.map(nicho => <SelectItem key={nicho} value={nicho}>
                       {nicho}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
 
@@ -328,92 +294,50 @@ export const ClientesView = () => {
             <h3 className="text-lg font-semibold text-foreground">
               Lista de Clientes ({sortedAndFilteredClientes.length})
             </h3>
-            {clientesSelecionados.length > 0 && canCreateContent && (
-              <Button 
-                onClick={() => setEdicaoMassaModalOpen(true)}
-                variant="outline"
-                size="sm"
-              >
+            {clientesSelecionados.length > 0 && canCreateContent && <Button onClick={() => setEdicaoMassaModalOpen(true)} variant="outline" size="sm">
                 <EditIcon className="h-4 w-4 mr-2" />
                 Editar {clientesSelecionados.length} selecionado(s)
-              </Button>
-            )}
+              </Button>}
           </div>
         </div>
         <div className="overflow-x-auto">
-          {loading ? (
-            <div className="flex justify-center items-center py-8">
+          {loading ? <div className="flex justify-center items-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : sortedAndFilteredClientes.length === 0 ? (
-            <div className="text-center py-8">
+            </div> : sortedAndFilteredClientes.length === 0 ? <div className="text-center py-8">
               <p className="text-muted-foreground">
-                {clientes.length === 0 
-                  ? "Nenhum cliente encontrado." 
-                  : "Nenhum cliente corresponde aos filtros aplicados."
-                }
+                {clientes.length === 0 ? "Nenhum cliente encontrado." : "Nenhum cliente corresponde aos filtros aplicados."}
               </p>
-              {clientes.length === 0 && canCreateContent && (
-                <Button 
-                  onClick={() => setModalOpen(true)}
-                  className="mt-4"
-                >
+              {clientes.length === 0 && canCreateContent && <Button onClick={() => setModalOpen(true)} className="mt-4">
                   Criar Primeiro Painel
-                </Button>
-              )}
-              {clientes.length > 0 && (
-                <Button 
-                  onClick={limparFiltros}
-                  variant="outline"
-                  className="mt-4"
-                >
+                </Button>}
+              {clientes.length > 0 && <Button onClick={limparFiltros} variant="outline" className="mt-4">
                   Limpar Filtros
-                </Button>
-              )}
-            </div>
-          ) : (
-            <Table>
+                </Button>}
+            </div> : <Table>
               <TableHeader>
                 <TableRow>
-                  {canCreateContent && (
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={clientesSelecionados.length === sortedAndFilteredClientes.length}
-                        onCheckedChange={toggleSelectAll}
-                      />
-                    </TableHead>
-                  )}
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('nome')}
-                  >
+                  {canCreateContent && <TableHead className="w-12">
+                      <Checkbox checked={clientesSelecionados.length === sortedAndFilteredClientes.length} onCheckedChange={toggleSelectAll} />
+                    </TableHead>}
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('nome')}>
                     <div className="flex items-center">
                       Cliente
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
                   </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('categoria')}
-                  >
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('categoria')}>
                     <div className="flex items-center">
                       Categoria
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
                   </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('nicho')}
-                  >
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('nicho')}>
                     <div className="flex items-center">
                       Nicho
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
                   </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('status_cliente')}
-                  >
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status_cliente')}>
                     <div className="flex items-center">
                       Status
                       <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -423,60 +347,36 @@ export const ClientesView = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedAndFilteredClientes.map((cliente) => (
-                  <TableRow key={cliente.id} className="hover:bg-muted/50">
-                    {canCreateContent && (
-                      <TableCell>
-                        <Checkbox
-                          checked={clientesSelecionados.includes(cliente.id)}
-                          onCheckedChange={() => toggleClienteSelection(cliente.id)}
-                        />
-                      </TableCell>
-                    )}
+                {sortedAndFilteredClientes.map(cliente => <TableRow key={cliente.id} className="hover:bg-muted/50">
+                    {canCreateContent && <TableCell>
+                        <Checkbox checked={clientesSelecionados.includes(cliente.id)} onCheckedChange={() => toggleClienteSelection(cliente.id)} />
+                      </TableCell>}
                      <TableCell>
                       <div>
-                        <button 
-                          onClick={() => navigate(`/painel/${cliente.id}`, { 
-                            state: { from: '/?tab=clientes' } 
-                          })}
-                          className="font-medium text-foreground hover:text-primary transition-colors text-left"
-                        >
+                        <button onClick={() => navigate(`/painel/${cliente.id}`, {
+                        state: {
+                          from: '/?tab=clientes'
+                        }
+                      })} className="font-medium text-foreground hover:text-primary transition-colors text-left">
                           {cliente.nome}
                         </button>
-                        {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => (
-                              <Badge key={index} variant="outline" className="text-xs">
+                        {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && <div className="flex flex-wrap gap-1 mt-1">
+                            {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => <Badge key={index} variant="outline" className="text-xs">
                                 {funil}
-                              </Badge>
-                            ))}
-                            {cliente.funis_trabalhando.length > 2 && (
-                              <Badge variant="outline" className="text-xs">
+                              </Badge>)}
+                            {cliente.funis_trabalhando.length > 2 && <Badge variant="outline" className="text-xs">
                                 +{cliente.funis_trabalhando.length - 2}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
+                              </Badge>}
+                          </div>}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${
-                          cliente.categoria === 'negocio_local' 
-                            ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' 
-                            : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                        }`}
-                      >
+                      <Badge variant="outline" className={`text-xs ${cliente.categoria === 'negocio_local' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}>
                         {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {cliente.nicho ? (
-                        <span className="text-sm text-muted-foreground">{cliente.nicho}</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
-                      )}
+                      {cliente.nicho ? <span className="text-sm text-muted-foreground">{cliente.nicho}</span> : <span className="text-xs text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell>
                       <Badge className={`${getStatusColor(cliente.status_cliente || cliente.etapa_atual)} text-xs`}>
@@ -485,149 +385,72 @@ export const ClientesView = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center space-x-1">
-                         <Button 
-                           variant="ghost" 
-                           size="sm"
-                           onClick={() => navigate(`/painel/${cliente.id}`, { 
-                             state: { from: '/?tab=clientes' } 
-                           })}
-                           className="h-8 w-8 p-0"
-                         >
-                           <Eye className="h-4 w-4" />
-                         </Button>
+                         
 
-                        {canCreateContent && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => {
-                              setClienteKickoff({ id: cliente.id, nome: cliente.nome });
-                              setKickoffModalOpen(true);
-                            }}
-                            className="h-8 w-8 p-0"
-                            title="Kickoff"
-                          >
+                        {canCreateContent && <Button variant="ghost" size="sm" onClick={() => {
+                        setClienteKickoff({
+                          id: cliente.id,
+                          nome: cliente.nome
+                        });
+                        setKickoffModalOpen(true);
+                      }} className="h-8 w-8 p-0" title="Kickoff">
                             <Rocket className="h-4 w-4" />
-                          </Button>
-                        )}
+                          </Button>}
                         
-                        {canCreateContent && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleEditClick(cliente)}
-                            className="h-8 w-8 p-0"
-                          >
+                        {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleEditClick(cliente)} className="h-8 w-8 p-0">
                             <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
+                          </Button>}
                         
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => {
-                            const fullLink = cliente.link_painel?.startsWith('http') 
-                              ? cliente.link_painel 
-                              : `${window.location.origin}${cliente.link_painel}`;
-                            copyToClipboard(fullLink);
-                          }}
-                          className="h-8 w-8 p-0"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => {
+                        const fullLink = cliente.link_painel?.startsWith('http') ? cliente.link_painel : `${window.location.origin}${cliente.link_painel}`;
+                        copyToClipboard(fullLink);
+                      }} className="h-8 w-8 p-0">
                           <Copy className="h-4 w-4" />
                         </Button>
                         
-                        {cliente.pasta_drive_url && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => window.open(cliente.pasta_drive_url, '_blank')}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Link2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        {cliente.pasta_drive_url}
                         
-                        {canCreateContent && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleDeleteClick(cliente)}
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive"
-                          >
+                        {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(cliente)} className="h-8 w-8 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive">
                             <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                          </Button>}
                       </div>
                     </TableCell>
-                  </TableRow>
-                ))}
+                  </TableRow>)}
               </TableBody>
-            </Table>
-          )}
+            </Table>}
         </div>
       </Card>
         </div>
       </div>
 
       {/* Modals */}
-      <NovoClienteModal 
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onSuccess={() => {
-          carregarClientes(); // Recarregar lista após criar
-        }}
-      />
+      <NovoClienteModal open={modalOpen} onOpenChange={setModalOpen} onSuccess={() => {
+      carregarClientes(); // Recarregar lista após criar
+    }} />
       
-      <DeleteClienteModal
-        open={deleteModalOpen}
-        onOpenChange={(open) => {
-          setDeleteModalOpen(open);
-          if (!open) {
-            setClienteToDelete(null);
-          }
-        }}
-        cliente={clienteToDelete}
-        onSuccess={handleDeleteSuccess}
-      />
+      <DeleteClienteModal open={deleteModalOpen} onOpenChange={open => {
+      setDeleteModalOpen(open);
+      if (!open) {
+        setClienteToDelete(null);
+      }
+    }} cliente={clienteToDelete} onSuccess={handleDeleteSuccess} />
       
-      <ImportarClientesModal
-        open={importModalOpen}
-        onOpenChange={setImportModalOpen}
-        onSuccess={() => {
-          carregarClientes(); // Recarregar lista após importar
-        }}
-      />
+      <ImportarClientesModal open={importModalOpen} onOpenChange={setImportModalOpen} onSuccess={() => {
+      carregarClientes(); // Recarregar lista após importar
+    }} />
       
-      <EditarClienteModal
-        open={editModalOpen}
-        onOpenChange={(open) => {
-          setEditModalOpen(open);
-          if (!open) {
-            setClienteToEdit(null);
-          }
-        }}
-        cliente={clienteToEdit}
-        onSuccess={handleEditSuccess}
-      />
+      <EditarClienteModal open={editModalOpen} onOpenChange={open => {
+      setEditModalOpen(open);
+      if (!open) {
+        setClienteToEdit(null);
+      }
+    }} cliente={clienteToEdit} onSuccess={handleEditSuccess} />
 
-      <EdicaoMassaModal
-        isOpen={edicaoMassaModalOpen}
-        onClose={() => setEdicaoMassaModalOpen(false)}
-        onSuccess={handleEdicaoMassaSuccess}
-        clientesSelecionados={clientes.filter(c => clientesSelecionados.includes(c.id))}
-      />
+      <EdicaoMassaModal isOpen={edicaoMassaModalOpen} onClose={() => setEdicaoMassaModalOpen(false)} onSuccess={handleEdicaoMassaSuccess} clientesSelecionados={clientes.filter(c => clientesSelecionados.includes(c.id))} />
 
-      {clienteKickoff && (
-        <KickoffModal
-          isOpen={kickoffModalOpen}
-          onClose={() => {
-            setKickoffModalOpen(false);
-            setClienteKickoff(null);
-          }}
-          clienteId={clienteKickoff.id}
-          clienteNome={clienteKickoff.nome}
-        />
-      )}
-    </div>
-  );
+      {clienteKickoff && <KickoffModal isOpen={kickoffModalOpen} onClose={() => {
+      setKickoffModalOpen(false);
+      setClienteKickoff(null);
+    }} clienteId={clienteKickoff.id} clienteNome={clienteKickoff.nome} />}
+    </div>;
 };
