@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      acessos_logins: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          created_at: string
+          created_by: string
+          id: string
+          link_acesso: string | null
+          login_usuario: string | null
+          nome_acesso: string
+          notas_adicionais: string | null
+          senha_criptografada: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria: string
+          created_at?: string
+          created_by: string
+          id?: string
+          link_acesso?: string | null
+          login_usuario?: string | null
+          nome_acesso: string
+          notas_adicionais?: string | null
+          senha_criptografada?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          link_acesso?: string | null
+          login_usuario?: string | null
+          nome_acesso?: string
+          notas_adicionais?: string | null
+          senha_criptografada?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       assistente_conversas: {
         Row: {
           ativo: boolean

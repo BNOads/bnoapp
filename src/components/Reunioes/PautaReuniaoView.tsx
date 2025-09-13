@@ -29,7 +29,8 @@ import {
   X,
   Check,
   Clock,
-  Hourglass
+  Hourglass,
+  Trash2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -113,6 +114,17 @@ export function PautaReuniaoView() {
     includeAcoes: false,
     includeDecisoes: false,
     includeFollowups: false
+  });
+
+  // Delete confirmation state
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    blockId: string | null;
+    blockTitle: string;
+  }>({
+    isOpen: false,
+    blockId: null,
+    blockTitle: ''
   });
 
   // Search state
@@ -640,6 +652,48 @@ export function PautaReuniaoView() {
     }, 2000);
   };
 
+  const deleteBlock = async (blockId: string) => {
+    try {
+      // Remove block from local state
+      const updatedBlocks = blocks.filter(block => block.id !== blockId);
+      setBlocks(updatedBlocks);
+      
+      // Trigger autosave to persist the deletion
+      scheduleAutosave();
+      
+      toast({
+        title: "Pauta excluída",
+        description: "A pauta foi removida com sucesso",
+      });
+    } catch (error) {
+      console.error('Error deleting block:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir a pauta",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteBlock = (blockId: string, blockTitle: string) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      blockId,
+      blockTitle: blockTitle || 'Pauta sem título'
+    });
+  };
+
+  const confirmDeleteBlock = () => {
+    if (deleteConfirmation.blockId) {
+      deleteBlock(deleteConfirmation.blockId);
+    }
+    setDeleteConfirmation({
+      isOpen: false,
+      blockId: null,
+      blockTitle: ''
+    });
+  };
+
   const saveDocument = async (isAutosave = false) => {
     if (!currentDocument) return;
     
@@ -1148,20 +1202,28 @@ export function PautaReuniaoView() {
                 {blocks.map((block, index) => (
                   <Card key={block.id} id={`block-${block.id}`}>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
-                          className: "h-5 w-5"
-                        })}
-                        <Input
-                          value={block.titulo || ''}
-                          onChange={(e) => updateBlock(block.id, { titulo: e.target.value })}
-                          className="border-none p-0 h-auto bg-transparent font-semibold"
-                          placeholder="Título do bloco"
-                        />
-                        <Badge variant="outline" className="ml-2">
-                          {index + 1}
-                        </Badge>
-                      </CardTitle>
+                       <CardTitle className="flex items-center gap-2">
+                         {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
+                           className: "h-5 w-5"
+                         })}
+                         <Input
+                           value={block.titulo || ''}
+                           onChange={(e) => updateBlock(block.id, { titulo: e.target.value })}
+                           className="border-none p-0 h-auto bg-transparent font-semibold flex-1"
+                           placeholder="Título do bloco"
+                         />
+                         <Badge variant="outline" className="ml-2">
+                           {index + 1}
+                         </Badge>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => handleDeleteBlock(block.id, block.titulo || '')}
+                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                         >
+                           <Trash2 className="h-4 w-4" />
+                         </Button>
+                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       {renderBlockContent(block)}
@@ -1327,6 +1389,35 @@ export function PautaReuniaoView() {
               disabled={!newPautaData.titulo.trim()}
             >
               Criar Pauta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de confirmação de exclusão */}
+      <Dialog open={deleteConfirmation.isOpen} onOpenChange={(open) => !open && setDeleteConfirmation({ isOpen: false, blockId: null, blockTitle: '' })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir Pauta</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir esta pauta? Esta ação não poderá ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm font-medium">Pauta: {deleteConfirmation.blockTitle}</p>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteConfirmation({ isOpen: false, blockId: null, blockTitle: '' })}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={confirmDeleteBlock}
+            >
+              Excluir
             </Button>
           </DialogFooter>
         </DialogContent>
