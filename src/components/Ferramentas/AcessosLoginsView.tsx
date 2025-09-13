@@ -461,6 +461,21 @@ export const AcessosLoginsView = () => {
     }
   };
 
+  const processImportFromUrl = async (url: string) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Não foi possível acessar o arquivo de importação.');
+      const text = await res.text();
+      // Criar um File para reutilizar o mesmo fluxo de parsing
+      const file = new File([text], 'import.csv', { type: 'text/csv' });
+      setImportFile(file);
+      await processImportFile(file);
+      toast({ title: 'Arquivo carregado', description: 'Arquivo de importação carregado do servidor' });
+    } catch (e: any) {
+      console.error('Erro ao carregar arquivo de importação:', e);
+      toast({ title: 'Erro', description: e?.message || 'Falha ao carregar arquivo de importação.', variant: 'destructive' });
+    }
+  };
   const handleImport = async () => {
     if (!importPreview.length) return;
 
@@ -636,7 +651,7 @@ export const AcessosLoginsView = () => {
                     <Badge variant="outline" className={getCategoryColor(acesso.categoria)}>
                       <div className="flex items-center gap-1">
                         {getCategoryIcon(acesso.categoria)}
-                        {CATEGORIAS[acesso.categoria as keyof typeof CATEGORIAS]}
+                        {CATEGORIAS[acesso.categoria as keyof typeof CATEGORIAS] || 'Outros'}
                       </div>
                     </Badge>
                   </TableCell>
@@ -884,10 +899,14 @@ export const AcessosLoginsView = () => {
                   </label>
                 </div>
                 
-                <div className="flex items-center justify-center">
+                <div className="flex items-center justify-center gap-2">
                   <Button variant="ghost" onClick={downloadTemplate}>
                     <Download className="h-4 w-4 mr-2" />
                     Baixar Template CSV
+                  </Button>
+                  <Button variant="outline" onClick={() => processImportFromUrl('/logins_bnoads.csv')}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Usar arquivo copiado
                   </Button>
                 </div>
                 
