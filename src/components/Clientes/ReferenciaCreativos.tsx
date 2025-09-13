@@ -8,24 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { 
-  FileText, 
-  Image, 
-  Video, 
-  Link2, 
-  Copy, 
-  Eye, 
-  Edit2, 
-  Plus, 
-  Calendar,
-  ExternalLink,
-  FileCode,
-  Share2,
-  Search,
-  Trash2,
-  Upload,
-  Download
-} from "lucide-react";
+import { FileText, Image, Video, Link2, Copy, Eye, Edit2, Plus, Calendar, ExternalLink, FileCode, Share2, Search, Trash2, Upload, Download } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +16,6 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ReferencesEditor } from "@/components/References/ReferencesEditor";
-
 interface ConteudoBloco {
   id: string;
   tipo: 'texto' | 'imagem' | 'video' | 'link';
@@ -42,7 +24,6 @@ interface ConteudoBloco {
   descricao?: string;
   url?: string;
 }
-
 interface ReferenciaCreativo {
   id: string;
   titulo: string;
@@ -54,12 +35,12 @@ interface ReferenciaCreativo {
   is_template: boolean;
   links_externos: any;
 }
-
 interface ReferenciaCriativosProps {
   clienteId: string;
 }
-
-export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => {
+export const ReferenciaCreativos = ({
+  clienteId
+}: ReferenciaCriativosProps) => {
   const [referencias, setReferencias] = useState<ReferenciaCreativo[]>([]);
   const [referenciasFiltradas, setReferenciasFiltradas] = useState<ReferenciaCreativo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,27 +54,28 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
   const [filtroCategoria, setFiltroCategoria] = useState<'todas' | 'infoproduto' | 'negocio_local' | 'pagina'>('todas');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
-  
   const [formData, setFormData] = useState({
     titulo: "",
     categoria: "infoproduto" as "infoproduto" | "negocio_local" | "pagina",
     is_template: false
   });
-  
   const [blocos, setBlocos] = useState<ConteudoBloco[]>([]);
-  const [linksExternos, setLinksExternos] = useState<{url: string, titulo: string}[]>([]);
-  
-  const { toast } = useToast();
-  const { canCreateContent } = useUserPermissions();
-
+  const [linksExternos, setLinksExternos] = useState<{
+    url: string;
+    titulo: string;
+  }[]>([]);
+  const {
+    toast
+  } = useToast();
+  const {
+    canCreateContent
+  } = useUserPermissions();
   useEffect(() => {
     carregarReferencias();
   }, [clienteId]);
-
   useEffect(() => {
     filtrarReferencias();
   }, [searchTerm, filtroCategoria, referencias]);
-
   const filtrarReferencias = () => {
     let filtered = referencias;
 
@@ -104,21 +86,15 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
 
     // Filtrar por termo de busca
     if (searchTerm.trim()) {
-      filtered = filtered.filter(ref => 
-        ref.titulo.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(ref => ref.titulo.toLowerCase().includes(searchTerm.toLowerCase()));
     }
-
     setReferenciasFiltradas(filtered);
   };
-
   const carregarReferencias = async () => {
     try {
-      let query = supabase
-        .from('referencias_criativos')
-        .select('*')
-        .eq('ativo', true)
-        .order('created_at', { ascending: false });
+      let query = supabase.from('referencias_criativos').select('*').eq('ativo', true).order('created_at', {
+        ascending: false
+      });
 
       // Se clienteId for "geral", buscar referências gerais (cliente_id null)
       // Senão, filtrar por cliente específico
@@ -127,9 +103,10 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       } else {
         query = query.eq('cliente_id', clienteId);
       }
-
-      const { data, error } = await query;
-
+      const {
+        data,
+        error
+      } = await query;
       if (error) throw error;
       setReferencias((data || []) as ReferenciaCreativo[]);
       setReferenciasFiltradas((data || []) as ReferenciaCreativo[]);
@@ -137,13 +114,12 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       toast({
         title: "Erro",
         description: "Erro ao carregar referências: " + error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const adicionarBloco = (tipo: ConteudoBloco['tipo']) => {
     const novoBloco: ConteudoBloco = {
       id: Date.now().toString(),
@@ -152,72 +128,62 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       titulo: "",
       descricao: ""
     };
-    
     setBlocos([...blocos, novoBloco]);
   };
-
   const atualizarBloco = (id: string, campo: string, valor: string) => {
-    setBlocos(blocos.map(bloco => 
-      bloco.id === id ? { ...bloco, [campo]: valor } : bloco
-    ));
+    setBlocos(blocos.map(bloco => bloco.id === id ? {
+      ...bloco,
+      [campo]: valor
+    } : bloco));
   };
-
   const removerBloco = (id: string) => {
     setBlocos(blocos.filter(bloco => bloco.id !== id));
   };
-
   const salvarReferencia = async () => {
     try {
       if (!formData.titulo) {
         toast({
           title: "Erro",
           description: "Título é obrigatório",
-          variant: "destructive",
+          variant: "destructive"
         });
         return;
       }
-
       if (editingId) {
         // Editar existente
-        const { error } = await supabase
-          .from('referencias_criativos')
-          .update({
-            titulo: formData.titulo,
-            categoria: formData.categoria,
-            conteudo: JSON.stringify(blocos),
-            is_template: formData.is_template,
-            links_externos: linksExternos
-          })
-          .eq('id', editingId);
-
+        const {
+          error
+        } = await supabase.from('referencias_criativos').update({
+          titulo: formData.titulo,
+          categoria: formData.categoria,
+          conteudo: JSON.stringify(blocos),
+          is_template: formData.is_template,
+          links_externos: linksExternos
+        }).eq('id', editingId);
         if (error) throw error;
-
         toast({
           title: "Sucesso",
-          description: "Referência atualizada com sucesso!",
+          description: "Referência atualizada com sucesso!"
         });
       } else {
         // Criar nova
-        const { error } = await supabase
-          .from('referencias_criativos')
-          .insert({
-            cliente_id: clienteId === "geral" ? null : clienteId,
-            titulo: formData.titulo,
-            categoria: formData.categoria,
-            conteudo: JSON.stringify(blocos),
-            is_template: formData.is_template,
-            links_externos: linksExternos,
-            created_by: (await supabase.auth.getUser()).data.user?.id
-          });
-
+        const {
+          error
+        } = await supabase.from('referencias_criativos').insert({
+          cliente_id: clienteId === "geral" ? null : clienteId,
+          titulo: formData.titulo,
+          categoria: formData.categoria,
+          conteudo: JSON.stringify(blocos),
+          is_template: formData.is_template,
+          links_externos: linksExternos,
+          created_by: (await supabase.auth.getUser()).data.user?.id
+        });
         if (error) throw error;
-
         toast({
           title: "Sucesso",
-          description: "Referência criada com sucesso!",
+          description: "Referência criada com sucesso!"
         });
       }
-
       resetarForm();
       setShowModal(false);
       carregarReferencias();
@@ -225,11 +191,10 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       toast({
         title: "Erro",
         description: "Erro ao salvar referência: " + error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
   const resetarForm = () => {
     setFormData({
       titulo: "",
@@ -240,7 +205,6 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
     setLinksExternos([]);
     setEditingId(null);
   };
-
   const abrirEdicao = (referencia: ReferenciaCreativo) => {
     setEditingId(referencia.id);
     setFormData({
@@ -248,108 +212,99 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       categoria: referencia.categoria || "infoproduto",
       is_template: referencia.is_template
     });
-    setBlocos(typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : (referencia.conteudo || []));
+    setBlocos(typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || []);
     setLinksExternos(referencia.links_externos || []);
     setShowModal(true);
   };
-
   const abrirVisualizacao = (referencia: ReferenciaCreativo) => {
     // Parse do conteúdo JSON para array
-    const conteudoParsed = typeof referencia.conteudo === 'string' 
-      ? JSON.parse(referencia.conteudo) 
-      : (referencia.conteudo || []);
-    
+    const conteudoParsed = typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || [];
     setSelectedReferencia({
       ...referencia,
       conteudo: conteudoParsed
     });
     setShowVisualizacao(true);
   };
-
   const copiarLink = (link: string) => {
     navigator.clipboard.writeText(link);
     toast({
       title: "Copiado!",
-      description: "Link copiado para a área de transferência",
+      description: "Link copiado para a área de transferência"
     });
   };
-
   const duplicarTemplate = async (referencia: ReferenciaCreativo) => {
     try {
-      const { error } = await supabase
-        .from('referencias_criativos')
-        .insert({
-          cliente_id: clienteId === "geral" ? null : clienteId,
-          titulo: `${referencia.titulo} (Cópia)`,
-          categoria: referencia.categoria,
-          conteudo: referencia.conteudo,
-          is_template: false,
-          links_externos: referencia.links_externos,
-          created_by: (await supabase.auth.getUser()).data.user?.id
-        });
-
+      const {
+        error
+      } = await supabase.from('referencias_criativos').insert({
+        cliente_id: clienteId === "geral" ? null : clienteId,
+        titulo: `${referencia.titulo} (Cópia)`,
+        categoria: referencia.categoria,
+        conteudo: referencia.conteudo,
+        is_template: false,
+        links_externos: referencia.links_externos,
+        created_by: (await supabase.auth.getUser()).data.user?.id
+      });
       if (error) throw error;
-
       toast({
         title: "Sucesso",
-        description: "Template duplicado com sucesso!",
+        description: "Template duplicado com sucesso!"
       });
       carregarReferencias();
     } catch (error: any) {
       toast({
         title: "Erro",
         description: "Erro ao duplicar template: " + error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
   const adicionarLinkExterno = () => {
-    setLinksExternos([...linksExternos, { url: "", titulo: "" }]);
+    setLinksExternos([...linksExternos, {
+      url: "",
+      titulo: ""
+    }]);
   };
-
   const atualizarLinkExterno = (index: number, campo: string, valor: string) => {
     const novosLinks = [...linksExternos];
-    novosLinks[index] = { ...novosLinks[index], [campo]: valor };
+    novosLinks[index] = {
+      ...novosLinks[index],
+      [campo]: valor
+    };
     setLinksExternos(novosLinks);
   };
-
   const excluirReferencia = async (referencia: ReferenciaCreativo) => {
     try {
-      const { error } = await supabase
-        .from('referencias_criativos')
-        .update({ ativo: false })
-        .eq('id', referencia.id);
-
+      const {
+        error
+      } = await supabase.from('referencias_criativos').update({
+        ativo: false
+      }).eq('id', referencia.id);
       if (error) throw error;
-
       toast({
         title: "Sucesso",
-        description: "Referência excluída com sucesso!",
+        description: "Referência excluída com sucesso!"
       });
       carregarReferencias();
     } catch (error: any) {
       toast({
         title: "Erro",
         description: "Erro ao excluir referência: " + error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
   const processarImportacaoCSV = async () => {
     if (!csvFile) return;
-
     setImportLoading(true);
     try {
       const text = await csvFile.text();
       const lines = text.split('\n').filter(line => line.trim());
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      
+
       // Esperado: titulo,categoria,is_template,links_externos
       const referencesData = lines.slice(1).map(line => {
         const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-        
         let linksExternos = [];
         if (values[3]) {
           try {
@@ -357,10 +312,12 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
             linksExternos = JSON.parse(values[3]);
           } catch {
             // Se falhar, trata como URL simples
-            linksExternos = [{ titulo: values[3], url: values[3] }];
+            linksExternos = [{
+              titulo: values[3],
+              url: values[3]
+            }];
           }
         }
-        
         return {
           titulo: values[0] || '',
           categoria: (['negocio_local', 'pagina'].includes(values[1]) ? values[1] : 'infoproduto') as 'infoproduto' | 'negocio_local' | 'pagina',
@@ -368,28 +325,23 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
           links_externos: linksExternos
         };
       });
-
       for (const refData of referencesData) {
         if (refData.titulo) {
-          await supabase
-            .from('referencias_criativos')
-            .insert({
-              cliente_id: clienteId === "geral" ? null : clienteId,
-              titulo: refData.titulo,
-              categoria: refData.categoria,
-              conteudo: JSON.stringify([]),
-              is_template: refData.is_template,
-              links_externos: refData.links_externos,
-              created_by: (await supabase.auth.getUser()).data.user?.id
-            });
+          await supabase.from('referencias_criativos').insert({
+            cliente_id: clienteId === "geral" ? null : clienteId,
+            titulo: refData.titulo,
+            categoria: refData.categoria,
+            conteudo: JSON.stringify([]),
+            is_template: refData.is_template,
+            links_externos: refData.links_externos,
+            created_by: (await supabase.auth.getUser()).data.user?.id
+          });
         }
       }
-
       toast({
         title: "Sucesso",
-        description: `${referencesData.filter(r => r.titulo).length} referências importadas com sucesso!`,
+        description: `${referencesData.filter(r => r.titulo).length} referências importadas com sucesso!`
       });
-      
       setShowImportModal(false);
       setCsvFile(null);
       carregarReferencias();
@@ -397,93 +349,65 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       toast({
         title: "Erro",
         description: "Erro ao processar arquivo CSV: " + error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setImportLoading(false);
     }
   };
-
   const downloadTemplateCSV = () => {
     const template = `titulo,categoria,is_template,links_externos
 "Exemplo Referência","infoproduto","false","[]"
 "Template Negócio Local","negocio_local","true","[{""url"":""https://example.com"",""titulo"":""Link Exemplo""}]"
 "Exemplo Página","pagina","false","https://example.com/pagina"`;
-    
-    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([template], {
+      type: 'text/csv;charset=utf-8;'
+    });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'template_referencias.csv';
     link.click();
   };
-
   const removerLinkExterno = (index: number) => {
     setLinksExternos(linksExternos.filter((_, i) => i !== index));
   };
-
   const renderizarBloco = (bloco: ConteudoBloco) => {
     switch (bloco.tipo) {
       case 'texto':
-        return (
-          <div>
+        return <div>
             {bloco.titulo && <h4 className="font-semibold mb-2">{bloco.titulo}</h4>}
             <p className="whitespace-pre-wrap">{bloco.conteudo}</p>
-          </div>
-        );
+          </div>;
       case 'imagem':
-        return (
-          <div>
+        return <div>
             {bloco.titulo && <h4 className="font-semibold mb-2">{bloco.titulo}</h4>}
-            <img 
-              src={bloco.conteudo} 
-              alt={bloco.descricao || ""} 
-              className="max-w-full h-auto rounded-lg"
-            />
+            <img src={bloco.conteudo} alt={bloco.descricao || ""} className="max-w-full h-auto rounded-lg" />
             {bloco.descricao && <p className="text-sm text-muted-foreground mt-2">{bloco.descricao}</p>}
-          </div>
-        );
+          </div>;
       case 'video':
-        return (
-          <div>
+        return <div>
             {bloco.titulo && <h4 className="font-semibold mb-2">{bloco.titulo}</h4>}
-            <video 
-              src={bloco.conteudo} 
-              controls 
-              className="max-w-full h-auto rounded-lg"
-            />
+            <video src={bloco.conteudo} controls className="max-w-full h-auto rounded-lg" />
             {bloco.descricao && <p className="text-sm text-muted-foreground mt-2">{bloco.descricao}</p>}
-          </div>
-        );
+          </div>;
       case 'link':
-        return (
-          <div>
+        return <div>
             {bloco.titulo && <h4 className="font-semibold mb-2">{bloco.titulo}</h4>}
-            <a 
-              href={bloco.conteudo} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:underline flex items-center gap-2"
-            >
+            <a href={bloco.conteudo} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-2">
               <ExternalLink className="h-4 w-4" />
               {bloco.descricao || bloco.conteudo}
             </a>
-          </div>
-        );
+          </div>;
       default:
         return null;
     }
   };
-
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-32">
+    return <div className="flex justify-center items-center h-32">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -493,31 +417,17 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
           </p>
         </div>
         <div className="flex gap-2">
-          {canCreateContent && (
-            <>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowImportModal(true)}
-              >
+          {canCreateContent && <>
+              <Button variant="outline" onClick={() => setShowImportModal(true)}>
                 <Upload className="h-4 w-4 mr-2" />
                 Importar CSV
               </Button>
-              <Button 
-                onClick={() => setShowNotionEditor(true)}
-                className="bg-gradient-primary text-primary-foreground hover:opacity-90"
-              >
+              <Button onClick={() => setShowNotionEditor(true)} className="bg-gradient-primary text-primary-foreground hover:opacity-90">
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Referência
               </Button>
-              <Button 
-                variant="outline"
-                onClick={() => setShowModal(true)}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Editor Clássico
-              </Button>
-            </>
-          )}
+              
+            </>}
         </div>
       </div>
 
@@ -528,22 +438,12 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Pesquisar referências..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+                <Input placeholder="Pesquisar referências..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
               </div>
             </div>
             <div className="w-48">
               <Label>Categoria</Label>
-              <Select
-                value={filtroCategoria}
-                onValueChange={(value: 'todas' | 'infoproduto' | 'negocio_local' | 'pagina') => 
-                  setFiltroCategoria(value)
-                }
-              >
+              <Select value={filtroCategoria} onValueChange={(value: 'todas' | 'infoproduto' | 'negocio_local' | 'pagina') => setFiltroCategoria(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -562,8 +462,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       {/* Tabela de Referências */}
       <Card>
         <CardContent className="p-0">
-          {referenciasFiltradas.length > 0 ? (
-            <Table>
+          {referenciasFiltradas.length > 0 ? <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Título</TableHead>
@@ -575,152 +474,97 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {referenciasFiltradas.map((referencia) => (
-                  <TableRow key={referencia.id}>
+                {referenciasFiltradas.map(referencia => <TableRow key={referencia.id}>
                     <TableCell className="font-medium">
                       {referencia.titulo}
                     </TableCell>
                      <TableCell>
                        <Badge variant="outline">
-                         {referencia.categoria === 'infoproduto' ? 'Infoproduto' : 
-                          referencia.categoria === 'negocio_local' ? 'Negócio Local' : 'Página'}
+                         {referencia.categoria === 'infoproduto' ? 'Infoproduto' : referencia.categoria === 'negocio_local' ? 'Negócio Local' : 'Página'}
                        </Badge>
                      </TableCell>
                     <TableCell>
-                      {referencia.is_template ? (
-                        <Badge variant="secondary">
+                      {referencia.is_template ? <Badge variant="secondary">
                           <FileCode className="h-3 w-3 mr-1" />
                           Template
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">Referência</Badge>
-                      )}
+                        </Badge> : <Badge variant="outline">Referência</Badge>}
                     </TableCell>
                     <TableCell>
                       {(() => {
-                        const conteudoParsed = typeof referencia.conteudo === 'string' 
-                          ? JSON.parse(referencia.conteudo) 
-                          : (referencia.conteudo || []);
-                        return Array.isArray(conteudoParsed) ? conteudoParsed.length : 0;
-                      })()} bloco(s)
+                  const conteudoParsed = typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || [];
+                  return Array.isArray(conteudoParsed) ? conteudoParsed.length : 0;
+                })()} bloco(s)
                     </TableCell>
                     <TableCell>
-                      {format(new Date(referencia.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                      {format(new Date(referencia.created_at), "dd/MM/yyyy", {
+                  locale: ptBR
+                })}
                     </TableCell>
                      <TableCell className="text-right">
                        <div className="flex gap-1 justify-end">
                          {/* Botão de abrir link externo - só aparece se houver links externos */}
-                         {referencia.links_externos && referencia.links_externos.length > 0 && (
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             onClick={() => {
-                               const firstLink = referencia.links_externos[0];
-                               const url = typeof firstLink === 'string' ? firstLink : firstLink.url;
-                               window.open(url, '_blank');
-                             }}
-                             title="Abrir primeiro link externo"
-                           >
+                         {referencia.links_externos && referencia.links_externos.length > 0 && <Button variant="ghost" size="sm" onClick={() => {
+                    const firstLink = referencia.links_externos[0];
+                    const url = typeof firstLink === 'string' ? firstLink : firstLink.url;
+                    window.open(url, '_blank');
+                  }} title="Abrir primeiro link externo">
                              <ExternalLink className="h-4 w-4" />
-                           </Button>
-                         )}
+                           </Button>}
                           {/* Não mostrar botão de visualizar para referências importadas sem conteúdo */}
                           {(() => {
-                            const conteudoParsed = typeof referencia.conteudo === 'string' 
-                              ? JSON.parse(referencia.conteudo) 
-                              : (referencia.conteudo || []);
-                            const hasContent = Array.isArray(conteudoParsed) && conteudoParsed.length > 0;
-                            
-                            return hasContent && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => window.open(`/referencia/${referencia.id}`, '_blank')}
-                                title="Visualizar em nova aba"
-                              >
+                    const conteudoParsed = typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || [];
+                    const hasContent = Array.isArray(conteudoParsed) && conteudoParsed.length > 0;
+                    return hasContent && <Button variant="ghost" size="sm" onClick={() => window.open(`/referencia/${referencia.id}`, '_blank')} title="Visualizar em nova aba">
                                 <Eye className="h-4 w-4" />
-                              </Button>
-                            );
-                          })()}
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => {
-                             const fullLink = referencia.link_publico?.startsWith('http') 
-                               ? referencia.link_publico 
-                               : `${window.location.origin}${referencia.link_publico}`;
-                             copiarLink(fullLink);
-                           }}
-                         >
+                              </Button>;
+                  })()}
+                         <Button variant="ghost" size="sm" onClick={() => {
+                    const fullLink = referencia.link_publico?.startsWith('http') ? referencia.link_publico : `${window.location.origin}${referencia.link_publico}`;
+                    copiarLink(fullLink);
+                  }}>
                            <Copy className="h-4 w-4" />
                          </Button>
-                        {canCreateContent && (
-                          <>
-                             <Button
-                               variant="ghost"
-                               size="sm"
-                               onClick={() => {
-                                 setEditingId(referencia.id);
-                                 setShowNotionEditor(true);
-                               }}
-                               title="Editar com Editor Notion"
-                             >
+                        {canCreateContent && <>
+                             <Button variant="ghost" size="sm" onClick={() => {
+                      setEditingId(referencia.id);
+                      setShowNotionEditor(true);
+                    }} title="Editar com Editor Notion">
                                <Edit2 className="h-4 w-4" />
                              </Button>
-                            {referencia.is_template && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => duplicarTemplate(referencia)}
-                              >
+                            {referencia.is_template && <Button variant="ghost" size="sm" onClick={() => duplicarTemplate(referencia)}>
                                 <FileCode className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => excluirReferencia(referencia)}
-                              className="text-destructive hover:text-destructive"
-                            >
+                              </Button>}
+                            <Button variant="ghost" size="sm" onClick={() => excluirReferencia(referencia)} className="text-destructive hover:text-destructive">
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                          </>
-                        )}
+                          </>}
                       </div>
                     </TableCell>
-                  </TableRow>
-                ))}
+                  </TableRow>)}
               </TableBody>
-            </Table>
-          ) : (
-            <div className="py-8 text-center">
-              {searchTerm ? (
-                <>
+            </Table> : <div className="py-8 text-center">
+              {searchTerm ? <>
                   <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium">Nenhuma referência encontrada</h3>
                   <p className="text-muted-foreground">
                     Tente pesquisar com outros termos ou limpe o filtro.
                   </p>
-                </>
-              ) : (
-                <>
+                </> : <>
                   <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium">Nenhuma referência criada</h3>
                   <p className="text-muted-foreground">
                     {canCreateContent ? "Clique em 'Nova Referência' para criar a primeira." : "As referências serão exibidas aqui quando criadas."}
                   </p>
-                </>
-              )}
-            </div>
-          )}
+                </>}
+            </div>}
         </CardContent>
       </Card>
 
       {/* Modal de Edição */}
-      <Dialog open={showModal} onOpenChange={(open) => {
-        if (!open) resetarForm();
-        setShowModal(open);
-      }}>
+      <Dialog open={showModal} onOpenChange={open => {
+      if (!open) resetarForm();
+      setShowModal(open);
+    }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
@@ -733,21 +577,17 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="titulo">Título</Label>
-                <Input
-                  id="titulo"
-                  value={formData.titulo}
-                  onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
-                  placeholder="Título da referência"
-                />
+                <Input id="titulo" value={formData.titulo} onChange={e => setFormData({
+                ...formData,
+                titulo: e.target.value
+              })} placeholder="Título da referência" />
               </div>
               <div>
                 <Label htmlFor="categoria">Categoria</Label>
-                <Select
-                  value={formData.categoria}
-                  onValueChange={(value: "infoproduto" | "negocio_local" | "pagina") => 
-                    setFormData({ ...formData, categoria: value })
-                  }
-                >
+                <Select value={formData.categoria} onValueChange={(value: "infoproduto" | "negocio_local" | "pagina") => setFormData({
+                ...formData,
+                categoria: value
+              })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a categoria" />
                   </SelectTrigger>
@@ -761,13 +601,10 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
             </div>
 
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="is_template"
-                checked={formData.is_template}
-                onChange={(e) => setFormData({ ...formData, is_template: e.target.checked })}
-                className="rounded"
-              />
+              <input type="checkbox" id="is_template" checked={formData.is_template} onChange={e => setFormData({
+              ...formData,
+              is_template: e.target.checked
+            })} className="rounded" />
               <Label htmlFor="is_template">Salvar como template</Label>
             </div>
 
@@ -777,41 +614,21 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium">Links Externos</h3>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={adicionarLinkExterno}
-                >
+                <Button type="button" variant="outline" size="sm" onClick={adicionarLinkExterno}>
                   <Plus className="h-4 w-4 mr-2" />
                   Adicionar Link
                 </Button>
               </div>
               
-              {linksExternos.map((link, index) => (
-                <div key={index} className="grid grid-cols-2 gap-2 mb-2">
-                  <Input
-                    placeholder="Título do link"
-                    value={link.titulo}
-                    onChange={(e) => atualizarLinkExterno(index, 'titulo', e.target.value)}
-                  />
+              {linksExternos.map((link, index) => <div key={index} className="grid grid-cols-2 gap-2 mb-2">
+                  <Input placeholder="Título do link" value={link.titulo} onChange={e => atualizarLinkExterno(index, 'titulo', e.target.value)} />
                   <div className="flex gap-2">
-                    <Input
-                      placeholder="URL"
-                      value={link.url}
-                      onChange={(e) => atualizarLinkExterno(index, 'url', e.target.value)}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removerLinkExterno(index)}
-                    >
+                    <Input placeholder="URL" value={link.url} onChange={e => atualizarLinkExterno(index, 'url', e.target.value)} />
+                    <Button type="button" variant="outline" size="sm" onClick={() => removerLinkExterno(index)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
-              ))}
+                </div>)}
             </div>
 
             <Separator />
@@ -821,39 +638,19 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium">Conteúdo</h3>
                 <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => adicionarBloco('texto')}
-                  >
+                  <Button type="button" variant="outline" size="sm" onClick={() => adicionarBloco('texto')}>
                     <FileText className="h-4 w-4 mr-2" />
                     Texto
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => adicionarBloco('imagem')}
-                  >
+                  <Button type="button" variant="outline" size="sm" onClick={() => adicionarBloco('imagem')}>
                     <Image className="h-4 w-4 mr-2" />
                     Imagem
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => adicionarBloco('video')}
-                  >
+                  <Button type="button" variant="outline" size="sm" onClick={() => adicionarBloco('video')}>
                     <Video className="h-4 w-4 mr-2" />
                     Vídeo
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => adicionarBloco('link')}
-                  >
+                  <Button type="button" variant="outline" size="sm" onClick={() => adicionarBloco('link')}>
                     <Link2 className="h-4 w-4 mr-2" />
                     Link
                   </Button>
@@ -861,17 +658,11 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
               </div>
               
               <div className="space-y-4">
-                {blocos.map((bloco) => (
-                  <Card key={bloco.id}>
+                {blocos.map(bloco => <Card key={bloco.id}>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center">
                         <Badge variant="outline">{bloco.tipo}</Badge>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removerBloco(bloco.id)}
-                        >
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removerBloco(bloco.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -879,47 +670,23 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
                     <CardContent className="space-y-3">
                       <div>
                         <Label>Título (opcional)</Label>
-                        <Input
-                          value={bloco.titulo || ""}
-                          onChange={(e) => atualizarBloco(bloco.id, 'titulo', e.target.value)}
-                          placeholder="Título do bloco"
-                        />
+                        <Input value={bloco.titulo || ""} onChange={e => atualizarBloco(bloco.id, 'titulo', e.target.value)} placeholder="Título do bloco" />
                       </div>
                       
-                      {bloco.tipo === 'texto' ? (
-                        <div>
+                      {bloco.tipo === 'texto' ? <div>
                           <Label>Conteúdo</Label>
-                          <Textarea
-                            value={bloco.conteudo}
-                            onChange={(e) => atualizarBloco(bloco.id, 'conteudo', e.target.value)}
-                            placeholder="Digite o texto..."
-                            rows={4}
-                          />
-                        </div>
-                      ) : (
-                        <div>
+                          <Textarea value={bloco.conteudo} onChange={e => atualizarBloco(bloco.id, 'conteudo', e.target.value)} placeholder="Digite o texto..." rows={4} />
+                        </div> : <div>
                           <Label>URL</Label>
-                          <Input
-                            value={bloco.conteudo}
-                            onChange={(e) => atualizarBloco(bloco.id, 'conteudo', e.target.value)}
-                            placeholder={`URL da ${bloco.tipo}`}
-                          />
-                        </div>
-                      )}
+                          <Input value={bloco.conteudo} onChange={e => atualizarBloco(bloco.id, 'conteudo', e.target.value)} placeholder={`URL da ${bloco.tipo}`} />
+                        </div>}
                       
-                      {bloco.tipo !== 'texto' && (
-                        <div>
+                      {bloco.tipo !== 'texto' && <div>
                           <Label>Descrição (opcional)</Label>
-                          <Input
-                            value={bloco.descricao || ""}
-                            onChange={(e) => atualizarBloco(bloco.id, 'descricao', e.target.value)}
-                            placeholder="Descrição do conteúdo"
-                          />
-                        </div>
-                      )}
+                          <Input value={bloco.descricao || ""} onChange={e => atualizarBloco(bloco.id, 'descricao', e.target.value)} placeholder="Descrição do conteúdo" />
+                        </div>}
                     </CardContent>
-                  </Card>
-                ))}
+                  </Card>)}
               </div>
             </div>
 
@@ -949,11 +716,7 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
             </div>
             
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={downloadTemplateCSV}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={downloadTemplateCSV} className="flex-1">
                 <Download className="h-4 w-4 mr-2" />
                 Baixar Template
               </Button>
@@ -961,22 +724,14 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
             
             <div>
               <Label htmlFor="csv-file">Arquivo CSV</Label>
-              <Input
-                id="csv-file"
-                type="file"
-                accept=".csv"
-                onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-              />
+              <Input id="csv-file" type="file" accept=".csv" onChange={e => setCsvFile(e.target.files?.[0] || null)} />
             </div>
             
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowImportModal(false)}>
                 Cancelar
               </Button>
-              <Button 
-                onClick={processarImportacaoCSV}
-                disabled={!csvFile || importLoading}
-              >
+              <Button onClick={processarImportacaoCSV} disabled={!csvFile || importLoading}>
                 {importLoading ? "Importando..." : "Importar"}
               </Button>
             </div>
@@ -1002,20 +757,13 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
       </Dialog>
 
       {/* Editor estilo Notion */}
-      <ReferencesEditor
-        isOpen={showNotionEditor}
-        onClose={() => {
-          setShowNotionEditor(false);
-          setEditingId(null);
-        }}
-        referenceId={editingId}
-        clienteId={clienteId}
-        onSave={() => {
-          carregarReferencias();
-          setShowNotionEditor(false);
-          setEditingId(null);
-        }}
-      />
-    </div>
-  );
+      <ReferencesEditor isOpen={showNotionEditor} onClose={() => {
+      setShowNotionEditor(false);
+      setEditingId(null);
+    }} referenceId={editingId} clienteId={clienteId} onSave={() => {
+      carregarReferencias();
+      setShowNotionEditor(false);
+      setEditingId(null);
+    }} />
+    </div>;
 };
