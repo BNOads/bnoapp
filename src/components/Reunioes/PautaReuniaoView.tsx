@@ -567,12 +567,12 @@ export function PautaReuniaoView() {
             
             {selectedDate.dia && !currentDocument && (
               <div className="flex gap-2">
-                <Select onValueChange={(templateId) => createOrOpenDocument(selectedDate.dia!, templateId)}>
+                <Select onValueChange={(templateId) => createOrOpenDocument(selectedDate.dia!, templateId === "blank" ? undefined : templateId)}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Usar template" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Documento em branco</SelectItem>
+                    <SelectItem value="blank">Documento em branco</SelectItem>
                     {templates.map(template => (
                       <SelectItem key={template.id} value={template.id}>
                         {template.nome}
