@@ -1397,10 +1397,15 @@ export type Database = {
           created_at: string
           created_by: string
           data_atualizacao: string
+          etapa_funil: string | null
           id: string
           nome_funil: string
           observacoes: string | null
+          periodo_ano: number | null
+          periodo_mes: number | null
+          status_orcamento: string | null
           updated_at: string
+          valor_gasto: number | null
           valor_investimento: number
         }
         Insert: {
@@ -1409,10 +1414,15 @@ export type Database = {
           created_at?: string
           created_by: string
           data_atualizacao?: string
+          etapa_funil?: string | null
           id?: string
           nome_funil: string
           observacoes?: string | null
+          periodo_ano?: number | null
+          periodo_mes?: number | null
+          status_orcamento?: string | null
           updated_at?: string
+          valor_gasto?: number | null
           valor_investimento?: number
         }
         Update: {
@@ -1421,10 +1431,15 @@ export type Database = {
           created_at?: string
           created_by?: string
           data_atualizacao?: string
+          etapa_funil?: string | null
           id?: string
           nome_funil?: string
           observacoes?: string | null
+          periodo_ano?: number | null
+          periodo_mes?: number | null
+          status_orcamento?: string | null
           updated_at?: string
+          valor_gasto?: number | null
           valor_investimento?: number
         }
         Relationships: []
@@ -2363,6 +2378,13 @@ export type Database = {
         | "divorciado"
         | "viuvo"
         | "uniao_estavel"
+      etapa_funil_enum:
+        | "captacao"
+        | "cpl"
+        | "vendas"
+        | "remarketing"
+        | "email_marketing"
+        | "upsell"
       nivel_acesso:
         | "admin"
         | "gestor_trafego"
@@ -2379,6 +2401,7 @@ export type Database = {
         | "finalizado"
         | "pausado"
         | "cancelado"
+      status_orcamento_enum: "ativo" | "pausado" | "concluido" | "cancelado"
       tipo_acesso_dados:
         | "leitura_propria"
         | "leitura_limitada"
@@ -2527,6 +2550,14 @@ export const Constants = {
         "viuvo",
         "uniao_estavel",
       ],
+      etapa_funil_enum: [
+        "captacao",
+        "cpl",
+        "vendas",
+        "remarketing",
+        "email_marketing",
+        "upsell",
+      ],
       nivel_acesso: [
         "admin",
         "gestor_trafego",
@@ -2545,6 +2576,7 @@ export const Constants = {
         "pausado",
         "cancelado",
       ],
+      status_orcamento_enum: ["ativo", "pausado", "concluido", "cancelado"],
       tipo_acesso_dados: [
         "leitura_propria",
         "leitura_limitada",

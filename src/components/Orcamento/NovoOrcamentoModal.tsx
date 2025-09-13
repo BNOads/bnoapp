@@ -20,13 +20,49 @@ interface NovoOrcamentoModalProps {
   onSuccess?: () => void;
 }
 
+const ETAPAS_FUNIL = [
+  { value: 'captacao', label: 'Captação' },
+  { value: 'cpl', label: 'CPL' },
+  { value: 'vendas', label: 'Vendas' },
+  { value: 'remarketing', label: 'Remarketing' },
+  { value: 'email_marketing', label: 'E-mail Marketing' },
+  { value: 'upsell', label: 'Upsell' }
+];
+
+const STATUS_OPTIONS = [
+  { value: 'ativo', label: 'Ativo' },
+  { value: 'pausado', label: 'Pausado' },
+  { value: 'concluido', label: 'Concluído' },
+  { value: 'cancelado', label: 'Cancelado' }
+];
+
+const MESES = [
+  { value: 1, label: 'Janeiro' },
+  { value: 2, label: 'Fevereiro' },
+  { value: 3, label: 'Março' },
+  { value: 4, label: 'Abril' },
+  { value: 5, label: 'Maio' },
+  { value: 6, label: 'Junho' },
+  { value: 7, label: 'Julho' },
+  { value: 8, label: 'Agosto' },
+  { value: 9, label: 'Setembro' },
+  { value: 10, label: 'Outubro' },
+  { value: 11, label: 'Novembro' },
+  { value: 12, label: 'Dezembro' }
+];
+
 export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcamentoModalProps) => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     cliente_id: '',
     nome_funil: '',
+    etapa_funil: 'captacao',
     valor_investimento: '',
+    valor_gasto: '0',
+    periodo_mes: new Date().getMonth() + 1,
+    periodo_ano: new Date().getFullYear(),
+    status_orcamento: 'ativo',
     observacoes: ''
   });
 
@@ -35,6 +71,18 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
   useEffect(() => {
     if (open) {
       loadClientes();
+      // Reset form data when opening
+      setFormData({
+        cliente_id: '',
+        nome_funil: '',
+        etapa_funil: 'captacao',
+        valor_investimento: '',
+        valor_gasto: '0',
+        periodo_mes: new Date().getMonth() + 1,
+        periodo_ano: new Date().getFullYear(),
+        status_orcamento: 'ativo',
+        observacoes: ''
+      });
     }
   }, [open]);
 
@@ -81,7 +129,12 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
         .insert([{
           cliente_id: formData.cliente_id,
           nome_funil: formData.nome_funil,
+          etapa_funil: formData.etapa_funil,
           valor_investimento: parseFloat(formData.valor_investimento),
+          valor_gasto: parseFloat(formData.valor_gasto),
+          periodo_mes: formData.periodo_mes,
+          periodo_ano: formData.periodo_ano,
+          status_orcamento: formData.status_orcamento,
           observacoes: formData.observacoes || null,
           created_by: user.user.id
         }]);
@@ -93,13 +146,6 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
         description: "Orçamento criado com sucesso"
       });
 
-      setFormData({
-        cliente_id: '',
-        nome_funil: '',
-        valor_investimento: '',
-        observacoes: ''
-      });
-      
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
@@ -117,42 +163,63 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
   const clienteSelecionado = clientes.find(c => c.id === formData.cliente_id);
   const funisDisponiveis = (clienteSelecionado?.funis_trabalhando || [
     'Captação Facebook/Instagram',
-    'Captação Google Ads',
+    'Captação Google Ads', 
     'Remarketing',
     'E-mail Marketing',
     'Vendas Diretas',
     'Upsell/Cross-sell'
-  ]).filter(funil => funil && funil.trim() !== ''); // Filter out empty strings
+  ]).filter(funil => funil && funil.trim() !== '');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Orçamento por Funil</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="cliente">Cliente *</Label>
-            <Select 
-              value={formData.cliente_id} 
-              onValueChange={(value) => setFormData({...formData, cliente_id: value, nome_funil: ''})}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                {clientes.map((cliente) => (
-                  <SelectItem key={cliente.id} value={cliente.id}>
-                    {cliente.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="cliente">Cliente *</Label>
+              <Select 
+                value={formData.cliente_id} 
+                onValueChange={(value) => setFormData({...formData, cliente_id: value, nome_funil: ''})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="etapa_funil">Etapa do Funil *</Label>
+              <Select 
+                value={formData.etapa_funil} 
+                onValueChange={(value) => setFormData({...formData, etapa_funil: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a etapa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ETAPAS_FUNIL.map((etapa) => (
+                    <SelectItem key={etapa.value} value={etapa.value}>
+                      {etapa.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>
-            <Label htmlFor="nome_funil">Funil *</Label>
+            <Label htmlFor="nome_funil">Nome do Funil *</Label>
             <Select 
               value={formData.nome_funil} 
               onValueChange={(value) => setFormData({...formData, nome_funil: value})}
@@ -177,17 +244,91 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
             />
           </div>
 
-          <div>
-            <Label htmlFor="valor_investimento">Valor do Investimento (R$) *</Label>
-            <Input
-              id="valor_investimento"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.valor_investimento}
-              onChange={(e) => setFormData({...formData, valor_investimento: e.target.value})}
-              placeholder="0.00"
-            />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="valor_investimento">Valor Previsto (R$) *</Label>
+              <Input
+                id="valor_investimento"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.valor_investimento}
+                onChange={(e) => setFormData({...formData, valor_investimento: e.target.value})}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="valor_gasto">Valor Gasto (R$)</Label>
+              <Input
+                id="valor_gasto"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.valor_gasto}
+                onChange={(e) => setFormData({...formData, valor_gasto: e.target.value})}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <Label htmlFor="periodo_mes">Mês *</Label>
+              <Select 
+                value={formData.periodo_mes.toString()} 
+                onValueChange={(value) => setFormData({...formData, periodo_mes: Number(value)})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o mês" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MESES.map((mes) => (
+                    <SelectItem key={mes.value} value={mes.value.toString()}>
+                      {mes.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="periodo_ano">Ano *</Label>
+              <Select 
+                value={formData.periodo_ano.toString()} 
+                onValueChange={(value) => setFormData({...formData, periodo_ano: Number(value)})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o ano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[2024, 2025, 2026].map((ano) => (
+                    <SelectItem key={ano} value={ano.toString()}>
+                      {ano}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="status_orcamento">Status *</Label>
+              <Select 
+                value={formData.status_orcamento} 
+                onValueChange={(value) => setFormData({...formData, status_orcamento: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>
