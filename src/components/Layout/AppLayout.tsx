@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { FloatingNoteButton } from "@/components/ui/FloatingNoteButton";
+import { Header } from "@/components/Layout/Header";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -8,14 +9,30 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   
-  // Don't show FAB on auth-related pages
-  const hideOnRoutes = ['/auth', '/reset-password'];
-  const shouldShowFAB = !hideOnRoutes.includes(location.pathname);
+  // Don't show header and FAB on auth-related pages and public pages
+  const hideHeaderRoutes = [
+    '/auth', 
+    '/reset-password',
+    '/pop/publico',
+    '/referencia/publica',
+    '/debriefing/publico',
+    '/mapa-mental/publico',
+    '/funil/publico'
+  ];
+  
+  const shouldShowHeader = !hideHeaderRoutes.some(route => 
+    location.pathname.startsWith(route)
+  );
+  
+  const shouldShowFAB = shouldShowHeader;
 
   return (
-    <>
-      {children}
+    <div className="min-h-screen bg-background">
+      {shouldShowHeader && <Header />}
+      <main className={shouldShowHeader ? "container mx-auto px-6 py-8" : ""}>
+        {children}
+      </main>
       {shouldShowFAB && <FloatingNoteButton />}
-    </>
+    </div>
   );
 }
