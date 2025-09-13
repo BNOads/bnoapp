@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Calendar, 
   Save, 
@@ -91,6 +93,12 @@ export function PautaReuniaoView() {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
+  const [showAddAgendaModal, setShowAddAgendaModal] = useState(false);
+  const [newAgendaTitle, setNewAgendaTitle] = useState("");
+  const [newAgendaDescription, setNewAgendaDescription] = useState("");
+  const [includeActions, setIncludeActions] = useState(false);
+  const [includeDecisions, setIncludeDecisions] = useState(false);
+  const [includeFollowUps, setIncludeFollowUps] = useState(false);
   
   const autosaveTimeout = useRef<NodeJS.Timeout>();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -459,6 +467,71 @@ export function PautaReuniaoView() {
     setShowToolbar(false);
   };
 
+  const handleAddAgenda = () => {
+    if (!newAgendaTitle.trim()) {
+      toast({
+        title: "Título obrigatório",
+        description: "Por favor, insira um título para a pauta.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    let agendaContent = `\n\n## ${newAgendaTitle}\n`;
+    
+    if (newAgendaDescription.trim()) {
+      agendaContent += `${newAgendaDescription}\n\n`;
+    }
+    
+    agendaContent += "**Participantes:** \n**Horário:** \n\n";
+    
+    if (includeActions) {
+      agendaContent += "### Pontos da Agenda\n- [ ] \n\n";
+    }
+    
+    if (includeDecisions) {
+      agendaContent += "### Decisões\n- \n\n";
+    }
+    
+    if (includeFollowUps) {
+      agendaContent += "### Follow-ups\n- [ ] \n\n";
+    }
+
+    if (!currentDocument) return;
+
+    const newContent = currentDocument.conteudo_texto + agendaContent;
+    updateDocumentContent(newContent);
+
+    // Scroll para a nova pauta
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const titleIndex = newContent.indexOf(`## ${newAgendaTitle}`);
+        if (titleIndex !== -1) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(titleIndex, titleIndex);
+          
+          // Calcular posição de scroll
+          const beforeTitle = newContent.substring(0, titleIndex);
+          const lineNumber = beforeTitle.split('\n').length;
+          textareaRef.current.scrollTop = Math.max(0, (lineNumber - 5) * 20);
+        }
+      }
+    }, 100);
+
+    // Reset form
+    setNewAgendaTitle("");
+    setNewAgendaDescription("");
+    setIncludeActions(false);
+    setIncludeDecisions(false);
+    setIncludeFollowUps(false);
+    setShowAddAgendaModal(false);
+
+    toast({
+      title: "✅ Pauta adicionada",
+      description: `Pauta "${newAgendaTitle}" criada com sucesso`,
+    });
+  };
+
   const handleDoubleClick = (e: React.MouseEvent) => {
     if (!textareaRef.current) return;
     
@@ -754,22 +827,37 @@ export function PautaReuniaoView() {
                 <ArrowRight className="h-4 w-4" />
               </Button>
             )}
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <BookOpen className="h-6 w-6" />
-                Pauta de Reunião
-              </h1>
-              <p className="text-muted-foreground">
-                {selectedDate.dia 
-                  ? `${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}`
-                  : `${MONTHS[selectedDate.mes - 1]} ${selectedDate.ano}`
-                }
-                {lastSaveTime && !saving && (
-                  <span className="ml-4 text-xs text-muted-foreground">
-                    Último salvamento: {lastSaveTime.toLocaleTimeString()}
-                  </span>
+            <div className="flex-1">
+              <div className="flex items-center gap-4 justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold flex items-center gap-2">
+                    <BookOpen className="h-6 w-6" />
+                    Pauta de Reunião
+                  </h1>
+                  <p className="text-muted-foreground">
+                    {selectedDate.dia 
+                      ? `${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}`
+                      : `${MONTHS[selectedDate.mes - 1]} ${selectedDate.ano}`
+                    }
+                    {lastSaveTime && !saving && (
+                      <span className="ml-4 text-xs text-muted-foreground">
+                        Último salvamento: {lastSaveTime.toLocaleTimeString()}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                {currentDocument && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddAgendaModal(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Adicionar Pauta
+                  </Button>
                 )}
-              </p>
+              </div>
             </div>
           </div>
           
@@ -877,6 +965,84 @@ export function PautaReuniaoView() {
               </Button>
               <Button onClick={insertLink}>
                 Inserir Link
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Agenda Dialog */}
+      <Dialog open={showAddAgendaModal} onOpenChange={setShowAddAgendaModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Nova Pauta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="agenda-title">Título da Reunião *</Label>
+              <Input
+                id="agenda-title"
+                value={newAgendaTitle}
+                onChange={(e) => setNewAgendaTitle(e.target.value)}
+                placeholder="Ex: Cliente X | Alinhamento Semanal"
+                className="mt-1"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="agenda-description">Descrição</Label>
+              <Textarea
+                id="agenda-description"
+                value={newAgendaDescription}
+                onChange={(e) => setNewAgendaDescription(e.target.value)}
+                placeholder="Descrição opcional da reunião..."
+                className="mt-1 h-20"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Label>Seções opcionais</Label>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="include-actions"
+                  checked={includeActions}
+                  onCheckedChange={(checked) => setIncludeActions(checked as boolean)}
+                />
+                <Label htmlFor="include-actions" className="text-sm">
+                  Pontos da Agenda (checklist)
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="include-decisions"
+                  checked={includeDecisions}
+                  onCheckedChange={(checked) => setIncludeDecisions(checked as boolean)}
+                />
+                <Label htmlFor="include-decisions" className="text-sm">
+                  Decisões (texto livre)
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="include-followups"
+                  checked={includeFollowUps}
+                  onCheckedChange={(checked) => setIncludeFollowUps(checked as boolean)}
+                />
+                <Label htmlFor="include-followups" className="text-sm">
+                  Follow-ups (checklist)
+                </Label>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button variant="outline" onClick={() => setShowAddAgendaModal(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleAddAgenda}>
+                Adicionar Pauta
               </Button>
             </div>
           </div>
