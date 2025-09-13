@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { NovaAulaModal } from "@/components/Treinamentos/NovaAulaModal";
 import { EditarTreinamentoModal } from "@/components/Treinamentos/EditarTreinamentoModal";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { Header } from "@/components/Layout/Header";
 
 interface Treinamento {
   id: string;

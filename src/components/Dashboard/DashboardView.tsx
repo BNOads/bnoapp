@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
@@ -15,11 +16,13 @@ export function DashboardView() {
   const navigate = useNavigate();
   const { canCreateContent, isAdmin } = useUserPermissions();
   const { recentTabs } = useRecentTabs();
-  const { favorites, toggleCurrentPageFavorite, isCurrentPageFavorite } = useFavoriteTabs();
+  const { favorites, toggleCurrentPageFavorite, isCurrentPageFavorite, renameFavorite } = useFavoriteTabs();
   const [showOrcamentos, setShowOrcamentos] = useState(false);
   const [pdis, setPdis] = useState<any[]>([]);
   const [pdisFinalizados, setPdisFinalizados] = useState<any[]>([]);
   const [loadingPdis, setLoadingPdis] = useState(true);
+  const [editingFavorite, setEditingFavorite] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
   const { toast } = useToast();
   const getTabIcon = (iconName: string) => {
     const icons = {
@@ -218,19 +221,78 @@ export function DashboardView() {
               Nenhuma página favoritada ainda. Use a estrela ⭐ no cabeçalho para favoritar páginas.
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {favorites.map((tab) => {
-                const IconComponent = getTabIcon(tab.icon);
+            <div className="space-y-2">
+              {favorites.map((favorite) => {
+                const IconComponent = getTabIcon(favorite.icon);
+                const isEditing = editingFavorite === favorite.id;
+                const displayName = favorite.customName || favorite.name;
+                
                 return (
-                  <Button
-                    key={tab.id}
-                    variant="outline"
-                    className="h-auto p-3 flex-col gap-2"
-                    onClick={() => handleTabClick(tab.path)}
+                  <div
+                    key={favorite.id}
+                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted group"
                   >
-                    <IconComponent className="h-5 w-5 text-primary" />
-                    <span className="text-xs font-medium">{tab.name}</span>
-                  </Button>
+                    {isEditing ? (
+                      <>
+                        <IconComponent className="h-4 w-4 text-primary flex-shrink-0" />
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="flex-1 h-8"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              renameFavorite(favorite.id, editName);
+                              setEditingFavorite(null);
+                            } else if (e.key === 'Escape') {
+                              setEditingFavorite(null);
+                            }
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => {
+                            renameFavorite(favorite.id, editName);
+                            setEditingFavorite(null);
+                          }}
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => setEditingFavorite(null)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          className="flex-1 justify-start h-auto p-2 hover:bg-muted"
+                          onClick={() => handleTabClick(favorite.path)}
+                        >
+                          <IconComponent className="h-4 w-4 text-primary mr-3 flex-shrink-0" />
+                          <span className="font-medium truncate">{displayName}</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => {
+                            setEditingFavorite(favorite.id);
+                            setEditName(displayName);
+                          }}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 );
               })}
             </div>

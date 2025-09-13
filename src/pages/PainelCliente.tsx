@@ -7,7 +7,6 @@ import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen
 import { MessageCircle, ArrowLeft, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Header } from "@/components/Layout/Header";
 import { StatusCliente } from "@/components/Clientes/StatusCliente";
 import { GravacoesReunioes } from "@/components/Clientes/GravacoesReunioes";
 import { TarefasListEnhanced } from "@/components/Clientes/TarefasListEnhanced";

@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 export interface FavoriteTab {
   id: string;
   name: string;
+  customName?: string; // User-editable name
   icon: string;
   path: string;
 }
@@ -132,10 +133,21 @@ export function useFavoriteTabs() {
     }
   }, []);
 
+  const renameFavorite = (id: string, newName: string) => {
+    setFavorites(prev => {
+      const updated = prev.map(fav => 
+        fav.id === id ? { ...fav, customName: newName } : fav
+      );
+      localStorage.setItem('favoriteTabs', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   return { 
     favorites, 
     toggleCurrentPageFavorite, 
     isCurrentPageFavorite,
-    getCurrentPageInfo
+    getCurrentPageInfo,
+    renameFavorite
   };
 }
