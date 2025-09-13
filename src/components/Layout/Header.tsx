@@ -35,10 +35,6 @@ export const Header = ({
     label: 'Clientes',
     icon: Calendar
   }, {
-    id: 'debriefings',
-    label: 'Debriefings',
-    icon: FileText
-  }, {
     id: 'assistente',
     label: 'Assistente',
     icon: UserCheck
@@ -47,9 +43,9 @@ export const Header = ({
     label: 'Treinamentos',
     icon: CalendarDays
   }, {
-    id: 'referencias',
-    label: 'Referências',
-    icon: Palette
+    id: 'ferramentas',
+    label: 'Ferramentas',
+    icon: Rocket
   }];
   return <header className="bg-gradient-subtle border-b border-border shadow-card">
       <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">

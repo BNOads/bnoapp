@@ -858,6 +858,36 @@ export type Database = {
           },
         ]
       }
+      funis_marketing: {
+        Row: {
+          created_at: string
+          dados_funil: Json
+          descricao: string | null
+          id: string
+          titulo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dados_funil?: Json
+          descricao?: string | null
+          id?: string
+          titulo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dados_funil?: Json
+          descricao?: string | null
+          id?: string
+          titulo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       gravacoes: {
         Row: {
           cliente_id: string | null
@@ -1270,6 +1300,33 @@ export type Database = {
         }
         Relationships: []
       }
+      mapas_mentais: {
+        Row: {
+          created_at: string
+          dados_mapa: Json
+          id: string
+          titulo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dados_mapa?: Json
+          id?: string
+          titulo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dados_mapa?: Json
+          id?: string
+          titulo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       master_emails: {
         Row: {
           created_at: string
@@ -1285,6 +1342,33 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+        }
+        Relationships: []
+      }
+      notas: {
+        Row: {
+          conteudo: string | null
+          created_at: string
+          id: string
+          titulo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conteudo?: string | null
+          created_at?: string
+          id?: string
+          titulo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conteudo?: string | null
+          created_at?: string
+          id?: string
+          titulo?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

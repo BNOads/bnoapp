@@ -6,10 +6,9 @@ import { ColaboradoresView } from "@/components/Colaboradores/ColaboradoresView"
 import { ClientesView } from "@/components/Clientes/ClientesView";
 import { AssistenteView } from "@/components/Assistente/AssistenteView";
 import { TreinamentosView } from "@/components/Treinamentos/TreinamentosView";
-import { ReferenciasView } from "@/components/Referencias/ReferenciasView";
+import { FerramentasView } from "@/components/Ferramentas/FerramentasView";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
 import { EscalaReunioes } from "@/components/Meetings/EscalaReunioes";
-import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -31,16 +30,14 @@ const Index = () => {
         return <ColaboradoresView />;
       case 'clientes':
         return <ClientesView />;
-      case 'debriefings':
-        return <DebriefingsView />;
       case 'lancamentos':
         return <LancamentosView />;
       case 'assistente':
         return <AssistenteView />;
       case 'treinamentos':
         return <TreinamentosView />;
-      case 'referencias':
-        return <ReferenciasView />;
+      case 'ferramentas':
+        return <FerramentasView />;
       default:
         return <DashboardView />;
     }
