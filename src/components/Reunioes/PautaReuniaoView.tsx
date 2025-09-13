@@ -781,16 +781,32 @@ export function PautaReuniaoView() {
                 {blocks.map((block, index) => (
                   <Card key={block.id} id={`block-${block.id}`}>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
-                          className: "h-5 w-5"
-                        })}
-                        <Input
-                          value={block.titulo || ''}
-                          onChange={(e) => updateBlock(block.id, { titulo: e.target.value })}
-                          className="border-none p-0 h-auto bg-transparent font-semibold"
-                          placeholder="Título do bloco"
-                        />
+                      <CardTitle className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
+                            className: "h-5 w-5"
+                          })}
+                          <Input
+                            value={block.titulo || ''}
+                            onChange={(e) => updateBlock(block.id, { titulo: e.target.value })}
+                            className="border-none p-0 h-auto bg-transparent font-semibold"
+                            placeholder="Título do bloco"
+                          />
+                          <Badge variant="outline" className="ml-2">
+                            {index + 1}
+                          </Badge>
+                        </div>
+                        {index === 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addBlock('texto')}
+                            className="shrink-0"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Adicionar Pauta
+                          </Button>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
