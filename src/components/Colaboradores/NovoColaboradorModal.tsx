@@ -155,9 +155,16 @@ export const NovoColaboradorModal = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cs">CS (Customer Success)</SelectItem>
-                  <SelectItem value="gestor_trafego">Gestor de Tráfego</SelectItem>
+                  <SelectItem value="dono">Dono</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="gestor_trafego">Gestor de Tráfego</SelectItem>
+                  <SelectItem value="gestor_projetos">Gestor de Projetos</SelectItem>
+                  <SelectItem value="cs">Customer Success</SelectItem>
+                  <SelectItem value="midia_buyer">Mídia Buyer</SelectItem>
+                  <SelectItem value="copywriter">Copywriter</SelectItem>
+                  <SelectItem value="designer">Designer</SelectItem>
+                  <SelectItem value="webdesigner">Webdesigner</SelectItem>
+                  <SelectItem value="editor_video">Editor de Vídeo</SelectItem>
                 </SelectContent>
               </Select>
             </div>

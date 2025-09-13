@@ -2261,7 +2261,15 @@ export type Database = {
         | "divorciado"
         | "viuvo"
         | "uniao_estavel"
-      nivel_acesso: "admin" | "gestor_trafego" | "cs" | "designer"
+      nivel_acesso:
+        | "admin"
+        | "gestor_trafego"
+        | "cs"
+        | "designer"
+        | "webdesigner"
+        | "editor_video"
+        | "gestor_projetos"
+        | "dono"
       status_lancamento:
         | "em_captacao"
         | "cpl"
@@ -2417,7 +2425,16 @@ export const Constants = {
         "viuvo",
         "uniao_estavel",
       ],
-      nivel_acesso: ["admin", "gestor_trafego", "cs", "designer"],
+      nivel_acesso: [
+        "admin",
+        "gestor_trafego",
+        "cs",
+        "designer",
+        "webdesigner",
+        "editor_video",
+        "gestor_projetos",
+        "dono",
+      ],
       status_lancamento: [
         "em_captacao",
         "cpl",

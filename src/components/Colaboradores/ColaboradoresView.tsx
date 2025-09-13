@@ -16,7 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export const ColaboradoresView = () => {
-  const { canCreateContent, isAdmin } = useUserPermissions();
+  const { isAdmin } = useUserPermissions();
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [senhaModalOpen, setSenhaModalOpen] = useState(false);
@@ -160,7 +160,7 @@ export const ColaboradoresView = () => {
             Conheça todos os membros da nossa equipe
           </p>
         </div>
-        {canCreateContent && (
+        {isAdmin && (
           <Button 
             variant="hero" 
             size="lg"
@@ -174,7 +174,7 @@ export const ColaboradoresView = () => {
       </div>
 
       {/* Indicator para usuários não-admin */}
-      {!canCreateContent && <ViewOnlyBadge />}
+      {!isAdmin && <ViewOnlyBadge />}
 
       {/* Search */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -219,7 +219,7 @@ export const ColaboradoresView = () => {
           ) : filteredItems.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">Nenhum membro encontrado.</p>
-              {canCreateContent && (
+              {isAdmin && (
                 <Button 
                   onClick={() => setModalOpen(true)}
                   className="mt-4"
@@ -261,8 +261,16 @@ export const ColaboradoresView = () => {
                             {colaborador.nome}
                           </h4>
                           <p className="text-sm font-medium text-primary mb-3">
-                            {colaborador.nivel_acesso === 'admin' ? 'Administrador' : 
-                             colaborador.nivel_acesso === 'gestor_trafego' ? 'Gestor de Tráfego' : 'Customer Success'}
+                            {colaborador.nivel_acesso === 'dono' ? 'Dono' :
+                             colaborador.nivel_acesso === 'admin' ? 'Administrador' : 
+                             colaborador.nivel_acesso === 'gestor_trafego' ? 'Gestor de Tráfego' : 
+                             colaborador.nivel_acesso === 'gestor_projetos' ? 'Gestor de Projetos' :
+                             colaborador.nivel_acesso === 'webdesigner' ? 'Webdesigner' :
+                             colaborador.nivel_acesso === 'editor_video' ? 'Editor de Vídeo' :
+                             colaborador.nivel_acesso === 'cs' ? 'Customer Success' :
+                             colaborador.nivel_acesso === 'midia_buyer' ? 'Mídia Buyer' :
+                             colaborador.nivel_acesso === 'copywriter' ? 'Copywriter' :
+                             colaborador.nivel_acesso === 'designer' ? 'Designer' : colaborador.nivel_acesso}
                           </p>
                           
                           {/* Informações de Contato e Datas */}
