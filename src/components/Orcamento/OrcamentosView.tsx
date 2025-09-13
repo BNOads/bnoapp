@@ -27,7 +27,7 @@ export const OrcamentosView = () => {
   const [loading, setLoading] = useState(true);
   const [modalNovo, setModalNovo] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [clienteFiltro, setClienteFiltro] = useState('');
+  const [clienteFiltro, setClienteFiltro] = useState('all');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [orcamentoToDelete, setOrcamentoToDelete] = useState<string | null>(null);
 
@@ -117,7 +117,7 @@ export const OrcamentosView = () => {
       orcamento.cliente_nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       orcamento.observacoes?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesCliente = !clienteFiltro || orcamento.cliente_id === clienteFiltro;
+    const matchesCliente = clienteFiltro === 'all' || orcamento.cliente_id === clienteFiltro;
     
     return matchesSearch && matchesCliente;
   });
@@ -225,7 +225,7 @@ export const OrcamentosView = () => {
             <SelectValue placeholder="Filtrar por cliente" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os clientes</SelectItem>
+            <SelectItem value="all">Todos os clientes</SelectItem>
             {uniqueClientes.map((cliente) => (
               <SelectItem key={cliente.id} value={cliente.id}>
                 {cliente.nome}
@@ -241,9 +241,9 @@ export const OrcamentosView = () => {
           <CardContent className="py-8">
             <div className="text-center">
               <p className="text-muted-foreground mb-4">
-                {searchTerm || clienteFiltro ? 'Nenhum orçamento encontrado para os filtros selecionados.' : 'Nenhum orçamento cadastrado ainda.'}
+                {searchTerm || (clienteFiltro !== 'all') ? 'Nenhum orçamento encontrado para os filtros selecionados.' : 'Nenhum orçamento cadastrado ainda.'}
               </p>
-              {canManageBudgets && !searchTerm && !clienteFiltro && (
+              {canManageBudgets && !searchTerm && (clienteFiltro === 'all') && (
                 <Button onClick={() => setModalNovo(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Criar Primeiro Orçamento

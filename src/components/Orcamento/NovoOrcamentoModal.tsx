@@ -115,14 +115,14 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
   };
 
   const clienteSelecionado = clientes.find(c => c.id === formData.cliente_id);
-  const funisDisponiveis = clienteSelecionado?.funis_trabalhando || [
+  const funisDisponiveis = (clienteSelecionado?.funis_trabalhando || [
     'Captação Facebook/Instagram',
     'Captação Google Ads',
     'Remarketing',
     'E-mail Marketing',
     'Vendas Diretas',
     'Upsell/Cross-sell'
-  ];
+  ]).filter(funil => funil && funil.trim() !== ''); // Filter out empty strings
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
