@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2 } from "lucide-react";
+import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2, ChevronUp, ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,7 +57,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [selectedCreatives, setSelectedCreatives] = useState<string[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [editingCreative, setEditingCreative] = useState<Creative | null>(null);
@@ -208,6 +208,12 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           break;
         case 'size':
           comparison = (a.file_size || 0) - (b.file_size || 0);
+          break;
+        case 'nomenclatura':
+          comparison = (a.nomenclatura_trafego || '').localeCompare(b.nomenclatura_trafego || '');
+          break;
+        case 'pagina_destino':
+          comparison = (a.pagina_destino || '').localeCompare(b.pagina_destino || '');
           break;
       }
       
@@ -361,7 +367,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     }
   };
 
-  const handleToggleSort = (field: 'name' | 'date' | 'size') => {
+  const handleToggleSort = (field: 'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino') => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
@@ -380,6 +386,29 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     setEditingCreative(null);
     setEditModalOpen(false);
   };
+
+  const getSortIcon = (field: string) => {
+    if (sortBy !== field) return <ArrowUpDown className="h-4 w-4 opacity-50" />;
+    return sortOrder === 'asc' ? 
+      <ChevronUp className="h-4 w-4 text-primary" /> : 
+      <ChevronDown className="h-4 w-4 text-primary" />;
+  };
+
+  const SortableHeader = ({ field, children, className = "" }: { 
+    field: 'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino', 
+    children: React.ReactNode,
+    className?: string 
+  }) => (
+    <TableHead 
+      className={`cursor-pointer select-none hover:bg-muted/50 ${className}`}
+      onClick={() => handleToggleSort(field)}
+    >
+      <div className="flex items-center gap-2">
+        {children}
+        {getSortIcon(field)}
+      </div>
+    </TableHead>
+  );
 
   return (
     <div className="space-y-6">
@@ -603,8 +632,8 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           </p>
         </Card>
       ) : (
-        <div className="border rounded-lg">
-          <Table>
+        <div className="border rounded-lg overflow-auto">
+          <Table className="w-full min-w-[1200px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">
@@ -616,12 +645,20 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                 <TableHead className="w-32">Status</TableHead>
                 <TableHead className="w-32">Ativado em</TableHead>
                 <TableHead className="w-12">Tipo</TableHead>
-                <TableHead>Nome do Arquivo</TableHead>
+                <SortableHeader field="name" className="min-w-[200px]">
+                  Nome do Arquivo
+                </SortableHeader>
                 <TableHead className="w-32">Pasta</TableHead>
-                <TableHead className="w-32">Data Upload</TableHead>
-                <TableHead className="w-48">Nomenclatura</TableHead>
-                <TableHead className="w-48">Observação</TableHead>
-                <TableHead className="w-48">Página de Destino</TableHead>
+                <SortableHeader field="date" className="w-32">
+                  Data Upload
+                </SortableHeader>
+                <SortableHeader field="nomenclatura" className="min-w-[180px]">
+                  Nomenclatura
+                </SortableHeader>
+                <TableHead className="min-w-[180px]">Observação</TableHead>
+                <SortableHeader field="pagina_destino" className="min-w-[200px]">
+                  Página de Destino
+                </SortableHeader>
                 <TableHead className="w-48">Ações</TableHead>
               </TableRow>
             </TableHeader>
