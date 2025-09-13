@@ -6,7 +6,8 @@ import { BlocoNotasView } from "./BlocoNotasView";
 import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, ArrowLeft } from "lucide-react";
+import LancamentosView from "@/components/Lancamentos/LancamentosView";
+import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Tool {
@@ -69,6 +70,14 @@ export const FerramentasView = () => {
       icon: DollarSign,
       component: <OrcamentosView />,
       color: "text-emerald-600"
+    },
+    {
+      id: "lancamentos",
+      title: "Gestão de Lançamentos",
+      description: "Gerencie e acompanhe todos os lançamentos e campanhas",
+      icon: BarChart3,
+      component: <LancamentosView />,
+      color: "text-blue-500"
     }
   ];
 
