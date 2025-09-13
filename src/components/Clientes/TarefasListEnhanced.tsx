@@ -276,8 +276,8 @@ export const TarefasListEnhanced = ({
             {tarefasConcluidas.length > 0 && <Dialog open={showCompletedModal} onOpenChange={setShowCompletedModal}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline">
-                    <Eye className="h-4 w-4 mr-2" />
-                    Ver Concluídas ({tarefasConcluidas.length})
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Concluídas ({tarefasConcluidas.length})
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
