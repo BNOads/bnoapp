@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { EditarCriativoGoogleDriveModal } from "./EditarCriativoGoogleDriveModal";
+import { EdicaoMassaCriativosModal } from "./EdicaoMassaCriativosModal";
 
 interface Creative {
   id: string;
@@ -61,6 +62,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [editingCreative, setEditingCreative] = useState<Creative | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [bulkEditModalOpen, setBulkEditModalOpen] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -535,10 +537,18 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
 
       {/* Botões de Ação em Massa */}
       {selectedCreatives.length > 0 && (
-        <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-lg">
+        <div className="flex flex-wrap items-center gap-2 p-4 bg-muted/50 rounded-lg">
           <span className="text-sm font-medium">
             {selectedCreatives.length} selecionado(s):
           </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setBulkEditModalOpen(true)}
+            className="bg-blue-500/10 text-blue-700 border-blue-500/20 hover:bg-blue-500/20"
+          >
+            Editar Página de Destino
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -570,6 +580,13 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
             className="bg-black/10 text-gray-700 border-black/20 hover:bg-black/20"
           >
             Marcar como Erro
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setSelectedCreatives([])}
+          >
+            Limpar Seleção
           </Button>
         </div>
       )}
@@ -768,33 +785,24 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                          <Edit2 className="h-3 w-3 mr-1" />
                          Editar
                        </Button>
-                       <Button 
-                         variant="outline" 
-                         size="sm"
-                         onClick={() => copyToClipboard(creative.link_direct, "Link direto")}
-                         className="h-8 w-8 p-0"
-                         title="Copiar link direto"
-                       >
-                         <Copy className="h-3 w-3" />
-                       </Button>
-                       <Button 
-                         variant="outline" 
-                         size="sm"
-                         onClick={() => copyToClipboard(creative.link_web_view, "Link do Drive")}
-                         className="h-8 px-3"
-                         title="Copiar link do Drive"
-                       >
-                         Link
-                       </Button>
-                       <Button 
-                         variant="default" 
-                         size="sm"
-                         onClick={() => window.open(creative.link_web_view, '_blank')}
-                         className="h-8 px-3"
-                       >
-                         <ExternalLink className="h-3 w-3 mr-1" />
-                         Abrir
-                       </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => copyToClipboard(creative.link_direct, "Link direto")}
+                          className="h-8 w-8 p-0"
+                          title="Copiar link direto"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          onClick={() => window.open(creative.link_web_view, '_blank')}
+                          className="h-8 px-3"
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Abrir
+                        </Button>
                      </div>
                    </TableCell>
                  </TableRow>
@@ -832,12 +840,24 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
        )}
 
        {/* Modal de Edição */}
-       <EditarCriativoGoogleDriveModal
-         open={editModalOpen}
-         onOpenChange={setEditModalOpen}
-         creative={editingCreative}
-         onSuccess={handleEditSuccess}
-       />
+      <EditarCriativoGoogleDriveModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        creative={editingCreative}
+        onSuccess={handleEditSuccess}
+      />
+
+      <EdicaoMassaCriativosModal
+        open={bulkEditModalOpen}
+        onOpenChange={setBulkEditModalOpen}
+        selectedIds={selectedCreatives}
+        selectedCount={selectedCreatives.length}
+        onSuccess={() => {
+          carregarCreatives();
+          setSelectedCreatives([]);
+          setBulkEditModalOpen(false);
+        }}
+      />
      </div>
    );
  };
