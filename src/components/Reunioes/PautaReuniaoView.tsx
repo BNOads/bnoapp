@@ -26,7 +26,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Settings,
-  BookOpen
+  BookOpen,
+  X
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -111,6 +112,21 @@ export function PautaReuniaoView() {
     includeDecisoes: false,
     includeFollowups: false
   });
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  interface SearchResult {
+    documentId: string;
+    blockId: string;
+    blockTitle: string;
+    day: number;
+    month: number;
+    year: number;
+    documentTitle: string;
+  }
 
   // Generate slug from title
   const generateSlug = (title: string) => {
@@ -316,6 +332,84 @@ export function PautaReuniaoView() {
     setTemplates((data || []).map(t => ({ ...t, blocos_template: typeof t.blocos_template === 'string' ? JSON.parse(t.blocos_template) : t.blocos_template })));
   };
 
+  // Search function with debounce
+  const searchAcrossDocuments = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    
+    try {
+      const { data: allDocs, error } = await supabase
+        .from('reunioes_documentos')
+        .select(`
+          id,
+          ano,
+          mes,
+          dia,
+          titulo_reuniao,
+          reunioes_blocos (
+            id,
+            tipo,
+            titulo,
+            conteudo,
+            ordem
+          )
+        `)
+        .eq('ano', selectedDate.ano);
+
+      if (error) throw error;
+
+      const results: SearchResult[] = [];
+      const searchTerm = query.toLowerCase();
+
+      allDocs?.forEach(doc => {
+        doc.reunioes_blocos?.forEach(block => {
+          if (block.titulo && block.titulo.toLowerCase().includes(searchTerm)) {
+            results.push({
+              documentId: doc.id,
+              blockId: block.id,
+              blockTitle: block.titulo,
+              day: doc.dia,
+              month: doc.mes,
+              year: doc.ano,
+              documentTitle: doc.titulo_reuniao
+            });
+          }
+        });
+      });
+
+      // Sort by date (most recent first)
+      results.sort((a, b) => {
+        if (a.month !== b.month) return b.month - a.month;
+        return b.day - a.day;
+      });
+
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Search error:', error);
+      toast({
+        title: "Erro na busca",
+        description: "Não foi possível realizar a busca",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchAcrossDocuments(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, selectedDate.ano]);
+
   const createOrOpenDocument = async (day: number, templateId?: string) => {
     const dayKey = day.toString();
     
@@ -412,6 +506,62 @@ export function PautaReuniaoView() {
     params.set('mes', mes.toString());
     if (dia) params.set('dia', dia.toString());
     setSearchParams(params);
+  };
+
+  // Navigate to search result
+  const navigateToSearchResult = async (result: SearchResult) => {
+    try {
+      // Load the document for the selected day
+      const { data: doc, error } = await supabase
+        .from('reunioes_documentos')
+        .select(`
+          *,
+          reunioes_blocos (
+            id,
+            tipo,
+            titulo,
+            conteudo,
+            ordem,
+            ancora
+          )
+        `)
+        .eq('id', result.documentId)
+        .single();
+
+      if (error) throw error;
+
+      // Update URL and state to the target day
+      setSelectedDate({ ano: result.year, mes: result.month, dia: result.day });
+      updateURL(result.year, result.month, result.day);
+      
+      // Load the document and blocks
+      const docWithBlocks = {
+        ...doc,
+        blocos: doc.reunioes_blocos?.sort((a, b) => a.ordem - b.ordem) || []
+      };
+      
+      setCurrentDocument(docWithBlocks);
+      setBlocks(docWithBlocks.blocos);
+
+      // Scroll to the specific block after a short delay
+      setTimeout(() => {
+        const element = document.getElementById(`block-${result.blockId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+
+      // Clear search to return to normal view
+      setSearchQuery('');
+      
+    } catch (error) {
+      console.error('Navigation error:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível navegar para o resultado",
+        variant: "destructive"
+      });
+    }
   };
 
   const addBlock = (tipo: string, titulo?: string, descricao?: string, includeExtras?: any) => {
@@ -604,6 +754,30 @@ export function PautaReuniaoView() {
   const renderSidebar = () => (
     <Card className="w-80 h-fit">
       <CardHeader className="pb-3">
+        {/* Search Field */}
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar pautas…"
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1 h-6 w-6 p-0"
+                onClick={() => setSearchQuery('')}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Calendar Navigation */}
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -649,8 +823,77 @@ export function PautaReuniaoView() {
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-96">
-          <div className="space-y-2">
-            {Array.from({ length: getDaysInMonth(selectedDate.ano, selectedDate.mes) }, (_, i) => {
+          {/* Search Results */}
+          {searchQuery && (
+            <div className="space-y-3 mb-4">
+              {isSearching && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="animate-spin h-3 w-3 border border-primary border-t-transparent rounded-full"></div>
+                  Buscando...
+                </div>
+              )}
+              
+              {searchResults.length > 0 && !isSearching && (
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-muted-foreground">
+                    {searchResults.length} resultado{searchResults.length > 1 ? 's' : ''} encontrado{searchResults.length > 1 ? 's' : ''}
+                  </div>
+                  
+                  {/* Group results by date */}
+                  {Object.entries(
+                    searchResults.reduce((groups: { [key: string]: SearchResult[] }, result) => {
+                      const dateKey = `${result.day}/${result.month}/${result.year}`;
+                      if (!groups[dateKey]) groups[dateKey] = [];
+                      groups[dateKey].push(result);
+                      return groups;
+                    }, {} as { [key: string]: SearchResult[] })
+                  ).map(([dateKey, results]) => (
+                    <div key={dateKey} className="space-y-2">
+                      <div className="text-sm font-medium text-primary">
+                        {dateKey}
+                      </div>
+                      <div className="space-y-1 ml-3">
+                        {results.map((result) => (
+                          <button
+                            key={result.blockId}
+                            onClick={() => navigateToSearchResult(result)}
+                            className="w-full text-left p-2 text-sm rounded hover:bg-accent hover:text-accent-foreground transition-colors"
+                          >
+                            <div className="font-medium">{result.blockTitle}</div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {result.documentTitle}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {searchResults.length === 0 && !isSearching && (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma pauta encontrada
+                </div>
+              )}
+              
+              <div className="border-t pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSearchQuery('')}
+                  className="w-full"
+                >
+                  Limpar pesquisa
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Normal Calendar View */}
+          {!searchQuery && (
+            <div className="space-y-2">
+              {Array.from({ length: getDaysInMonth(selectedDate.ano, selectedDate.mes) }, (_, i) => {
               const day = i + 1;
               const dayKey = day.toString();
               const hasDocument = documents[dayKey];
@@ -683,7 +926,8 @@ export function PautaReuniaoView() {
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
         </ScrollArea>
       </CardContent>
     </Card>
