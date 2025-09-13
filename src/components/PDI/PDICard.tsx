@@ -13,6 +13,7 @@ interface PDICardProps {
     descricao: string;
     data_limite: string;
     status: string;
+    updated_at?: string;
     aulas: Array<{
       id: string;
       titulo: string;
@@ -21,9 +22,10 @@ interface PDICardProps {
     }>;
   };
   onViewDetails: (pdiId: string) => void;
+  isCompleted?: boolean;
 }
 
-export function PDICard({ pdi, onViewDetails }: PDICardProps) {
+export function PDICard({ pdi, onViewDetails, isCompleted = false }: PDICardProps) {
   const aulasCompletas = pdi.aulas.filter(aula => aula.concluida).length;
   const totalAulas = pdi.aulas.length;
   const progresso = totalAulas > 0 ? (aulasCompletas / totalAulas) * 100 : 0;
@@ -47,17 +49,27 @@ export function PDICard({ pdi, onViewDetails }: PDICardProps) {
   };
 
   return (
-    <Card className="h-full hover:shadow-lg transition-shadow">
+    <Card className={`h-full hover:shadow-lg transition-shadow ${isCompleted ? 'bg-green-50 border-green-200' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-lg">{pdi.titulo}</CardTitle>
-            <CardDescription className="line-clamp-2">
+            <CardTitle className={`text-lg ${isCompleted ? 'text-green-800' : ''}`}>
+              {pdi.titulo}
+            </CardTitle>
+            <CardDescription className={`line-clamp-2 ${isCompleted ? 'text-green-600' : ''}`}>
               {pdi.descricao}
             </CardDescription>
+            {isCompleted && pdi.updated_at && (
+              <p className="text-sm text-green-600">
+                Concluído em {new Date(pdi.updated_at).toLocaleDateString('pt-BR')}
+              </p>
+            )}
           </div>
-          <Badge variant="outline" className={`${getStatusColor()} text-white`}>
-            {getStatusText()}
+          <Badge 
+            variant="outline" 
+            className={`${isCompleted ? 'bg-green-500 text-white' : getStatusColor()} text-white`}
+          >
+            {isCompleted ? 'Concluído' : getStatusText()}
           </Badge>
         </div>
       </CardHeader>

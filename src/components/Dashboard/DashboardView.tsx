@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X, Filter } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
@@ -20,9 +20,11 @@ export function DashboardView() {
   const [showOrcamentos, setShowOrcamentos] = useState(false);
   const [pdis, setPdis] = useState<any[]>([]);
   const [pdisFinalizados, setPdisFinalizados] = useState<any[]>([]);
+  const [allPdis, setAllPdis] = useState<any[]>([]);
   const [loadingPdis, setLoadingPdis] = useState(true);
   const [editingFavorite, setEditingFavorite] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [pdiFilter, setPdiFilter] = useState<'todos' | 'ativos' | 'finalizados'>('todos');
   const { toast } = useToast();
   const getTabIcon = (iconName: string) => {
     const icons = {
@@ -99,8 +101,15 @@ export function DashboardView() {
           data_conclusao: pa.data_conclusao
         }))
       }));
-      setPdis(formatarPdis(pdisAtivos));
-      setPdisFinalizados(formatarPdis(pdisCompletos));
+      
+      const formattedActivePdis = formatarPdis(pdisAtivos);
+      const formattedCompletedPdis = formatarPdis(pdisCompletos);
+      
+      setPdis(formattedActivePdis);
+      setPdisFinalizados(formattedCompletedPdis);
+      
+      // Combine all PDIs for unified view
+      setAllPdis([...formattedActivePdis, ...formattedCompletedPdis]);
     } catch (error) {
       console.error('Erro ao carregar PDIs:', error);
       toast({
@@ -313,6 +322,37 @@ export function DashboardView() {
             </p>
           </div>
         </div>
+        
+        {/* Filter Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={pdiFilter === 'todos' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setPdiFilter('todos')}
+            className="flex items-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Todos
+          </Button>
+          <Button
+            variant={pdiFilter === 'ativos' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setPdiFilter('ativos')}
+            className="flex items-center gap-2"
+          >
+            <Clock className="h-4 w-4" />
+            Ativos
+          </Button>
+          <Button
+            variant={pdiFilter === 'finalizados' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setPdiFilter('finalizados')}
+            className="flex items-center gap-2"
+          >
+            <CheckCircle className="h-4 w-4" />
+            Finalizados
+          </Button>
+        </div>
 
         {loadingPdis ? 
           <div className="flex justify-center items-center py-8">
@@ -328,50 +368,42 @@ export function DashboardView() {
               Você não possui PDIs ativos no momento.
             </p>
           </Card> 
-        : 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-            {pdis.map(pdi => <PDICard key={pdi.id} pdi={pdi} onViewDetails={handleViewPdiDetails} />)}
-          </div>
+        : (() => {
+            const filteredPdis = allPdis.filter(pdi => {
+              if (pdiFilter === 'ativos') return pdi.status === 'ativo';
+              if (pdiFilter === 'finalizados') return pdi.status === 'concluido';
+              return true; // todos
+            });
+            
+            return filteredPdis.length === 0 ? (
+              <Card className="p-8 text-center">
+                <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-foreground mb-2">
+                  {pdiFilter === 'todos' ? 'Nenhum PDI encontrado' : 
+                   pdiFilter === 'ativos' ? 'Nenhum PDI ativo' : 
+                   'Nenhum PDI finalizado'}
+                </h4>
+                <p className="text-muted-foreground">
+                  {pdiFilter === 'todos' ? 'Você não possui PDIs no momento.' :
+                   pdiFilter === 'ativos' ? 'Você não possui PDIs ativos no momento.' :
+                   'Você ainda não finalizou nenhum PDI.'}
+                </p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredPdis.map(pdi => (
+                  <PDICard 
+                    key={pdi.id} 
+                    pdi={pdi} 
+                    onViewDetails={handleViewPdiDetails} 
+                    isCompleted={pdi.status === 'concluido'}
+                  />
+                ))}
+              </div>
+            );
+          })()
         }
       </section>
-
-      {/* Histórico de PDIs Finalizados */}
-      {pdisFinalizados.length > 0 && (
-        <section className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-                PDIs Finalizados
-              </h3>
-              <p className="text-muted-foreground">
-                Histórico dos seus últimos PDIs concluídos
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pdisFinalizados.map(pdi => (
-              <Card key={pdi.id} className="bg-green-50 border-green-200">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg text-green-800">{pdi.titulo}</CardTitle>
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  </div>
-                  <CardDescription className="text-green-600">
-                    Concluído em {new Date(pdi.updated_at).toLocaleDateString('pt-BR')}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="text-sm text-green-700">
-                    {pdi.aulas.length} aula{pdi.aulas.length !== 1 ? 's' : ''} concluída{pdi.aulas.length !== 1 ? 's' : ''}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* View Only Badge */}
       {!canCreateContent && <ViewOnlyBadge />}
