@@ -161,6 +161,7 @@ export const AcessosLoginsView = () => {
         senha_criptografada: formData.senha ? encryptPassword(formData.senha) : null,
         link_acesso: formData.link_acesso || null,
         notas_adicionais: formData.notas_adicionais || null,
+        ativo: true,
         created_by: user?.id
       };
 
@@ -499,6 +500,7 @@ export const AcessosLoginsView = () => {
             senha_criptografada: item.senha ? encryptPassword(item.senha) : null,
             link_acesso: item.link_acesso || null,
             notas_adicionais: item.notas_adicionais || null,
+            ativo: true,
             created_by: user?.id
           };
 

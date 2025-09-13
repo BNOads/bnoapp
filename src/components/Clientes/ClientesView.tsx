@@ -408,7 +408,9 @@ export const ClientesView = () => {
                           <Copy className="h-4 w-4" />
                         </Button>
                         
-                        {cliente.pasta_drive_url}
+                        {cliente.pasta_drive_url && <Button variant="ghost" size="sm" onClick={() => window.open(cliente.pasta_drive_url, '_blank')} className="h-8 w-8 p-0" title="Pasta do Drive">
+                          <span className="text-lg">📁</span>
+                        </Button>}
                         
                         {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(cliente)} className="h-8 w-8 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive">
                             <Trash2 className="h-4 w-4" />
