@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { 
   Calendar, 
   Plus, 
@@ -97,6 +98,9 @@ export function PautaReuniaoView() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showSidebar, setShowSidebar] = useState(true);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [extractedTitles, setExtractedTitles] = useState<string[]>([]);
   
   const autosaveTimeout = useRef<NodeJS.Timeout>();
 
@@ -129,6 +133,34 @@ export function PautaReuniaoView() {
     
     loadInitialData();
   }, [searchParams]);
+
+  // Add keyboard shortcuts and blur events for autosave
+  useEffect(() => {
+    const handleKeydown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveDocument(false);
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatus === 'saving' || autosaveTimeout.current) {
+        e.preventDefault();
+        e.returnValue = 'Você tem alterações não salvas. Deseja realmente sair?';
+      }
+    };
+
+    document.addEventListener('keydown', handleKeydown);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (autosaveTimeout.current) {
+        clearTimeout(autosaveTimeout.current);
+      }
+    };
+  }, [saveStatus, autosaveTimeout.current]);
 
   const loadInitialData = async () => {
     try {
@@ -339,15 +371,18 @@ export function PautaReuniaoView() {
       clearTimeout(autosaveTimeout.current);
     }
     
+    setSaveStatus('idle');
+    
     autosaveTimeout.current = setTimeout(() => {
-      saveDocument();
+      saveDocument(true);
     }, 2000);
   };
 
-  const saveDocument = async () => {
+  const saveDocument = async (isAutosave = false) => {
     if (!currentDocument) return;
     
     try {
+      setSaveStatus('saving');
       setSaving(true);
       
       // Update document
@@ -387,11 +422,31 @@ export function PautaReuniaoView() {
         if (blocksError) throw blocksError;
       }
 
+      const now = new Date();
+      setLastSaved(now);
+      setSaveStatus('saved');
+      
+      if (isAutosave) {
+        toast({
+          title: "✅ Alterações salvas automaticamente",
+          description: `às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+          duration: 2000
+        });
+      } else {
+        toast({
+          title: "✅ Pauta salva com sucesso",
+          description: "Todas as alterações foram salvas",
+          duration: 3000
+        });
+      }
+
     } catch (error) {
       console.error('Error saving document:', error);
+      setSaveStatus('error');
+      
       toast({
-        title: "Erro",
-        description: "Erro ao salvar documento",
+        title: "❌ Erro ao salvar",
+        description: "Verifique sua conexão e tente novamente",
         variant: "destructive"
       });
     } finally {
@@ -493,8 +548,9 @@ export function PautaReuniaoView() {
 
   const renderTableOfContents = () => {
     const titleBlocks = blocks.filter(block => block.tipo === 'titulo' && block.titulo);
+    const allTitles = [...titleBlocks.map(b => b.titulo || ''), ...extractedTitles];
     
-    if (titleBlocks.length === 0) return null;
+    if (allTitles.length === 0) return null;
 
     return (
       <Card className="w-64 h-fit">
@@ -513,21 +569,24 @@ export function PautaReuniaoView() {
         <CardContent>
           <ScrollArea className="h-64">
             <div className="space-y-1">
-              {titleBlocks
-                .filter(block => 
+              {allTitles
+                .filter(title => 
                   !searchTerm || 
-                  block.titulo?.toLowerCase().includes(searchTerm.toLowerCase())
+                  title.toLowerCase().includes(searchTerm.toLowerCase())
                 )
-                .map((block, index) => (
+                .map((title, index) => (
                   <button
-                    key={block.id}
+                    key={`title-${index}`}
                     className="w-full text-left text-sm p-2 rounded hover:bg-muted"
                     onClick={() => {
-                      const element = document.getElementById(`block-${block.id}`);
-                      element?.scrollIntoView({ behavior: 'smooth' });
+                      // Try to find corresponding block or scroll to heading in rich text
+                      const blockElement = document.querySelector(`[data-title="${title}"]`);
+                      if (blockElement) {
+                        blockElement.scrollIntoView({ behavior: 'smooth' });
+                      }
                     }}
                   >
-                    {block.titulo}
+                    {title}
                   </button>
                 ))}
             </div>
@@ -580,7 +639,23 @@ export function PautaReuniaoView() {
           </div>
           
           <div className="flex items-center gap-2">
-            {saving && <span className="text-sm text-muted-foreground">Salvando...</span>}
+            {/* Save Status */}
+            <div className="flex items-center gap-2 text-sm">
+              {saveStatus === 'saving' && (
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <div className="animate-spin h-3 w-3 border border-primary border-t-transparent rounded-full"></div>
+                  Salvando...
+                </span>
+              )}
+              {saveStatus === 'saved' && lastSaved && (
+                <span className="text-green-600">
+                  ✅ Salvo às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+              {saveStatus === 'error' && (
+                <span className="text-red-600">❌ Erro ao salvar</span>
+              )}
+            </div>
             
             {selectedDate.dia && !currentDocument && (
               <div className="flex gap-2">
@@ -614,7 +689,7 @@ export function PautaReuniaoView() {
                   <Share2 className="h-4 w-4 mr-2" />
                   Compartilhar
                 </Button>
-                <Button size="sm" onClick={saveDocument}>
+                <Button size="sm" onClick={() => saveDocument(false)} disabled={saving}>
                   <Save className="h-4 w-4 mr-2" />
                   Salvar
                 </Button>
@@ -661,10 +736,10 @@ export function PautaReuniaoView() {
                         {currentDocument.status === 'ata_concluida' ? 'Ata Concluída' : 'Rascunho'}
                       </Badge>
                     </div>
-                    <Textarea
-                      value={currentDocument.descricao || ''}
-                      onChange={(e) => {
-                        setCurrentDocument(prev => prev ? { ...prev, descricao: e.target.value } : null);
+                    <RichTextEditor
+                      content={currentDocument.descricao || ''}
+                      onChange={(content) => {
+                        setCurrentDocument(prev => prev ? { ...prev, descricao: content } : null);
                         scheduleAutosave();
                       }}
                       placeholder="Descrição e objetivo da reunião"
@@ -732,6 +807,30 @@ export function PautaReuniaoView() {
           {/* Table of Contents */}
           {currentDocument && renderTableOfContents()}
         </div>
+        
+        {/* Save Status Footer */}
+        {currentDocument && (
+          <div className="fixed bottom-4 right-4 z-50">
+            <div className="bg-background border rounded-lg shadow-lg px-3 py-2 text-sm">
+              {saveStatus === 'saving' && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="animate-spin h-3 w-3 border border-primary border-t-transparent rounded-full"></div>
+                  Salvando...
+                </div>
+              )}
+              {saveStatus === 'saved' && lastSaved && (
+                <div className="text-green-600">
+                  ✅ Alterações salvas automaticamente às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              )}
+              {saveStatus === 'error' && (
+                <div className="text-red-600">
+                  ❌ Erro ao salvar - verifique sua conexão
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -862,11 +961,18 @@ export function PautaReuniaoView() {
 
       default:
         return (
-          <Textarea
-            value={block.conteudo.texto || ''}
-            onChange={(e) => updateBlock(block.id, { 
-              conteudo: { ...block.conteudo, texto: e.target.value }
+          <RichTextEditor
+            content={block.conteudo.texto || ''}
+            onChange={(content) => updateBlock(block.id, { 
+              conteudo: { ...block.conteudo, texto: content }
             })}
+            onTitleExtracted={(titles) => {
+              // Update the block's extracted titles for index
+              setExtractedTitles(prev => {
+                const filtered = prev.filter(t => !titles.includes(t));
+                return [...filtered, ...titles];
+              });
+            }}
             placeholder="Digite o conteúdo..."
             className="min-h-24"
           />
