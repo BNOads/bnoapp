@@ -41,104 +41,104 @@ function App() {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AppLayout>
-            <AuthProvider>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/auth/reset-password" element={<ResetPassword />} />
-              <Route path="/pop/publico/:id" element={<POPPublico />} />
-              <Route path="/referencia/:id" element={<ReferenciaViewer />} />
-              <Route path="/referencia/publica/:id" element={<ReferenciaPublica />} />
-              <Route path="/debriefing/publico/:id" element={<DebriefingPublico />} />
-              <Route path="/mapa-mental/publico/:id" element={<MapaMentalPublico />} />
-              <Route path="/funil/publico/:id" element={<FunilPublico />} />
-              <Route path="/pdi/:id" element={
-                <ProtectedRoute>
-                  <PDIDetalhes />
-                </ProtectedRoute>
-              } />
-              <Route path="/painel/:clienteId" element={<PainelCliente />} />
-              <Route path="/criativos/:clienteId" element={
-                <ProtectedRoute>
-                  <CriativosCliente />
-                </ProtectedRoute>
-              } />
-              <Route path="/curso/:cursoId" element={
-                <ProtectedRoute>
-                  <CursoDetalhes />
-                </ProtectedRoute>
-              } />
-              <Route path="/curso/:cursoId/aula/:aulaId" element={
-                <ProtectedRoute>
-                  <AulaDetalhes />
-                </ProtectedRoute>
-              } />
-              <Route path="/perfil" element={
-                <ProtectedRoute>
-                  <Perfil />
-                </ProtectedRoute>
-              } />
-              <Route path="/debriefings" element={
-                <ProtectedRoute>
-                  <DebriefingsView />
-                </ProtectedRoute>
-              } />
-              <Route path="/debriefings/novo" element={
-                <ProtectedRoute>
-                  <NovoDebriefing />
-                </ProtectedRoute>
-              } />
-              <Route path="/debriefings/:id" element={
-                <ProtectedRoute>
-                  <DebriefingDetalhes />
-                </ProtectedRoute>
-              } />
-              <Route path="/colaboradores" element={
-                <ProtectedRoute>
-                  <ColaboradoresPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/clientes" element={
-                <ProtectedRoute>
-                  <ClientesPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/lancamentos" element={
-                <ProtectedRoute>
-                  <LancamentosPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/assistente" element={
-                <ProtectedRoute>
-                  <AssistentePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/treinamentos" element={
-                <ProtectedRoute>
-                  <TreinamentosPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/ferramentas" element={
-                <ProtectedRoute>
-                  <FerramentasPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/ferramentas/:toolName" element={
-                <ProtectedRoute>
-                  <FerramentasPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              } />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+          <AuthProvider>
+            <AppLayout>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/auth/reset-password" element={<ResetPassword />} />
+                <Route path="/pop/publico/:id" element={<POPPublico />} />
+                <Route path="/referencia/:id" element={<ReferenciaViewer />} />
+                <Route path="/referencia/publica/:id" element={<ReferenciaPublica />} />
+                <Route path="/debriefing/publico/:id" element={<DebriefingPublico />} />
+                <Route path="/mapa-mental/publico/:id" element={<MapaMentalPublico />} />
+                <Route path="/funil/publico/:id" element={<FunilPublico />} />
+                <Route path="/pdi/:id" element={
+                  <ProtectedRoute>
+                    <PDIDetalhes />
+                  </ProtectedRoute>
+                } />
+                <Route path="/painel/:clienteId" element={<PainelCliente />} />
+                <Route path="/criativos/:clienteId" element={
+                  <ProtectedRoute>
+                    <CriativosCliente />
+                  </ProtectedRoute>
+                } />
+                <Route path="/curso/:cursoId" element={
+                  <ProtectedRoute>
+                    <CursoDetalhes />
+                  </ProtectedRoute>
+                } />
+                <Route path="/curso/:cursoId/aula/:aulaId" element={
+                  <ProtectedRoute>
+                    <AulaDetalhes />
+                  </ProtectedRoute>
+                } />
+                <Route path="/perfil" element={
+                  <ProtectedRoute>
+                    <Perfil />
+                  </ProtectedRoute>
+                } />
+                <Route path="/debriefings" element={
+                  <ProtectedRoute>
+                    <DebriefingsView />
+                  </ProtectedRoute>
+                } />
+                <Route path="/debriefings/novo" element={
+                  <ProtectedRoute>
+                    <NovoDebriefing />
+                  </ProtectedRoute>
+                } />
+                <Route path="/debriefings/:id" element={
+                  <ProtectedRoute>
+                    <DebriefingDetalhes />
+                  </ProtectedRoute>
+                } />
+                <Route path="/colaboradores" element={
+                  <ProtectedRoute>
+                    <ColaboradoresPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/clientes" element={
+                  <ProtectedRoute>
+                    <ClientesPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/lancamentos" element={
+                  <ProtectedRoute>
+                    <LancamentosPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/assistente" element={
+                  <ProtectedRoute>
+                    <AssistentePage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/treinamentos" element={
+                  <ProtectedRoute>
+                    <TreinamentosPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/ferramentas" element={
+                  <ProtectedRoute>
+                    <FerramentasPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/ferramentas/:toolName" element={
+                  <ProtectedRoute>
+                    <FerramentasPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/" element={
+                  <ProtectedRoute>
+                    <Index />
+                  </ProtectedRoute>
+                } />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AppLayout>
           </AuthProvider>
-        </AppLayout>
-      </BrowserRouter>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
