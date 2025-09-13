@@ -87,6 +87,8 @@ export const MapaMentalView = () => {
   const [activeTool, setActiveTool] = useState<Tool>('select');
   const [connectionStart, setConnectionStart] = useState<{id: string, type: 'node' | 'note'} | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [tempConnection, setTempConnection] = useState<{ x: number; y: number } | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -432,6 +434,13 @@ export const MapaMentalView = () => {
   };
 
   const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
+    if (activeTool === 'connection') {
+      e.stopPropagation();
+      setIsConnecting(true);
+      setConnectionStart({ id: nodeId, type: 'node' });
+      return;
+    }
+    
     if (activeTool !== 'select') return;
     if (!canvasRef.current) return;
     
@@ -448,6 +457,13 @@ export const MapaMentalView = () => {
   };
 
   const handleNoteMouseDown = (e: React.MouseEvent, noteId: string) => {
+    if (activeTool === 'connection') {
+      e.stopPropagation();
+      setIsConnecting(true);
+      setConnectionStart({ id: noteId, type: 'note' });
+      return;
+    }
+    
     if (activeTool !== 'select') return;
     if (!canvasRef.current) return;
     
@@ -467,8 +483,17 @@ export const MapaMentalView = () => {
     if (!currentMapa || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const newX = e.clientX - rect.left - dragOffset.x;
-    const newY = e.clientY - rect.top - dragOffset.y;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Handle connection dragging
+    if (isConnecting && connectionStart) {
+      setTempConnection({ x: mouseX, y: mouseY });
+      return;
+    }
+
+    const newX = mouseX - dragOffset.x;
+    const newY = mouseY - dragOffset.y;
 
     if (draggedNode) {
       setCurrentMapa({
@@ -502,6 +527,9 @@ export const MapaMentalView = () => {
   const handleMouseUp = () => {
     setDraggedNode(null);
     setDraggedNote(null);
+    setIsConnecting(false);
+    setConnectionStart(null);
+    setTempConnection(null);
   };
 
   const getElementPosition = (elementId: string, elementType: 'node' | 'note') => {
@@ -689,24 +717,36 @@ export const MapaMentalView = () => {
                       markerEnd="url(#arrowhead)"
                     />
                   );
-                })}
-                
-                {/* Arrow marker */}
-                <defs>
-                  <marker
-                    id="arrowhead"
-                    markerWidth="10"
-                    markerHeight="7"
-                    refX="9"
-                    refY="3.5"
-                    orient="auto"
-                  >
-                    <polygon
-                      points="0 0, 10 3.5, 0 7"
-                      fill="hsl(var(--muted-foreground) / 0.4)"
-                    />
-                  </marker>
-                </defs>
+                 })}
+                 
+                 {/* Temporary connection line while dragging */}
+                 {isConnecting && connectionStart && tempConnection && (
+                   <path
+                     d={`M ${getElementPosition(connectionStart.id, connectionStart.type).x} ${getElementPosition(connectionStart.id, connectionStart.type).y} L ${tempConnection.x} ${tempConnection.y}`}
+                     stroke="hsl(var(--primary))"
+                     strokeWidth="2"
+                     strokeDasharray="5,5"
+                     fill="none"
+                     className="pointer-events-none animate-pulse"
+                   />
+                 )}
+                 
+                 {/* Arrow marker */}
+                 <defs>
+                   <marker
+                     id="arrowhead"
+                     markerWidth="10"
+                     markerHeight="7"
+                     refX="9"
+                     refY="3.5"
+                     orient="auto"
+                   >
+                     <polygon
+                       points="0 0, 10 3.5, 0 7"
+                       fill="hsl(var(--muted-foreground) / 0.4)"
+                     />
+                   </marker>
+                 </defs>
               </svg>
 
               {/* Render notes */}
@@ -722,17 +762,22 @@ export const MapaMentalView = () => {
                     cursor: activeTool === 'select' ? 'move' : activeTool === 'connection' ? 'pointer' : 'default'
                   }}
                   onMouseDown={(e) => handleNoteMouseDown(e, note.id)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (e.ctrlKey || e.metaKey) {
-                      const link = prompt('Digite o link (deixe vazio para remover):', note.link || '');
-                      if (link !== null) {
-                        addNoteLink(note.id, link);
-                      }
-                    } else {
-                      handleElementClick(note.id, 'note');
-                    }
-                  }}
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     if (e.ctrlKey || e.metaKey) {
+                       const link = prompt('Digite o link (deixe vazio para remover):', note.link || '');
+                       if (link !== null) {
+                         addNoteLink(note.id, link);
+                       }
+                     } else if (isConnecting && connectionStart && connectionStart.id !== note.id) {
+                       createConnection(connectionStart, { id: note.id, type: 'note' });
+                       setIsConnecting(false);
+                       setConnectionStart(null);
+                       setTempConnection(null);
+                     } else {
+                       handleElementClick(note.id, 'note');
+                     }
+                   }}
                   onDoubleClick={() => {
                     setEditingNote(note.id);
                     setNoteText(note.text);
@@ -805,17 +850,22 @@ export const MapaMentalView = () => {
                     cursor: activeTool === 'select' ? 'move' : activeTool === 'connection' ? 'pointer' : 'default'
                   }}
                   onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (e.ctrlKey || e.metaKey) {
-                      const link = prompt('Digite o link (deixe vazio para remover):', node.link || '');
-                      if (link !== null) {
-                        addNodeLink(node.id, link);
-                      }
-                    } else {
-                      handleElementClick(node.id, 'node');
-                    }
-                  }}
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     if (e.ctrlKey || e.metaKey) {
+                       const link = prompt('Digite o link (deixe vazio para remover):', node.link || '');
+                       if (link !== null) {
+                         addNodeLink(node.id, link);
+                       }
+                     } else if (isConnecting && connectionStart && connectionStart.id !== node.id) {
+                       createConnection(connectionStart, { id: node.id, type: 'node' });
+                       setIsConnecting(false);
+                       setConnectionStart(null);
+                       setTempConnection(null);
+                     } else {
+                       handleElementClick(node.id, 'node');
+                     }
+                   }}
                   onDoubleClick={() => {
                     setEditingNode(node.id);
                     setNodeText(node.text);
