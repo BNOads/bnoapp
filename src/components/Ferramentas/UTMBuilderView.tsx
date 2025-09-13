@@ -59,13 +59,15 @@ export const UTMBuilderView = () => {
   const [selectedSources, setSelectedSources] = useState<{[key: string]: string[]}>({});
   const [utmResults, setUtmResults] = useState<UTMResult[]>([]);
 
-  const generateSingleUTM = () => {
+  const generateSingleUTM = (showValidation = false) => {
     if (!singleUTM.url || !singleUTM.source || !singleUTM.medium || !singleUTM.campaign) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha URL, Source, Medium e Campaign",
-        variant: "destructive"
-      });
+      if (showValidation) {
+        toast({
+          title: "Campos obrigatórios",
+          description: "Preencha URL, Source, Medium e Campaign",
+          variant: "destructive"
+        });
+      }
       return "";
     }
 
@@ -282,19 +284,23 @@ export const UTMBuilderView = () => {
               <CardContent className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm break-all">
-                    {generateSingleUTM() || "Preencha os campos obrigatórios para gerar a URL"}
+                    {generateSingleUTM(false) || "Preencha os campos obrigatórios para gerar a URL"}
                   </p>
                 </div>
                 
-                {generateSingleUTM() && (
-                  <Button 
-                    onClick={() => copyToClipboard(generateSingleUTM())}
-                    className="w-full"
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copiar URL
-                  </Button>
-                )}
+                <Button 
+                  onClick={() => {
+                    const url = generateSingleUTM(true);
+                    if (url) {
+                      copyToClipboard(url);
+                    }
+                  }}
+                  className="w-full"
+                  disabled={!generateSingleUTM(false)}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copiar URL
+                </Button>
               </CardContent>
             </Card>
           </div>
