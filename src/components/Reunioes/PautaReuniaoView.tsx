@@ -380,29 +380,51 @@ export function PautaReuniaoView() {
   const saveDocument = async (isAutosave = false) => {
     if (!currentDocument) return;
     
+    const debug = {
+      userId: user?.id || null,
+      docId: currentDocument?.id || null,
+      date: selectedDate,
+      blocksCount: blocks.length,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.group('[PautaReuniao] Save Debug');
+    console.info('Save start', debug);
+    
     try {
       setSaveStatus('saving');
       setSaving(true);
       
       // Update document
+      const updatePayload = {
+        titulo_reuniao: currentDocument.titulo_reuniao || 'Reunião',
+        descricao: currentDocument.descricao || '',
+        participantes: currentDocument.participantes ?? [],
+        contribuidores: currentDocument.contribuidores ?? (user?.id ? [user.id] : []),
+        ultima_atualizacao: new Date().toISOString()
+      };
+      console.info('Updating reunioes_documentos with', updatePayload);
+
       const { error: docError } = await supabase
         .from('reunioes_documentos')
-        .update({
-          titulo_reuniao: currentDocument.titulo_reuniao || 'Reunião',
-          descricao: currentDocument.descricao || '',
-          participantes: currentDocument.participantes ?? [],
-          contribuidores: currentDocument.contribuidores ?? (user?.id ? [user.id] : []),
-          ultima_atualizacao: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', currentDocument.id);
 
-      if (docError) throw docError;
+      if (docError) {
+        console.error('Document update error', docError);
+        throw docError;
+      }
 
       // Delete existing blocks and recreate them
-      await supabase
+      console.info('Deleting previous blocks for documento_id', currentDocument.id);
+      const { error: delError } = await supabase
         .from('reunioes_blocos')
         .delete()
         .eq('documento_id', currentDocument.id);
+      if (delError) {
+        console.error('Blocks delete error', delError);
+        throw delError;
+      }
 
       if (blocks.length > 0) {
         const blocksToInsert = blocks.map((block, index) => ({
@@ -414,16 +436,22 @@ export function PautaReuniaoView() {
           ancora: block.titulo ? block.titulo.toLowerCase().replace(/\s+/g, '-') : null
         }));
 
+        console.info('Inserting blocks', { count: blocksToInsert.length, sample: blocksToInsert[0] });
+
         const { error: blocksError } = await supabase
           .from('reunioes_blocos')
           .insert(blocksToInsert);
 
-        if (blocksError) throw blocksError;
+        if (blocksError) {
+          console.error('Blocks insert error', blocksError);
+          throw blocksError;
+        }
       }
 
       const now = new Date();
       setLastSaved(now);
       setSaveStatus('saved');
+      console.info('Save success at', now.toISOString());
       
       if (isAutosave) {
         toast({
@@ -440,15 +468,17 @@ export function PautaReuniaoView() {
       }
 
     } catch (error) {
-      console.error('Error saving document:', error);
+      console.error('Save failed', { error, debug });
       setSaveStatus('error');
       
+      const description = (error as any)?.message || (error as any)?.hint || 'Verifique sua conexão e tente novamente';
       toast({
         title: "❌ Erro ao salvar",
-        description: error instanceof Error ? error.message : "Verifique sua conexão e tente novamente",
+        description,
         variant: "destructive"
       });
     } finally {
+      console.groupEnd();
       setSaving(false);
     }
   };
