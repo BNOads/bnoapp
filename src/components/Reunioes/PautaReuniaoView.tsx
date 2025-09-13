@@ -100,6 +100,7 @@ export function PautaReuniaoView() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [extractedTitles, setExtractedTitles] = useState<string[]>([]);
+  const [lastError, setLastError] = useState<string | null>(null);
   
   const autosaveTimeout = useRef<NodeJS.Timeout>();
 
@@ -450,6 +451,7 @@ export function PautaReuniaoView() {
 
       const now = new Date();
       setLastSaved(now);
+      setLastError(null);
       setSaveStatus('saved');
       console.info('Save success at', now.toISOString());
       
@@ -471,7 +473,9 @@ export function PautaReuniaoView() {
       console.error('Save failed', { error, debug });
       setSaveStatus('error');
       
-      const description = (error as any)?.message || (error as any)?.hint || 'Verifique sua conexão e tente novamente';
+      const err = error as any;
+      const description = err?.message || err?.hint || err?.details || 'Verifique sua conexão e tente novamente';
+      setLastError(description);
       toast({
         title: "❌ Erro ao salvar",
         description,
@@ -682,7 +686,7 @@ export function PautaReuniaoView() {
                 </span>
               )}
               {saveStatus === 'error' && (
-                <span className="text-red-600">❌ Erro ao salvar</span>
+                <span className="text-red-600">❌ Erro ao salvar{lastError ? ` — ${lastError}` : ''}</span>
               )}
             </div>
             
