@@ -934,16 +934,36 @@ export function PautaReuniaoView() {
   );
 
   const renderTableOfContents = () => {
+    // Create array with document title as first item, then blocks
+    const allItems = [];
+    
+    // Add document header as first item if it has a title
+    if (currentDocument?.titulo_reuniao?.trim()) {
+      allItems.push({
+        id: 'document-header',
+        titulo: currentDocument.titulo_reuniao,
+        ordem: -1
+      });
+    }
+    
+    // Add blocks with titles
     const sortedBlocks = blocks
       .filter(block => block.titulo && block.titulo.trim())
       .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
     
-    if (sortedBlocks.length === 0) return null;
+    allItems.push(...sortedBlocks);
+    
+    if (allItems.length === 0) return null;
 
-    const scrollToBlock = (blockId: string) => {
-      const element = document.getElementById(`block-${blockId}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const scrollToItem = (itemId: string) => {
+      if (itemId === 'document-header') {
+        // Scroll to document header
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const element = document.getElementById(`block-${itemId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
     };
 
@@ -961,24 +981,24 @@ export function PautaReuniaoView() {
         <CardContent className="p-0">
           <ScrollArea className="h-80">
             <div className="space-y-1 p-4">
-              {sortedBlocks.map((block, index) => (
+              {allItems.map((item, index) => (
                 <button
-                  key={block.id}
-                  onClick={() => scrollToBlock(block.id)}
+                  key={item.id}
+                  onClick={() => scrollToItem(item.id)}
                   className="w-full text-left px-2 py-1 text-sm rounded hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2"
                 >
                   <span className="text-xs text-muted-foreground font-mono">
                     {index + 1}
                   </span>
                   <span className="truncate">
-                    {block.titulo || 'Sem título'}
+                    {item.titulo || 'Sem título'}
                   </span>
                 </button>
               ))}
               
-              {sortedBlocks.length === 0 && (
+              {allItems.length === 0 && (
                 <p className="text-xs text-muted-foreground px-2 py-4 text-center">
-                  Nenhum bloco com título encontrado
+                  Nenhum item com título encontrado
                 </p>
               )}
               
@@ -1136,7 +1156,7 @@ export function PautaReuniaoView() {
                         placeholder="Título da reunião"
                       />
                       <Badge variant={currentDocument.status === 'ata_concluida' ? 'default' : 'secondary'}>
-                        {currentDocument.status === 'ata_concluida' ? 'Ata Concluída' : 'Rascunho'}
+                        {currentDocument.status === 'ata_concluida' ? 'Ata Concluída' : 'Em Andamento'}
                       </Badge>
                     </div>
                     <RichTextEditor
