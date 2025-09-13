@@ -302,28 +302,36 @@ export const ColaboradoresView = () => {
                       </p>
                     </div>
 
-                    {/* Email */}
-                    <div className="flex items-center space-x-2 mb-3 p-2 bg-muted/30 rounded-lg">
-                      <Mail className="h-4 w-4 text-primary flex-shrink-0" />
-                      <p className="text-sm text-foreground truncate">{colaborador.email}</p>
+                    {/* Email e Aniversário */}
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center space-x-2 p-2 bg-muted/30 rounded-lg">
+                        <Mail className="h-4 w-4 text-primary flex-shrink-0" />
+                        <p className="text-sm text-foreground truncate">{colaborador.email}</p>
+                      </div>
+                      
+                      <div className={`flex items-center space-x-2 p-2 rounded-lg ${
+                        isAniversarioProximo ? 'bg-yellow-100 border border-yellow-200' : 'bg-muted/30'
+                      }`}>
+                        <Cake className={`h-4 w-4 flex-shrink-0 ${
+                          isAniversarioProximo ? 'text-yellow-600' : 'text-primary'
+                        }`} />
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground">Aniversário</p>
+                          <p className={`text-sm font-medium ${
+                            isAniversarioProximo ? 'text-yellow-700' : 'text-foreground'
+                          }`}>
+                            {formatarAniversario(colaborador.data_nascimento)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Status Ativo */}
+                    {/* Status */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                         <span className="text-xs text-muted-foreground">Ativo</span>
                       </div>
-                      
-                      {/* Indicador de Aniversário */}
-                      {isAniversarioProximo && (
-                        <div className="flex items-center space-x-1">
-                          <Cake className="h-4 w-4 text-yellow-600" />
-                          <span className="text-xs font-medium text-yellow-700">
-                            {diasAniversario === 0 ? 'Hoje!' : `${diasAniversario}d`}
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
