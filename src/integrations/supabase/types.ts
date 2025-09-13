@@ -1191,6 +1191,76 @@ export type Database = {
           },
         ]
       }
+      kickoff_content: {
+        Row: {
+          content_md: string
+          created_at: string
+          created_by: string
+          id: string
+          kickoff_id: string
+          version: number
+        }
+        Insert: {
+          content_md: string
+          created_at?: string
+          created_by: string
+          id?: string
+          kickoff_id: string
+          version?: number
+        }
+        Update: {
+          content_md?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          kickoff_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kickoff_content_kickoff_id_fkey"
+            columns: ["kickoff_id"]
+            isOneToOne: false
+            referencedRelation: "kickoffs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kickoffs: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string
+          id: string
+          status: Database["public"]["Enums"]["kickoff_status"]
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          status?: Database["public"]["Enums"]["kickoff_status"]
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          status?: Database["public"]["Enums"]["kickoff_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kickoffs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lancamentos: {
         Row: {
           ativo: boolean
@@ -2621,6 +2691,7 @@ export type Database = {
         | "remarketing"
         | "email_marketing"
         | "upsell"
+      kickoff_status: "draft" | "active" | "archived"
       nivel_acesso:
         | "admin"
         | "gestor_trafego"
@@ -2806,6 +2877,7 @@ export const Constants = {
         "email_marketing",
         "upsell",
       ],
+      kickoff_status: ["draft", "active", "archived"],
       nivel_acesso: [
         "admin",
         "gestor_trafego",

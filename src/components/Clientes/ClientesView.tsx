@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Rocket } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
@@ -15,6 +15,7 @@ import { ImportarClientesModal } from "./ImportarClientesModal";
 import { EditarClienteModal } from "./EditarClienteModal";
 import { EdicaoMassaModal } from "./EdicaoMassaModal";
 import { AlocacaoClientes } from "./AlocacaoClientes";
+import { KickoffModal } from "./KickoffModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
@@ -29,6 +30,8 @@ export const ClientesView = () => {
   const [edicaoMassaModalOpen, setEdicaoMassaModalOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<{id: string, nome: string} | null>(null);
   const [clienteToEdit, setClienteToEdit] = useState<any | null>(null);
+  const [kickoffModalOpen, setKickoffModalOpen] = useState(false);
+  const [clienteKickoff, setClienteKickoff] = useState<{id: string, nome: string} | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -492,6 +495,21 @@ export const ClientesView = () => {
                          >
                            <Eye className="h-4 w-4" />
                          </Button>
+
+                        {canCreateContent && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setClienteKickoff({ id: cliente.id, nome: cliente.nome });
+                              setKickoffModalOpen(true);
+                            }}
+                            className="h-8 w-8 p-0"
+                            title="Kickoff"
+                          >
+                            <Rocket className="h-4 w-4" />
+                          </Button>
+                        )}
                         
                         {canCreateContent && (
                           <Button 
@@ -598,6 +616,18 @@ export const ClientesView = () => {
         onSuccess={handleEdicaoMassaSuccess}
         clientesSelecionados={clientes.filter(c => clientesSelecionados.includes(c.id))}
       />
+
+      {clienteKickoff && (
+        <KickoffModal
+          isOpen={kickoffModalOpen}
+          onClose={() => {
+            setKickoffModalOpen(false);
+            setClienteKickoff(null);
+          }}
+          clienteId={clienteKickoff.id}
+          clienteNome={clienteKickoff.nome}
+        />
+      )}
     </div>
   );
 };
