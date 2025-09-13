@@ -101,10 +101,10 @@ export const AcessosLoginsView = () => {
     notas_adicionais: ''
   });
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
   const { searchTerm, setSearchTerm, filteredItems } = useSearch(
-    acessos.filter(acesso => !selectedCategory || acesso.categoria === selectedCategory),
+    acessos.filter(acesso => selectedCategory === 'all' || acesso.categoria === selectedCategory),
     ['nome_acesso', 'login_usuario', 'notas_adicionais']
   );
 
@@ -321,7 +321,7 @@ export const AcessosLoginsView = () => {
                 <SelectValue placeholder="Filtrar por categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas as categorias</SelectItem>
+                <SelectItem value="all">Todas as categorias</SelectItem>
                 {Object.entries(CATEGORIAS).map(([key, label]) => (
                   <SelectItem key={key} value={key}>
                     {label}
