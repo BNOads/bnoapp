@@ -10,6 +10,7 @@ import { FerramentasView } from "@/components/Ferramentas/FerramentasView";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
 import { EscalaReunioes } from "@/components/Meetings/EscalaReunioes";
 
+
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('dashboard');

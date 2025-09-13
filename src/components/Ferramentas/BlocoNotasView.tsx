@@ -35,6 +35,11 @@ export const BlocoNotasView = () => {
     fetchNotas();
   }, [user]);
 
+  // Function to refresh notes - can be called from parent components
+  const refreshNotas = () => {
+    fetchNotas();
+  };
+
   const fetchNotas = async () => {
     if (!user) return;
     

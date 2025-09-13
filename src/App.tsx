@@ -24,6 +24,7 @@ import DebriefingDetalhes from "@/components/Debriefings/DebriefingDetalhes";
 import DebriefingPublico from "./pages/DebriefingPublico";
 import { MapaMentalPublico } from "./pages/MapaMentalPublico";
 import FunilPublico from "./pages/FunilPublico";
+import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient();
 
@@ -34,7 +35,8 @@ function App() {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AuthProvider>
+          <AppLayout>
+            <AuthProvider>
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/reset-password" element={<ResetPassword />} />
@@ -94,7 +96,8 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
-        </BrowserRouter>
+        </AppLayout>
+      </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
