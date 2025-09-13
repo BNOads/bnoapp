@@ -19,7 +19,6 @@ import {
   Users, 
   List, 
   CheckSquare, 
-  Share2,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -27,7 +26,10 @@ import {
   ArrowRight,
   Settings,
   BookOpen,
-  X
+  X,
+  Check,
+  Clock,
+  Hourglass
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -905,24 +907,36 @@ export function PautaReuniaoView() {
                   className={`flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-muted ${
                     isSelected ? 'bg-primary text-primary-foreground' : ''
                   }`}
-                  onClick={() => {
+                  onClick={async () => {
                     setSelectedDate(prev => ({ ...prev, dia: day }));
                     if (hasDocument) {
                       setCurrentDocument(hasDocument);
                       setBlocks(hasDocument.blocos || []);
                     } else {
-                      setCurrentDocument(null);
-                      setBlocks([]);
+                      // Auto-create document for this day
+                      await createOrOpenDocument(day);
                     }
                     updateURL(selectedDate.ano, selectedDate.mes, day);
                   }}
                 >
                   <span>{day.toString().padStart(2, '0')}/{selectedDate.mes.toString().padStart(2, '0')}</span>
-                  {hasDocument && (
-                    <Badge variant={hasDocument.status === 'ata_concluida' ? 'default' : 'secondary'}>
-                      {hasDocument.status === 'ata_concluida' ? '✅' : '📣'}
-                    </Badge>
-                  )}
+                  {(() => {
+                    const today = new Date();
+                    const currentDay = new Date(selectedDate.ano, selectedDate.mes - 1, day);
+                    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    const currentDate = new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate());
+                    
+                    if (currentDate < todayDate) {
+                      // Past day
+                      return <Check className="h-4 w-4 text-green-600" />;
+                    } else if (currentDate.getTime() === todayDate.getTime()) {
+                      // Today
+                      return <Calendar className="h-4 w-4 text-blue-600" />;
+                    } else {
+                      // Future day
+                      return <Hourglass className="h-4 w-4 text-orange-600" />;
+                    }
+                  })()}
                 </div>
               );
             })}
@@ -1084,34 +1098,9 @@ export function PautaReuniaoView() {
               </Button>
             )}
             
-            {selectedDate.dia && !currentDocument && (
-              <div className="flex gap-2">
-                <Select onValueChange={(templateId) => createOrOpenDocument(selectedDate.dia!, templateId === "blank" ? undefined : templateId)}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Usar template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="blank">Documento em branco</SelectItem>
-                    {templates.map(template => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={() => createOrOpenDocument(selectedDate.dia!)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Pauta
-                </Button>
-              </div>
-            )}
             
             {currentDocument && (
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Compartilhar
-                </Button>
                 <Button size="sm" onClick={() => saveDocument(false)} disabled={saving}>
                   <Save className="h-4 w-4 mr-2" />
                   Salvar
@@ -1124,23 +1113,7 @@ export function PautaReuniaoView() {
         {/* Content */}
         <div className="flex gap-6">
           <div className="flex-1">
-            {selectedDate.dia && !currentDocument ? (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Nenhuma reunião agendada para {selectedDate.dia}/{selectedDate.mes}
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    Crie uma nova pauta de reunião para este dia
-                  </p>
-                  <Button onClick={() => createOrOpenDocument(selectedDate.dia!)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Pauta
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : currentDocument ? (
+            {currentDocument ? (
               <div className="space-y-6">
                 {/* Document Header */}
                 <Card>
