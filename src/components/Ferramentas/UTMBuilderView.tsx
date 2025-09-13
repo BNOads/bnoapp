@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,15 +6,25 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Download, Link, Zap } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Copy, Download, Link, Zap, Plus, X, AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import * as XLSX from 'xlsx';
 
 interface UTMResult {
   source: string;
   medium: string;
   campaign: string;
   term: string;
+  content: string;
   url: string;
+}
+
+interface ExtraField {
+  key: string;
+  value: string;
+  id: string;
 }
 
 interface SourceMediumOptions {
@@ -22,18 +32,16 @@ interface SourceMediumOptions {
 }
 
 const sourceMediumMap: SourceMediumOptions = {
-  facebook: ["cpc", "stories", "feed", "reels", "banner"],
-  instagram: ["cpc", "stories", "feed", "reels", "influencer"],
-  google: ["cpc", "display", "search", "shopping", "youtube"],
-  linkedin: ["cpc", "sponsored", "message", "event"],
-  tiktok: ["cpc", "stories", "feed", "influencer"],
-  twitter: ["cpc", "promoted", "card"],
-  email: ["newsletter", "automation", "campaign", "transactional"],
-  whatsapp: ["broadcast", "status", "group"],
-  telegram: ["channel", "group", "bot"],
-  sms: ["bulk", "automation", "transactional"],
-  affiliate: ["banner", "link", "cashback", "influencer"],
-  organic: ["post", "story", "video", "blog"]
+  FACEBOOK: ["cpc", "stories", "feed", "reels", "banner", "carousel", "video"],
+  INSTAGRAM: ["cpc", "stories", "feed", "reels", "influencer", "shopping", "explore"],
+  YOUTUBE: ["cpc", "video", "shorts", "channel", "playlist", "premium"],
+  BLOG: ["post", "article", "guest_post", "review", "tutorial"],
+  EMAIL: ["newsletter", "automation", "campaign", "transactional", "welcome"],
+  PINTEREST: ["pin", "board", "story", "shopping", "video"],
+  APLICATIVO: ["push", "notification", "banner", "interstitial", "native"],
+  TELEGRAM: ["channel", "group", "bot", "broadcast", "inline"],
+  WHATSAPP: ["broadcast", "status", "group", "business", "catalog"],
+  MANYCHAT: ["sequence", "broadcast", "flow", "keyword", "growth_tool"]
 };
 
 export const UTMBuilderView = () => {
@@ -53,12 +61,88 @@ export const UTMBuilderView = () => {
   const [bulkUTM, setBulkUTM] = useState({
     url: "",
     campaign: "",
-    term: ""
+    term: "",
+    content: ""
   });
   
   const [selectedSources, setSelectedSources] = useState<{[key: string]: string[]}>({});
+  const [selectAllSources, setSelectAllSources] = useState(false);
   const [utmResults, setUtmResults] = useState<UTMResult[]>([]);
+  const [extraFields, setExtraFields] = useState<ExtraField[]>([]);
+  const [singleExtraFields, setSingleExtraFields] = useState<ExtraField[]>([]);
 
+  // Check if URL is Hotmart
+  const isHotmartUrl = (url: string) => {
+    return url.toLowerCase().includes('hotmart');
+  };
+
+  // Normalize text for URL params
+  const normalizeParam = (text: string) => {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/[^a-z0-9_]/g, '') // Keep only alphanumeric and underscore
+      .replace(/_+/g, '_') // Remove multiple underscores
+      .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+  };
+
+  // Generate SCK parameter for Hotmart
+  const generateSckParam = (source: string, medium: string, campaign: string, term: string, content: string) => {
+    const parts = [
+      normalizeParam(source),
+      normalizeParam(medium),
+      normalizeParam(campaign),
+      normalizeParam(term),
+      normalizeParam(content)
+    ].filter(part => part.length > 0); // Remove empty parts but maintain order
+
+    return parts.join('|');
+  };
+
+  // Validate extra field key
+  const validateExtraKey = (key: string) => {
+    return /^[a-z0-9_]+$/.test(key);
+  };
+
+  // Add extra field
+  const addExtraField = (isSingle = false) => {
+    const newField: ExtraField = {
+      id: Date.now().toString(),
+      key: '',
+      value: ''
+    };
+    
+    if (isSingle) {
+      setSingleExtraFields(prev => [...prev, newField]);
+    } else {
+      setExtraFields(prev => [...prev, newField]);
+    }
+  };
+
+  // Remove extra field
+  const removeExtraField = (id: string, isSingle = false) => {
+    if (isSingle) {
+      setSingleExtraFields(prev => prev.filter(field => field.id !== id));
+    } else {
+      setExtraFields(prev => prev.filter(field => field.id !== id));
+    }
+  };
+
+  // Update extra field
+  const updateExtraField = (id: string, updates: Partial<ExtraField>, isSingle = false) => {
+    const updateFunction = (prev: ExtraField[]) => 
+      prev.map(field => field.id === id ? { ...field, ...updates } : field);
+    
+    if (isSingle) {
+      setSingleExtraFields(updateFunction);
+    } else {
+      setExtraFields(updateFunction);
+    }
+  };
+
+  // Generate single UTM
   const generateSingleUTM = (showValidation = false) => {
     if (!singleUTM.url || !singleUTM.source || !singleUTM.medium || !singleUTM.campaign) {
       if (showValidation) {
@@ -74,16 +158,72 @@ export const UTMBuilderView = () => {
     const baseUrl = singleUTM.url.includes("?") ? singleUTM.url : singleUTM.url + "?";
     const params = new URLSearchParams();
     
-    params.set("utm_source", singleUTM.source.toLowerCase().replace(/\s+/g, "_"));
-    params.set("utm_medium", singleUTM.medium.toLowerCase().replace(/\s+/g, "_"));
-    params.set("utm_campaign", singleUTM.campaign.toLowerCase().replace(/\s+/g, "_"));
+    // Add UTM parameters
+    params.set("utm_source", normalizeParam(singleUTM.source));
+    params.set("utm_medium", normalizeParam(singleUTM.medium));
+    params.set("utm_campaign", normalizeParam(singleUTM.campaign));
     
-    if (singleUTM.term) params.set("utm_term", singleUTM.term.toLowerCase().replace(/\s+/g, "_"));
-    if (singleUTM.content) params.set("utm_content", singleUTM.content.toLowerCase().replace(/\s+/g, "_"));
+    if (singleUTM.term) params.set("utm_term", normalizeParam(singleUTM.term));
+    if (singleUTM.content) params.set("utm_content", normalizeParam(singleUTM.content));
+
+    // Add extra fields
+    singleExtraFields.forEach(field => {
+      if (field.key && field.value && validateExtraKey(field.key)) {
+        params.set(field.key, encodeURIComponent(field.value));
+      }
+    });
+
+    // Add SCK for Hotmart
+    if (isHotmartUrl(singleUTM.url)) {
+      const sck = generateSckParam(
+        singleUTM.source,
+        singleUTM.medium,
+        singleUTM.campaign,
+        singleUTM.term || '',
+        singleUTM.content || ''
+      );
+      if (sck) params.set("sck", sck);
+    }
 
     return baseUrl + params.toString();
   };
 
+  // Handle select all sources
+  const handleSelectAllSources = (checked: boolean) => {
+    setSelectAllSources(checked);
+    if (checked) {
+      const allSources: {[key: string]: string[]} = {};
+      Object.keys(sourceMediumMap).forEach(source => {
+        allSources[source] = [...sourceMediumMap[source]];
+      });
+      setSelectedSources(allSources);
+    } else {
+      setSelectedSources({});
+    }
+  };
+
+  // Handle select all mediums for a source
+  const handleSelectAllMediums = (source: string, checked: boolean) => {
+    setSelectedSources(prev => {
+      const newSources = { ...prev };
+      if (checked) {
+        newSources[source] = [...sourceMediumMap[source]];
+      } else {
+        newSources[source] = [];
+      }
+      return newSources;
+    });
+  };
+
+  // Update select all sources state when individual sources change
+  useEffect(() => {
+    const allSourcesSelected = Object.keys(sourceMediumMap).every(source => 
+      source in selectedSources && selectedSources[source].length > 0
+    );
+    setSelectAllSources(allSourcesSelected && Object.keys(selectedSources).length === Object.keys(sourceMediumMap).length);
+  }, [selectedSources]);
+
+  // Generate bulk UTMs
   const generateBulkUTMs = () => {
     if (!bulkUTM.url || !bulkUTM.campaign || !bulkUTM.term) {
       toast({
@@ -101,16 +241,41 @@ export const UTMBuilderView = () => {
         const baseUrl = bulkUTM.url.includes("?") ? bulkUTM.url : bulkUTM.url + "?";
         const params = new URLSearchParams();
         
-        params.set("utm_source", source.toLowerCase());
-        params.set("utm_medium", medium.toLowerCase());
-        params.set("utm_campaign", bulkUTM.campaign.toLowerCase().replace(/\s+/g, "_"));
-        params.set("utm_term", bulkUTM.term.toLowerCase().replace(/\s+/g, "_"));
+        // Add UTM parameters
+        params.set("utm_source", normalizeParam(source));
+        params.set("utm_medium", normalizeParam(medium));
+        params.set("utm_campaign", normalizeParam(bulkUTM.campaign));
+        params.set("utm_term", normalizeParam(bulkUTM.term));
+        
+        if (bulkUTM.content) {
+          params.set("utm_content", normalizeParam(bulkUTM.content));
+        }
+
+        // Add extra fields
+        extraFields.forEach(field => {
+          if (field.key && field.value && validateExtraKey(field.key)) {
+            params.set(field.key, encodeURIComponent(field.value));
+          }
+        });
+
+        // Add SCK for Hotmart
+        if (isHotmartUrl(bulkUTM.url)) {
+          const sck = generateSckParam(
+            source,
+            medium,
+            bulkUTM.campaign,
+            bulkUTM.term,
+            bulkUTM.content || ''
+          );
+          if (sck) params.set("sck", sck);
+        }
 
         results.push({
           source,
           medium,
           campaign: bulkUTM.campaign,
           term: bulkUTM.term,
+          content: bulkUTM.content || '',
           url: baseUrl + params.toString()
         });
       });
@@ -145,17 +310,34 @@ export const UTMBuilderView = () => {
 
   const exportToCsv = () => {
     const csvContent = [
-      "Source,Medium,Campaign,Term,URL",
-      ...utmResults.map(r => `${r.source},${r.medium},${r.campaign},${r.term},"${r.url}"`)
+      "Source,Medium,Campaign,Term,Content,URL Final",
+      ...utmResults.map(r => `${r.source},${r.medium},${r.campaign},${r.term},${r.content},"${r.url}"`)
     ].join("\n");
     
-    const blob = new Blob([csvContent], { type: "text/csv" });
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `utm-builder-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(
+      utmResults.map(r => ({
+        Source: r.source,
+        Medium: r.medium,
+        Campaign: r.campaign,
+        Term: r.term,
+        Content: r.content,
+        'URL Final': r.url
+      }))
+    );
+    
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "UTMs");
+    XLSX.writeFile(workbook, `utm-builder-${Date.now()}.xlsx`);
   };
 
   const handleSourceToggle = (source: string, checked: boolean) => {
@@ -195,11 +377,11 @@ export const UTMBuilderView = () => {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="single" className="flex items-center gap-2">
             <Link className="h-4 w-4" />
-            UTM Individual
+            Criar UTM
           </TabsTrigger>
           <TabsTrigger value="bulk" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            Fluxo em Massa
+            Criar em Massa
           </TabsTrigger>
         </TabsList>
 
@@ -207,7 +389,7 @@ export const UTMBuilderView = () => {
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Gerador de UTM</CardTitle>
+                <CardTitle>Gerador de UTM Individual</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -219,6 +401,14 @@ export const UTMBuilderView = () => {
                     value={singleUTM.url}
                     onChange={(e) => setSingleUTM(prev => ({ ...prev, url: e.target.value }))}
                   />
+                  {isHotmartUrl(singleUTM.url) && (
+                    <Alert className="mt-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        ⚠️ Link da Hotmart detectado → os parâmetros utm serão mantidos e será adicionado o campo sck.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
                 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -274,6 +464,46 @@ export const UTMBuilderView = () => {
                     />
                   </div>
                 </div>
+
+                {/* Extra fields for single UTM */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Campos extras (opcional)</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addExtraField(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar campo
+                    </Button>
+                  </div>
+                  
+                  {singleExtraFields.map((field) => (
+                    <div key={field.id} className="flex gap-2">
+                      <Input
+                        placeholder="chave (ex: aff_id)"
+                        value={field.key}
+                        onChange={(e) => updateExtraField(field.id, { key: e.target.value }, true)}
+                        className={!validateExtraKey(field.key) && field.key ? "border-red-500" : ""}
+                      />
+                      <Input
+                        placeholder="valor"
+                        value={field.value}
+                        onChange={(e) => updateExtraField(field.id, { value: e.target.value }, true)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeExtraField(field.id, true)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
@@ -307,6 +537,7 @@ export const UTMBuilderView = () => {
         </TabsContent>
 
         <TabsContent value="bulk" className="space-y-6">
+          {/* Header Configuration */}
           <Card>
             <CardHeader>
               <CardTitle>Configurações Gerais</CardTitle>
@@ -321,9 +552,17 @@ export const UTMBuilderView = () => {
                   value={bulkUTM.url}
                   onChange={(e) => setBulkUTM(prev => ({ ...prev, url: e.target.value }))}
                 />
+                {isHotmartUrl(bulkUTM.url) && (
+                  <Alert className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      ⚠️ Link da Hotmart detectado → os parâmetros utm serão mantidos e será adicionado o campo sck.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
               
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <Label htmlFor="bulk-campaign">UTM Campaign (Projeto) *</Label>
                   <Input
@@ -338,32 +577,114 @@ export const UTMBuilderView = () => {
                   <Label htmlFor="bulk-term">UTM Term *</Label>
                   <Input
                     id="bulk-term"
-                    placeholder="Orgânico/Pago"
+                    placeholder="Pago/Orgânico"
                     value={bulkUTM.term}
                     onChange={(e) => setBulkUTM(prev => ({ ...prev, term: e.target.value }))}
                   />
                 </div>
+
+                <div>
+                  <Label htmlFor="bulk-content">UTM Content (opcional)</Label>
+                  <Input
+                    id="bulk-content"
+                    placeholder="Variação de conteúdo"
+                    value={bulkUTM.content}
+                    onChange={(e) => setBulkUTM(prev => ({ ...prev, content: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* Extra fields */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Campos extras (opcional)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addExtraField(false)}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Adicionar campo
+                  </Button>
+                </div>
+                
+                {extraFields.map((field) => (
+                  <div key={field.id} className="flex gap-2">
+                    <Input
+                      placeholder="chave (ex: aff_id)"
+                      value={field.key}
+                      onChange={(e) => updateExtraField(field.id, { key: e.target.value })}
+                      className={!validateExtraKey(field.key) && field.key ? "border-red-500" : ""}
+                    />
+                    <Input
+                      placeholder="valor"
+                      value={field.value}
+                      onChange={(e) => updateExtraField(field.id, { value: e.target.value })}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeExtraField(field.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                
+                {extraFields.some(field => field.key && !validateExtraKey(field.key)) && (
+                  <p className="text-sm text-red-500">
+                    Chaves devem conter apenas letras minúsculas, números e underscore.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
 
+          {/* Source Selection */}
           <Card>
             <CardHeader>
-              <CardTitle>Seleção de Canais</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <span>Seleção de Canais</span>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="select-all-sources"
+                    checked={selectAllSources}
+                    onCheckedChange={handleSelectAllSources}
+                  />
+                  <Label htmlFor="select-all-sources" className="text-sm font-normal">
+                    Selecionar todas as fontes
+                  </Label>
+                </div>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {Object.entries(sourceMediumMap).map(([source, mediums]) => (
                   <div key={source} className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id={source}
-                        checked={source in selectedSources}
-                        onCheckedChange={(checked) => handleSourceToggle(source, checked as boolean)}
-                      />
-                      <Label htmlFor={source} className="font-medium capitalize">
-                        {source}
-                      </Label>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={source}
+                          checked={source in selectedSources && selectedSources[source].length > 0}
+                          onCheckedChange={(checked) => handleSourceToggle(source, checked as boolean)}
+                        />
+                        <Label htmlFor={source} className="font-medium">
+                          {source}
+                        </Label>
+                      </div>
+                      
+                      {source in selectedSources && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSelectAllMediums(source, selectedSources[source].length !== mediums.length)}
+                          className="text-xs h-6 px-2"
+                        >
+                          {selectedSources[source].length === mediums.length ? "Desmarcar" : "Todas"}
+                        </Button>
+                      )}
                     </div>
                     
                     {source in selectedSources && (
@@ -387,7 +708,7 @@ export const UTMBuilderView = () => {
               </div>
               
               <div className="mt-6">
-                <Button onClick={generateBulkUTMs} className="w-full">
+                <Button onClick={generateBulkUTMs} className="w-full" size="lg">
                   <Zap className="h-4 w-4 mr-2" />
                   Gerar UTMs em Massa
                 </Button>
@@ -395,6 +716,7 @@ export const UTMBuilderView = () => {
             </CardContent>
           </Card>
 
+          {/* Results Table */}
           {utmResults.length > 0 && (
             <Card>
               <CardHeader>
@@ -409,6 +731,10 @@ export const UTMBuilderView = () => {
                       <Download className="h-4 w-4 mr-2" />
                       Exportar CSV
                     </Button>
+                    <Button variant="outline" size="sm" onClick={exportToExcel}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Exportar Excel
+                    </Button>
                   </div>
                 </CardTitle>
               </CardHeader>
@@ -421,6 +747,7 @@ export const UTMBuilderView = () => {
                         <TableHead>Medium</TableHead>
                         <TableHead>Campaign</TableHead>
                         <TableHead>Term</TableHead>
+                        <TableHead>Content</TableHead>
                         <TableHead>URL Final</TableHead>
                         <TableHead className="w-20">Ação</TableHead>
                       </TableRow>
@@ -432,8 +759,16 @@ export const UTMBuilderView = () => {
                           <TableCell>{result.medium}</TableCell>
                           <TableCell>{result.campaign}</TableCell>
                           <TableCell>{result.term}</TableCell>
-                          <TableCell className="max-w-md truncate">
-                            {result.url}
+                          <TableCell>{result.content || '-'}</TableCell>
+                          <TableCell className="max-w-md">
+                            <div className="truncate" title={result.url}>
+                              {result.url}
+                            </div>
+                            {isHotmartUrl(result.url) && (
+                              <Badge variant="outline" className="mt-1">
+                                Hotmart + SCK
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Button 
