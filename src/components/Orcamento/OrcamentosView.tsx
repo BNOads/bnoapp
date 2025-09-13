@@ -134,8 +134,11 @@ export const OrcamentosView = () => {
   const totalClientes = new Set(filteredOrcamentos.map(o => o.cliente_id)).size;
   const totalFunis = filteredOrcamentos.length;
 
-  const uniqueClientes = Array.from(new Set(orcamentos.map(o => ({ id: o.cliente_id, nome: o.cliente_nome }))))
-    .filter(c => c.nome);
+  const uniqueClientesMap = new Map<string, string>();
+  orcamentos.forEach((o) => {
+    if (o.cliente_id && o.cliente_nome) uniqueClientesMap.set(o.cliente_id, o.cliente_nome);
+  });
+  const uniqueClientes = Array.from(uniqueClientesMap, ([id, nome]) => ({ id, nome }));
 
   if (loading) {
     return (
