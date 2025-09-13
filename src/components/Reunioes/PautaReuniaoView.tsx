@@ -106,12 +106,25 @@ export function PautaReuniaoView() {
     const monthParam = searchParams.get('mes');
     const dayParam = searchParams.get('dia');
     
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+    const currentDay = today.getDate();
+    
     if (yearParam && monthParam) {
       setSelectedDate({
         ano: parseInt(yearParam),
         mes: parseInt(monthParam),
         dia: dayParam ? parseInt(dayParam) : undefined
       });
+    } else {
+      // Auto-navigate to today's date
+      setSelectedDate({
+        ano: currentYear,
+        mes: currentMonth,
+        dia: currentDay
+      });
+      updateURL(currentYear, currentMonth, currentDay);
     }
     
     loadInitialData();
@@ -171,6 +184,10 @@ export function PautaReuniaoView() {
     if (selectedDate.dia && docsMap[selectedDate.dia.toString()]) {
       setCurrentDocument(docsMap[selectedDate.dia.toString()]);
       setBlocks(docsMap[selectedDate.dia.toString()].blocos || []);
+    } else if (selectedDate.dia && !docsMap[selectedDate.dia.toString()]) {
+      // Clear current document if selected day has no document
+      setCurrentDocument(null);
+      setBlocks([]);
     }
   };
 
