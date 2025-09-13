@@ -5,7 +5,8 @@ import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, ArrowLeft } from "lucide-react";
+import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
+import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Tool {
@@ -60,6 +61,14 @@ export const FerramentasView = () => {
       icon: Workflow,
       component: <CriadorFunilView />,
       color: "text-red-600"
+    },
+    {
+      id: "orcamentos-funil",
+      title: "Orçamentos por Funil",
+      description: "Gerencie orçamentos de marketing organizados por funil",
+      icon: DollarSign,
+      component: <OrcamentosView />,
+      color: "text-emerald-600"
     }
   ];
 

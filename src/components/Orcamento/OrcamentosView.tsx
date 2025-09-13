@@ -1,55 +1,38 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { supabase } from "@/integrations/supabase/client";
-import { NovoOrcamentoModal } from "./NovoOrcamentoModal";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Edit, Trash2, DollarSign, TrendingUp, Target, Search } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Search, Plus, Trash2, TrendingUp, Users, Target } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { NovoOrcamentoModal } from './NovoOrcamentoModal';
 
 interface Orcamento {
   id: string;
   nome_funil: string;
   valor_investimento: number;
-  observacoes: string | null;
+  observacoes?: string;
   created_at: string;
-  updated_at: string;
-  ativo: boolean;
-  cliente: {
-    id: string;
-    nome: string;
-  };
+  cliente_id: string;
+  cliente_nome?: string;
 }
 
 export const OrcamentosView = () => {
-  const { isAdmin, canCreateContent } = useUserPermissions();
-  const { toast } = useToast();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string | null }>({
-    open: false,
-    id: null
-  });
+  const [modalNovo, setModalNovo] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [clienteFiltro, setClienteFiltro] = useState('');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [orcamentoToDelete, setOrcamentoToDelete] = useState<string | null>(null);
 
-  // Filtro personalizado para orçamentos
-  const filteredOrcamentos = orcamentos.filter(orcamento => {
-    if (!searchTerm) return true;
-    
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      orcamento.nome_funil.toLowerCase().includes(searchLower) ||
-      orcamento.cliente.nome.toLowerCase().includes(searchLower) ||
-      (orcamento.observacoes && orcamento.observacoes.toLowerCase().includes(searchLower))
-    );
-  });
+  const { toast } = useToast();
+  const { canManageBudgets } = useUserPermissions();
 
   useEffect(() => {
     loadOrcamentos();
@@ -59,105 +42,85 @@ export const OrcamentosView = () => {
     try {
       setLoading(true);
       
-      // Primeiro, buscar os orçamentos
+      // Buscar orçamentos com dados do cliente
       const { data: orcamentosData, error: orcamentosError } = await supabase
         .from('orcamentos_funil')
-        .select('id, nome_funil, valor_investimento, observacoes, created_at, updated_at, ativo, cliente_id')
+        .select('*')
         .eq('ativo', true)
-        .order('updated_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
-      if (orcamentosError) {
-        console.error('Erro ao carregar orçamentos:', orcamentosError);
-        toast({
-          title: "Erro",
-          description: "Erro ao carregar orçamentos",
-          variant: "destructive",
-        });
-        return;
-      }
+      if (orcamentosError) throw orcamentosError;
 
-      // Depois, buscar os dados dos clientes
-      const clientesIds = [...new Set(orcamentosData?.map(o => o.cliente_id) || [])];
+      // Buscar clientes
       const { data: clientesData, error: clientesError } = await supabase
         .from('clientes')
         .select('id, nome')
-        .in('id', clientesIds);
+        .eq('ativo', true);
 
-      if (clientesError) {
-        console.error('Erro ao carregar clientes:', clientesError);
-        toast({
-          title: "Erro",
-          description: "Erro ao carregar clientes",
-          variant: "destructive",
-        });
-        return;
-      }
+      if (clientesError) throw clientesError;
 
-      // Combinar os dados
-      const clientesMap = new Map(clientesData?.map(c => [c.id, c]) || []);
-      const orcamentosFormatados = orcamentosData?.map(orcamento => {
-        const cliente = clientesMap.get(orcamento.cliente_id);
+      // Combinar dados
+      const orcamentosComCliente = orcamentosData?.map(orcamento => {
+        const cliente = clientesData?.find(c => c.id === orcamento.cliente_id);
         return {
-          id: orcamento.id,
-          nome_funil: orcamento.nome_funil,
-          valor_investimento: orcamento.valor_investimento,
-          observacoes: orcamento.observacoes,
-          created_at: orcamento.created_at,
-          updated_at: orcamento.updated_at,
-          ativo: orcamento.ativo,
-          cliente: {
-            id: cliente?.id || '',
-            nome: cliente?.nome || 'Cliente não encontrado'
-          }
+          ...orcamento,
+          cliente_nome: cliente?.nome || 'Cliente não encontrado'
         };
       }) || [];
 
-      setOrcamentos(orcamentosFormatados);
+      setOrcamentos(orcamentosComCliente);
     } catch (error) {
       console.error('Erro ao carregar orçamentos:', error);
       toast({
         title: "Erro",
-        description: "Erro inesperado ao carregar orçamentos",
-        variant: "destructive",
+        description: "Erro ao carregar orçamentos",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!orcamentoToDelete) return;
+
     try {
       const { error } = await supabase
         .from('orcamentos_funil')
         .update({ ativo: false })
-        .eq('id', id);
+        .eq('id', orcamentoToDelete);
 
-      if (error) {
-        console.error('Erro ao deletar orçamento:', error);
-        toast({
-          title: "Erro",
-          description: "Erro ao deletar orçamento",
-          variant: "destructive",
-        });
-        return;
-      }
+      if (error) throw error;
 
       toast({
         title: "Sucesso",
-        description: "Orçamento removido com sucesso",
+        description: "Orçamento excluído com sucesso"
       });
 
-      setDeleteDialog({ open: false, id: null });
       loadOrcamentos();
     } catch (error) {
-      console.error('Erro ao deletar orçamento:', error);
+      console.error('Erro ao excluir orçamento:', error);
       toast({
         title: "Erro",
-        description: "Erro inesperado ao deletar orçamento",
-        variant: "destructive",
+        description: "Erro ao excluir orçamento",
+        variant: "destructive"
       });
+    } finally {
+      setDeleteModalOpen(false);
+      setOrcamentoToDelete(null);
     }
   };
+
+  const filteredOrcamentos = orcamentos.filter(orcamento => {
+    const matchesSearch = 
+      orcamento.nome_funil.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      orcamento.cliente_nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      orcamento.observacoes?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCliente = !clienteFiltro || orcamento.cliente_id === clienteFiltro;
+    
+    return matchesSearch && matchesCliente;
+  });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -166,60 +129,71 @@ export const OrcamentosView = () => {
     }).format(value);
   };
 
-  const totalInvestimento = orcamentos.reduce((sum, orc) => sum + orc.valor_investimento, 0);
-  const totalClientes = new Set(orcamentos.map(orc => orc.cliente.id)).size;
-  const totalFunis = orcamentos.length;
+  // Calcular totais
+  const totalInvestimento = filteredOrcamentos.reduce((sum, o) => sum + o.valor_investimento, 0);
+  const totalClientes = new Set(filteredOrcamentos.map(o => o.cliente_id)).size;
+  const totalFunis = filteredOrcamentos.length;
+
+  const uniqueClientes = Array.from(new Set(orcamentos.map(o => ({ id: o.cliente_id, nome: o.cliente_nome }))))
+    .filter(c => c.nome);
 
   if (loading) {
-    return <div className="flex justify-center p-8">Carregando orçamentos...</div>;
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando orçamentos...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Orçamentos por Funil</h1>
+          <h1 className="text-3xl font-bold">Orçamentos por Funil</h1>
           <p className="text-muted-foreground">
-            Gerencie os investimentos por funil de cada cliente
+            Gerencie orçamentos de marketing organizados por funil
           </p>
         </div>
-        {isAdmin && (
-          <Button onClick={() => setModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar Orçamento
+        
+        {canManageBudgets && (
+          <Button onClick={() => setModalNovo(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Orçamento
           </Button>
         )}
       </div>
 
-      {/* Cards de Resumo */}
+      {/* Cards de resumo */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Investido</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Investimento</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalInvestimento)}</div>
             <p className="text-xs text-muted-foreground">
-              Valor total dos orçamentos ativos
+              Soma de todos os orçamentos ativos
             </p>
           </CardContent>
         </Card>
-
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Clientes Ativos</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalClientes}</div>
             <p className="text-xs text-muted-foreground">
-              Clientes com orçamento ativo
+              Clientes com orçamentos configurados
             </p>
           </CardContent>
         </Card>
-
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Funis Configurados</CardTitle>
@@ -234,127 +208,124 @@ export const OrcamentosView = () => {
         </Card>
       </div>
 
-      {/* Tabela de Orçamentos */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle>Orçamentos Ativos</CardTitle>
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar por cliente, funil ou observações..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filteredOrcamentos.length === 0 ? (
-            <div className="text-center py-8">
-              {orcamentos.length === 0 ? (
-                <>
-                  <p className="text-muted-foreground">Nenhum orçamento cadastrado</p>
-                  {isAdmin && (
-                    <Button 
-                      variant="outline" 
-                      className="mt-4"
-                      onClick={() => setModalOpen(true)}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Criar primeiro orçamento
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Nenhum resultado encontrado</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Tente ajustar os termos de pesquisa
-                  </p>
-                </>
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Buscar por funil, cliente ou observações..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        
+        <Select value={clienteFiltro} onValueChange={setClienteFiltro}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Filtrar por cliente" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos os clientes</SelectItem>
+            {uniqueClientes.map((cliente) => (
+              <SelectItem key={cliente.id} value={cliente.id}>
+                {cliente.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Tabela de orçamentos */}
+      {filteredOrcamentos.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center">
+              <p className="text-muted-foreground mb-4">
+                {searchTerm || clienteFiltro ? 'Nenhum orçamento encontrado para os filtros selecionados.' : 'Nenhum orçamento cadastrado ainda.'}
+              </p>
+              {canManageBudgets && !searchTerm && !clienteFiltro && (
+                <Button onClick={() => setModalNovo(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Primeiro Orçamento
+                </Button>
               )}
             </div>
-          ) : (
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Orçamentos Ativos</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Funil</TableHead>
                   <TableHead>Valor</TableHead>
-                  <TableHead>Criado em</TableHead>
-                  <TableHead>Atualizado em</TableHead>
-                  {isAdmin && <TableHead className="text-right">Ações</TableHead>}
+                  <TableHead>Data Criação</TableHead>
+                  {canManageBudgets && <TableHead>Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredOrcamentos.map((orcamento) => (
                   <TableRow key={orcamento.id}>
                     <TableCell className="font-medium">
-                      {orcamento.cliente.nome}
+                      {orcamento.cliente_nome}
+                    </TableCell>
+                    <TableCell>{orcamento.nome_funil}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {formatCurrency(orcamento.valor_investimento)}
+                      </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{orcamento.nome_funil}</Badge>
+                      {new Date(orcamento.created_at).toLocaleDateString('pt-BR')}
                     </TableCell>
-                    <TableCell className="font-mono">
-                      {formatCurrency(orcamento.valor_investimento)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(orcamento.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(orcamento.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDeleteDialog({ open: true, id: orcamento.id })}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                    {canManageBudgets && (
+                      <TableCell>
+                        <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setOrcamentoToDelete(orcamento.id)}
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     )}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Modal de Novo Orçamento */}
       <NovoOrcamentoModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
+        open={modalNovo}
+        onOpenChange={setModalNovo}
         onSuccess={loadOrcamentos}
       />
-
-      {/* Dialog de Confirmação de Exclusão */}
-      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, id: null })}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover este orçamento? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteDialog.id && handleDelete(deleteDialog.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
