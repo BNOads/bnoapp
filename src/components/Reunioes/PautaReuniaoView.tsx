@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { 
   Calendar, 
   Save, 
@@ -16,11 +17,35 @@ import {
   ArrowRight,
   BookOpen,
   ChevronDown,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Bold,
+  Italic,
+  Underline,
+  List,
+  CheckSquare,
+  Link,
+  Palette,
+  Plus,
+  Type,
+  MoreHorizontal
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/Auth/AuthContext";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator 
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface MeetingDocument {
   id: string;
@@ -59,6 +84,13 @@ export function PautaReuniaoView() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showSidebar, setShowSidebar] = useState(true);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [showToolbar, setShowToolbar] = useState(false);
+  const [selectedText, setSelectedText] = useState("");
+  const [selectionStart, setSelectionStart] = useState(0);
+  const [selectionEnd, setSelectionEnd] = useState(0);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   
   const autosaveTimeout = useRef<NodeJS.Timeout>();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -276,6 +308,12 @@ export function PautaReuniaoView() {
       // Recarregar documentos para atualizar a sidebar
       await loadDocuments();
       
+      setLastSaveTime(new Date());
+      toast({
+        title: "✅ Alterações salvas",
+        description: "Documento salvo com sucesso",
+      });
+      
     } catch (error) {
       console.error('Error saving document:', error);
       toast({
@@ -293,6 +331,136 @@ export function PautaReuniaoView() {
     
     setCurrentDocument(prev => prev ? { ...prev, conteudo_texto: content } : null);
     scheduleAutosave();
+  };
+
+  // Funções de formatação de texto
+  const handleTextSelection = () => {
+    if (!textareaRef.current) return;
+    
+    const start = textareaRef.current.selectionStart;
+    const end = textareaRef.current.selectionEnd;
+    const text = textareaRef.current.value.substring(start, end);
+    
+    setSelectionStart(start);
+    setSelectionEnd(end);
+    setSelectedText(text);
+    setShowToolbar(text.length > 0);
+  };
+
+  const insertText = (before: string, after: string = "") => {
+    if (!textareaRef.current || !currentDocument) return;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selectedText = text.substring(start, end);
+    
+    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
+    
+    updateDocumentContent(newText);
+    
+    // Restaurar posição do cursor
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(
+          start + before.length, 
+          end + before.length
+        );
+      }
+    }, 0);
+  };
+
+  const formatBold = () => insertText("**", "**");
+  const formatItalic = () => insertText("*", "*");
+  const formatUnderline = () => insertText("<u>", "</u>");
+
+  const addBulletList = () => {
+    if (!textareaRef.current || !currentDocument) return;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const text = textarea.value;
+    
+    // Encontrar início da linha
+    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    const newText = text.substring(0, lineStart) + "- " + text.substring(lineStart);
+    
+    updateDocumentContent(newText);
+    
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(start + 2, start + 2);
+      }
+    }, 0);
+  };
+
+  const addChecklist = () => {
+    if (!textareaRef.current || !currentDocument) return;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const text = textarea.value;
+    
+    // Encontrar início da linha
+    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    const newText = text.substring(0, lineStart) + "- [ ] " + text.substring(lineStart);
+    
+    updateDocumentContent(newText);
+    
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(start + 6, start + 6);
+      }
+    }, 0);
+  };
+
+  const addLink = () => {
+    if (!selectedText) return;
+    setShowLinkDialog(true);
+  };
+
+  const insertLink = () => {
+    if (!linkUrl || !selectedText) return;
+    
+    // Validar URL
+    const urlPattern = /^https?:\/\/.+/;
+    if (!urlPattern.test(linkUrl)) {
+      toast({
+        title: "URL inválida",
+        description: "A URL deve começar com http:// ou https://",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    insertText(`[${selectedText}](${linkUrl})`);
+    setShowLinkDialog(false);
+    setLinkUrl("");
+  };
+
+  const convertToTitle = () => {
+    if (!selectedText) return;
+    insertText("## ", "");
+    setShowToolbar(false);
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (!textareaRef.current) return;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    
+    if (start !== end) {
+      // Texto selecionado, mostrar opção de converter para título
+      setSelectedText(textarea.value.substring(start, end));
+      setSelectionStart(start);
+      setSelectionEnd(end);
+    }
   };
 
   const getDaysInMonth = (year: number, month: number) => {
@@ -336,6 +504,133 @@ export function PautaReuniaoView() {
       return newSet;
     });
   };
+
+  const renderToolbar = () => (
+    <div className="border-b border-border p-2 flex flex-wrap gap-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={formatBold}
+        title="Negrito"
+      >
+        <Bold className="h-4 w-4" />
+      </Button>
+      
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={formatItalic}
+        title="Itálico"
+      >
+        <Italic className="h-4 w-4" />
+      </Button>
+      
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={formatUnderline}
+        title="Sublinhado"
+      >
+        <Underline className="h-4 w-4" />
+      </Button>
+      
+      <div className="w-px h-6 bg-border mx-1" />
+      
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={addBulletList}
+        title="Lista"
+      >
+        <List className="h-4 w-4" />
+      </Button>
+      
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={addChecklist}
+        title="Checklist"
+      >
+        <CheckSquare className="h-4 w-4" />
+      </Button>
+      
+      <div className="w-px h-6 bg-border mx-1" />
+      
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={addLink}
+        disabled={!selectedText}
+        title="Adicionar link"
+      >
+        <Link className="h-4 w-4" />
+      </Button>
+      
+      <div className="w-px h-6 bg-border mx-1" />
+      
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!selectedText}
+            title="Mais opções"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onClick={convertToTitle}>
+            <Type className="h-4 w-4 mr-2" />
+            Transformar em Título (H2)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      
+      {/* Mobile simplified toolbar */}
+      <div className="lg:hidden ml-auto">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={formatBold}>
+              <Bold className="h-4 w-4 mr-2" />
+              Negrito
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={formatItalic}>
+              <Italic className="h-4 w-4 mr-2" />
+              Itálico
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={addBulletList}>
+              <List className="h-4 w-4 mr-2" />
+              Lista
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={addChecklist}>
+              <CheckSquare className="h-4 w-4 mr-2" />
+              Checklist
+            </DropdownMenuItem>
+            {selectedText && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={addLink}>
+                  <Link className="h-4 w-4 mr-2" />
+                  Adicionar Link
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={convertToTitle}>
+                  <Type className="h-4 w-4 mr-2" />
+                  Transformar em Título
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
 
   const renderSidebar = () => (
     <Card className="w-80 h-fit">
@@ -497,6 +792,11 @@ export function PautaReuniaoView() {
                   ? `${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}`
                   : `${MONTHS[selectedDate.mes - 1]} ${selectedDate.ano}`
                 }
+                {lastSaveTime && (
+                  <span className="ml-2 text-xs">
+                    (Último salvamento: {lastSaveTime.toLocaleTimeString()})
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -515,11 +815,14 @@ export function PautaReuniaoView() {
         <div className="flex-1">
           {currentDocument ? (
             <Card className="h-full">
-              <CardContent className="p-6 h-full">
+              {renderToolbar()}
+              <CardContent className="p-0 h-full">
                 <Textarea
                   ref={textareaRef}
                   value={currentDocument.conteudo_texto}
                   onChange={(e) => updateDocumentContent(e.target.value)}
+                  onSelect={handleTextSelection}
+                  onDoubleClick={handleDoubleClick}
                   placeholder={`# Pauta ${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}
 
 ## Cliente X | Alinhamento Semanal
@@ -553,7 +856,7 @@ export function PautaReuniaoView() {
 
 ### Follow-ups
 - [ ] Agendar próxima reunião`}
-                  className="min-h-[600px] font-mono text-sm resize-none border-none focus:ring-0"
+                  className="min-h-[600px] font-mono text-sm resize-none border-none focus:ring-0 rounded-none rounded-b-lg"
                 />
               </CardContent>
             </Card>
@@ -569,6 +872,38 @@ export function PautaReuniaoView() {
           )}
         </div>
       </div>
+
+      {/* Link Dialog */}
+      <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Link</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Texto selecionado:</label>
+              <p className="text-sm text-muted-foreground">{selectedText}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium">URL:</label>
+              <Input
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://exemplo.com"
+                className="mt-1"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowLinkDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={insertLink}>
+                Inserir Link
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
