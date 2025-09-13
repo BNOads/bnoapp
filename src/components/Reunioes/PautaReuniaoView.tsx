@@ -133,6 +133,11 @@ export function PautaReuniaoView() {
     });
     
     setDocuments(docsMap);
+    
+    // Se temos um dia selecionado e existe documento para ele, carregá-lo
+    if (selectedDate.dia && docsMap[selectedDate.dia.toString()]) {
+      setCurrentDocument(docsMap[selectedDate.dia.toString()]);
+    }
   };
 
   const loadDocumentForDate = async (ano: number, mes: number, dia: number) => {
@@ -144,14 +149,57 @@ export function PautaReuniaoView() {
       return;
     }
 
-    // Criar documento automaticamente se não existir
-    await createDocumentForDate(ano, mes, dia);
+    // Buscar no banco se existe documento para esta data
+    try {
+      const { data: existingDoc, error } = await supabase
+        .from('reunioes_documentos')
+        .select('*')
+        .eq('ano', ano)
+        .eq('mes', mes)
+        .eq('dia', dia)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (existingDoc) {
+        // Documento já existe, usar ele
+        setDocuments(prev => ({ ...prev, [dayKey]: existingDoc }));
+        setCurrentDocument(existingDoc);
+      } else {
+        // Documento não existe, criar novo
+        await createDocumentForDate(ano, mes, dia);
+      }
+    } catch (error) {
+      console.error('Error loading document:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar documento",
+        variant: "destructive"
+      });
+    }
   };
 
   const createDocumentForDate = async (ano: number, mes: number, dia: number) => {
     try {
       setSaving(true);
       
+      // Verificar novamente se não existe (por segurança)
+      const { data: existing } = await supabase
+        .from('reunioes_documentos')
+        .select('id')
+        .eq('ano', ano)
+        .eq('mes', mes)
+        .eq('dia', dia)
+        .maybeSingle();
+
+      if (existing) {
+        // Documento já existe, recarregar
+        await loadDocuments();
+        return;
+      }
+
       const { data: doc, error: docError } = await supabase
         .from('reunioes_documentos')
         .insert({
@@ -166,7 +214,14 @@ export function PautaReuniaoView() {
         .select()
         .single();
 
-      if (docError) throw docError;
+      if (docError) {
+        if (docError.code === '23505') {
+          // Constraint violada - documento já existe, recarregar
+          await loadDocuments();
+          return;
+        }
+        throw docError;
+      }
 
       const dayKey = dia.toString();
       setDocuments(prev => ({ ...prev, [dayKey]: doc }));
