@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/Auth/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Copy,
   Trash2,
@@ -28,13 +27,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface UTMParams {
   websiteUrl: string;
@@ -117,27 +109,33 @@ export function UTMBuilderView() {
     generateURL();
   }, [params]);
 
-  const loadPresets = async () => {
+  const loadPresets = () => {
     try {
-      // Usar localStorage temporariamente até os tipos serem atualizados
-      const storedPresets = localStorage.getItem('utm_presets');
-      if (storedPresets) {
-        setPresets(JSON.parse(storedPresets));
+      const savedPresets = localStorage.getItem(`utm_presets_${user?.id}`);
+      if (savedPresets) {
+        setPresets(JSON.parse(savedPresets));
       }
     } catch (error) {
       console.error('Error loading presets:', error);
     }
   };
 
-  const loadHistory = async () => {
+  const loadHistory = () => {
     try {
-      // Usar localStorage temporariamente até os tipos serem atualizados
-      const storedHistory = localStorage.getItem('utm_history');
-      if (storedHistory) {
-        setHistory(JSON.parse(storedHistory));
+      const savedHistory = localStorage.getItem(`utm_history_${user?.id}`);
+      if (savedHistory) {
+        setHistory(JSON.parse(savedHistory));
       }
     } catch (error) {
       console.error('Error loading history:', error);
+    }
+  };
+
+  const saveToStorage = (key: string, data: any) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (error) {
+      console.error('Error saving to storage:', error);
     }
   };
 
@@ -232,30 +230,22 @@ export function UTMBuilderView() {
     setGeneratedUrl("");
   };
 
-  const saveToHistory = async () => {
+  const saveToHistory = () => {
     if (!generatedUrl || !user) return;
 
-    try {
-      // Usar localStorage temporariamente até os tipos serem atualizados
-      const storedHistory = localStorage.getItem('utm_history');
-      const currentHistory = storedHistory ? JSON.parse(storedHistory) : [];
-      
-      const newEntry: UTMHistory = {
-        id: crypto.randomUUID(),
-        url: generatedUrl,
-        params: params,
-        created_at: new Date().toISOString()
-      };
-      
-      const updatedHistory = [newEntry, ...currentHistory].slice(0, 10);
-      localStorage.setItem('utm_history', JSON.stringify(updatedHistory));
-      setHistory(updatedHistory);
-    } catch (error) {
-      console.error('Error saving to history:', error);
-    }
+    const newHistoryItem: UTMHistory = {
+      id: Date.now().toString(),
+      url: generatedUrl,
+      params: params,
+      created_at: new Date().toISOString()
+    };
+
+    const updatedHistory = [newHistoryItem, ...history.slice(0, 9)];
+    setHistory(updatedHistory);
+    saveToStorage(`utm_history_${user.id}`, updatedHistory);
   };
 
-  const savePreset = async () => {
+  const savePreset = () => {
     if (!presetName.trim()) {
       toast({
         title: "Nome obrigatório",
@@ -268,22 +258,18 @@ export function UTMBuilderView() {
     try {
       setLoading(true);
       
-      // Usar localStorage temporariamente até os tipos serem atualizados
-      const storedPresets = localStorage.getItem('utm_presets');
-      const currentPresets = storedPresets ? JSON.parse(storedPresets) : [];
-      
       const newPreset: UTMPreset = {
-        id: crypto.randomUUID(),
+        id: Date.now().toString(),
         name: presetName,
         params: params,
         isGlobal: isGlobalPreset,
         created_by: user?.id || '',
         created_at: new Date().toISOString()
       };
-      
-      const updatedPresets = [newPreset, ...currentPresets];
-      localStorage.setItem('utm_presets', JSON.stringify(updatedPresets));
+
+      const updatedPresets = [newPreset, ...presets];
       setPresets(updatedPresets);
+      saveToStorage(`utm_presets_${user?.id}`, updatedPresets);
 
       toast({
         title: "✅ Preset salvo",
@@ -343,9 +329,9 @@ export function UTMBuilderView() {
     return null;
   };
 
-  const handleGenerateAndSave = async () => {
+  const handleGenerateAndSave = () => {
     if (generatedUrl) {
-      await saveToHistory();
+      saveToHistory();
     }
   };
 
