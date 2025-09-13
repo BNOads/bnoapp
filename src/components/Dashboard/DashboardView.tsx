@@ -2,72 +2,38 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, BookOpen, BarChart3, TrendingUp, Clock, GraduationCap, CheckCircle, DollarSign, ChevronLeft, ChevronRight, Play, UserPlus, Plus, FileText, Award, Palette } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { NovoColaboradorModal } from "@/components/Colaboradores/NovoColaboradorModal";
-import { NovoClienteModal } from "@/components/Clientes/NovoClienteModal";
-import { NovoTreinamentoModal } from "@/components/Treinamentos/NovoTreinamentoModal";
 import { PDICard } from "@/components/PDI/PDICard";
-import { useRecentActivities } from "@/hooks/useRecentActivities";
-import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { useRecentTabs } from "@/hooks/useRecentTabs";
+import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 export function DashboardView() {
   const navigate = useNavigate();
-  const {
-    canCreateContent,
-    isAdmin
-  } = useUserPermissions();
-  const {
-    activities,
-    currentPage,
-    totalPages,
-    nextPage,
-    prevPage,
-    hasNextPage,
-    hasPrevPage
-  } = useRecentActivities();
-  const {
-    stats,
-    loading: statsLoading
-  } = useDashboardStats();
-  const [colaboradorModalOpen, setColaboradorModalOpen] = useState(false);
-  const [clienteModalOpen, setClienteModalOpen] = useState(false);
-  const [treinamentoModalOpen, setTreinamentoModalOpen] = useState(false);
+  const { canCreateContent, isAdmin } = useUserPermissions();
+  const { recentTabs } = useRecentTabs();
+  const { favorites, availableTabs, toggleFavorite, isFavorite } = useFavoriteTabs();
   const [showOrcamentos, setShowOrcamentos] = useState(false);
   const [pdis, setPdis] = useState<any[]>([]);
   const [pdisFinalizados, setPdisFinalizados] = useState<any[]>([]);
   const [loadingPdis, setLoadingPdis] = useState(true);
-  const {
-    toast
-  } = useToast();
-  const statsData = [{
-    title: "Colaboradores Ativos",
-    value: statsLoading ? "..." : stats.colaboradoresAtivos.toString(),
-    change: "+12%",
-    icon: Users,
-    color: "text-primary"
-  }, {
-    title: "Clientes Ativos",
-    value: statsLoading ? "..." : stats.clientesAtivos.toString(),
-    change: "+23%",
-    icon: Calendar,
-    color: "text-primary-glow"
-  }, {
-    title: "PDIs Finalizados",
-    value: statsLoading ? "..." : stats.pdisFinalizados.toString(),
-    change: "+8%",
-    icon: BookOpen,
-    color: "text-secondary"
-  }, {
-    title: "Taxa de Progresso",
-    value: statsLoading ? "..." : `${stats.taxaProgresso}%`,
-    change: "+5%",
-    icon: TrendingUp,
-    color: "text-primary"
-  }];
+  const { toast } = useToast();
+  const getTabIcon = (iconName: string) => {
+    const icons = {
+      Users,
+      Calendar,
+      BookOpen,
+      BarChart3,
+      MessageSquare,
+      Wrench,
+      LayoutDashboard,
+      Clock
+    };
+    return icons[iconName as keyof typeof icons] || Clock;
+  };
   const carregarPdis = async () => {
     try {
       setLoadingPdis(true);
@@ -140,30 +106,10 @@ export function DashboardView() {
     navigate(`/pdi/${pdiId}`);
   };
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'lesson_completed':
-        return { icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100' };
-      case 'course_started':
-        return { icon: Play, color: 'text-blue-600', bgColor: 'bg-blue-100' };
-      case 'new_collaborator':
-        return { icon: UserPlus, color: 'text-purple-600', bgColor: 'bg-purple-100' };
-      case 'new_course':
-        return { icon: BookOpen, color: 'text-indigo-600', bgColor: 'bg-indigo-100' };
-      case 'new_class':
-        return { icon: Plus, color: 'text-cyan-600', bgColor: 'bg-cyan-100' };
-      case 'new_client':
-        return { icon: Users, color: 'text-orange-600', bgColor: 'bg-orange-100' };
-      case 'new_pop':
-        return { icon: FileText, color: 'text-amber-600', bgColor: 'bg-amber-100' };
-      case 'pdi_completed':
-        return { icon: Award, color: 'text-emerald-600', bgColor: 'bg-emerald-100' };
-      case 'new_reference':
-        return { icon: Palette, color: 'text-pink-600', bgColor: 'bg-pink-100' };
-      default:
-        return { icon: Clock, color: 'text-gray-600', bgColor: 'bg-gray-100' };
-    }
+  const handleTabClick = (path: string) => {
+    navigate(path);
   };
+
   // Se estiver mostrando orçamentos, renderizar a view de orçamentos
   if (showOrcamentos) {
     return (
@@ -178,25 +124,24 @@ export function DashboardView() {
     );
   }
 
-    return <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-      {/* Header Section - Mobile Optimized */}
-      <div className="bg-gradient-primary rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-primary-foreground shadow-glow">
+    return <div className="space-y-6">
+      {/* Header Section */}
+      <div className="bg-gradient-primary rounded-xl p-6 text-primary-foreground shadow-glow">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 leading-tight">Bem-vindo à BNOads mito!</h2>
-            <p className="text-primary-foreground/80 text-sm sm:text-base lg:text-lg leading-relaxed">
-              Aqui é a sua central de treinamentos e informações sobre a empresa
+            <h2 className="text-2xl lg:text-3xl font-bold mb-2 leading-tight">Bem-vindo à BNOads!</h2>
+            <p className="text-primary-foreground/80 text-base lg:text-lg leading-relaxed">
+              Sua central de navegação e atalhos rápidos
             </p>
           </div>
         </div>
         
-        {/* Quick Action Buttons - Mobile Stack */}
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-4 sm:mt-6">
+        <div className="flex flex-col sm:flex-row gap-3 mt-6">
           <Button 
             variant="secondary" 
             size="sm" 
             onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')} 
-            className="flex-1 border border-white/20 bg-slate-50 text-sky-900 text-xs sm:text-sm"
+            className="flex-1 border border-white/20 bg-slate-50 text-sky-900 text-sm"
           >
             Preencher conversa franca
           </Button>
@@ -204,22 +149,119 @@ export function DashboardView() {
             variant="secondary" 
             size="sm" 
             onClick={() => window.open('https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0cWtPyvaNzPZUaGIaDsYjDGshuYHKA_BhbvCN1YOWxny-lU4EfOpteOvNPjfzj8aBxfbP9baoo', '_blank')} 
-            className="flex-1 border border-white/20 bg-slate-50 text-blue-950 text-xs sm:text-sm"
+            className="flex-1 border border-white/20 bg-slate-50 text-blue-950 text-sm"
           >
             Marcar 1x1
           </Button>
         </div>
       </div>
 
-      {/* PDI Section - Mobile Responsive */}
-      <section className="space-y-4 sm:space-y-6">
+      {/* Navigation Hub */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Tabs */}
+        <Card className="p-6">
+          <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            Abas Recentes
+          </h3>
+          {recentTabs.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhuma aba visitada recentemente</p>
+          ) : (
+            <div className="space-y-2">
+              {recentTabs.map((tab) => {
+                const IconComponent = getTabIcon(tab.icon);
+                return (
+                  <Button
+                    key={tab.id}
+                    variant="ghost"
+                    className="w-full justify-start h-auto p-3 hover:bg-muted"
+                    onClick={() => handleTabClick(tab.path)}
+                  >
+                    <IconComponent className="h-4 w-4 text-primary mr-3" />
+                    <div className="flex-1 text-left">
+                      <p className="font-medium">{tab.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(tab.timestamp).toLocaleString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </Button>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        {/* Favorites */}
+        <Card className="p-6">
+          <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Star className="h-5 w-5 text-primary" />
+            Favoritos do Sistema
+          </h3>
+          
+          {/* Favorite Toggle Controls */}
+          <div className="space-y-2 mb-4">
+            {availableTabs.map((tab) => {
+              const IconComponent = getTabIcon(tab.icon);
+              const isTabFavorite = isFavorite(tab.id);
+              
+              return (
+                <div key={tab.id} className="flex items-center justify-between p-2 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <IconComponent className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">{tab.name}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleFavorite(tab.id)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Star className={`h-4 w-4 ${isTabFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Favorite Shortcuts */}
+          {favorites.length > 0 && (
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium mb-3 text-muted-foreground">Atalhos Rápidos</h4>
+              <div className="grid grid-cols-2 gap-2">
+                {favorites.map((tab) => {
+                  const IconComponent = getTabIcon(tab.icon);
+                  return (
+                    <Button
+                      key={tab.id}
+                      variant="outline"
+                      className="h-auto p-3 flex-col gap-2"
+                      onClick={() => handleTabClick(tab.path)}
+                    >
+                      <IconComponent className="h-5 w-5 text-primary" />
+                      <span className="text-xs font-medium">{tab.name}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* PDI Section */}
+      <section className="space-y-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
+            <h3 className="text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
+              <GraduationCap className="h-6 w-6 flex-shrink-0" />
               <span className="truncate">Meus PDIs</span>
             </h3>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1">
               Acompanhe seus Planos de Desenvolvimento Individual
             </p>
           </div>
@@ -227,27 +269,28 @@ export function DashboardView() {
 
         {loadingPdis ? 
           <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div> 
         : pdis.length === 0 ? 
-          <Card className="p-4 sm:p-6 lg:p-8 text-center">
-            <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground mx-auto mb-4" />
-            <h4 className="text-base sm:text-lg font-semibold text-foreground mb-2">
+          <Card className="p-8 text-center">
+            <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h4 className="text-lg font-semibold text-foreground mb-2">
               Nenhum PDI encontrado
             </h4>
-            <p className="text-sm sm:text-base text-muted-foreground">
+            <p className="text-muted-foreground">
               Você não possui PDIs ativos no momento.
             </p>
           </Card> 
         : 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {pdis.map(pdi => <PDICard key={pdi.id} pdi={pdi} onViewDetails={handleViewPdiDetails} />)}
           </div>
         }
       </section>
 
       {/* Histórico de PDIs Finalizados */}
-      {pdisFinalizados.length > 0 && <div className="space-y-6">
+      {pdisFinalizados.length > 0 && (
+        <section className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -261,7 +304,8 @@ export function DashboardView() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pdisFinalizados.map(pdi => <Card key={pdi.id} className="bg-green-50 border-green-200">
+            {pdisFinalizados.map(pdi => (
+              <Card key={pdi.id} className="bg-green-50 border-green-200">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg text-green-800">{pdi.titulo}</CardTitle>
@@ -276,144 +320,14 @@ export function DashboardView() {
                     {pdi.aulas.length} aula{pdi.aulas.length !== 1 ? 's' : ''} concluída{pdi.aulas.length !== 1 ? 's' : ''}
                   </div>
                 </CardContent>
-              </Card>)}
+              </Card>
+            ))}
           </div>
-        </div>}
+        </section>
+      )}
 
-
-      {/* Indicator para usuários não-admin */}
+      {/* View Only Badge */}
       {!canCreateContent && <ViewOnlyBadge />}
-
-      {/* Stats Grid - Mobile First */}
-      <section className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-        {statsData.map((stat, index) => {
-        const Icon = stat.icon;
-        return <Card key={index} className="p-3 sm:p-4 lg:p-6 bg-card border border-border hover:shadow-card transition-all duration-300 hover:border-primary/30">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-muted-foreground font-medium truncate">
-                    {stat.title}
-                  </p>
-                  <p className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-foreground mt-1 sm:mt-2 truncate">
-                    {stat.value}
-                  </p>
-                  <p className={`text-xs sm:text-sm font-medium mt-1 ${stat.color} truncate`}>
-                    {stat.change} este mês
-                  </p>
-                </div>
-                <div className={`p-2 sm:p-3 rounded-lg lg:rounded-xl bg-gradient-subtle flex-shrink-0`}>
-                  <Icon className={`h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 ${stat.color}`} />
-                </div>
-              </div>
-            </Card>;
-      })}
-      </section>
-
-      {/* Quick Actions & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Quick Actions - Visível apenas para admins */}
-        {canCreateContent && <Card className="p-6 bg-card border border-border shadow-card">
-            <h3 className="text-xl font-semibold mb-6 text-foreground">
-              Ações Rápidas
-            </h3>
-            <div className="space-y-4">
-              <Button variant="card" className="w-full justify-start h-auto p-4" onClick={() => setColaboradorModalOpen(true)}>
-                <Users className="h-5 w-5 text-primary mr-3" />
-                <div className="text-left">
-                  <p className="font-medium">Cadastrar Colaborador</p>
-                  <p className="text-sm text-muted-foreground">Adicionar novo membro à equipe</p>
-                </div>
-              </Button>
-              <Button variant="card" className="w-full justify-start h-auto p-4" onClick={() => setClienteModalOpen(true)}>
-                <Calendar className="h-5 w-5 text-primary mr-3" />
-                <div className="text-left">
-                  <p className="font-medium">Criar Painel Cliente</p>
-                  <p className="text-sm text-muted-foreground">Gerar novo painel personalizado</p>
-                </div>
-              </Button>
-              <Button variant="card" className="w-full justify-start h-auto p-4" onClick={() => setTreinamentoModalOpen(true)}>
-                <BookOpen className="h-5 w-5 text-primary mr-3" />
-                <div className="text-left">
-                  <p className="font-medium">Adicionar Treinamento</p>
-                  <p className="text-sm text-muted-foreground">Criar novo curso ou material</p>
-                </div>
-              </Button>
-              {isAdmin && (
-                <Button variant="card" className="w-full justify-start h-auto p-4" onClick={() => setShowOrcamentos(true)}>
-                  <DollarSign className="h-5 w-5 text-primary mr-3" />
-                  <div className="text-left">
-                    <p className="font-medium">Gerenciar Orçamentos por Funil</p>
-                    <p className="text-sm text-muted-foreground">Controlar investimentos por cliente</p>
-                  </div>
-                </Button>
-              )}
-            </div>
-          </Card>}
-
-        {/* Recent Activity */}
-        <Card className={`p-6 bg-card border border-border shadow-card ${!canCreateContent ? 'lg:col-span-2' : ''}`}>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-foreground">
-              Atividade Recente
-            </h3>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {currentPage} de {totalPages}
-                </span>
-                <div className="flex gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={prevPage}
-                    disabled={!hasPrevPage}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={nextPage}
-                    disabled={!hasNextPage}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="space-y-4">
-            {activities.map((activity, index) => {
-              const { icon: ActivityIcon, color, bgColor } = getActivityIcon(activity.type);
-              return (
-                <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
-                  <div className={`${bgColor} p-2 rounded-lg`}>
-                    <ActivityIcon className={`h-4 w-4 ${color}`} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {activity.user}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {activity.action}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {activity.time}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      </div>
-
-      {/* Modals */}
-      <NovoColaboradorModal open={colaboradorModalOpen} onOpenChange={setColaboradorModalOpen} />
-      <NovoClienteModal open={clienteModalOpen} onOpenChange={setClienteModalOpen} />
-      <NovoTreinamentoModal open={treinamentoModalOpen} onOpenChange={setTreinamentoModalOpen} />
     </div>;
 }
 ;
