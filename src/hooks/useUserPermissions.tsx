@@ -52,11 +52,13 @@ export const useUserPermissions = (): UserPermissions => {
       // Definir permissões baseadas no nível de acesso
       const isAdmin = ['admin', 'dono'].includes(profile?.nivel_acesso);
       const isMaster = isAdmin; // Simplificado: se é admin ou dono, é master
-      const canCreateContent = ['admin', 'dono', 'gestor_trafego', 'cs'].includes(profile?.nivel_acesso);
       
-      // CS, gestor_trafego, admin e dono podem gerenciar orçamentos e referências
-      const canManageBudgets = ['admin', 'dono', 'gestor_trafego', 'cs'].includes(profile?.nivel_acesso);
-      const canManageReferences = ['admin', 'dono', 'gestor_trafego', 'cs'].includes(profile?.nivel_acesso);
+      // Níveis que podem criar conteúdo: admin, dono, gestor_trafego, gestor_projetos, cs, webdesigner, editor_video
+      const canCreateContent = ['admin', 'dono', 'gestor_trafego', 'gestor_projetos', 'cs', 'webdesigner', 'editor_video'].includes(profile?.nivel_acesso);
+      
+      // Níveis que podem gerenciar orçamentos e referências: admin, dono, gestor_trafego, gestor_projetos
+      const canManageBudgets = ['admin', 'dono', 'gestor_trafego', 'gestor_projetos'].includes(profile?.nivel_acesso);
+      const canManageReferences = ['admin', 'dono', 'gestor_trafego', 'gestor_projetos'].includes(profile?.nivel_acesso);
 
       console.log('Permissões verificadas:', {
         email: user.email,

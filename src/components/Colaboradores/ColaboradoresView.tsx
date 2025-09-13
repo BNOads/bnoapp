@@ -229,7 +229,7 @@ export const ColaboradoresView = () => {
               )}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredItems.map((colaborador) => {
                 const diasAniversario = calcularDiasParaAniversario(colaborador.data_nascimento);
                 const isAniversarioProximo = diasAniversario !== null && diasAniversario >= 0 && diasAniversario <= 7;
@@ -237,108 +237,93 @@ export const ColaboradoresView = () => {
                 return (
                   <div
                     key={colaborador.id}
-                    className={`p-6 rounded-xl border hover:shadow-lg transition-all duration-300 ${
-                      isAniversarioProximo ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' : 'bg-card border-border'
+                    className={`p-4 rounded-xl border hover:shadow-lg transition-all duration-300 ${
+                      isAniversarioProximo ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-200' : 'bg-card border-border'
                     }`}
                   >
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                      {/* Seção Principal - Avatar e Info Básica */}
-                      <div className="flex items-center space-x-4 min-w-0 flex-1">
-                        <Avatar className="h-16 w-16 flex-shrink-0 ring-2 ring-border">
-                          {colaborador.avatar_url && (
-                            <AvatarImage 
-                              src={colaborador.avatar_url} 
-                              alt={colaborador.nome} 
-                            />
-                          )}
-                          <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold text-lg">
-                            {colaborador.nome.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-foreground text-xl mb-1">
-                            {colaborador.nome}
-                          </h4>
-                          <p className="text-sm font-medium text-primary mb-3">
-                            {colaborador.nivel_acesso === 'dono' ? 'Dono' :
-                             colaborador.nivel_acesso === 'admin' ? 'Administrador' : 
-                             colaborador.nivel_acesso === 'gestor_trafego' ? 'Gestor de Tráfego' : 
-                             colaborador.nivel_acesso === 'gestor_projetos' ? 'Gestor de Projetos' :
-                             colaborador.nivel_acesso === 'webdesigner' ? 'Webdesigner' :
-                             colaborador.nivel_acesso === 'editor_video' ? 'Editor de Vídeo' :
-                             colaborador.nivel_acesso === 'cs' ? 'Customer Success' :
-                             colaborador.nivel_acesso === 'midia_buyer' ? 'Mídia Buyer' :
-                             colaborador.nivel_acesso === 'copywriter' ? 'Copywriter' :
-                             colaborador.nivel_acesso === 'designer' ? 'Designer' : colaborador.nivel_acesso}
-                          </p>
-                          
-                          {/* Informações de Contato e Datas */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                            <div className="flex items-center space-x-2 bg-muted/30 rounded-lg p-2">
-                              <Mail className="h-4 w-4 text-primary flex-shrink-0" />
-                              <div className="min-w-0">
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</p>
-                                <p className="text-sm text-foreground truncate">{colaborador.email}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center space-x-2 bg-muted/30 rounded-lg p-2">
-                              <Calendar className="h-4 w-4 text-green-600 flex-shrink-0" />
-                              <div>
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Entrada</p>
-                                <p className="text-sm text-foreground">{formatarData(colaborador.data_admissao)}</p>
-                              </div>
-                            </div>
-                            
-                            <div className={`flex items-center space-x-2 rounded-lg p-2 ${
-                              isAniversarioProximo ? 'bg-yellow-100 border border-yellow-200' : 'bg-muted/30'
-                            }`}>
-                              <Cake className={`h-4 w-4 flex-shrink-0 ${
-                                isAniversarioProximo ? 'text-yellow-600' : 'text-pink-500'
-                              }`} />
-                              <div>
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Aniversário</p>
-                                <p className={`text-sm font-medium ${
-                                  isAniversarioProximo ? 'text-yellow-700' : 'text-foreground'
-                                }`}>
-                                  {formatarAniversario(colaborador.data_nascimento)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Menu de Ações */}
-                      <div className="flex items-center justify-end lg:justify-center">
-                        {isAdmin && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="icon" className="h-10 w-10">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                               <DropdownMenuItem onClick={() => handleEditarColaborador(colaborador)}>
-                                 <Edit className="h-4 w-4 mr-2" />
-                                 Editar Colaborador
-                               </DropdownMenuItem>
-                               <DropdownMenuItem onClick={() => handleAlterarSenha(colaborador)}>
-                                 <Key className="h-4 w-4 mr-2" />
-                                 Alterar Senha
-                               </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleDeletarColaborador(colaborador)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Deletar Colaborador
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                    {/* Header do Card com Avatar e Menu */}
+                    <div className="flex items-start justify-between mb-3">
+                      <Avatar className="h-12 w-12 ring-2 ring-border">
+                        {colaborador.avatar_url && (
+                          <AvatarImage 
+                            src={colaborador.avatar_url} 
+                            alt={colaborador.nome} 
+                          />
                         )}
+                        <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold">
+                          {colaborador.nome.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      {isAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 bg-background border shadow-lg">
+                            <DropdownMenuItem onClick={() => handleEditarColaborador(colaborador)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleAlterarSenha(colaborador)}>
+                              <Key className="h-4 w-4 mr-2" />
+                              Alterar Senha
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeletarColaborador(colaborador)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Deletar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+
+                    {/* Nome e Função */}
+                    <div className="mb-3">
+                      <h4 className="font-bold text-foreground text-lg leading-tight mb-1">
+                        {colaborador.nome}
+                      </h4>
+                      <p className="text-sm font-medium text-primary">
+                        {colaborador.nivel_acesso === 'dono' ? 'Dono' :
+                         colaborador.nivel_acesso === 'admin' ? 'Administrador' : 
+                         colaborador.nivel_acesso === 'gestor_trafego' ? 'Gestor de Tráfego' : 
+                         colaborador.nivel_acesso === 'gestor_projetos' ? 'Gestor de Projetos' :
+                         colaborador.nivel_acesso === 'webdesigner' ? 'Webdesigner' :
+                         colaborador.nivel_acesso === 'editor_video' ? 'Editor de Vídeo' :
+                         colaborador.nivel_acesso === 'cs' ? 'Customer Success' :
+                         colaborador.nivel_acesso === 'midia_buyer' ? 'Mídia Buyer' :
+                         colaborador.nivel_acesso === 'copywriter' ? 'Copywriter' :
+                         colaborador.nivel_acesso === 'designer' ? 'Designer' : colaborador.nivel_acesso}
+                      </p>
+                    </div>
+
+                    {/* Email */}
+                    <div className="flex items-center space-x-2 mb-3 p-2 bg-muted/30 rounded-lg">
+                      <Mail className="h-4 w-4 text-primary flex-shrink-0" />
+                      <p className="text-sm text-foreground truncate">{colaborador.email}</p>
+                    </div>
+
+                    {/* Status Ativo */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-muted-foreground">Ativo</span>
                       </div>
+                      
+                      {/* Indicador de Aniversário */}
+                      {isAniversarioProximo && (
+                        <div className="flex items-center space-x-1">
+                          <Cake className="h-4 w-4 text-yellow-600" />
+                          <span className="text-xs font-medium text-yellow-700">
+                            {diasAniversario === 0 ? 'Hoje!' : `${diasAniversario}d`}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
