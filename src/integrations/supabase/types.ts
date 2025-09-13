@@ -2012,7 +2012,6 @@ export type Database = {
         Row: {
           ano: number
           cliente_id: string | null
-          conteudo_texto: string | null
           contribuidores: string[] | null
           created_at: string
           created_by: string
@@ -2029,7 +2028,6 @@ export type Database = {
         Insert: {
           ano: number
           cliente_id?: string | null
-          conteudo_texto?: string | null
           contribuidores?: string[] | null
           created_at?: string
           created_by: string
@@ -2046,7 +2044,6 @@ export type Database = {
         Update: {
           ano?: number
           cliente_id?: string | null
-          conteudo_texto?: string | null
           contribuidores?: string[] | null
           created_at?: string
           created_by?: string
@@ -2338,60 +2335,6 @@ export type Database = {
         }
         Relationships: []
       }
-      utm_history: {
-        Row: {
-          created_at: string
-          created_by: string
-          id: string
-          params: Json
-          url: string
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          id?: string
-          params?: Json
-          url: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          id?: string
-          params?: Json
-          url?: string
-        }
-        Relationships: []
-      }
-      utm_presets: {
-        Row: {
-          created_at: string
-          created_by: string
-          id: string
-          is_global: boolean
-          name: string
-          params: Json
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          id?: string
-          is_global?: boolean
-          name: string
-          params?: Json
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          id?: string
-          is_global?: boolean
-          name?: string
-          params?: Json
-          updated_at?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
@@ -2429,10 +2372,6 @@ export type Database = {
       check_admin_access: {
         Args: { _user_id: string }
         Returns: boolean
-      }
-      extrair_titulos_reuniao: {
-        Args: { conteudo: string }
-        Returns: string[]
       }
       generate_initial_password: {
         Args: { email_input: string }

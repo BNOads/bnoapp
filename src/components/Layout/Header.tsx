@@ -5,7 +5,6 @@ import { useAuth } from "@/components/Auth/AuthContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
-import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 interface HeaderProps {}
 
@@ -13,21 +12,8 @@ export const Header = ({}: HeaderProps) => {
   const { user, signOut } = useAuth();
   const { userData } = useCurrentUser();
   const { toggleCurrentPageFavorite, isCurrentPageFavorite } = useFavoriteTabs();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const handleToggleFavorite = () => {
-    const result = toggleCurrentPageFavorite();
-    
-    if (!result.success && result.message) {
-      toast({
-        title: "Limite atingido",
-        description: result.message,
-        variant: "destructive"
-      });
-    }
-  };
   const tabs = [
     {
       id: 'dashboard',
@@ -140,7 +126,7 @@ export const Header = ({}: HeaderProps) => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleToggleFavorite}
+              onClick={toggleCurrentPageFavorite}
               className="p-2"
               title={isCurrentPageFavorite() ? "Remover dos favoritos" : "Adicionar aos favoritos"}
             >

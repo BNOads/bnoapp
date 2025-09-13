@@ -9,8 +9,6 @@ export interface FavoriteTab {
   path: string;
 }
 
-const MAX_FAVORITES = 5;
-
 export function useFavoriteTabs() {
   const [favorites, setFavorites] = useState<FavoriteTab[]>([]);
   const location = useLocation();
@@ -34,25 +32,6 @@ export function useFavoriteTabs() {
       '/perfil': { id: 'perfil', name: 'Perfil', icon: 'User', path: '/perfil' },
       '/reset-password': { id: 'reset-password', name: 'Redefinir Senha', icon: 'Lock', path: '/reset-password' },
     };
-
-    // Handle Ferramentas sub-pages
-    if (pathname.startsWith('/ferramentas/')) {
-      const subPage = pathname.split('/')[2];
-      const ferramantasMap: Record<string, FavoriteTab> = {
-        'referencias': { id: 'ferramentas-referencias', name: 'Referências', icon: 'FileText', path: pathname },
-        'debriefings': { id: 'ferramentas-debriefings', name: 'Debriefings', icon: 'ClipboardList', path: pathname },
-        'mapas-mentais': { id: 'ferramentas-mapas', name: 'Mapas Mentais', icon: 'Network', path: pathname },
-        'funis': { id: 'ferramentas-funis', name: 'Funis', icon: 'TrendingDown', path: pathname },
-        'orcamentos': { id: 'ferramentas-orcamentos', name: 'Orçamentos', icon: 'DollarSign', path: pathname },
-        'bloco-notas': { id: 'ferramentas-notas', name: 'Bloco de Notas', icon: 'NotebookPen', path: pathname },
-        'pauta-reuniao': { id: 'ferramentas-pauta', name: 'Pauta de Reunião', icon: 'BookOpen', path: pathname },
-        'criador-funis': { id: 'ferramentas-criador-funis', name: 'Criador de Funis', icon: 'Workflow', path: pathname },
-      };
-      
-      if (ferramantasMap[subPage]) {
-        return ferramantasMap[subPage];
-      }
-    }
 
     // Handle dynamic routes
     if (pathname.startsWith('/pdi/')) {
@@ -117,37 +96,23 @@ export function useFavoriteTabs() {
     return pageMap[currentPath] || null;
   };
 
-  const toggleCurrentPageFavorite = (): { success: boolean; message?: string } => {
+  const toggleCurrentPageFavorite = () => {
     const currentPage = getCurrentPageInfo();
-    if (!currentPage) return { success: false };
+    if (!currentPage) return;
 
-    const isCurrentlyFavorite = favorites.some(f => f.id === currentPage.id);
-    
-    if (isCurrentlyFavorite) {
-      // Remove from favorites
-      setFavorites(prev => {
-        const updated = prev.filter(f => f.id !== currentPage.id);
-        localStorage.setItem('favoriteTabs', JSON.stringify(updated));
-        return updated;
-      });
-      return { success: true };
-    } else {
-      // Check limit before adding
-      if (favorites.length >= MAX_FAVORITES) {
-        return { 
-          success: false, 
-          message: "⚠️ Você já atingiu o limite de 5 favoritos. Remova um para adicionar outro." 
-        };
+    setFavorites(prev => {
+      const isCurrentlyFavorite = prev.some(f => f.id === currentPage.id);
+      let updated: FavoriteTab[];
+      
+      if (isCurrentlyFavorite) {
+        updated = prev.filter(f => f.id !== currentPage.id);
+      } else {
+        updated = [...prev, currentPage];
       }
       
-      // Add to favorites
-      setFavorites(prev => {
-        const updated = [...prev, currentPage];
-        localStorage.setItem('favoriteTabs', JSON.stringify(updated));
-        return updated;
-      });
-      return { success: true };
-    }
+      localStorage.setItem('favoriteTabs', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const isCurrentPageFavorite = () => {
