@@ -505,132 +505,93 @@ export function PautaReuniaoView() {
     });
   };
 
-  const renderToolbar = () => (
-    <div className="border-b border-border p-2 flex flex-wrap gap-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={formatBold}
-        title="Negrito"
-      >
-        <Bold className="h-4 w-4" />
-      </Button>
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={formatItalic}
-        title="Itálico"
-      >
-        <Italic className="h-4 w-4" />
-      </Button>
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={formatUnderline}
-        title="Sublinhado"
-      >
-        <Underline className="h-4 w-4" />
-      </Button>
-      
-      <div className="w-px h-6 bg-border mx-1" />
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={addBulletList}
-        title="Lista"
-      >
-        <List className="h-4 w-4" />
-      </Button>
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={addChecklist}
-        title="Checklist"
-      >
-        <CheckSquare className="h-4 w-4" />
-      </Button>
-      
-      <div className="w-px h-6 bg-border mx-1" />
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={addLink}
-        disabled={!selectedText}
-        title="Adicionar link"
-      >
-        <Link className="h-4 w-4" />
-      </Button>
-      
-      <div className="w-px h-6 bg-border mx-1" />
-      
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!selectedText}
-            title="Mais opções"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem onClick={convertToTitle}>
-            <Type className="h-4 w-4 mr-2" />
-            Transformar em Título (H2)
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      
-      {/* Mobile simplified toolbar */}
-      <div className="lg:hidden ml-auto">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={formatBold}>
-              <Bold className="h-4 w-4 mr-2" />
-              Negrito
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={formatItalic}>
-              <Italic className="h-4 w-4 mr-2" />
-              Itálico
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={addBulletList}>
-              <List className="h-4 w-4 mr-2" />
-              Lista
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={addChecklist}>
-              <CheckSquare className="h-4 w-4 mr-2" />
-              Checklist
-            </DropdownMenuItem>
-            {selectedText && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={addLink}>
-                  <Link className="h-4 w-4 mr-2" />
-                  Adicionar Link
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={convertToTitle}>
-                  <Type className="h-4 w-4 mr-2" />
-                  Transformar em Título
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+  // Floating toolbar style similar to Notion
+  const renderFloatingToolbar = () => {
+    if (!showToolbar || !selectedText) return null;
+
+    return (
+      <div className="fixed z-50 flex items-center gap-1 bg-background border border-border rounded-lg shadow-lg p-1"
+           style={{
+             left: '50%',
+             top: '40%',
+             transform: 'translate(-50%, -50%)'
+           }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={formatBold}
+          title="Negrito (Ctrl+B)"
+          className="h-8 w-8 p-0"
+        >
+          <Bold className="h-4 w-4" />
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={formatItalic}
+          title="Itálico (Ctrl+I)"
+          className="h-8 w-8 p-0"
+        >
+          <Italic className="h-4 w-4" />
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={formatUnderline}
+          title="Sublinhado (Ctrl+U)"
+          className="h-8 w-8 p-0"
+        >
+          <Underline className="h-4 w-4" />
+        </Button>
+        
+        <div className="w-px h-6 bg-border" />
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={addBulletList}
+          title="Lista com marcadores"
+          className="h-8 w-8 p-0"
+        >
+          <List className="h-4 w-4" />
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={addChecklist}
+          title="Lista de tarefas"
+          className="h-8 w-8 p-0"
+        >
+          <CheckSquare className="h-4 w-4" />
+        </Button>
+        
+        <div className="w-px h-6 bg-border" />
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={addLink}
+          title="Adicionar link"
+          className="h-8 w-8 p-0"
+        >
+          <Link className="h-4 w-4" />
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={convertToTitle}
+          title="Transformar em título (H2)"
+          className="h-8 px-2 text-xs font-medium"
+        >
+          H2
+        </Button>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderSidebar = () => (
     <Card className="w-80 h-fit">
@@ -814,8 +775,7 @@ export function PautaReuniaoView() {
         {/* Content */}
         <div className="flex-1">
           {currentDocument ? (
-            <Card className="h-full">
-              {renderToolbar()}
+            <Card className="h-full relative">
               <CardContent className="p-0 h-full">
                 <Textarea
                   ref={textareaRef}
@@ -823,6 +783,7 @@ export function PautaReuniaoView() {
                   onChange={(e) => updateDocumentContent(e.target.value)}
                   onSelect={handleTextSelection}
                   onDoubleClick={handleDoubleClick}
+                  onBlur={() => setShowToolbar(false)}
                   placeholder={`# Pauta ${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}
 
 ## Cliente X | Alinhamento Semanal
@@ -856,8 +817,9 @@ export function PautaReuniaoView() {
 
 ### Follow-ups
 - [ ] Agendar próxima reunião`}
-                  className="min-h-[600px] font-mono text-sm resize-none border-none focus:ring-0 rounded-none rounded-b-lg"
+                  className="min-h-[600px] font-mono text-sm resize-none border-none focus:ring-0 rounded-lg"
                 />
+                {renderFloatingToolbar()}
               </CardContent>
             </Card>
           ) : (
