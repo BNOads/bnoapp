@@ -258,52 +258,140 @@ export const MapaMentalView = () => {
 
   if (currentMapa) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold">{currentMapa.titulo}</h2>
-            <p className="text-muted-foreground">Editor de Mapa Mental</p>
+      <div className="h-screen flex bg-background">
+        {/* Sidebar */}
+        <div className="w-80 bg-card border-r border-border flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold truncate">{currentMapa.titulo}</h2>
+              <Button 
+                onClick={() => setCurrentMapa(null)} 
+                variant="ghost" 
+                size="sm"
+              >
+                ✕
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">Editor de Mapa Mental</p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={addNode} variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
+
+          {/* Tools */}
+          <div className="p-4 space-y-3">
+            <Button 
+              onClick={addNode} 
+              className="w-full justify-start"
+              variant="outline"
+            >
+              <Plus className="h-4 w-4 mr-3" />
               Adicionar Nó
             </Button>
-            <Button onClick={saveMapa}>
-              <Save className="h-4 w-4 mr-2" />
-              Salvar
+            
+            <Button 
+              onClick={saveMapa}
+              className="w-full justify-start"
+            >
+              <Save className="h-4 w-4 mr-3" />
+              Salvar Mapa
             </Button>
-            <Button onClick={() => setCurrentMapa(null)} variant="outline">
-              Voltar
-            </Button>
+          </div>
+
+          {/* Node Colors */}
+          <div className="p-4 border-t border-border">
+            <h3 className="text-sm font-medium mb-3 text-muted-foreground">CORES DOS NÓS</h3>
+            <div className="grid grid-cols-4 gap-2">
+              {['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'].map(color => (
+                <div
+                  key={color}
+                  className="w-8 h-8 rounded-lg cursor-pointer border-2 border-transparent hover:border-ring transition-colors"
+                  style={{ backgroundColor: color }}
+                  onClick={() => {
+                    if (!currentMapa) return;
+                    const centralNode = currentMapa.dados_mapa.nodes.find(n => n.id === 'central');
+                    if (centralNode) {
+                      setCurrentMapa({
+                        ...currentMapa,
+                        dados_mapa: {
+                          ...currentMapa.dados_mapa,
+                          nodes: currentMapa.dados_mapa.nodes.map(node =>
+                            node.id === 'central' ? { ...node, color } : node
+                          )
+                        }
+                      });
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Instructions */}
+          <div className="mt-auto p-4 border-t border-border">
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>💡 <strong>Dicas de uso:</strong></p>
+              <p>• Clique no texto para editar</p>
+              <p>• Arraste os nós para reposicionar</p>
+              <p>• Use as cores para organizar ideias</p>
+            </div>
           </div>
         </div>
 
-        <Card>
-          <CardContent className="p-4">
+        {/* Main Canvas */}
+        <div className="flex-1 flex flex-col">
+          {/* Canvas Header */}
+          <div className="h-14 bg-card border-b border-border flex items-center justify-between px-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-primary" />
+                <span className="text-sm font-medium text-muted-foreground">
+                  {currentMapa.dados_mapa.nodes.length} nós
+                </span>
+              </div>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Zoom: 100%
+            </div>
+          </div>
+
+          {/* Canvas Area */}
+          <div className="flex-1 relative overflow-hidden bg-gradient-to-br from-muted/20 to-muted/40">
             <div 
               ref={canvasRef}
-              className="relative w-full h-96 bg-gradient-to-br from-background to-muted rounded-lg border overflow-hidden cursor-crosshair"
+              className="absolute inset-0 w-full h-full cursor-crosshair"
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              style={{
+                backgroundImage: `
+                  radial-gradient(circle, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px)
+                `,
+                backgroundSize: '20px 20px'
+              }}
             >
-              {/* Render connections */}
+              {/* Render connections with curves */}
               <svg className="absolute inset-0 w-full h-full pointer-events-none">
                 {currentMapa.dados_mapa.connections.map(connection => {
                   const fromNode = currentMapa.dados_mapa.nodes.find(n => n.id === connection.fromNodeId);
                   const toNode = currentMapa.dados_mapa.nodes.find(n => n.id === connection.toNodeId);
                   if (!fromNode || !toNode) return null;
 
+                  const x1 = fromNode.x + 75;
+                  const y1 = fromNode.y + 30;
+                  const x2 = toNode.x + 75;
+                  const y2 = toNode.y + 30;
+                  
+                  const dx = x2 - x1;
+                  const dy = y2 - y1;
+                  const dr = Math.sqrt(dx * dx + dy * dy);
+                  
                   return (
-                    <line
+                    <path
                       key={connection.id}
-                      x1={fromNode.x + 50}
-                      y1={fromNode.y + 25}
-                      x2={toNode.x + 50}
-                      y2={toNode.y + 25}
-                      stroke="#6b7280"
+                      d={`M ${x1} ${y1} Q ${x1 + dx/2} ${y1 + dy/2 - 30} ${x2} ${y2}`}
+                      stroke="hsl(var(--muted-foreground) / 0.4)"
                       strokeWidth="2"
+                      fill="none"
+                      className="drop-shadow-sm"
                     />
                   );
                 })}
@@ -313,13 +401,14 @@ export const MapaMentalView = () => {
               {currentMapa.dados_mapa.nodes.map(node => (
                 <div
                   key={node.id}
-                  className="absolute bg-white border-2 rounded-lg p-2 cursor-move shadow-md hover:shadow-lg transition-shadow"
+                  className="absolute bg-background border-2 rounded-xl p-3 cursor-move shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                   style={{
                     left: node.x,
                     top: node.y,
                     borderColor: node.color,
-                    minWidth: '100px',
-                    maxWidth: '150px'
+                    minWidth: '150px',
+                    maxWidth: '200px',
+                    boxShadow: `0 8px 25px -8px ${node.color}30`
                   }}
                   onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
                 >
@@ -337,13 +426,13 @@ export const MapaMentalView = () => {
                           setEditingNode(null);
                         }
                       }}
-                      className="text-xs"
+                      className="text-sm font-medium border-none p-0 h-auto bg-transparent focus-visible:ring-0"
                       autoFocus
                     />
                   ) : (
                     <div className="flex justify-between items-center">
                       <span 
-                        className="text-xs font-medium text-center flex-1 cursor-text"
+                        className="text-sm font-medium text-center flex-1 cursor-text leading-relaxed"
                         onClick={() => {
                           setEditingNode(node.id);
                           setNodeText(node.text);
@@ -355,7 +444,7 @@ export const MapaMentalView = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-4 w-4 p-0 ml-1"
+                          className="h-6 w-6 p-0 ml-2 opacity-60 hover:opacity-100"
                           onClick={(e) => {
                             e.stopPropagation();
                             deleteNode(node.id);
@@ -366,14 +455,16 @@ export const MapaMentalView = () => {
                       )}
                     </div>
                   )}
+                  
+                  {/* Node indicator */}
+                  <div 
+                    className="absolute -top-1 -left-1 w-3 h-3 rounded-full"
+                    style={{ backgroundColor: node.color }}
+                  />
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-
-        <div className="text-sm text-muted-foreground">
-          <p>💡 Dicas: Clique no texto para editar • Arraste os nós para reposicionar • O nó central não pode ser removido</p>
+          </div>
         </div>
       </div>
     );
