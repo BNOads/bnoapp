@@ -119,9 +119,7 @@ export default function CursoDetalhes() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-6">
          <Button 
            variant="ghost" 
@@ -245,6 +243,5 @@ export default function CursoDetalhes() {
         }}
       />
       </div>
-    </div>
   );
 }

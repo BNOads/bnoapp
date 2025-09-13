@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { FloatingNoteButton } from "@/components/ui/FloatingNoteButton";
 import { Header } from "@/components/Layout/Header";
+import { useRecentTabs } from "@/hooks/useRecentTabs";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -8,6 +9,9 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
+  
+  // Track page visits automatically
+  useRecentTabs();
   
   // Don't show header and FAB on auth-related pages and public pages
   const hideHeaderRoutes = [

@@ -138,57 +138,35 @@ const PainelCliente = () => {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-background">
-        {isAuthenticated ? <Header /> : <div className="bg-background border-b border-border">
-            <div className="container mx-auto px-6 py-4">
-              <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold">Painel do Cliente</h1>
-                <Button variant="outline" onClick={() => navigate('/auth')} size="sm">
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Fazer Login
-                </Button>
-              </div>
-            </div>
-          </div>}
-        <div className="container mx-auto px-6 py-8">
-          <div className="flex justify-center items-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p>Carregando dados do cliente...</p>
-            </div>
-          </div>
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Carregando dados do cliente...</p>
         </div>
-      </div>;
+      </div>
+    );
   }
+  
   if (!cliente) {
-    return <div className="min-h-screen bg-background">
-        {isAuthenticated ? <Header /> : <div className="bg-background border-b border-border">
-            <div className="container mx-auto px-6 py-4">
-              <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold">Painel do Cliente</h1>
-                <Button variant="outline" onClick={() => navigate('/auth')} size="sm">
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Fazer Login
-                </Button>
-              </div>
-            </div>
-          </div>}
-        <div className="container mx-auto px-6 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">Cliente não encontrado</h1>
-             <Button onClick={() => {
-               const from = location.state?.from || '/?tab=clientes';
-               navigate(from);
-             }}>
-               <ArrowLeft className="h-4 w-4 mr-2" />
-               {isAuthenticated ? 'Voltar' : 'Voltar'}
-             </Button>
-          </div>
-        </div>
-      </div>;
+    return (
+      <div className="text-center">
+        <h1 className="text-2xl font-bold text-foreground mb-4">Cliente não encontrado</h1>
+        <Button onClick={() => {
+          const from = location.state?.from || '/?tab=clientes';
+          navigate(from);
+        }}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          {isAuthenticated ? 'Voltar' : 'Voltar'}
+        </Button>
+      </div>
+    );
   }
-  return <div className="min-h-screen bg-background">
-      {isAuthenticated ? <Header /> : <div className="bg-background border-b border-border">
+  
+  return (
+    <>
+      {!isAuthenticated && (
+        <div className="bg-background border-b border-border">
           <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-xl font-bold">Painel do Cliente</h1>
@@ -198,9 +176,8 @@ const PainelCliente = () => {
               </Button>
             </div>
           </div>
-        </div>}
-      
-      {/* Header do Cliente */}
+        </div>
+      )}
       <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border">
         <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
@@ -316,6 +293,8 @@ const PainelCliente = () => {
         cliente={cliente}
         onSuccess={handleEditSuccess}
       />
-    </div>;
+    </>
+  );
 };
+
 export default PainelCliente;
