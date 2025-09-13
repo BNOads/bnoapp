@@ -1964,6 +1964,139 @@ export type Database = {
         }
         Relationships: []
       }
+      reunioes_blocos: {
+        Row: {
+          ancora: string | null
+          conteudo: Json
+          created_at: string
+          documento_id: string
+          id: string
+          ordem: number
+          tipo: Database["public"]["Enums"]["tipo_bloco_reuniao"]
+          titulo: string | null
+          updated_at: string
+        }
+        Insert: {
+          ancora?: string | null
+          conteudo?: Json
+          created_at?: string
+          documento_id: string
+          id?: string
+          ordem?: number
+          tipo: Database["public"]["Enums"]["tipo_bloco_reuniao"]
+          titulo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ancora?: string | null
+          conteudo?: Json
+          created_at?: string
+          documento_id?: string
+          id?: string
+          ordem?: number
+          tipo?: Database["public"]["Enums"]["tipo_bloco_reuniao"]
+          titulo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reunioes_blocos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "reunioes_documentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reunioes_documentos: {
+        Row: {
+          ano: number
+          cliente_id: string | null
+          contribuidores: string[] | null
+          created_at: string
+          created_by: string
+          descricao: string | null
+          dia: number
+          id: string
+          mes: number
+          participantes: string[] | null
+          status: Database["public"]["Enums"]["status_documento_reuniao"]
+          titulo_reuniao: string
+          ultima_atualizacao: string
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          cliente_id?: string | null
+          contribuidores?: string[] | null
+          created_at?: string
+          created_by: string
+          descricao?: string | null
+          dia: number
+          id?: string
+          mes: number
+          participantes?: string[] | null
+          status?: Database["public"]["Enums"]["status_documento_reuniao"]
+          titulo_reuniao: string
+          ultima_atualizacao?: string
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          cliente_id?: string | null
+          contribuidores?: string[] | null
+          created_at?: string
+          created_by?: string
+          descricao?: string | null
+          dia?: number
+          id?: string
+          mes?: number
+          participantes?: string[] | null
+          status?: Database["public"]["Enums"]["status_documento_reuniao"]
+          titulo_reuniao?: string
+          ultima_atualizacao?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reunioes_documentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reunioes_templates: {
+        Row: {
+          ativo: boolean
+          blocos_template: Json
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          blocos_template?: Json
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          blocos_template?: Json
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       slack_webhooks: {
         Row: {
           ativo: boolean
@@ -2394,6 +2527,11 @@ export type Database = {
         | "editor_video"
         | "gestor_projetos"
         | "dono"
+      status_documento_reuniao:
+        | "rascunho"
+        | "pauta_criada"
+        | "ata_concluida"
+        | "arquivado"
       status_lancamento:
         | "em_captacao"
         | "cpl"
@@ -2407,6 +2545,13 @@ export type Database = {
         | "leitura_limitada"
         | "leitura_completa"
         | "administracao"
+      tipo_bloco_reuniao:
+        | "titulo"
+        | "descricao"
+        | "participantes"
+        | "pauta"
+        | "decisoes"
+        | "acoes"
       tipo_lancamento:
         | "semente"
         | "interno"
@@ -2568,6 +2713,12 @@ export const Constants = {
         "gestor_projetos",
         "dono",
       ],
+      status_documento_reuniao: [
+        "rascunho",
+        "pauta_criada",
+        "ata_concluida",
+        "arquivado",
+      ],
       status_lancamento: [
         "em_captacao",
         "cpl",
@@ -2582,6 +2733,14 @@ export const Constants = {
         "leitura_limitada",
         "leitura_completa",
         "administracao",
+      ],
+      tipo_bloco_reuniao: [
+        "titulo",
+        "descricao",
+        "participantes",
+        "pauta",
+        "decisoes",
+        "acoes",
       ],
       tipo_lancamento: [
         "semente",

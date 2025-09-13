@@ -6,10 +6,11 @@ import { BlocoNotasView } from "./BlocoNotasView";
 import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import LancamentosView from "@/components/Lancamentos/LancamentosView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft } from "lucide-react";
+import { PautaReuniaoView } from "@/components/Reunioes/PautaReuniaoView";
+import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
+import LancamentosView from "@/components/Lancamentos/LancamentosView";
 
 interface Tool {
   id: string;
@@ -26,6 +27,14 @@ export const FerramentasView = () => {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
 
   const tools: Tool[] = [
+    {
+      id: "pauta-reuniao",
+      title: "Pauta de Reunião",
+      description: "Organize pautas e atas de reuniões por data com navegação por títulos",
+      icon: Calendar,
+      component: <PautaReuniaoView />,
+      color: "text-indigo-600"
+    },
     {
       id: "referencias",
       title: "Referências",
