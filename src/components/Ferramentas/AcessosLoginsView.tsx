@@ -284,58 +284,67 @@ export const AcessosLoginsView = () => {
   };
 
   const parseCSV = (text: string): any[] => {
-    const lines = text.split('\n').filter(line => line.trim());
+    // Normalize line endings and remove BOM if present
+    const cleaned = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = cleaned.split('\n').filter(line => line.trim() !== '');
     if (lines.length < 2) {
       throw new Error('O arquivo CSV deve ter pelo menos uma linha de cabeçalho e uma linha de dados.');
     }
 
-    const parseCSVLine = (line: string): string[] => {
+    // Try to detect the delimiter automatically: ",", ";", "\t", "|"
+    const headerRaw = lines[0].replace(/^\uFEFF/, '');
+    const candidates = [',', ';', '\t', '|'] as const;
+
+    const parseCSVLine = (line: string, delimiter: string): string[] => {
       const result: string[] = [];
       let current = '';
       let inQuotes = false;
-      
       for (let i = 0; i < line.length; i++) {
         const char = line[i];
         const nextChar = line[i + 1];
-        
         if (char === '"') {
           if (inQuotes && nextChar === '"') {
-            // Escaped quote
             current += '"';
-            i++; // Skip next quote
+            i++; // skip escaped quote
           } else {
-            // Toggle quote mode
             inQuotes = !inQuotes;
           }
-        } else if (char === ',' && !inQuotes) {
-          // End of field
-          result.push(current.trim());
+        } else if (char === delimiter && !inQuotes) {
+          result.push(current);
           current = '';
         } else {
           current += char;
         }
       }
-      
-      // Add the last field
-      result.push(current.trim());
-      return result;
+      result.push(current);
+      return result.map(v => v.trim());
     };
 
-    const headers = parseCSVLine(lines[0]).map(h => h.replace(/^["']|["']$/g, ''));
-    console.log('CSV Headers detectados:', headers);
-    
+    // Pick delimiter that yields the highest column count on header
+    let chosen = ',';
+    let maxCols = 1;
+    for (const d of candidates) {
+      const cols = parseCSVLine(headerRaw, d).length;
+      if (cols > maxCols) {
+        maxCols = cols;
+        chosen = d;
+      }
+    }
+
+    const headersRaw = parseCSVLine(headerRaw, chosen).map(h => h.replace(/^["']|["']$/g, ''));
+    // Normalize headers to a consistent snake_case lowercase form
+    const headers = headersRaw.map(h => h.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '_'));
+    console.log('CSV Headers detectados:', headers, 'Delimitador:', JSON.stringify(chosen));
+
     const data = lines.slice(1).map((line, index) => {
       try {
-        const values = parseCSVLine(line);
+        const valuesRaw = parseCSVLine(line, chosen);
         const obj: any = {};
-        
         headers.forEach((header, idx) => {
-          let value = values[idx] || '';
-          // Remove quotes if present
+          let value = (valuesRaw[idx] ?? '').trim();
           value = value.replace(/^["']|["']$/g, '');
           obj[header] = value;
         });
-        
         return obj;
       } catch (error) {
         console.error(`Erro na linha ${index + 2}:`, error);
@@ -364,26 +373,44 @@ export const AcessosLoginsView = () => {
       // Convert to our format with better field mapping
       const converted: AcessoFormData[] = data.map((item: any, index: number) => {
         try {
-          // Try multiple possible field names for each property
+          const normalizeKey = (s: string) => s
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, '_')
+            .replace(/[^a-z0-9_]/g, '_');
+
           const getNormalizedValue = (possibleNames: string[]) => {
             for (const name of possibleNames) {
-              if (item[name] !== undefined && item[name] !== null && item[name] !== '') {
-                return String(item[name]).trim();
+              const key = normalizeKey(name);
+              if (item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== '') {
+                return String(item[key]).trim();
               }
             }
             return '';
           };
 
-          const result = {
-            nome_acesso: getNormalizedValue(['nome_acesso', 'nome', 'name', 'titulo', 'title', 'servico', 'service']),
-            categoria: getNormalizedValue(['categoria', 'category', 'tipo', 'type']).toLowerCase() || 'outros',
-            login_usuario: getNormalizedValue(['login_usuario', 'login', 'usuario', 'user', 'email', 'username']),
-            senha: getNormalizedValue(['senha', 'password', 'pass', 'pwd']),
-            link_acesso: getNormalizedValue(['link_acesso', 'link', 'url', 'site', 'website']),
-            notas_adicionais: getNormalizedValue(['notas_adicionais', 'notas', 'notes', 'observacoes', 'description', 'descricao'])
+          const normalizeCategory = (raw: string): string => {
+            const v = raw.toLowerCase().trim();
+            const valid = Object.keys(CATEGORIAS);
+            if (valid.includes(v)) return v;
+            if (!v) return 'outros';
+            if (v.includes('rede') && v.includes('soc')) return 'redes_sociais';
+            if (v.includes('ads') || v.includes('anúncio') || v.includes('anuncio') || v.includes('tráfego') || v.includes('trafego') || v.includes('google') || v.includes('meta')) return 'ferramentas_ads';
+            if (v.includes('curso') || v.includes('aula') || v.includes('treinamento') || v.includes('elearning') || v.includes('e-learning') || v.includes('plataforma')) return 'plataforma_cursos';
+            if (v.includes('email') || v.includes('e-mail') || v.includes('gmail') || v.includes('outlook')) return 'emails';
+            return 'outros';
           };
 
-          // Validate category
+          const result = {
+            nome_acesso: getNormalizedValue(['nome_acesso', 'nome do acesso', 'nome_do_acesso', 'nome', 'name', 'titulo', 'title', 'servico', 'service']),
+            categoria: normalizeCategory(getNormalizedValue(['categoria', 'category', 'tipo', 'type', 'categoria_acesso', 'categoria do acesso'])),
+            login_usuario: getNormalizedValue(['login_usuario', 'login', 'usuario', 'user', 'username', 'user_name', 'email', 'e-mail', 'usuario_email', 'user_email']),
+            senha: getNormalizedValue(['senha', 'password', 'pass', 'pwd', 'senha_acesso']),
+            link_acesso: getNormalizedValue(['link_acesso', 'link', 'url', 'site', 'website', 'endereco', 'endereço']),
+            notas_adicionais: getNormalizedValue(['notas_adicionais', 'notas', 'notes', 'observacoes', 'observações', 'description', 'descricao', 'descrição'])
+          };
+
+          // Garantir categoria válida
           const validCategories = Object.keys(CATEGORIAS);
           if (!validCategories.includes(result.categoria)) {
             result.categoria = 'outros';
