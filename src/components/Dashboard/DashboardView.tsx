@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
@@ -15,7 +15,7 @@ export function DashboardView() {
   const navigate = useNavigate();
   const { canCreateContent, isAdmin } = useUserPermissions();
   const { recentTabs } = useRecentTabs();
-  const { favorites, availableTabs, toggleFavorite, isFavorite } = useFavoriteTabs();
+  const { favorites, toggleCurrentPageFavorite, isCurrentPageFavorite } = useFavoriteTabs();
   const [showOrcamentos, setShowOrcamentos] = useState(false);
   const [pdis, setPdis] = useState<any[]>([]);
   const [pdisFinalizados, setPdisFinalizados] = useState<any[]>([]);
@@ -30,7 +30,17 @@ export function DashboardView() {
       MessageSquare,
       Wrench,
       LayoutDashboard,
-      Clock
+      Clock,
+      GraduationCap,
+      Play,
+      Palette,
+      FileText,
+      ClipboardList: FileText, // fallback for ClipboardList
+      TrendingDown: BarChart3, // fallback for TrendingDown
+      Network: Wrench, // fallback for Network
+      LogIn: Users, // fallback for LogIn
+      User: Users, // fallback for User
+      Lock: Users // fallback for Lock
     };
     return icons[iconName as keyof typeof icons] || Clock;
   };
@@ -203,51 +213,26 @@ export function DashboardView() {
             Favoritos do Sistema
           </h3>
           
-          {/* Favorite Toggle Controls */}
-          <div className="space-y-2 mb-4">
-            {availableTabs.map((tab) => {
-              const IconComponent = getTabIcon(tab.icon);
-              const isTabFavorite = isFavorite(tab.id);
-              
-              return (
-                <div key={tab.id} className="flex items-center justify-between p-2 rounded hover:bg-muted/50">
-                  <div className="flex items-center gap-2">
-                    <IconComponent className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">{tab.name}</span>
-                  </div>
+          {favorites.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Nenhuma página favoritada ainda. Use a estrela ⭐ no cabeçalho para favoritar páginas.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {favorites.map((tab) => {
+                const IconComponent = getTabIcon(tab.icon);
+                return (
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleFavorite(tab.id)}
-                    className="h-8 w-8 p-0"
+                    key={tab.id}
+                    variant="outline"
+                    className="h-auto p-3 flex-col gap-2"
+                    onClick={() => handleTabClick(tab.path)}
                   >
-                    <Star className={`h-4 w-4 ${isTabFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+                    <IconComponent className="h-5 w-5 text-primary" />
+                    <span className="text-xs font-medium">{tab.name}</span>
                   </Button>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Favorite Shortcuts */}
-          {favorites.length > 0 && (
-            <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-3 text-muted-foreground">Atalhos Rápidos</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {favorites.map((tab) => {
-                  const IconComponent = getTabIcon(tab.icon);
-                  return (
-                    <Button
-                      key={tab.id}
-                      variant="outline"
-                      className="h-auto p-3 flex-col gap-2"
-                      onClick={() => handleTabClick(tab.path)}
-                    >
-                      <IconComponent className="h-5 w-5 text-primary" />
-                      <span className="text-xs font-medium">{tab.name}</span>
-                    </Button>
-                  );
-                })}
-              </div>
+                );
+              })}
             </div>
           )}
         </Card>

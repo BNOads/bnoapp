@@ -13,12 +13,13 @@ export function useRecentTabs() {
   const [recentTabs, setRecentTabs] = useState<RecentTab[]>([]);
   const location = useLocation();
 
-  const getTabInfo = (pathname: string): RecentTab | null => {
-    const searchParams = new URLSearchParams(location.search);
+  const getPageInfo = (pathname: string, search: string = ''): RecentTab | null => {
+    const searchParams = new URLSearchParams(search);
     const tab = searchParams.get('tab');
     
-    // Map paths to tab information
-    const tabMap: Record<string, Omit<RecentTab, 'timestamp'>> = {
+    // Map paths and tabs to page information
+    const pageMap: Record<string, Omit<RecentTab, 'timestamp'>> = {
+      // Main tabs
       '/': { id: 'dashboard', name: 'Dashboard', icon: 'LayoutDashboard', path: '/' },
       '/?tab=colaboradores': { id: 'colaboradores', name: 'Colaboradores', icon: 'Users', path: '/?tab=colaboradores' },
       '/?tab=clientes': { id: 'clientes', name: 'Clientes', icon: 'Calendar', path: '/?tab=clientes' },
@@ -26,16 +27,130 @@ export function useRecentTabs() {
       '/?tab=assistente': { id: 'assistente', name: 'Assistente', icon: 'MessageSquare', path: '/?tab=assistente' },
       '/?tab=treinamentos': { id: 'treinamentos', name: 'Treinamentos', icon: 'BookOpen', path: '/?tab=treinamentos' },
       '/?tab=ferramentas': { id: 'ferramentas', name: 'Ferramentas', icon: 'Wrench', path: '/?tab=ferramentas' },
+      
+      // Specific pages
+      '/auth': { id: 'auth', name: 'Login', icon: 'LogIn', path: '/auth' },
+      '/perfil': { id: 'perfil', name: 'Perfil', icon: 'User', path: '/perfil' },
+      '/reset-password': { id: 'reset-password', name: 'Redefinir Senha', icon: 'Lock', path: '/reset-password' },
     };
 
+    // Handle dynamic routes
+    if (pathname.startsWith('/pdi/')) {
+      const id = pathname.split('/')[2];
+      return { 
+        id: `pdi-${id}`, 
+        name: 'Detalhes do PDI', 
+        icon: 'GraduationCap', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+    
+    if (pathname.startsWith('/curso/')) {
+      const id = pathname.split('/')[2];
+      return { 
+        id: `curso-${id}`, 
+        name: 'Detalhes do Curso', 
+        icon: 'BookOpen', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+
+    if (pathname.startsWith('/aula/')) {
+      const id = pathname.split('/')[2];
+      return { 
+        id: `aula-${id}`, 
+        name: 'Detalhes da Aula', 
+        icon: 'Play', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+
+    if (pathname.startsWith('/cliente/')) {
+      const segments = pathname.split('/');
+      if (segments[3] === 'criativos') {
+        return { 
+          id: `cliente-criativos-${segments[2]}`, 
+          name: 'Criativos do Cliente', 
+          icon: 'Palette', 
+          path: pathname,
+          timestamp: Date.now() 
+        };
+      }
+      return { 
+        id: `cliente-${segments[2]}`, 
+        name: 'Painel do Cliente', 
+        icon: 'Calendar', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+
+    if (pathname.startsWith('/referencia/')) {
+      const id = pathname.split('/')[2];
+      return { 
+        id: `referencia-${id}`, 
+        name: 'Referência', 
+        icon: 'FileText', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+
+    if (pathname.startsWith('/debriefing/')) {
+      const id = pathname.split('/')[2];
+      return { 
+        id: `debriefing-${id}`, 
+        name: 'Debriefing', 
+        icon: 'ClipboardList', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+
+    if (pathname.startsWith('/funil/')) {
+      const id = pathname.split('/')[2];
+      return { 
+        id: `funil-${id}`, 
+        name: 'Funil', 
+        icon: 'TrendingDown', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+
+    if (pathname.startsWith('/mapa-mental/')) {
+      const id = pathname.split('/')[2];
+      return { 
+        id: `mapa-mental-${id}`, 
+        name: 'Mapa Mental', 
+        icon: 'Network', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+
+    if (pathname.startsWith('/pop/')) {
+      const id = pathname.split('/')[2];
+      return { 
+        id: `pop-${id}`, 
+        name: 'POP', 
+        icon: 'FileText', 
+        path: pathname,
+        timestamp: Date.now() 
+      };
+    }
+
     const currentPath = tab ? `${pathname}?tab=${tab}` : pathname;
-    return tabMap[currentPath] ? { ...tabMap[currentPath], timestamp: Date.now() } : null;
+    return pageMap[currentPath] ? { ...pageMap[currentPath], timestamp: Date.now() } : null;
   };
 
-  const addRecentTab = (tabInfo: RecentTab) => {
+  const addRecentTab = (pageInfo: RecentTab) => {
     setRecentTabs(prev => {
-      const filtered = prev.filter(t => t.id !== tabInfo.id);
-      const updated = [tabInfo, ...filtered].slice(0, 5);
+      const filtered = prev.filter(t => t.id !== pageInfo.id);
+      const updated = [pageInfo, ...filtered].slice(0, 5);
       localStorage.setItem('recentTabs', JSON.stringify(updated));
       return updated;
     });
@@ -54,12 +169,12 @@ export function useRecentTabs() {
   }, []);
 
   useEffect(() => {
-    // Track current tab
-    const tabInfo = getTabInfo(location.pathname);
-    if (tabInfo && tabInfo.id !== 'dashboard') {
-      addRecentTab(tabInfo);
+    // Track current page
+    const pageInfo = getPageInfo(location.pathname, location.search);
+    if (pageInfo) {
+      addRecentTab(pageInfo);
     }
   }, [location.pathname, location.search]);
 
-  return { recentTabs };
+  return { recentTabs, addRecentTab };
 }
