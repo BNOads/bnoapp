@@ -2,33 +2,24 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Calendar, 
-  Plus, 
   Save, 
   FileText, 
-  Users, 
-  List, 
-  CheckSquare, 
-  Download,
-  Share2,
   Search,
   ChevronLeft,
   ChevronRight,
   ArrowLeft,
   ArrowRight,
-  Settings,
-  BookOpen
+  BookOpen,
+  ChevronDown,
+  ChevronRight as ChevronRightIcon
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/components/Auth/AuthContext";
 
 interface MeetingDocument {
@@ -38,28 +29,11 @@ interface MeetingDocument {
   dia: number;
   titulo_reuniao: string;
   descricao: string | null;
-  participantes: string[];
   status: string;
-  contribuidores: string[];
   ultima_atualizacao: string;
   created_by: string;
-  blocos?: MeetingBlock[];
-}
-
-interface MeetingBlock {
-  id: string;
-  tipo: string;
-  titulo: string | null;
-  conteudo: any;
-  ordem: number;
-  ancora: string | null;
-}
-
-interface Template {
-  id: string;
-  nome: string;
-  descricao: string | null;
-  blocos_template: any;
+  conteudo_texto: string;
+  participantes: string[]; // títulos das reuniões do dia
 }
 
 const MONTHS = [
@@ -67,41 +41,30 @@ const MONTHS = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
-const BLOCK_TYPES = {
-  titulo: { icon: FileText, label: 'Título' },
-  descricao: { icon: FileText, label: 'Descrição' },
-  participantes: { icon: Users, label: 'Participantes' },
-  pauta: { icon: List, label: 'Pauta' },
-  decisoes: { icon: CheckSquare, label: 'Decisões' },
-  acoes: { icon: CheckSquare, label: 'Ações' }
-};
-
 export function PautaReuniaoView() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const { userData } = useCurrentUser();
   const { user } = useAuth();
   
   const [selectedDate, setSelectedDate] = useState<{ano: number, mes: number, dia?: number}>({
     ano: new Date().getFullYear(),
     mes: new Date().getMonth() + 1,
-    dia: undefined
+    dia: new Date().getDate()
   });
   
   const [documents, setDocuments] = useState<{[key: string]: MeetingDocument}>({});
   const [currentDocument, setCurrentDocument] = useState<MeetingDocument | null>(null);
-  const [blocks, setBlocks] = useState<MeetingBlock[]>([]);
-  const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showSidebar, setShowSidebar] = useState(true);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   
   const autosaveTimeout = useRef<NodeJS.Timeout>();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    // Parse URL parameters
+    // Parse URL parameters ou auto-navegar para hoje
     const yearParam = searchParams.get('ano');
     const monthParam = searchParams.get('mes');
     const dayParam = searchParams.get('dia');
@@ -115,10 +78,10 @@ export function PautaReuniaoView() {
       setSelectedDate({
         ano: parseInt(yearParam),
         mes: parseInt(monthParam),
-        dia: dayParam ? parseInt(dayParam) : undefined
+        dia: dayParam ? parseInt(dayParam) : currentDay
       });
     } else {
-      // Auto-navigate to today's date
+      // Auto-navegar para hoje
       setSelectedDate({
         ano: currentYear,
         mes: currentMonth,
@@ -130,13 +93,17 @@ export function PautaReuniaoView() {
     loadInitialData();
   }, [searchParams]);
 
+  useEffect(() => {
+    // Carregar documento quando a data selecionada muda
+    if (selectedDate.dia) {
+      loadDocumentForDate(selectedDate.ano, selectedDate.mes, selectedDate.dia);
+    }
+  }, [selectedDate]);
+
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      await Promise.all([
-        loadDocuments(),
-        loadTemplates()
-      ]);
+      await loadDocuments();
     } catch (error) {
       console.error('Error loading initial data:', error);
       toast({
@@ -152,17 +119,7 @@ export function PautaReuniaoView() {
   const loadDocuments = async () => {
     const { data, error } = await supabase
       .from('reunioes_documentos')
-      .select(`
-        *,
-        reunioes_blocos (
-          id,
-          tipo,
-          titulo,
-          conteudo,
-          ordem,
-          ancora
-        )
-      `)
+      .select('*')
       .eq('ano', selectedDate.ano)
       .eq('mes', selectedDate.mes)
       .order('dia');
@@ -172,114 +129,49 @@ export function PautaReuniaoView() {
     const docsMap: {[key: string]: MeetingDocument} = {};
     data?.forEach(doc => {
       const dayKey = doc.dia.toString();
-      docsMap[dayKey] = {
-        ...doc,
-        blocos: doc.reunioes_blocos?.sort((a, b) => a.ordem - b.ordem) || []
-      };
+      docsMap[dayKey] = doc;
     });
     
     setDocuments(docsMap);
-    
-    // If a specific day is selected, load it
-    if (selectedDate.dia && docsMap[selectedDate.dia.toString()]) {
-      setCurrentDocument(docsMap[selectedDate.dia.toString()]);
-      setBlocks(docsMap[selectedDate.dia.toString()].blocos || []);
-    } else if (selectedDate.dia && !docsMap[selectedDate.dia.toString()]) {
-      // Clear current document if selected day has no document
-      setCurrentDocument(null);
-      setBlocks([]);
-    }
   };
 
-  const loadTemplates = async () => {
-    const { data, error } = await supabase
-      .from('reunioes_templates')
-      .select('*')
-      .eq('ativo', true)
-      .order('nome');
-
-    if (error) throw error;
-    setTemplates((data || []).map(t => ({ ...t, blocos_template: typeof t.blocos_template === 'string' ? JSON.parse(t.blocos_template) : t.blocos_template })));
-  };
-
-  const createOrOpenDocument = async (day: number, templateId?: string) => {
-    const dayKey = day.toString();
+  const loadDocumentForDate = async (ano: number, mes: number, dia: number) => {
+    const dayKey = dia.toString();
     
-    // If document exists, just open it
+    // Se já existe na cache, usar
     if (documents[dayKey]) {
       setCurrentDocument(documents[dayKey]);
-      setBlocks(documents[dayKey].blocos || []);
-      updateURL(selectedDate.ano, selectedDate.mes, day);
       return;
     }
 
-    // Create new document
+    // Criar documento automaticamente se não existir
+    await createDocumentForDate(ano, mes, dia);
+  };
+
+  const createDocumentForDate = async (ano: number, mes: number, dia: number) => {
     try {
       setSaving(true);
       
-      let initialBlocks: any[] = [];
-      if (templateId) {
-        const template = templates.find(t => t.id === templateId);
-        if (template) {
-          initialBlocks = template.blocos_template;
-        }
-      }
-
       const { data: doc, error: docError } = await supabase
         .from('reunioes_documentos')
         .insert({
-          ano: selectedDate.ano,
-          mes: selectedDate.mes,
-          dia: day,
-          titulo_reuniao: 'Nova Reunião',
+          ano,
+          mes,
+          dia,
+          titulo_reuniao: `Pauta ${dia}/${mes}/${ano}`,
           status: 'rascunho',
-          contribuidores: [user?.id],
-          created_by: user?.id
+          created_by: user?.id,
+          conteudo_texto: ''
         })
         .select()
         .single();
 
       if (docError) throw docError;
 
-      // Create initial blocks from template
-      if (initialBlocks.length > 0) {
-        const blocksToInsert = initialBlocks.map((block, index) => ({
-          documento_id: doc.id,
-          tipo: block.tipo,
-          titulo: block.titulo,
-          conteudo: block.conteudo,
-          ordem: index,
-          ancora: block.titulo ? block.titulo.toLowerCase().replace(/\s+/g, '-') : null
-        }));
-
-        const { data: createdBlocks, error: blocksError } = await supabase
-          .from('reunioes_blocos')
-          .insert(blocksToInsert)
-          .select();
-
-        if (blocksError) throw blocksError;
-        
-        const newDoc = {
-          ...doc,
-          blocos: createdBlocks
-        };
-        
-        setDocuments(prev => ({ ...prev, [dayKey]: newDoc }));
-        setCurrentDocument(newDoc);
-        setBlocks(createdBlocks);
-      } else {
-        const newDoc = { ...doc, blocos: [] };
-        setDocuments(prev => ({ ...prev, [dayKey]: newDoc }));
-        setCurrentDocument(newDoc);
-        setBlocks([]);
-      }
-
-      updateURL(selectedDate.ano, selectedDate.mes, day);
+      const dayKey = dia.toString();
+      setDocuments(prev => ({ ...prev, [dayKey]: doc }));
+      setCurrentDocument(doc);
       
-      toast({
-        title: "Sucesso",
-        description: "Documento criado com sucesso"
-      });
     } catch (error) {
       console.error('Error creating document:', error);
       toast({
@@ -300,40 +192,6 @@ export function PautaReuniaoView() {
     setSearchParams(params);
   };
 
-  const addBlock = (tipo: string) => {
-    const newBlock: MeetingBlock = {
-      id: `temp-${Date.now()}`,
-      tipo,
-      titulo: BLOCK_TYPES[tipo as keyof typeof BLOCK_TYPES]?.label || 'Novo Bloco',
-      conteudo: getDefaultContent(tipo),
-      ordem: blocks.length,
-      ancora: null
-    };
-    
-    setBlocks(prev => [...prev, newBlock]);
-    scheduleAutosave();
-  };
-
-  const getDefaultContent = (tipo: string) => {
-    switch (tipo) {
-      case 'participantes':
-        return { lista: [] };
-      case 'pauta':
-        return { itens: [] };
-      case 'acoes':
-        return { checklist: [] };
-      default:
-        return { texto: '' };
-    }
-  };
-
-  const updateBlock = (blockId: string, updates: Partial<MeetingBlock>) => {
-    setBlocks(prev => prev.map(block => 
-      block.id === blockId ? { ...block, ...updates } : block
-    ));
-    scheduleAutosave();
-  };
-
   const scheduleAutosave = () => {
     if (autosaveTimeout.current) {
       clearTimeout(autosaveTimeout.current);
@@ -350,43 +208,19 @@ export function PautaReuniaoView() {
     try {
       setSaving(true);
       
-      // Update document
-      const { error: docError } = await supabase
+      const { error } = await supabase
         .from('reunioes_documentos')
         .update({
-          titulo_reuniao: currentDocument.titulo_reuniao,
-          descricao: currentDocument.descricao,
-          participantes: currentDocument.participantes,
-          contribuidores: currentDocument.contribuidores,
+          conteudo_texto: currentDocument.conteudo_texto,
           ultima_atualizacao: new Date().toISOString()
         })
         .eq('id', currentDocument.id);
 
-      if (docError) throw docError;
+      if (error) throw error;
 
-      // Delete existing blocks and recreate them
-      await supabase
-        .from('reunioes_blocos')
-        .delete()
-        .eq('documento_id', currentDocument.id);
-
-      if (blocks.length > 0) {
-        const blocksToInsert = blocks.map((block, index) => ({
-          documento_id: currentDocument.id,
-          tipo: block.tipo as "titulo" | "descricao" | "participantes" | "pauta" | "decisoes" | "acoes",
-          titulo: block.titulo,
-          conteudo: block.conteudo,
-          ordem: index,
-          ancora: block.titulo ? block.titulo.toLowerCase().replace(/\s+/g, '-') : null
-        }));
-
-        const { error: blocksError } = await supabase
-          .from('reunioes_blocos')
-          .insert(blocksToInsert);
-
-        if (blocksError) throw blocksError;
-      }
-
+      // Recarregar documentos para atualizar a sidebar
+      await loadDocuments();
+      
     } catch (error) {
       console.error('Error saving document:', error);
       toast({
@@ -399,8 +233,53 @@ export function PautaReuniaoView() {
     }
   };
 
+  const updateDocumentContent = (content: string) => {
+    if (!currentDocument) return;
+    
+    setCurrentDocument(prev => prev ? { ...prev, conteudo_texto: content } : null);
+    scheduleAutosave();
+  };
+
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month, 0).getDate();
+  };
+
+  const extractTitlesFromContent = (content: string): string[] => {
+    const lines = content.split('\n');
+    const titles = lines
+      .filter(line => line.trim().startsWith('## '))
+      .map(line => line.trim().substring(3));
+    return titles;
+  };
+
+  const scrollToTitle = (title: string) => {
+    if (!textareaRef.current) return;
+    
+    const content = textareaRef.current.value;
+    const titleIndex = content.indexOf(`## ${title}`);
+    
+    if (titleIndex !== -1) {
+      // Calcular linha aproximada
+      const beforeTitle = content.substring(0, titleIndex);
+      const lineNumber = beforeTitle.split('\n').length;
+      
+      // Focar e posicionar cursor
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(titleIndex, titleIndex);
+      textareaRef.current.scrollTop = (lineNumber - 1) * 20; // aprox 20px por linha
+    }
+  };
+
+  const toggleDayExpansion = (dayKey: string) => {
+    setExpandedDays(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(dayKey)) {
+        newSet.delete(dayKey);
+      } else {
+        newSet.add(dayKey);
+      }
+      return newSet;
+    });
   };
 
   const renderSidebar = () => (
@@ -426,10 +305,10 @@ export function PautaReuniaoView() {
             size="sm"
             onClick={() => {
               const newDate = selectedDate.mes === 1 
-                ? { ano: selectedDate.ano - 1, mes: 12 }
-                : { ano: selectedDate.ano, mes: selectedDate.mes - 1 };
+                ? { ano: selectedDate.ano - 1, mes: 12, dia: 1 }
+                : { ano: selectedDate.ano, mes: selectedDate.mes - 1, dia: 1 };
               setSelectedDate(newDate);
-              updateURL(newDate.ano, newDate.mes);
+              updateURL(newDate.ano, newDate.mes, newDate.dia);
             }}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -439,10 +318,10 @@ export function PautaReuniaoView() {
             size="sm"
             onClick={() => {
               const newDate = selectedDate.mes === 12 
-                ? { ano: selectedDate.ano + 1, mes: 1 }
-                : { ano: selectedDate.ano, mes: selectedDate.mes + 1 };
+                ? { ano: selectedDate.ano + 1, mes: 1, dia: 1 }
+                : { ano: selectedDate.ano, mes: selectedDate.mes + 1, dia: 1 };
               setSelectedDate(newDate);
-              updateURL(newDate.ano, newDate.mes);
+              updateURL(newDate.ano, newDate.mes, newDate.dia);
             }}
           >
             <ChevronRight className="h-4 w-4" />
@@ -451,36 +330,70 @@ export function PautaReuniaoView() {
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-96">
-          <div className="space-y-2">
+          <div className="space-y-1">
             {Array.from({ length: getDaysInMonth(selectedDate.ano, selectedDate.mes) }, (_, i) => {
               const day = i + 1;
               const dayKey = day.toString();
               const hasDocument = documents[dayKey];
               const isSelected = selectedDate.dia === day;
+              const isExpanded = expandedDays.has(dayKey);
+              const titles = hasDocument ? extractTitlesFromContent(hasDocument.conteudo_texto) : [];
               
               return (
-                <div
-                  key={day}
-                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-muted ${
-                    isSelected ? 'bg-primary text-primary-foreground' : ''
-                  }`}
-                  onClick={() => {
-                    setSelectedDate(prev => ({ ...prev, dia: day }));
-                    if (hasDocument) {
-                      setCurrentDocument(hasDocument);
-                      setBlocks(hasDocument.blocos || []);
-                    } else {
-                      setCurrentDocument(null);
-                      setBlocks([]);
-                    }
-                    updateURL(selectedDate.ano, selectedDate.mes, day);
-                  }}
-                >
-                  <span>{day.toString().padStart(2, '0')}/{selectedDate.mes.toString().padStart(2, '0')}</span>
-                  {hasDocument && (
-                    <Badge variant={hasDocument.status === 'ata_concluida' ? 'default' : 'secondary'}>
-                      {hasDocument.status === 'ata_concluida' ? '✅' : '📣'}
-                    </Badge>
+                <div key={day} className="space-y-1">
+                  <div
+                    className={`flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-muted ${
+                      isSelected ? 'bg-primary text-primary-foreground' : ''
+                    }`}
+                    onClick={() => {
+                      setSelectedDate(prev => ({ ...prev, dia: day }));
+                      updateURL(selectedDate.ano, selectedDate.mes, day);
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      {hasDocument && titles.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-4 w-4 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleDayExpansion(dayKey);
+                          }}
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-3 w-3" />
+                          ) : (
+                            <ChevronRightIcon className="h-3 w-3" />
+                          )}
+                        </Button>
+                      )}
+                      <span>{day.toString().padStart(2, '0')}/{selectedDate.mes.toString().padStart(2, '0')}</span>
+                    </div>
+                    {hasDocument && (
+                      <Badge variant={hasDocument.status === 'ata_concluida' ? 'default' : 'secondary'}>
+                        {titles.length > 0 ? `${titles.length}` : '📄'}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {/* Subtítulos expandidos */}
+                  {hasDocument && isExpanded && titles.length > 0 && (
+                    <div className="ml-6 space-y-1">
+                      {titles.map((title, index) => (
+                        <button
+                          key={index}
+                          className="w-full text-left text-sm p-1 rounded hover:bg-muted text-muted-foreground"
+                          onClick={() => {
+                            setSelectedDate(prev => ({ ...prev, dia: day }));
+                            updateURL(selectedDate.ano, selectedDate.mes, day);
+                            setTimeout(() => scrollToTitle(title), 100);
+                          }}
+                        >
+                          {title}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
               );
@@ -490,52 +403,6 @@ export function PautaReuniaoView() {
       </CardContent>
     </Card>
   );
-
-  const renderTableOfContents = () => {
-    const titleBlocks = blocks.filter(block => block.tipo === 'titulo' && block.titulo);
-    
-    if (titleBlocks.length === 0) return null;
-
-    return (
-      <Card className="w-64 h-fit">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Índice</CardTitle>
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar título..."
-              className="pl-8 h-8 text-xs"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-64">
-            <div className="space-y-1">
-              {titleBlocks
-                .filter(block => 
-                  !searchTerm || 
-                  block.titulo?.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map((block, index) => (
-                  <button
-                    key={block.id}
-                    className="w-full text-left text-sm p-2 rounded hover:bg-muted"
-                    onClick={() => {
-                      const element = document.getElementById(`block-${block.id}`);
-                      element?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                  >
-                    {block.titulo}
-                  </button>
-                ))}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
-    );
-  };
 
   if (loading) {
     return (
@@ -582,295 +449,71 @@ export function PautaReuniaoView() {
           <div className="flex items-center gap-2">
             {saving && <span className="text-sm text-muted-foreground">Salvando...</span>}
             
-            {selectedDate.dia && !currentDocument && (
-              <div className="flex gap-2">
-                <Select onValueChange={(templateId) => createOrOpenDocument(selectedDate.dia!, templateId === "blank" ? undefined : templateId)}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Usar template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="blank">Documento em branco</SelectItem>
-                    {templates.map(template => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={() => createOrOpenDocument(selectedDate.dia!)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Pauta
-                </Button>
-              </div>
-            )}
-            
-            {currentDocument && (
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  PDF
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Compartilhar
-                </Button>
-                <Button size="sm" onClick={saveDocument}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Salvar
-                </Button>
-              </div>
-            )}
+            <Button size="sm" onClick={saveDocument}>
+              <Save className="h-4 w-4 mr-2" />
+              Salvar
+            </Button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex gap-6">
-          <div className="flex-1">
-            {selectedDate.dia && !currentDocument ? (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Nenhuma reunião agendada para {selectedDate.dia}/{selectedDate.mes}
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    Crie uma nova pauta de reunião para este dia
-                  </p>
-                  <Button onClick={() => createOrOpenDocument(selectedDate.dia!)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Pauta
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : currentDocument ? (
-              <div className="space-y-6">
-                {/* Document Header */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <Input
-                        value={currentDocument.titulo_reuniao}
-                        onChange={(e) => {
-                          setCurrentDocument(prev => prev ? { ...prev, titulo_reuniao: e.target.value } : null);
-                          scheduleAutosave();
-                        }}
-                        className="text-xl font-bold border-none p-0 h-auto bg-transparent"
-                        placeholder="Título da reunião"
-                      />
-                      <Badge variant={currentDocument.status === 'ata_concluida' ? 'default' : 'secondary'}>
-                        {currentDocument.status === 'ata_concluida' ? 'Ata Concluída' : 'Rascunho'}
-                      </Badge>
-                    </div>
-                    <Textarea
-                      value={currentDocument.descricao || ''}
-                      onChange={(e) => {
-                        setCurrentDocument(prev => prev ? { ...prev, descricao: e.target.value } : null);
-                        scheduleAutosave();
-                      }}
-                      placeholder="Descrição e objetivo da reunião"
-                      className="mt-2"
-                    />
-                  </CardHeader>
-                </Card>
+        <div className="flex-1">
+          {currentDocument ? (
+            <Card className="h-full">
+              <CardContent className="p-6 h-full">
+                <Textarea
+                  ref={textareaRef}
+                  value={currentDocument.conteudo_texto}
+                  onChange={(e) => updateDocumentContent(e.target.value)}
+                  placeholder={`# Pauta ${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}
 
-                {/* Blocks */}
-                {blocks.map((block, index) => (
-                  <Card key={block.id} id={`block-${block.id}`}>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
-                          className: "h-5 w-5"
-                        })}
-                        <Input
-                          value={block.titulo || ''}
-                          onChange={(e) => updateBlock(block.id, { titulo: e.target.value })}
-                          className="border-none p-0 h-auto bg-transparent font-semibold"
-                          placeholder="Título do bloco"
-                        />
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {renderBlockContent(block)}
-                    </CardContent>
-                  </Card>
-                ))}
+## Cliente X | Alinhamento Semanal
+**Participantes:** 
+**Horário:** 
 
-                {/* Add Block Buttons */}
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(BLOCK_TYPES).map(([tipo, config]) => (
-                        <Button
-                          key={tipo}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addBlock(tipo)}
-                        >
-                          <config.icon className="h-4 w-4 mr-2" />
-                          {config.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Selecione um dia para visualizar ou criar uma pauta
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Use o calendário lateral para navegar pelos dias do mês
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-          
-          {/* Table of Contents */}
-          {currentDocument && renderTableOfContents()}
+### Pontos da Agenda
+- [ ] Revisão da semana anterior
+- [ ] Resultados das campanhas
+- [ ] Próximos passos
+
+### Decisões
+- 
+
+### Follow-ups
+- [ ] Enviar relatório atualizado
+
+---
+
+## Cliente Y | Onboarding
+**Participantes:** 
+**Horário:** 
+
+### Pontos da Agenda
+- [ ] Apresentação da estratégia
+- [ ] Definição de objetivos
+- [ ] Cronograma de atividades
+
+### Decisões
+- 
+
+### Follow-ups
+- [ ] Agendar próxima reunião`}
+                  className="min-h-[600px] font-mono text-sm resize-none border-none focus:ring-0"
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  Carregando pauta do dia...
+                </h3>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
   );
-
-  function renderBlockContent(block: MeetingBlock) {
-    switch (block.tipo) {
-      case 'participantes':
-        return (
-          <div className="space-y-2">
-            {(block.conteudo.lista || []).map((participante: string, index: number) => (
-              <div key={index} className="flex items-center gap-2">
-                <Input
-                  value={participante}
-                  onChange={(e) => {
-                    const newLista = [...(block.conteudo.lista || [])];
-                    newLista[index] = e.target.value;
-                    updateBlock(block.id, { 
-                      conteudo: { ...block.conteudo, lista: newLista }
-                    });
-                  }}
-                  placeholder="Nome do participante"
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const newLista = (block.conteudo.lista || []).filter((_: any, i: number) => i !== index);
-                    updateBlock(block.id, { 
-                      conteudo: { ...block.conteudo, lista: newLista }
-                    });
-                  }}
-                >
-                  ×
-                </Button>
-              </div>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const newLista = [...(block.conteudo.lista || []), ''];
-                updateBlock(block.id, { 
-                  conteudo: { ...block.conteudo, lista: newLista }
-                });
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Participante
-            </Button>
-          </div>
-        );
-
-      case 'pauta':
-      case 'acoes':
-        const items = block.conteudo.itens || block.conteudo.checklist || [];
-        return (
-          <div className="space-y-2">
-            {items.map((item: any, index: number) => (
-              <div key={index} className="flex items-center gap-2">
-                {block.tipo === 'acoes' && (
-                  <input
-                    type="checkbox"
-                    checked={typeof item === 'object' ? item.concluido : false}
-                    onChange={(e) => {
-                      const newItems = [...items];
-                      if (typeof item === 'object') {
-                        newItems[index] = { ...item, concluido: e.target.checked };
-                      } else {
-                        newItems[index] = { texto: item, concluido: e.target.checked };
-                      }
-                      const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
-                      updateBlock(block.id, { 
-                        conteudo: { ...block.conteudo, [key]: newItems }
-                      });
-                    }}
-                  />
-                )}
-                <Input
-                  value={typeof item === 'object' ? item.texto : item}
-                  onChange={(e) => {
-                    const newItems = [...items];
-                    if (typeof item === 'object') {
-                      newItems[index] = { ...item, texto: e.target.value };
-                    } else {
-                      newItems[index] = e.target.value;
-                    }
-                    const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
-                    updateBlock(block.id, { 
-                      conteudo: { ...block.conteudo, [key]: newItems }
-                    });
-                  }}
-                  placeholder={block.tipo === 'pauta' ? "Item da pauta" : "Ação"}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const newItems = items.filter((_: any, i: number) => i !== index);
-                    const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
-                    updateBlock(block.id, { 
-                      conteudo: { ...block.conteudo, [key]: newItems }
-                    });
-                  }}
-                >
-                  ×
-                </Button>
-              </div>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const newItem = block.tipo === 'acoes' 
-                  ? { texto: '', concluido: false }
-                  : '';
-                const newItems = [...items, newItem];
-                const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
-                updateBlock(block.id, { 
-                  conteudo: { ...block.conteudo, [key]: newItems }
-                });
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {block.tipo === 'pauta' ? 'Adicionar Item' : 'Adicionar Ação'}
-            </Button>
-          </div>
-        );
-
-      default:
-        return (
-          <Textarea
-            value={block.conteudo.texto || ''}
-            onChange={(e) => updateBlock(block.id, { 
-              conteudo: { ...block.conteudo, texto: e.target.value }
-            })}
-            placeholder="Digite o conteúdo..."
-            className="min-h-24"
-          />
-        );
-    }
-  }
 }
