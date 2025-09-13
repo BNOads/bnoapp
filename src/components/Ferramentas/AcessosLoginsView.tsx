@@ -394,6 +394,24 @@ export const AcessosLoginsView = () => {
             const valid = Object.keys(CATEGORIAS);
             if (valid.includes(v)) return v;
             if (!v) return 'outros';
+            
+            // Mapeamento específico para categorias do arquivo
+            const categoryMap: Record<string, string> = {
+              'cursos': 'plataforma_cursos',
+              'email': 'emails',
+              'ferramentas_ai': 'ferramentas_ads',
+              'navegador': 'outros',
+              'automacoes': 'ferramentas_ads',
+              'crm': 'ferramentas_ads',
+              'design': 'outros',
+              'analytics': 'ferramentas_ads',
+              'wordpress': 'outros',
+              'hospedagem': 'outros'
+            };
+            
+            if (categoryMap[v]) return categoryMap[v];
+            
+            // Fallback para detecção automática
             if (v.includes('rede') && v.includes('soc')) return 'redes_sociais';
             if (v.includes('ads') || v.includes('anúncio') || v.includes('anuncio') || v.includes('tráfego') || v.includes('trafego') || v.includes('google') || v.includes('meta')) return 'ferramentas_ads';
             if (v.includes('curso') || v.includes('aula') || v.includes('treinamento') || v.includes('elearning') || v.includes('e-learning') || v.includes('plataforma')) return 'plataforma_cursos';
