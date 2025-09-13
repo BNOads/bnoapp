@@ -2338,6 +2338,60 @@ export type Database = {
         }
         Relationships: []
       }
+      utm_history: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          params: Json
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          params?: Json
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          params?: Json
+          url?: string
+        }
+        Relationships: []
+      }
+      utm_presets: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_global: boolean
+          name: string
+          params: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_global?: boolean
+          name: string
+          params?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_global?: boolean
+          name?: string
+          params?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -5,9 +5,10 @@ import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
+import { UTMBuilderView } from "./UTMBuilderView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
 import { PautaReuniaoView } from "@/components/Reunioes/PautaReuniaoView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar } from "lucide-react";
+import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -82,6 +83,14 @@ export const FerramentasView = () => {
       icon: DollarSign,
       component: <OrcamentosView />,
       color: "text-emerald-600"
+    },
+    {
+      id: "utm-builder",
+      title: "Criador de UTM",
+      description: "Gere URLs com parâmetros UTM padronizados para tracking de campanhas",
+      icon: Link,
+      component: <UTMBuilderView />,
+      color: "text-cyan-600"
     },
     {
       id: "lancamentos",

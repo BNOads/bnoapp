@@ -119,14 +119,11 @@ export function UTMBuilderView() {
 
   const loadPresets = async () => {
     try {
-      const { data, error } = await supabase
-        .from('utm_presets')
-        .select('*')
-        .or(`created_by.eq.${user?.id},is_global.eq.true`)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPresets(data || []);
+      // Usar localStorage temporariamente até os tipos serem atualizados
+      const storedPresets = localStorage.getItem('utm_presets');
+      if (storedPresets) {
+        setPresets(JSON.parse(storedPresets));
+      }
     } catch (error) {
       console.error('Error loading presets:', error);
     }
@@ -134,15 +131,11 @@ export function UTMBuilderView() {
 
   const loadHistory = async () => {
     try {
-      const { data, error } = await supabase
-        .from('utm_history')
-        .select('*')
-        .eq('created_by', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      setHistory(data || []);
+      // Usar localStorage temporariamente até os tipos serem atualizados
+      const storedHistory = localStorage.getItem('utm_history');
+      if (storedHistory) {
+        setHistory(JSON.parse(storedHistory));
+      }
     } catch (error) {
       console.error('Error loading history:', error);
     }
@@ -243,16 +236,20 @@ export function UTMBuilderView() {
     if (!generatedUrl || !user) return;
 
     try {
-      const { error } = await supabase
-        .from('utm_history')
-        .insert({
-          url: generatedUrl,
-          params: params,
-          created_by: user.id
-        });
-
-      if (error) throw error;
-      await loadHistory();
+      // Usar localStorage temporariamente até os tipos serem atualizados
+      const storedHistory = localStorage.getItem('utm_history');
+      const currentHistory = storedHistory ? JSON.parse(storedHistory) : [];
+      
+      const newEntry: UTMHistory = {
+        id: crypto.randomUUID(),
+        url: generatedUrl,
+        params: params,
+        created_at: new Date().toISOString()
+      };
+      
+      const updatedHistory = [newEntry, ...currentHistory].slice(0, 10);
+      localStorage.setItem('utm_history', JSON.stringify(updatedHistory));
+      setHistory(updatedHistory);
     } catch (error) {
       console.error('Error saving to history:', error);
     }
@@ -270,16 +267,23 @@ export function UTMBuilderView() {
 
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('utm_presets')
-        .insert({
-          name: presetName,
-          params: params,
-          is_global: isGlobalPreset,
-          created_by: user?.id
-        });
-
-      if (error) throw error;
+      
+      // Usar localStorage temporariamente até os tipos serem atualizados
+      const storedPresets = localStorage.getItem('utm_presets');
+      const currentPresets = storedPresets ? JSON.parse(storedPresets) : [];
+      
+      const newPreset: UTMPreset = {
+        id: crypto.randomUUID(),
+        name: presetName,
+        params: params,
+        isGlobal: isGlobalPreset,
+        created_by: user?.id || '',
+        created_at: new Date().toISOString()
+      };
+      
+      const updatedPresets = [newPreset, ...currentPresets];
+      localStorage.setItem('utm_presets', JSON.stringify(updatedPresets));
+      setPresets(updatedPresets);
 
       toast({
         title: "✅ Preset salvo",
@@ -289,7 +293,6 @@ export function UTMBuilderView() {
       setShowPresetDialog(false);
       setPresetName("");
       setIsGlobalPreset(false);
-      await loadPresets();
     } catch (error) {
       console.error('Error saving preset:', error);
       toast({
