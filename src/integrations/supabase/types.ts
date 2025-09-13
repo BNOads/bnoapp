@@ -860,28 +860,37 @@ export type Database = {
       }
       funis_marketing: {
         Row: {
+          compartilhado_em: string | null
           created_at: string
           dados_funil: Json
           descricao: string | null
           id: string
+          link_publico: string | null
+          publico: boolean | null
           titulo: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          compartilhado_em?: string | null
           created_at?: string
           dados_funil?: Json
           descricao?: string | null
           id?: string
+          link_publico?: string | null
+          publico?: boolean | null
           titulo: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          compartilhado_em?: string | null
           created_at?: string
           dados_funil?: Json
           descricao?: string | null
           id?: string
+          link_publico?: string | null
+          publico?: boolean | null
           titulo?: string
           updated_at?: string
           user_id?: string

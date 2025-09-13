@@ -6,70 +6,120 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Save, Trash2, Edit, Workflow, Monitor, Mail, MousePointer, ShoppingCart, Users } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { 
+  Plus, Save, Trash2, Edit, Share2, Download, 
+  Facebook, Youtube, Mail, Globe, ShoppingCart, 
+  MessageCircle, Users, Calendar, BookOpen, Zap,
+  MousePointer, ArrowRight, Settings, Eye, Link2, Play
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface FunnelElement {
   id: string;
-  type: 'landing' | 'ad' | 'email' | 'checkout' | 'traffic';
+  type: string;
+  category: string;
   title: string;
-  description: string;
+  description?: string;
+  icon: string;
   x: number;
   y: number;
-  icon: string;
+  width: number;
+  height: number;
+  color: string;
+  metrics?: {
+    conversion?: number;
+    leads?: number;
+    sales?: number;
+    cost?: number;
+  };
 }
 
 interface FunnelConnection {
   id: string;
   fromElementId: string;
   toElementId: string;
+  label?: string;
 }
 
-interface FunilMarketing {
+interface FunnelData {
+  elements: FunnelElement[];
+  connections: FunnelConnection[];
+}
+
+interface Funnel {
   id: string;
   titulo: string;
-  descricao: string;
-  dados_funil: {
-    elements: FunnelElement[];
-    connections: FunnelConnection[];
+  descricao?: string;
+  dados_funil: FunnelData;
+  created_at: string;
+  updated_at: string;
+  publico?: boolean;
+  link_publico?: string;
+}
+
+const ELEMENT_TEMPLATES = {
+  traffic: [
+    { type: 'facebook_ad', title: 'Anúncio Facebook/Instagram', icon: 'facebook', color: '#1877f2', category: 'traffic' },
+    { type: 'google_ad', title: 'Anúncio Google Ads', icon: 'globe', color: '#4285f4', category: 'traffic' },
+    { type: 'youtube_ad', title: 'Anúncio YouTube', icon: 'youtube', color: '#ff0000', category: 'traffic' },
+    { type: 'tiktok_ad', title: 'Anúncio TikTok', icon: 'zap', color: '#000000', category: 'traffic' },
+    { type: 'linkedin_ad', title: 'Anúncio LinkedIn', icon: 'users', color: '#0077b5', category: 'traffic' },
+  ],
+  email: [
+    { type: 'email_blast', title: 'Disparo de E-mail', icon: 'mail', color: '#ea4335', category: 'email' },
+    { type: 'email_sequence', title: 'Sequência de Nutrição', icon: 'arrow-right', color: '#34a853', category: 'email' },
+    { type: 'newsletter', title: 'Newsletter/Broadcast', icon: 'mail', color: '#fbbc04', category: 'email' },
+  ],
+  pages: [
+    { type: 'landing_page', title: 'Página de Captura', icon: 'globe', color: '#9333ea', category: 'pages' },
+    { type: 'thank_you', title: 'Página de Obrigado', icon: 'globe', color: '#10b981', category: 'pages' },
+    { type: 'sales_page', title: 'Página de Vendas', icon: 'globe', color: '#f59e0b', category: 'pages' },
+    { type: 'checkout', title: 'Checkout', icon: 'shopping-cart', color: '#ef4444', category: 'pages' },
+    { type: 'content_page', title: 'Página de Conteúdo', icon: 'book-open', color: '#6366f1', category: 'pages' },
+  ],
+  other: [
+    { type: 'whatsapp', title: 'WhatsApp/Chatbot', icon: 'message-circle', color: '#25d366', category: 'other' },
+    { type: 'members_area', title: 'Área de Membros', icon: 'users', color: '#8b5cf6', category: 'other' },
+    { type: 'webinar', title: 'Evento/Webinário', icon: 'calendar', color: '#06b6d4', category: 'other' },
+    { type: 'product', title: 'Produto/Serviço', icon: 'shopping-cart', color: '#f97316', category: 'other' },
+  ]
+};
+
+const getIconComponent = (iconName: string) => {
+  const icons = {
+    facebook: Facebook,
+    youtube: Youtube,
+    mail: Mail,
+    globe: Globe,
+    'shopping-cart': ShoppingCart,
+    'message-circle': MessageCircle,
+    users: Users,
+    calendar: Calendar,
+    'book-open': BookOpen,
+    zap: Zap,
+    'arrow-right': ArrowRight,
+    play: Play,
   };
-  created_at: string;
-  updated_at: string;
-}
-
-interface FunilMarketingDB {
-  id: string;
-  titulo: string;
-  descricao: string;
-  dados_funil: any;
-  created_at: string;
-  updated_at: string;
-  user_id: string;
-}
-
-const elementTypes = [
-  { value: 'traffic', label: 'Tráfego', icon: Users, color: '#ef4444' },
-  { value: 'ad', label: 'Anúncio', icon: MousePointer, color: '#f59e0b' },
-  { value: 'landing', label: 'Landing Page', icon: Monitor, color: '#3b82f6' },
-  { value: 'email', label: 'E-mail', icon: Mail, color: '#10b981' },
-  { value: 'checkout', label: 'Checkout', icon: ShoppingCart, color: '#8b5cf6' }
-];
+  return icons[iconName as keyof typeof icons] || Globe;
+};
 
 export const CriadorFunilView = () => {
   const { user } = useAuth();
-  const [funis, setFunis] = useState<FunilMarketing[]>([]);
+  const [funis, setFunis] = useState<Funnel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentFunil, setCurrentFunil] = useState<FunilMarketing | null>(null);
+  const [currentFunil, setCurrentFunil] = useState<Funnel | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isElementDialogOpen, setIsElementDialogOpen] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [elementType, setElementType] = useState<string>("");
-  const [elementTitle, setElementTitle] = useState("");
-  const [elementDescription, setElementDescription] = useState("");
+  const [selectedTool, setSelectedTool] = useState<'select' | 'connect'>('select');
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionStart, setConnectionStart] = useState<string | null>(null);
+  const [tempConnection, setTempConnection] = useState<{ x: number; y: number } | null>(null);
+  const [editingElement, setEditingElement] = useState<string | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,14 +136,15 @@ export const CriadorFunilView = () => {
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      const mappedData = (data || []).map((item: FunilMarketingDB) => ({
+      
+      const mappedData = (data || []).map((item: any) => ({
         ...item,
-        dados_funil: item.dados_funil as unknown as { elements: FunnelElement[]; connections: FunnelConnection[]; }
+        dados_funil: item.dados_funil as FunnelData
       }));
       setFunis(mappedData);
     } catch (error) {
       console.error('Erro ao buscar funis:', error);
-      toast.error('Erro ao carregar funis de marketing');
+      toast.error('Erro ao carregar funis');
     } finally {
       setLoading(false);
     }
@@ -111,11 +162,11 @@ export const CriadorFunilView = () => {
         .insert({
           user_id: user.id,
           titulo: titulo.trim(),
-          descricao: descricao.trim(),
+          descricao: descricao.trim() || null,
           dados_funil: {
             elements: [],
             connections: []
-          }
+          } as any
         })
         .select()
         .single();
@@ -124,7 +175,7 @@ export const CriadorFunilView = () => {
       
       const mappedData = {
         ...data,
-        dados_funil: data.dados_funil as unknown as { elements: FunnelElement[]; connections: FunnelConnection[]; }
+        dados_funil: (data.dados_funil as any) || { elements: [], connections: [] }
       };
       setCurrentFunil(mappedData);
       setTitulo("");
@@ -158,6 +209,219 @@ export const CriadorFunilView = () => {
     }
   };
 
+  const shareFunnel = async () => {
+    if (!currentFunil) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('funis_marketing')
+        .update({ publico: true })
+        .eq('id', currentFunil.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setCurrentFunil({
+        ...data,
+        dados_funil: (data.dados_funil as any) || { elements: [], connections: [] }
+      });
+      const publicUrl = `${window.location.origin}/funil/publico/${currentFunil.id}`;
+      await navigator.clipboard.writeText(publicUrl);
+      toast.success('Link público copiado para a área de transferência!');
+      setShareDialogOpen(false);
+      await fetchFunis();
+    } catch (error) {
+      console.error('Erro ao compartilhar funil:', error);
+      toast.error('Erro ao compartilhar funil');
+    }
+  };
+
+  const exportFunnel = () => {
+    if (!canvasRef.current) return;
+    
+    // Create a temporary canvas for export
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = 1200;
+    canvas.height = 800;
+    
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Export as PNG
+    const link = document.createElement('a');
+    link.download = `funil-${currentFunil?.titulo || 'export'}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+    
+    toast.success('Funil exportado com sucesso!');
+  };
+
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    if (!currentFunil || !canvasRef.current) return;
+
+    // Clear any temporary connection when clicking on empty canvas
+    if (isConnecting) {
+      setIsConnecting(false);
+      setConnectionStart(null);
+      setTempConnection(null);
+    }
+  };
+
+  const addElementToCanvas = (template: any, x: number, y: number) => {
+    if (!currentFunil) return;
+
+    const newElement: FunnelElement = {
+      id: `element_${Date.now()}`,
+      type: template.type,
+      category: template.category || 'other',
+      title: template.title,
+      description: '',
+      icon: template.icon,
+      x: x - 75,
+      y: y - 40,
+      width: 150,
+      height: 80,
+      color: template.color,
+      metrics: {}
+    };
+
+    setCurrentFunil({
+      ...currentFunil,
+      dados_funil: {
+        ...currentFunil.dados_funil,
+        elements: [...currentFunil.dados_funil.elements, newElement]
+      }
+    });
+  };
+
+  const handleElementMouseDown = (e: React.MouseEvent, elementId: string) => {
+    if (selectedTool === 'connect') {
+      e.stopPropagation();
+      if (!connectionStart) {
+        setConnectionStart(elementId);
+        setIsConnecting(true);
+        toast.info('Clique em outro elemento para criar a conexão');
+      } else if (connectionStart !== elementId) {
+        createConnection(connectionStart, elementId);
+        setConnectionStart(null);
+        setIsConnecting(false);
+      }
+      return;
+    }
+
+    if (selectedTool !== 'select') return;
+    if (!canvasRef.current) return;
+    
+    e.stopPropagation();
+    const rect = canvasRef.current.getBoundingClientRect();
+    const element = currentFunil?.dados_funil.elements.find(el => el.id === elementId);
+    if (!element) return;
+
+    setDraggedElement(elementId);
+    setDragOffset({
+      x: e.clientX - rect.left - element.x,
+      y: e.clientY - rect.top - element.y
+    });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!currentFunil || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Handle connection dragging
+    if (isConnecting && connectionStart) {
+      setTempConnection({ x: mouseX, y: mouseY });
+      return;
+    }
+
+    // Handle element dragging
+    if (draggedElement) {
+      const newX = mouseX - dragOffset.x;
+      const newY = mouseY - dragOffset.y;
+
+      setCurrentFunil({
+        ...currentFunil,
+        dados_funil: {
+          ...currentFunil.dados_funil,
+          elements: currentFunil.dados_funil.elements.map(element =>
+            element.id === draggedElement 
+              ? { ...element, x: Math.max(0, Math.min(newX, 1000)), y: Math.max(0, Math.min(newY, 600)) }
+              : element
+          )
+        }
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setDraggedElement(null);
+    if (!isConnecting) {
+      setConnectionStart(null);
+      setTempConnection(null);
+    }
+  };
+
+  const createConnection = (fromId: string, toId: string) => {
+    if (!currentFunil) return;
+
+    const newConnection: FunnelConnection = {
+      id: `conn_${Date.now()}`,
+      fromElementId: fromId,
+      toElementId: toId
+    };
+
+    setCurrentFunil({
+      ...currentFunil,
+      dados_funil: {
+        ...currentFunil.dados_funil,
+        connections: [...currentFunil.dados_funil.connections, newConnection]
+      }
+    });
+
+    toast.success('Conexão criada com sucesso');
+  };
+
+  const getElementPosition = (elementId: string) => {
+    const element = currentFunil?.dados_funil.elements.find(el => el.id === elementId);
+    return element ? { x: element.x + element.width/2, y: element.y + element.height/2 } : { x: 0, y: 0 };
+  };
+
+  const deleteElement = (elementId: string) => {
+    if (!currentFunil) return;
+
+    setCurrentFunil({
+      ...currentFunil,
+      dados_funil: {
+        elements: currentFunil.dados_funil.elements.filter(el => el.id !== elementId),
+        connections: currentFunil.dados_funil.connections.filter(
+          conn => conn.fromElementId !== elementId && conn.toElementId !== elementId
+        )
+      }
+    });
+  };
+
+  const updateElement = (elementId: string, updates: Partial<FunnelElement>) => {
+    if (!currentFunil) return;
+
+    setCurrentFunil({
+      ...currentFunil,
+      dados_funil: {
+        ...currentFunil.dados_funil,
+        elements: currentFunil.dados_funil.elements.map(element =>
+          element.id === elementId ? { ...element, ...updates } : element
+        )
+      }
+    });
+  };
+
   const deleteFunil = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este funil?')) return;
 
@@ -179,227 +443,454 @@ export const CriadorFunilView = () => {
     }
   };
 
-  const addElement = () => {
-    if (!currentFunil || !elementType || !elementTitle.trim()) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
-    }
-
-    const typeConfig = elementTypes.find(t => t.value === elementType);
-    if (!typeConfig) return;
-
-    const newElement: FunnelElement = {
-      id: `element_${Date.now()}`,
-      type: elementType as any,
-      title: elementTitle.trim(),
-      description: elementDescription.trim(),
-      x: Math.random() * 400 + 50,
-      y: Math.random() * 250 + 50,
-      icon: typeConfig.icon.name
-    };
-
-    setCurrentFunil({
-      ...currentFunil,
-      dados_funil: {
-        ...currentFunil.dados_funil,
-        elements: [...currentFunil.dados_funil.elements, newElement]
-      }
-    });
-
-    setElementType("");
-    setElementTitle("");
-    setElementDescription("");
-    setIsElementDialogOpen(false);
-  };
-
-  const deleteElement = (elementId: string) => {
-    if (!currentFunil) return;
-
-    setCurrentFunil({
-      ...currentFunil,
-      dados_funil: {
-        elements: currentFunil.dados_funil.elements.filter(el => el.id !== elementId),
-        connections: currentFunil.dados_funil.connections.filter(
-          conn => conn.fromElementId !== elementId && conn.toElementId !== elementId
-        )
-      }
-    });
-  };
-
-  const handleElementMouseDown = (e: React.MouseEvent, elementId: string) => {
-    if (!canvasRef.current) return;
-    
-    const rect = canvasRef.current.getBoundingClientRect();
-    const element = currentFunil?.dados_funil.elements.find(el => el.id === elementId);
-    if (!element) return;
-
-    setDraggedElement(elementId);
-    setDragOffset({
-      x: e.clientX - rect.left - element.x,
-      y: e.clientY - rect.top - element.y
-    });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!draggedElement || !currentFunil || !canvasRef.current) return;
-
-    const rect = canvasRef.current.getBoundingClientRect();
-    const newX = e.clientX - rect.left - dragOffset.x;
-    const newY = e.clientY - rect.top - dragOffset.y;
-
-    setCurrentFunil({
-      ...currentFunil,
-      dados_funil: {
-        ...currentFunil.dados_funil,
-        elements: currentFunil.dados_funil.elements.map(element =>
-          element.id === draggedElement 
-            ? { ...element, x: Math.max(0, Math.min(newX, 460)), y: Math.max(0, Math.min(newY, 260)) }
-            : element
-        )
-      }
-    });
-  };
-
-  const handleMouseUp = () => {
-    setDraggedElement(null);
-  };
-
-  const getElementIcon = (element: FunnelElement) => {
-    const typeConfig = elementTypes.find(t => t.value === element.type);
-    return typeConfig?.icon || Monitor;
-  };
-
-  const getElementColor = (element: FunnelElement) => {
-    const typeConfig = elementTypes.find(t => t.value === element.type);
-    return typeConfig?.color || '#3b82f6';
-  };
-
   if (loading) {
     return <div className="text-center py-8">Carregando funis...</div>;
   }
 
   if (currentFunil) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold">{currentFunil.titulo}</h2>
-            <p className="text-muted-foreground">{currentFunil.descricao}</p>
+      <div className="h-screen flex bg-background">
+        {/* Sidebar */}
+        <div className="w-80 bg-card border-r border-border flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold truncate">{currentFunil.titulo}</h2>
+              <Button 
+                onClick={() => setCurrentFunil(null)} 
+                variant="ghost" 
+                size="sm"
+              >
+                ✕
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">Editor de Funil de Marketing</p>
           </div>
-          <div className="flex gap-2">
-            <Dialog open={isElementDialogOpen} onOpenChange={setIsElementDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Elemento
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Adicionar Elemento ao Funil</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <Select value={elementType} onValueChange={setElementType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Tipo de elemento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {elementTypes.map(type => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    placeholder="Título do elemento"
-                    value={elementTitle}
-                    onChange={(e) => setElementTitle(e.target.value)}
-                  />
-                  <Textarea
-                    placeholder="Descrição (opcional)"
-                    value={elementDescription}
-                    onChange={(e) => setElementDescription(e.target.value)}
-                    rows={3}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsElementDialogOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={addElement}>
-                      Adicionar
-                    </Button>
+
+          {/* Tools */}
+          <div className="p-4 space-y-3">
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setSelectedTool('select')}
+                variant={selectedTool === 'select' ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+              >
+                <MousePointer className="h-4 w-4 mr-2" />
+                Selecionar
+              </Button>
+              <Button
+                onClick={() => setSelectedTool('connect')}
+                variant={selectedTool === 'connect' ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+              >
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Conectar
+              </Button>
+            </div>
+            
+            <div className="border-t pt-3 space-y-2">
+              <Button 
+                onClick={saveFunil}
+                className="w-full justify-start"
+              >
+                <Save className="h-4 w-4 mr-3" />
+                Salvar Funil
+              </Button>
+
+              <Button 
+                onClick={() => setShareDialogOpen(true)}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <Share2 className="h-4 w-4 mr-3" />
+                Compartilhar
+              </Button>
+
+              <Button 
+                onClick={exportFunnel}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <Download className="h-4 w-4 mr-3" />
+                Exportar PNG
+              </Button>
+            </div>
+          </div>
+
+          {/* Element Library */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <h3 className="font-medium mb-3">Biblioteca de Elementos</h3>
+            <Accordion type="multiple" className="space-y-2">
+              <AccordionItem value="traffic">
+                <AccordionTrigger className="text-sm">Tráfego/Anúncios</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2">
+                    {ELEMENT_TEMPLATES.traffic.map((template) => {
+                      const IconComponent = getIconComponent(template.icon);
+                      return (
+                        <div
+                          key={template.type}
+                          className="p-2 border rounded cursor-pointer hover:bg-muted transition-colors"
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('element', JSON.stringify(template));
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-8 h-8 rounded flex items-center justify-center text-white text-xs"
+                              style={{ backgroundColor: template.color }}
+                            >
+                              <IconComponent className="h-4 w-4" />
+                            </div>
+                            <span className="text-xs font-medium">{template.title}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Button onClick={saveFunil}>
-              <Save className="h-4 w-4 mr-2" />
-              Salvar
-            </Button>
-            <Button onClick={() => setCurrentFunil(null)} variant="outline">
-              Voltar
-            </Button>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="email">
+                <AccordionTrigger className="text-sm">E-mail Marketing</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2">
+                    {ELEMENT_TEMPLATES.email.map((template) => {
+                      const IconComponent = getIconComponent(template.icon);
+                      return (
+                        <div
+                          key={template.type}
+                          className="p-2 border rounded cursor-pointer hover:bg-muted transition-colors"
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('element', JSON.stringify(template));
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-8 h-8 rounded flex items-center justify-center text-white text-xs"
+                              style={{ backgroundColor: template.color }}
+                            >
+                              <IconComponent className="h-4 w-4" />
+                            </div>
+                            <span className="text-xs font-medium">{template.title}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="pages">
+                <AccordionTrigger className="text-sm">Páginas</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2">
+                    {ELEMENT_TEMPLATES.pages.map((template) => {
+                      const IconComponent = getIconComponent(template.icon);
+                      return (
+                        <div
+                          key={template.type}
+                          className="p-2 border rounded cursor-pointer hover:bg-muted transition-colors"
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('element', JSON.stringify(template));
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-8 h-8 rounded flex items-center justify-center text-white text-xs"
+                              style={{ backgroundColor: template.color }}
+                            >
+                              <IconComponent className="h-4 w-4" />
+                            </div>
+                            <span className="text-xs font-medium">{template.title}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="other">
+                <AccordionTrigger className="text-sm">Outros</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2">
+                    {ELEMENT_TEMPLATES.other.map((template) => {
+                      const IconComponent = getIconComponent(template.icon);
+                      return (
+                        <div
+                          key={template.type}
+                          className="p-2 border rounded cursor-pointer hover:bg-muted transition-colors"
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('element', JSON.stringify(template));
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-8 h-8 rounded flex items-center justify-center text-white text-xs"
+                              style={{ backgroundColor: template.color }}
+                            >
+                              <IconComponent className="h-4 w-4" />
+                            </div>
+                            <span className="text-xs font-medium">{template.title}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+
+          {/* Instructions */}
+          <div className="mt-auto p-4 border-t border-border">
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>💡 <strong>Como usar:</strong></p>
+              <p>• Arraste elementos da biblioteca</p>
+              <p>• Use "Conectar" para ligar elementos</p>
+              <p>• Duplo clique para editar</p>
+              <p>• Exporte como PNG ou compartilhe</p>
+            </div>
           </div>
         </div>
 
-        <Card>
-          <CardContent className="p-4">
+        {/* Main Canvas */}
+        <div className="flex-1 flex flex-col">
+          {/* Canvas Header */}
+          <div className="h-14 bg-card border-b border-border flex items-center justify-between px-6">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-muted-foreground">
+                {currentFunil.dados_funil.elements.length} elementos • {currentFunil.dados_funil.connections.length} conexões
+              </span>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Ferramenta: {selectedTool === 'select' ? 'Selecionar' : 'Conectar'}
+            </div>
+          </div>
+
+          {/* Canvas Area */}
+          <div className="flex-1 relative overflow-hidden bg-gradient-to-br from-muted/20 to-muted/40">
             <div 
               ref={canvasRef}
-              className="relative w-full h-96 bg-gradient-to-br from-background to-muted rounded-lg border overflow-hidden cursor-crosshair"
+              className="absolute inset-0 w-full h-full"
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onClick={handleCanvasClick}
+              onDrop={(e) => {
+                e.preventDefault();
+                const elementData = e.dataTransfer.getData('element');
+                if (elementData) {
+                  const template = JSON.parse(elementData);
+                  const rect = canvasRef.current?.getBoundingClientRect();
+                  if (rect) {
+                    addElementToCanvas(template, e.clientX - rect.left, e.clientY - rect.top);
+                  }
+                }
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              style={{
+                backgroundImage: `
+                  radial-gradient(circle, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px)
+                `,
+                backgroundSize: '20px 20px',
+                cursor: selectedTool === 'select' ? 'default' : 'crosshair'
+              }}
             >
+              {/* Render connections */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                {currentFunil.dados_funil.connections.map(connection => {
+                  const fromPos = getElementPosition(connection.fromElementId);
+                  const toPos = getElementPosition(connection.toElementId);
+                  
+                  const dx = toPos.x - fromPos.x;
+                  const dy = toPos.y - fromPos.y;
+                  
+                  return (
+                    <path
+                      key={connection.id}
+                      d={`M ${fromPos.x} ${fromPos.y} Q ${fromPos.x + dx/2} ${fromPos.y + dy/2 - 30} ${toPos.x} ${toPos.y}`}
+                      stroke="hsl(var(--primary))"
+                      strokeWidth="2"
+                      fill="none"
+                      className="drop-shadow-sm"
+                      markerEnd="url(#arrowhead)"
+                    />
+                  );
+                })}
+                
+                {/* Temporary connection line while dragging */}
+                {isConnecting && connectionStart && tempConnection && (
+                  <path
+                    d={`M ${getElementPosition(connectionStart).x} ${getElementPosition(connectionStart).y} L ${tempConnection.x} ${tempConnection.y}`}
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="2"
+                    strokeDasharray="5,5"
+                    fill="none"
+                    className="pointer-events-none animate-pulse"
+                  />
+                )}
+                
+                {/* Arrow marker */}
+                <defs>
+                  <marker
+                    id="arrowhead"
+                    markerWidth="10"
+                    markerHeight="7"
+                    refX="9"
+                    refY="3.5"
+                    orient="auto"
+                  >
+                    <polygon
+                      points="0 0, 10 3.5, 0 7"
+                      fill="hsl(var(--primary))"
+                    />
+                  </marker>
+                </defs>
+              </svg>
+
               {/* Render elements */}
               {currentFunil.dados_funil.elements.map(element => {
-                const Icon = getElementIcon(element);
-                const color = getElementColor(element);
-                
+                const IconComponent = getIconComponent(element.icon);
                 return (
                   <div
                     key={element.id}
-                    className="absolute bg-white border-2 rounded-lg p-3 cursor-move shadow-md hover:shadow-lg transition-shadow"
+                    className="absolute bg-background border-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 group"
                     style={{
                       left: element.x,
                       top: element.y,
-                      borderColor: color,
-                      minWidth: '140px',
-                      maxWidth: '180px'
+                      width: element.width,
+                      height: element.height,
+                      borderColor: element.color,
+                      cursor: selectedTool === 'select' ? 'move' : selectedTool === 'connect' ? 'pointer' : 'default'
                     }}
                     onMouseDown={(e) => handleElementMouseDown(e, element.id)}
+                    onDoubleClick={() => setEditingElement(element.id)}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <Icon className="h-5 w-5" style={{ color }} />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-4 w-4 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteElement(element.id);
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                    <div className="p-3 h-full flex flex-col">
+                      <div className="flex items-center justify-between mb-2">
+                        <div 
+                          className="w-6 h-6 rounded flex items-center justify-center text-white"
+                          style={{ backgroundColor: element.color }}
+                        >
+                          <IconComponent className="h-3 w-3" />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteElement(element.id);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      
+                      <h4 className="text-xs font-semibold mb-1 line-clamp-2">
+                        {element.title}
+                      </h4>
+                      
+                      {element.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-1">
+                          {element.description}
+                        </p>
+                      )}
+                      
+                      {element.metrics && Object.keys(element.metrics).length > 0 && (
+                        <div className="mt-auto pt-1 text-xs text-muted-foreground">
+                          {element.metrics.conversion && (
+                            <div>Conv: {element.metrics.conversion}%</div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <h4 className="text-sm font-medium mb-1">{element.title}</h4>
-                    {element.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {element.description}
-                      </p>
-                    )}
                   </div>
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
-
-        <div className="text-sm text-muted-foreground">
-          <p>💡 Dicas: Arraste os elementos para reposicionar • Clique no ícone de lixeira para remover</p>
+          </div>
         </div>
+
+        {/* Share Dialog */}
+        <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Compartilhar Funil</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Ao compartilhar, qualquer pessoa com o link poderá visualizar este funil (somente leitura).
+              </p>
+              <div className="flex gap-2">
+                <Button onClick={shareFunnel} className="flex-1">
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Gerar Link Público
+                </Button>
+                <Button variant="outline" onClick={() => setShareDialogOpen(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Element Dialog */}
+        {editingElement && (
+          <Dialog open={true} onOpenChange={() => setEditingElement(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Editar Elemento</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {(() => {
+                  const element = currentFunil.dados_funil.elements.find(el => el.id === editingElement);
+                  if (!element) return null;
+                  
+                  return (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium">Título</label>
+                        <Input
+                          value={element.title}
+                          onChange={(e) => updateElement(element.id, { title: e.target.value })}
+                          placeholder="Título do elemento"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium">Descrição</label>
+                        <Textarea
+                          value={element.description || ''}
+                          onChange={(e) => updateElement(element.id, { description: e.target.value })}
+                          placeholder="Descrição opcional"
+                          rows={3}
+                        />
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button onClick={() => setEditingElement(null)} className="flex-1">
+                          Salvar
+                        </Button>
+                        <Button variant="outline" onClick={() => setEditingElement(null)}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     );
   }
@@ -410,7 +901,7 @@ export const CriadorFunilView = () => {
         <div>
           <h2 className="text-2xl font-bold">Criador de Funis</h2>
           <p className="text-muted-foreground">
-            Crie e visualize funis de marketing
+            Crie funis visuais de marketing digital com elementos pré-prontos
           </p>
         </div>
         
@@ -452,10 +943,10 @@ export const CriadorFunilView = () => {
 
       {funis.length === 0 ? (
         <div className="text-center py-12">
-          <Workflow className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <ArrowRight className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium mb-2">Nenhum funil criado ainda</h3>
           <p className="text-muted-foreground mb-4">
-            Comece criando seu primeiro funil de marketing
+            Comece criando seu primeiro funil de marketing visual
           </p>
           <Button onClick={() => setIsDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -490,7 +981,7 @@ export const CriadorFunilView = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {funil.dados_funil.elements.length} elementos
+                  {funil.dados_funil.elements.length} elementos • {funil.dados_funil.connections.length} conexões
                 </p>
                 <Button 
                   variant="outline" 
@@ -498,7 +989,7 @@ export const CriadorFunilView = () => {
                   onClick={() => setCurrentFunil(funil)}
                 >
                   <Edit className="h-4 w-4 mr-2" />
-                  Editar
+                  Editar Funil
                 </Button>
               </CardContent>
             </Card>

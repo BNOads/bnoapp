@@ -23,6 +23,7 @@ import NovoDebriefing from "@/components/Debriefings/NovoDebriefing";
 import DebriefingDetalhes from "@/components/Debriefings/DebriefingDetalhes";
 import DebriefingPublico from "./pages/DebriefingPublico";
 import { MapaMentalPublico } from "./pages/MapaMentalPublico";
+import FunilPublico from "./pages/FunilPublico";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ function App() {
               <Route path="/referencia/publica/:id" element={<ReferenciaPublica />} />
               <Route path="/debriefing/publico/:id" element={<DebriefingPublico />} />
               <Route path="/mapa-mental/publico/:id" element={<MapaMentalPublico />} />
+              <Route path="/funil/publico/:id" element={<FunilPublico />} />
               <Route path="/pdi/:id" element={
                 <ProtectedRoute>
                   <PDIDetalhes />
