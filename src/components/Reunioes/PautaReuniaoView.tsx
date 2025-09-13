@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
@@ -101,6 +103,26 @@ export function PautaReuniaoView() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [extractedTitles, setExtractedTitles] = useState<string[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [showAddPautaModal, setShowAddPautaModal] = useState(false);
+  const [newPautaData, setNewPautaData] = useState({
+    titulo: '',
+    descricao: '',
+    includeAcoes: false,
+    includeDecisoes: false,
+    includeFollowups: false
+  });
+
+  // Generate slug from title
+  const generateSlug = (title: string) => {
+    return title
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Remove duplicate hyphens
+      .trim();
+  };
   
   const autosaveTimeout = useRef<NodeJS.Timeout>();
 
@@ -161,6 +183,66 @@ export function PautaReuniaoView() {
       }
     };
   }, [saveStatus, autosaveTimeout.current]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyboard = (e: KeyboardEvent) => {
+      if (!currentDocument || blocks.length === 0) return;
+      
+      if (e.key === 'j' || e.key === 'J') {
+        e.preventDefault();
+        navigateToNextBlock();
+      } else if (e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        navigateToPreviousBlock();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyboard);
+    return () => document.removeEventListener('keydown', handleKeyboard);
+  }, [blocks, currentDocument]);
+
+  const navigateToNextBlock = () => {
+    const sortedBlocks = blocks.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    const currentIndex = sortedBlocks.findIndex(block => {
+      const element = document.getElementById(`block-${block.id}`);
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        return rect.top >= 0 && rect.top <= window.innerHeight / 2;
+      }
+      return false;
+    });
+    
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < sortedBlocks.length) {
+      const nextBlock = sortedBlocks[nextIndex];
+      const element = document.getElementById(`block-${nextBlock.id}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  };
+
+  const navigateToPreviousBlock = () => {
+    const sortedBlocks = blocks.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    const currentIndex = sortedBlocks.findIndex(block => {
+      const element = document.getElementById(`block-${block.id}`);
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        return rect.top >= 0 && rect.top <= window.innerHeight / 2;
+      }
+      return false;
+    });
+    
+    const prevIndex = currentIndex - 1;
+    if (prevIndex >= 0) {
+      const prevBlock = sortedBlocks[prevIndex];
+      const element = document.getElementById(`block-${prevBlock.id}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  };
 
   const loadInitialData = async () => {
     try {
@@ -332,18 +414,45 @@ export function PautaReuniaoView() {
     setSearchParams(params);
   };
 
-  const addBlock = (tipo: string) => {
+  const addBlock = (tipo: string, titulo?: string, descricao?: string, includeExtras?: any) => {
     const newBlock: MeetingBlock = {
       id: `temp-${Date.now()}`,
       tipo,
-      titulo: BLOCK_TYPES[tipo as keyof typeof BLOCK_TYPES]?.label || 'Novo Bloco',
-      conteudo: getDefaultContent(tipo),
-      ordem: blocks.length,
+      titulo: titulo || BLOCK_TYPES[tipo as keyof typeof BLOCK_TYPES]?.label || 'Novo Bloco',
+      conteudo: {
+        ...getDefaultContent(tipo),
+        texto: descricao || '',
+        ...(includeExtras?.includeAcoes ? { acoes: [] } : {}),
+        ...(includeExtras?.includeDecisoes ? { decisoes: [] } : {}),
+        ...(includeExtras?.includeFollowups ? { followups: [] } : {})
+      },
+      ordem: blocks.length > 0 ? Math.min(...blocks.map(b => b.ordem || 0)) + 1 : 1,
       ancora: null
     };
     
-    setBlocks(prev => [...prev, newBlock]);
+    // Insert after first block (position 2)
+    const updatedBlocks = [...blocks];
+    if (blocks.length > 0) {
+      // Adjust order of existing blocks to make room
+      updatedBlocks.forEach(block => {
+        if ((block.ordem || 0) >= 1) {
+          block.ordem = (block.ordem || 0) + 1;
+        }
+      });
+      newBlock.ordem = 1;
+    }
+    
+    updatedBlocks.push(newBlock);
+    setBlocks(updatedBlocks);
     scheduleAutosave();
+    
+    // Scroll to new block after a brief delay
+    setTimeout(() => {
+      const element = document.getElementById(`block-${newBlock.id}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
   };
 
   const getDefaultContent = (tipo: string) => {
@@ -580,48 +689,57 @@ export function PautaReuniaoView() {
   );
 
   const renderTableOfContents = () => {
-    const titleBlocks = blocks.filter(block => block.tipo === 'titulo' && block.titulo);
-    const allTitles = [...titleBlocks.map(b => b.titulo || ''), ...extractedTitles];
+    const sortedBlocks = blocks
+      .filter(block => block.titulo && block.titulo.trim())
+      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
     
-    if (allTitles.length === 0) return null;
+    if (sortedBlocks.length === 0) return null;
+
+    const scrollToBlock = (blockId: string) => {
+      const element = document.getElementById(`block-${blockId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
 
     return (
       <Card className="w-64 h-fit">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Índice</CardTitle>
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar título..."
-              className="pl-8 h-8 text-xs"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Índice da Reunião
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {selectedDate.dia}/{selectedDate.mes}/{selectedDate.ano}
+          </p>
         </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-64">
-            <div className="space-y-1">
-              {allTitles
-                .filter(title => 
-                  !searchTerm || 
-                  title.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map((title, index) => (
-                  <button
-                    key={`title-${index}`}
-                    className="w-full text-left text-sm p-2 rounded hover:bg-muted"
-                    onClick={() => {
-                      // Try to find corresponding block or scroll to heading in rich text
-                      const blockElement = document.querySelector(`[data-title="${title}"]`);
-                      if (blockElement) {
-                        blockElement.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }}
-                  >
-                    {title}
-                  </button>
-                ))}
+        <CardContent className="p-0">
+          <ScrollArea className="h-80">
+            <div className="space-y-1 p-4">
+              {sortedBlocks.map((block, index) => (
+                <button
+                  key={block.id}
+                  onClick={() => scrollToBlock(block.id)}
+                  className="w-full text-left px-2 py-1 text-sm rounded hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2"
+                >
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {index + 1}
+                  </span>
+                  <span className="truncate">
+                    {block.titulo || 'Sem título'}
+                  </span>
+                </button>
+              ))}
+              
+              {sortedBlocks.length === 0 && (
+                <p className="text-xs text-muted-foreground px-2 py-4 text-center">
+                  Nenhum bloco com título encontrado
+                </p>
+              )}
+              
+              <div className="mt-4 pt-2 border-t text-xs text-muted-foreground px-2">
+                <p>Atalhos: J/K para navegar</p>
+              </div>
             </div>
           </ScrollArea>
         </CardContent>
@@ -689,6 +807,17 @@ export function PautaReuniaoView() {
                 <span className="text-red-600">❌ Erro ao salvar{lastError ? ` — ${lastError}` : ''}</span>
               )}
             </div>
+            
+            {currentDocument && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddPautaModal(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Pauta
+              </Button>
+            )}
             
             {selectedDate.dia && !currentDocument && (
               <div className="flex gap-2">
@@ -781,32 +910,19 @@ export function PautaReuniaoView() {
                 {blocks.map((block, index) => (
                   <Card key={block.id} id={`block-${block.id}`}>
                     <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
-                            className: "h-5 w-5"
-                          })}
-                          <Input
-                            value={block.titulo || ''}
-                            onChange={(e) => updateBlock(block.id, { titulo: e.target.value })}
-                            className="border-none p-0 h-auto bg-transparent font-semibold"
-                            placeholder="Título do bloco"
-                          />
-                          <Badge variant="outline" className="ml-2">
-                            {index + 1}
-                          </Badge>
-                        </div>
-                        {index === 0 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addBlock('texto')}
-                            className="shrink-0"
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Adicionar Pauta
-                          </Button>
-                        )}
+                      <CardTitle className="flex items-center gap-2">
+                        {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
+                          className: "h-5 w-5"
+                        })}
+                        <Input
+                          value={block.titulo || ''}
+                          onChange={(e) => updateBlock(block.id, { titulo: e.target.value })}
+                          className="border-none p-0 h-auto bg-transparent font-semibold"
+                          placeholder="Título do bloco"
+                        />
+                        <Badge variant="outline" className="ml-2">
+                          {index + 1}
+                        </Badge>
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -859,6 +975,124 @@ export function PautaReuniaoView() {
           </div>
         )}
       </div>
+      
+      {/* Modal para Adicionar Pauta */}
+      <Dialog open={showAddPautaModal} onOpenChange={setShowAddPautaModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Nova Pauta</DialogTitle>
+            <DialogDescription>
+              Crie um novo bloco de pauta para a reunião
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Título da Pauta *</label>
+              <Input
+                value={newPautaData.titulo}
+                onChange={(e) => setNewPautaData(prev => ({ ...prev, titulo: e.target.value }))}
+                placeholder="Ex: Revisão do projeto X"
+                className="mt-1"
+              />
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium">Descrição (opcional)</label>
+              <Textarea
+                value={newPautaData.descricao}
+                onChange={(e) => setNewPautaData(prev => ({ ...prev, descricao: e.target.value }))}
+                placeholder="Descreva brevemente o tópico da pauta..."
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Seções adicionais</label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="include-acoes"
+                    checked={newPautaData.includeAcoes}
+                    onCheckedChange={(checked) => 
+                      setNewPautaData(prev => ({ ...prev, includeAcoes: checked as boolean }))
+                    }
+                  />
+                  <label htmlFor="include-acoes" className="text-sm">
+                    Incluir seção de Ações
+                  </label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="include-decisoes"
+                    checked={newPautaData.includeDecisoes}
+                    onCheckedChange={(checked) => 
+                      setNewPautaData(prev => ({ ...prev, includeDecisoes: checked as boolean }))
+                    }
+                  />
+                  <label htmlFor="include-decisoes" className="text-sm">
+                    Incluir seção de Decisões
+                  </label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="include-followups"
+                    checked={newPautaData.includeFollowups}
+                    onCheckedChange={(checked) => 
+                      setNewPautaData(prev => ({ ...prev, includeFollowups: checked as boolean }))
+                    }
+                  />
+                  <label htmlFor="include-followups" className="text-sm">
+                    Incluir seção de Follow-ups
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowAddPautaModal(false);
+                setNewPautaData({
+                  titulo: '',
+                  descricao: '',
+                  includeAcoes: false,
+                  includeDecisoes: false,
+                  includeFollowups: false
+                });
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => {
+                if (newPautaData.titulo.trim()) {
+                  addBlock('texto', newPautaData.titulo, newPautaData.descricao, {
+                    includeAcoes: newPautaData.includeAcoes,
+                    includeDecisoes: newPautaData.includeDecisoes,
+                    includeFollowups: newPautaData.includeFollowups
+                  });
+                  setShowAddPautaModal(false);
+                  setNewPautaData({
+                    titulo: '',
+                    descricao: '',
+                    includeAcoes: false,
+                    includeDecisoes: false,
+                    includeFollowups: false
+                  });
+                }
+              }}
+              disabled={!newPautaData.titulo.trim()}
+            >
+              Criar Pauta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
