@@ -394,7 +394,7 @@ export const ClientesView = () => {
                         });
                         setKickoffModalOpen(true);
                       }} className="h-8 w-8 p-0" title="Kickoff">
-                            <Rocket className="h-4 w-4" />
+                            <span className="text-lg text-blue-500">📄</span>
                           </Button>}
                         
                         {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleEditClick(cliente)} className="h-8 w-8 p-0">
