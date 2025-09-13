@@ -359,7 +359,7 @@ export function PautaReuniaoView() {
       if (initialBlocks.length > 0) {
         const blocksToInsert = initialBlocks.map((block, index) => ({
           documento_id: doc.id,
-          tipo: block.tipo,
+          tipo: (block.tipo === 'texto' ? 'descricao' : block.tipo) as 'titulo' | 'descricao' | 'participantes' | 'pauta' | 'decisoes' | 'acoes',
           titulo: block.titulo,
           conteudo: block.conteudo,
           ordem: index,
@@ -415,12 +415,13 @@ export function PautaReuniaoView() {
   };
 
   const addBlock = (tipo: string, titulo?: string, descricao?: string, includeExtras?: any) => {
+    const tipoDb = tipo === 'texto' ? 'descricao' : tipo;
     const newBlock: MeetingBlock = {
       id: `temp-${Date.now()}`,
-      tipo,
-      titulo: titulo || BLOCK_TYPES[tipo as keyof typeof BLOCK_TYPES]?.label || 'Novo Bloco',
+      tipo: tipoDb,
+      titulo: titulo || BLOCK_TYPES[tipoDb as keyof typeof BLOCK_TYPES]?.label || 'Novo Bloco',
       conteudo: {
-        ...getDefaultContent(tipo),
+        ...getDefaultContent(tipoDb),
         texto: descricao || '',
         ...(includeExtras?.includeAcoes ? { acoes: [] } : {}),
         ...(includeExtras?.includeDecisoes ? { decisoes: [] } : {}),
@@ -539,7 +540,7 @@ export function PautaReuniaoView() {
       if (blocks.length > 0) {
         const blocksToInsert = blocks.map((block, index) => ({
           documento_id: currentDocument.id,
-          tipo: block.tipo as "titulo" | "descricao" | "participantes" | "pauta" | "decisoes" | "acoes",
+          tipo: (block.tipo === 'texto' ? 'descricao' : block.tipo) as "titulo" | "descricao" | "participantes" | "pauta" | "decisoes" | "acoes",
           titulo: block.titulo,
           conteudo: block.conteudo,
           ordem: index,
@@ -1071,7 +1072,7 @@ export function PautaReuniaoView() {
             <Button 
               onClick={() => {
                 if (newPautaData.titulo.trim()) {
-                  addBlock('texto', newPautaData.titulo, newPautaData.descricao, {
+                  addBlock('descricao', newPautaData.titulo, newPautaData.descricao, {
                     includeAcoes: newPautaData.includeAcoes,
                     includeDecisoes: newPautaData.includeDecisoes,
                     includeFollowups: newPautaData.includeFollowups
