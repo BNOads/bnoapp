@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Download, Share, FileText, TrendingUp, Target, DollarSign, Trash2, RefreshCw, Edit3 } from "lucide-react";
+import { ArrowLeft, Download, Share, FileText, TrendingUp, Target, DollarSign, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -11,8 +11,6 @@ import { toast } from "sonner";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { AdvancedCharts } from './AdvancedCharts';
 import EditDebriefingModal from './EditDebriefingModal';
-import SelectiveImportModal from './SelectiveImportModal';
-import EditDataModal from './EditDataModal';
 
 interface DebriefingDetalhes {
   id: string;
@@ -42,8 +40,6 @@ export default function DebriefingDetalhes() {
   const navigate = useNavigate();
   const [debriefing, setDebriefing] = useState<DebriefingDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showSelectiveImport, setShowSelectiveImport] = useState(false);
-  const [showEditData, setShowEditData] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -237,7 +233,6 @@ export default function DebriefingDetalhes() {
 
   return (
     <div className="container mx-auto p-6">
-      {/* TODO: Implementar o resto do componente */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" onClick={() => navigate('/debriefings')}>
@@ -258,71 +253,206 @@ export default function DebriefingDetalhes() {
         </div>
         
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setShowSelectiveImport(true)}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Reimportar Dados
-          </Button>
-          
-          <Button variant="outline" onClick={() => setShowEditData(true)}>
-            <Edit3 className="mr-2 h-4 w-4" />
-            Editar Dados
-          </Button>
-          
           <Button variant="outline" onClick={handleShare}>
             <Share className="mr-2 h-4 w-4" />
             Compartilhar
           </Button>
           
-          <EditDebriefingModal debriefing={debriefing} onUpdate={fetchDebriefing} />
+          <EditDebriefingModal 
+            debriefing={debriefing} 
+            onUpdate={fetchDebriefing}
+          />
           
           <Button variant="outline" onClick={handleExportPDF}>
             <Download className="mr-2 h-4 w-4" />
             Baixar PDF
           </Button>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir Debriefing</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir este debriefing? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
-      {/* Temporary content - needs full implementation */}
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Leads</p>
-                  <p className="text-2xl font-bold">{debriefing.leads_total || 0}</p>
-                </div>
-                <Target className="h-4 w-4 text-muted-foreground" />
+      {/* Cards de Métricas Principais */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Leads</p>
+                <p className="text-2xl font-bold">{debriefing.leads_total || 0}</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <AdvancedCharts
-          dados_leads={debriefing.dados_leads || []}
-          dados_compradores={debriefing.dados_compradores || []}
-          dados_trafego={debriefing.dados_trafego || []}
-          dados_pesquisa={debriefing.dados_pesquisa || []}
-          dados_outras_fontes={debriefing.dados_outras_fontes || []}
-          debriefing={debriefing}
-        />
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Vendas</p>
+                <p className="text-2xl font-bold">{debriefing.vendas_total || 0}</p>
+              </div>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Investimento</p>
+                <p className="text-2xl font-bold">{formatCurrency(debriefing.investimento_total || 0)}</p>
+              </div>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">ROAS</p>
+                <p className="text-2xl font-bold">{debriefing.roas?.toFixed(2) || '0.00'}x</p>
+              </div>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
-      
-      {/* Modais */}
-      <SelectiveImportModal
-        debriefingId={id!}
-        isOpen={showSelectiveImport}
-        onClose={() => setShowSelectiveImport(false)}
-        onComplete={fetchDebriefing}
-      />
-      
-      <EditDataModal
-        debriefingId={id!}
-        debriefingData={debriefing}
-        isOpen={showEditData}
-        onClose={() => setShowEditData(false)}
-        onComplete={fetchDebriefing}
-      />
+
+      {/* Métricas Secundárias */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <p className="text-sm font-medium text-muted-foreground">CPL</p>
+              <p className="text-xl font-semibold">{formatCurrency(debriefing.cpl || 0)}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <p className="text-sm font-medium text-muted-foreground">Ticket Médio</p>
+              <p className="text-xl font-semibold">{formatCurrency(debriefing.ticket_medio || 0)}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <p className="text-sm font-medium text-muted-foreground">Conversão Lead → Venda</p>
+              <p className="text-xl font-semibold">{((debriefing.conversao_lead_venda || 0) * 100).toFixed(2)}%</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Status específicos */}
+      {debriefing.status === 'processando' && (
+        <Card className="mb-6">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Processando Dados</h3>
+            <p className="text-muted-foreground text-center">
+              Estamos analisando os dados enviados. Isso pode levar alguns minutos.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Gráficos Avançados */}
+      <Tabs defaultValue="charts" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="charts">Gráficos Avançados</TabsTrigger>
+          <TabsTrigger value="data">Dados Brutos</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="charts">
+          <AdvancedCharts
+            dados_leads={debriefing.dados_leads || []}
+            dados_compradores={debriefing.dados_compradores || []}
+            dados_trafego={debriefing.dados_trafego || []}
+            dados_pesquisa={debriefing.dados_pesquisa || []}
+            dados_outras_fontes={debriefing.dados_outras_fontes || []}
+            debriefing={debriefing}
+          />
+        </TabsContent>
+
+        <TabsContent value="data">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Dados de Leads</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {debriefing.dados_leads?.length || 0} registros carregados
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Dados de Vendas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {debriefing.dados_compradores?.length || 0} registros carregados
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Dados de Tráfego</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {debriefing.dados_trafego?.length || 0} registros carregados
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Dados de Pesquisa</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {debriefing.dados_pesquisa?.length || 0} registros carregados
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
