@@ -272,16 +272,6 @@ const PainelCliente = () => {
             </div>
           </section>
 
-          {/* Orçamento por Funil - Adaptativo */}
-          <section className="space-y-3 sm:space-y-4">
-            <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
-              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0 mx-0" />
-              <span className="truncate">Orçamento por Funil</span>
-            </h2>
-            <div className="w-full overflow-hidden">
-              <OrcamentoPorFunil clienteId={clienteId} isPublicView={!isAuthenticated} />
-            </div>
-          </section>
         </div>
       </div>
 
