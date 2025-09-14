@@ -490,10 +490,107 @@ async function debugGetTasks(apiKey: string, teamId: string, userEmail: string) 
   }
 }
 
+// Função para gerar aliases de um email/nome
+function generateAliases(email: string, name?: string): string[] {
+  const aliases = new Set<string>();
+  
+  // Email original
+  aliases.add(email.toLowerCase().trim());
+  
+  // Parte antes do @
+  const username = email.split('@')[0].toLowerCase();
+  aliases.add(username);
+  
+  // Remover números do username
+  aliases.add(username.replace(/\d+/g, ''));
+  
+  // Se tem nome, gerar variações
+  if (name) {
+    const nameLower = name.toLowerCase().trim();
+    aliases.add(nameLower);
+    
+    // Primeiro nome
+    const firstName = nameLower.split(' ')[0];
+    aliases.add(firstName);
+    
+    // Nome sem espaços
+    aliases.add(nameLower.replace(/\s+/g, ''));
+    
+    // Iniciais
+    const initials = nameLower.split(' ').map(n => n[0]).join('');
+    aliases.add(initials);
+    
+    // Apelidos comuns
+    const nicknames: Record<string, string[]> = {
+      'fernando': ['fefo', 'fer', 'nando'],
+      'francisco': ['chico', 'cisco'],
+      'josé': ['zé', 'zeca'],
+      'joão': ['jão', 'joao'],
+      'maria': ['mary', 'mari'],
+      'ana': ['aninha'],
+      'antônio': ['toninho', 'antonio'],
+      'rafael': ['rafa'],
+      'rafaela': ['rafa'],
+      'lucas': ['luca', 'luke'],
+      'isabela': ['isa', 'bela'],
+      'esther': ['ester']
+    };
+    
+    Object.entries(nicknames).forEach(([fullName, nicks]) => {
+      if (nameLower.includes(fullName)) {
+        nicks.forEach(nick => aliases.add(nick));
+      }
+    });
+  }
+  
+  return Array.from(aliases).filter(alias => alias.length > 1);
+}
+
+// Função para calcular similaridade entre strings
+function calculateSimilarity(str1: string, str2: string): number {
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
+  
+  if (longer.length === 0) return 1.0;
+  
+  // Distância de Levenshtein
+  const editDistance = levenshteinDistance(longer.toLowerCase(), shorter.toLowerCase());
+  return (longer.length - editDistance) / longer.length;
+}
+
+function levenshteinDistance(str1: string, str2: string): number {
+  const matrix = [];
+  
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
+}
+
 async function userLookup(apiKey: string, teamId: string, userEmail: string) {
   console.log(`Looking up user ${userEmail} in team ${teamId}`);
   
   const headers = { 'Authorization': apiKey, 'Content-Type': 'application/json' };
+  const corsHeaders = getCorsHeaders(null);
 
   try {
     // Buscar membros do team
@@ -505,15 +602,36 @@ async function userLookup(apiKey: string, teamId: string, userEmail: string) {
 
     const data = await response.json();
     const members = data.members || [];
+    
+    // Buscar dados do colaborador no sistema para obter o nome
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    );
+    
+    const { data: colaborador } = await supabaseClient
+      .from('colaboradores')
+      .select('nome, email')
+      .eq('email', userEmail)
+      .maybeSingle();
+    
+    const userName = colaborador?.nome;
+    console.log(`User data found: ${userName} (${userEmail})`);
 
-    // Procurar usuário por email (case-insensitive)
-    const foundUser = members.find((member: any) => 
+    // Gerar aliases para o usuário
+    const userAliases = generateAliases(userEmail, userName);
+    console.log(`Generated aliases for ${userEmail}:`, userAliases);
+
+    // 1. Busca exata por email
+    let foundUser = members.find((member: any) => 
       member.user?.email?.toLowerCase().trim() === userEmail.toLowerCase().trim()
     );
 
     if (foundUser) {
+      console.log(`Exact email match found: ${foundUser.user.email}`);
       return new Response(JSON.stringify({
         found: true,
+        matchType: 'exact_email',
         user: {
           id: foundUser.user.id,
           username: foundUser.user.username,
@@ -522,20 +640,104 @@ async function userLookup(apiKey: string, teamId: string, userEmail: string) {
           teamId: teamId
         }
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    } else {
-      // Retornar lista de usuários disponíveis para seleção manual
-      const availableUsers = members.map((member: any) => ({
-        id: member.user.id,
-        username: member.user.username,
-        email: member.user.email,
-        profilePicture: member.user.profilePicture
-      }));
+    }
 
+    // 2. Busca por aliases nos usernames e emails
+    for (const alias of userAliases) {
+      foundUser = members.find((member: any) => {
+        const memberUsername = member.user?.username?.toLowerCase() || '';
+        const memberEmail = member.user?.email?.toLowerCase() || '';
+        
+        return memberUsername.includes(alias) || 
+               memberEmail.includes(alias) ||
+               alias.includes(memberUsername.split('@')[0]) ||
+               alias.includes(memberEmail.split('@')[0]);
+      });
+      
+      if (foundUser) {
+        console.log(`Alias match found: ${alias} -> ${foundUser.user.username}`);
+        return new Response(JSON.stringify({
+          found: true,
+          matchType: 'alias_match',
+          matchedAlias: alias,
+          user: {
+            id: foundUser.user.id,
+            username: foundUser.user.username,
+            email: foundUser.user.email,
+            profilePicture: foundUser.user.profilePicture,
+            teamId: teamId
+          }
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+
+    // 3. Busca por similaridade (fuzzy matching)
+    const similarities = members.map((member: any) => {
+      const memberUsername = member.user?.username || '';
+      const memberEmail = member.user?.email || '';
+      
+      const usernameAlias = userEmail.split('@')[0];
+      const usernameSimilarity = calculateSimilarity(usernameAlias, memberUsername);
+      const emailSimilarity = calculateSimilarity(userEmail, memberEmail);
+      
+      let nameSimilarity = 0;
+      if (userName) {
+        nameSimilarity = Math.max(
+          calculateSimilarity(userName.toLowerCase(), memberUsername.toLowerCase()),
+          calculateSimilarity(userName.toLowerCase(), memberEmail.split('@')[0].toLowerCase())
+        );
+      }
+      
+      const maxSimilarity = Math.max(usernameAlias, emailSimilarity, nameSimilarity);
+      
+      return {
+        member,
+        similarity: maxSimilarity,
+        details: { usernameAlias, emailSimilarity, nameSimilarity }
+      };
+    }).sort((a, b) => b.similarity - a.similarity);
+
+    // Se há uma correspondência com similaridade > 0.7, sugerir
+    const bestMatch = similarities[0];
+    if (bestMatch && bestMatch.similarity > 0.7) {
+      console.log(`High similarity match found: ${bestMatch.member.user.username} (${bestMatch.similarity.toFixed(2)})`);
+      
       return new Response(JSON.stringify({
-        found: false,
-        message: 'not_found',
-        availableUsers
+        found: true,
+        matchType: 'similarity_match',
+        similarity: bestMatch.similarity,
+        user: {
+          id: bestMatch.member.user.id,
+          username: bestMatch.member.user.username,
+          email: bestMatch.member.user.email,
+          profilePicture: bestMatch.member.user.profilePicture,
+          teamId: teamId
+        },
+        // Também retornar outras opções próximas
+        alternatives: similarities.slice(1, 4).filter(s => s.similarity > 0.5).map(s => ({
+          id: s.member.user.id,
+          username: s.member.user.username,
+          email: s.member.user.email,
+          profilePicture: s.member.user.profilePicture,
+          similarity: s.similarity
+        }))
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // 4. Nenhuma correspondência encontrada - retornar lista para seleção manual
+    const availableUsers = members.map((member: any) => ({
+      id: member.user.id,
+      username: member.user.username,
+      email: member.user.email,
+      profilePicture: member.user.profilePicture
+    }));
+
+    return new Response(JSON.stringify({
+      found: false,
+      message: 'not_found',
+      searchedAliases: userAliases,
+      availableUsers: availableUsers.slice(0, 10) // Limitar a 10 para não sobrecarregar
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
   } catch (error: any) {

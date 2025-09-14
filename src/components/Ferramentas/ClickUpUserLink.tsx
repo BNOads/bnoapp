@@ -88,8 +88,29 @@ export default function ClickUpUserLink({ onLinked }: ClickUpUserLinkProps) {
       }
 
       setSearchResult(data);
-      if (!data.found && data.availableUsers) {
-        setAvailableUsers(data.availableUsers);
+      
+      // Tratamento inteligente do resultado
+      if (data?.found) {
+        // Mensagens específicas baseadas no tipo de match
+        if (data.matchType === 'exact_email') {
+          toast.success(`✅ Usuário encontrado: ${data.user.username}`);
+        } else if (data.matchType === 'alias_match') {
+          toast.success(`✅ Correspondência encontrada por alias: ${data.matchedAlias} → ${data.user.username}`);
+        } else if (data.matchType === 'similarity_match') {
+          const percentage = Math.round(data.similarity * 100);
+          toast.success(`🎯 Correspondência próxima encontrada: ${data.user.username} (${percentage}% similaridade)`);
+        }
+      } else {
+        // Não encontrado - configurar opções manuais
+        if (data?.availableUsers) {
+          setAvailableUsers(data.availableUsers);
+        }
+        
+        if (data?.searchedAliases) {
+          toast.error(`❌ Usuário não encontrado. Aliases pesquisados: ${data.searchedAliases.join(', ')}`);
+        } else {
+          toast.error('❌ Usuário não encontrado no ClickUp');
+        }
       }
     } catch (error: any) {
       console.error('Error looking up user:', error);
@@ -238,7 +259,10 @@ export default function ClickUpUserLink({ onLinked }: ClickUpUserLinkProps) {
                 <Alert className="border-green-200">
                   <CheckCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Usuário encontrado no ClickUp!
+                    {searchResult.matchType === 'exact_email' && 'Usuário encontrado por email exato!'}
+                    {searchResult.matchType === 'alias_match' && `Correspondência encontrada por alias: ${searchResult.matchedAlias}`}
+                    {searchResult.matchType === 'similarity_match' && `Correspondência próxima (${Math.round(searchResult.similarity * 100)}% similaridade)`}
+                    {!searchResult.matchType && 'Usuário encontrado no ClickUp!'}
                   </AlertDescription>
                 </Alert>
 
@@ -257,6 +281,21 @@ export default function ClickUpUserLink({ onLinked }: ClickUpUserLinkProps) {
                     {linking ? 'Vinculando...' : 'Confirmar Vínculo'}
                   </Button>
                 )}
+
+                {/* Mostrar alternativas se houver */}
+                {searchResult.alternatives && searchResult.alternatives.length > 0 && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <h4 className="text-sm font-medium text-blue-800 mb-2">Outras opções próximas:</h4>
+                    <div className="space-y-2">
+                      {searchResult.alternatives.map((alt: any) => (
+                        <div key={alt.id} className="flex items-center justify-between text-xs">
+                          <span>{alt.username} ({alt.email})</span>
+                          <Badge variant="outline">{Math.round(alt.similarity * 100)}%</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
@@ -264,6 +303,11 @@ export default function ClickUpUserLink({ onLinked }: ClickUpUserLinkProps) {
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
                     Usuário não encontrado no ClickUp com o email {userData?.email}
+                    {searchResult?.searchedAliases && (
+                      <div className="mt-2 text-xs">
+                        Aliases pesquisados: {searchResult.searchedAliases.join(', ')}
+                      </div>
+                    )}
                   </AlertDescription>
                 </Alert>
 
