@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { NovoOrcamentoModal } from './NovoOrcamentoModal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface Orcamento {
   id: string;
@@ -75,6 +76,8 @@ export const OrcamentosView = () => {
   const [orcamentoToDelete, setOrcamentoToDelete] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>('nome_funil');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [clienteGestorMap, setClienteGestorMap] = useState<Record<string, string | null>>({});
+  const [gestorInfoMap, setGestorInfoMap] = useState<Record<string, { nome: string; avatar_url?: string }>>({});
 
   const { toast } = useToast();
   const { canManageBudgets } = useUserPermissions();
@@ -97,10 +100,25 @@ export const OrcamentosView = () => {
 
       const { data: clientesData, error: clientesError } = await supabase
         .from('clientes')
-        .select('id, nome')
+        .select('id, nome, primary_gestor_user_id')
         .eq('ativo', true);
 
       if (clientesError) throw clientesError;
+
+      const { data: colaboradoresData, error: colaboradoresError } = await supabase
+        .from('colaboradores')
+        .select('user_id, nome, avatar_url')
+        .eq('ativo', true);
+
+      if (colaboradoresError) throw colaboradoresError;
+
+      const clienteMap: Record<string, string | null> = {};
+      clientesData?.forEach((c) => { clienteMap[c.id] = c.primary_gestor_user_id || null; });
+      setClienteGestorMap(clienteMap);
+
+      const gestorMap: Record<string, { nome: string; avatar_url?: string }> = {};
+      colaboradoresData?.forEach((col) => { gestorMap[col.user_id] = { nome: col.nome, avatar_url: col.avatar_url || undefined }; });
+      setGestorInfoMap(gestorMap);
 
       const orcamentosComCliente = orcamentosData?.map(orcamento => {
         const cliente = clientesData?.find(c => c.id === orcamento.cliente_id);
@@ -198,6 +216,35 @@ export const OrcamentosView = () => {
 
     return filtered;
   }, [orcamentos, searchTerm, clienteFiltro, etapaFiltro, mesFiltro, anoFiltro, sortField, sortDirection]);
+
+  // Agrupamento por gestor com base no período/filters atuais
+  const gestoresAggregados = useMemo(() => {
+    const acc: Record<string, { totalPrevisto: number; totalGasto: number; funis: Array<{ nome_funil: string; cliente_nome: string; valor_investimento: number }> }> = {};
+
+    for (const o of filteredAndSortedOrcamentos) {
+      const gestorId = o.cliente_id ? clienteGestorMap[o.cliente_id] : null;
+      if (!gestorId) continue;
+      if (!acc[gestorId]) {
+        acc[gestorId] = { totalPrevisto: 0, totalGasto: 0, funis: [] };
+      }
+      acc[gestorId].totalPrevisto += o.valor_investimento || 0;
+      acc[gestorId].totalGasto += o.valor_gasto || 0;
+      acc[gestorId].funis.push({ nome_funil: o.nome_funil, cliente_nome: o.cliente_nome || '', valor_investimento: o.valor_investimento || 0 });
+    }
+
+    const list = Object.entries(acc).map(([gestorId, data]) => ({
+      gestorId,
+      gestorNome: gestorInfoMap[gestorId]?.nome || 'Gestor sem nome',
+      avatar_url: gestorInfoMap[gestorId]?.avatar_url,
+      totalPrevisto: data.totalPrevisto,
+      totalGasto: data.totalGasto,
+      funis: data.funis
+    }));
+
+    // Ordenar por total previsto desc
+    list.sort((a, b) => b.totalPrevisto - a.totalPrevisto);
+    return list;
+  }, [filteredAndSortedOrcamentos, clienteGestorMap, gestorInfoMap]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -343,6 +390,46 @@ export const OrcamentosView = () => {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+      )}
+
+      {/* Orçamentos por Gestor */}
+      {gestoresAggregados.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Orçamentos por Gestor ({MESES[mesFiltro - 1]?.label}/{anoFiltro})
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {gestoresAggregados.map((g) => (
+              <Card key={g.gestorId}>
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={g.avatar_url} />
+                    <AvatarFallback>{g.gestorNome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <CardTitle className="text-base">{g.gestorNome}</CardTitle>
+                    <div className="text-xs text-muted-foreground">Previsto {formatCurrency(g.totalPrevisto)}</div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {g.funis.slice(0,5).map((f, idx) => (
+                    <div key={`${f.cliente_nome}-${f.nome_funil}-${idx}`} className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{f.nome_funil}</p>
+                        <p className="text-xs text-muted-foreground truncate">{f.cliente_nome}</p>
+                      </div>
+                      <div className="text-sm font-semibold">{formatCurrency(f.valor_investimento)}</div>
+                    </div>
+                  ))}
+                  {g.funis.length > 5 && (
+                    <div className="text-xs text-muted-foreground">+{g.funis.length - 5} funis adicionais</div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Filtros */}
