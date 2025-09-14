@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,31 +48,66 @@ serve(async (req) => {
       );
     }
 
-    // In a real implementation, this would:
-    // 1. Generate PDF using a library like Puppeteer or jsPDF
-    // 2. Include charts, metrics, and qualitative analysis
-    // 3. Apply BNOads branding and template
-    // 4. Save to storage bucket
-    // 5. Return download URL
+    // Gerar um PDF simples usando pdf-lib e salvar no Storage
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595.28, 841.89]); // A4
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    const title = `Debriefing: ${debriefing.nome_lancamento || ''}`;
+    const cliente = `Cliente: ${debriefing.cliente_nome || ''}`;
+    const periodo = `Período: ${debriefing.periodo_inicio || ''} a ${debriefing.periodo_fim || ''}`;
+
+    page.drawText(title, { x: 50, y: 790, size: 20, font, color: rgb(0, 0, 0) });
+    page.drawText(cliente, { x: 50, y: 760, size: 12, font });
+    page.drawText(periodo, { x: 50, y: 740, size: 12, font });
+    page.drawText('Resumo (valores podem ser aproximados):', { x: 50, y: 710, size: 12, font });
+
+    const resumo = [
+      `Leads: ${debriefing.leads_total ?? '-'}`,
+      `Vendas: ${debriefing.vendas_total ?? '-'}`,
+      `Investimento: R$ ${(debriefing.investimento_total ?? 0).toFixed(2)}`,
+      `Faturamento: R$ ${(debriefing.faturamento_total ?? 0).toFixed(2)}`,
+      `ROAS: ${(debriefing.roas ?? 0).toFixed(2)}x`,
+    ];
+    resumo.forEach((t, i) => page.drawText(t, { x: 70, y: 690 - i * 18, size: 11, font }));
+
+    const pdfBytes = await pdfDoc.save();
+
+    // Garantir bucket e fazer upload
+    const bucket = 'debriefings-pdf';
+    try {
+      // Tenta criar o bucket (ignora erro se já existir)
+      // @ts-ignore - método existe no client de service role
+      await supabase.storage.createBucket(bucket, { public: false });
+    } catch (_) {}
+
+    const filename = `${debriefing.cliente_nome || 'Cliente'}_${debriefing.nome_lancamento || 'Lancamento'}_Debriefing.pdf`;
+    const path = `debriefings/${debriefing_id}/${filename}`;
+
+    const uploadRes = await supabase.storage
+      .from(bucket)
+      .upload(path, new Blob([pdfBytes], { type: 'application/pdf' }), { upsert: true, contentType: 'application/pdf' });
+
+    if (uploadRes.error) {
+      throw uploadRes.error;
+    }
+
+    const signed = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60); // 1h
+    if (signed.error) {
+      throw signed.error;
+    }
 
     const pdfData = {
-      filename: `${debriefing.cliente_nome}_${debriefing.nome_lancamento}_Debriefing.pdf`,
-      url: `https://example.com/pdf/${debriefing_id}.pdf`, // Mock URL
-      generated_at: new Date().toISOString()
+      filename,
+      url: signed.data.signedUrl,
+      generated_at: new Date().toISOString(),
     };
 
     console.log(`PDF gerado com sucesso: ${pdfData.filename}`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'PDF gerado com sucesso',
-        data: pdfData
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ success: true, message: 'PDF gerado com sucesso', data: pdfData }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
