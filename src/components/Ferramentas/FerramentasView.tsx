@@ -7,12 +7,13 @@ import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
 import { PautaReuniaoView } from "@/components/Reunioes/PautaReuniaoView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key } from "lucide-react";
+import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
 import { UTMBuilderView } from "./UTMBuilderView";
 import { AcessosLoginsView } from "./AcessosLoginsView";
+import ClickUpTasksView from "./ClickUpTasksView";
 
 interface Tool {
   id: string;
@@ -108,6 +109,14 @@ export const FerramentasView = () => {
       icon: Key,
       component: <AcessosLoginsView />,
       color: "text-red-600"
+    },
+    {
+      id: "clickup-tasks",
+      title: "Tarefas (ClickUp)",
+      description: "Gerencie suas tarefas do ClickUp diretamente no sistema",
+      icon: CheckCircle,
+      component: <ClickUpTasksView />,
+      color: "text-purple-600"
     }
   ];
 
