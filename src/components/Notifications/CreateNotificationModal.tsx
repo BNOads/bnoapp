@@ -126,7 +126,6 @@ export default function CreateNotificationModal({ onSuccess }: CreateNotificatio
             <path d="M9 13h6v3H9z"/>
             <path d="M7 16h10v1H7z"/>
           </svg>
-          Nova Notificação
         </Button>
       </DialogTrigger>
       
