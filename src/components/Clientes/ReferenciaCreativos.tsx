@@ -489,12 +489,18 @@ export const ReferenciaCreativos = ({
                           Template
                         </Badge> : <Badge variant="outline">Referência</Badge>}
                     </TableCell>
-                    <TableCell>
-                      {(() => {
-                  const conteudoParsed = typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || [];
-                  return Array.isArray(conteudoParsed) ? conteudoParsed.length : 0;
-                })()} bloco(s)
-                    </TableCell>
+                     <TableCell>
+                       {(() => {
+                   const conteudoParsed = typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || [];
+                   const arrayBlocks = Array.isArray(conteudoParsed) ? conteudoParsed.length : 0;
+                   const hasMarkdown = (referencia as any).conteudo_markdown && (referencia as any).conteudo_markdown.trim().length > 0;
+                   
+                   if (hasMarkdown && arrayBlocks === 0) {
+                     return "Conteúdo Markdown";
+                   }
+                   return `${arrayBlocks} bloco(s)`;
+                 })()}
+                     </TableCell>
                     <TableCell>
                       {format(new Date(referencia.created_at), "dd/MM/yyyy", {
                   locale: ptBR
@@ -510,14 +516,17 @@ export const ReferenciaCreativos = ({
                   }} title="Abrir primeiro link externo">
                              <ExternalLink className="h-4 w-4" />
                            </Button>}
-                          {/* Não mostrar botão de visualizar para referências importadas sem conteúdo */}
-                          {(() => {
-                    const conteudoParsed = typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || [];
-                    const hasContent = Array.isArray(conteudoParsed) && conteudoParsed.length > 0;
-                    return hasContent && <Button variant="ghost" size="sm" onClick={() => window.open(`/referencia/${referencia.id}`, '_blank')} title="Visualizar em nova aba">
-                                <Eye className="h-4 w-4" />
-                              </Button>;
-                  })()}
+                           {/* Verificar se há conteúdo (array ou markdown) */}
+                           {(() => {
+                     const conteudoParsed = typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || [];
+                     const hasArrayContent = Array.isArray(conteudoParsed) && conteudoParsed.length > 0;
+                     const hasMarkdownContent = (referencia as any).conteudo_markdown && (referencia as any).conteudo_markdown.trim().length > 0;
+                     const hasContent = hasArrayContent || hasMarkdownContent;
+                     
+                     return hasContent && <Button variant="ghost" size="sm" onClick={() => window.open(`/referencia/${referencia.id}`, '_blank')} title="Visualizar em nova aba">
+                                 <Eye className="h-4 w-4" />
+                               </Button>;
+                   })()}
                          <Button variant="ghost" size="sm" onClick={() => {
                     const fullLink = referencia.link_publico?.startsWith('http') ? referencia.link_publico : `${window.location.origin}${referencia.link_publico}`;
                     copiarLink(fullLink);
