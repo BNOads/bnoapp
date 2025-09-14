@@ -864,113 +864,114 @@ async function listAllUsers(apiKey: string, teamId?: string) {
     const headers = {
       'Authorization': apiKey,
       'Content-Type': 'application/json'
-    };
+    } as const;
 
-    // 1) Buscar todos os workspaces (teams)
-    const teamsResponse = await fetch('https://api.clickup.com/api/v2/team', { headers });
-    if (!teamsResponse.ok) {
-      throw new Error(`Failed to fetch teams: ${teamsResponse.status} ${teamsResponse.statusText}`);
-    }
-    const teamsData = await teamsResponse.json();
+    // 1) Buscar workspaces e forçar o 36694061 (BNO Ads) por padrão
+    const teamsResp = await fetch('https://api.clickup.com/api/v2/team', { headers });
+    if (!teamsResp.ok) throw new Error(`Failed to fetch teams: ${teamsResp.status} ${teamsResp.statusText}`);
+    const teamsData = await teamsResp.json();
     const allTeams = (teamsData.teams || []).map((t: any) => ({ id: String(t.id), name: t.name }));
 
-    // 2) Selecionar o(s) workspace(s)
-    const selectedTeams = teamId && teamId !== ''
-      ? allTeams.filter((t: any) => String(t.id) === String(teamId))
-      : allTeams;
-
+    const forcedTeamId = String(teamId || '36694061');
+    let selectedTeams = allTeams.filter((t: any) => String(t.id) === forcedTeamId);
     if (selectedTeams.length === 0) {
-      return new Response(JSON.stringify({
-        success: true,
-        totalUsers: 0,
-        totalTeams: 0,
-        users: [],
-        teams: [],
-        message: 'Nenhum workspace correspondente ao teamId informado'
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      // Mesmo que não venha no /team, tentamos assim mesmo
+      selectedTeams = [{ id: forcedTeamId, name: 'BNO Ads' }];
     }
 
-    // 3) Agregar membros dos workspaces selecionados e coletar diagnósticos
+    // 2) Agregar membros dos endpoints conhecidos: member, user, guest e fallback /team
     const usersMap = new Map<string, any>();
     const diagnostics: any[] = [];
 
     for (const team of selectedTeams) {
-      const diagEntry: any = { teamId: team.id, teamName: team.name };
-      try {
-        // Endpoint principal
-        const resp = await fetch(`https://api.clickup.com/api/v2/team/${team.id}/member`, { headers });
-        diagEntry.memberEndpoint = { status: resp.status, ok: resp.ok };
-        if (resp.ok) {
-          const data = await resp.json();
-          const members = data.members || [];
-          diagEntry.memberCount = members.length;
+      const diag: any = { teamId: team.id, teamName: team.name, endpoints: {} };
 
-          // Fallback: se 0, tentar /team/{id}
-          if (members.length === 0) {
-            const alt = await fetch(`https://api.clickup.com/api/v2/team/${team.id}`, { headers });
-            diagEntry.teamEndpoint = { status: alt.status, ok: alt.ok };
-            if (alt.ok) {
-              const altData = await alt.json();
-              const altMembers = altData.members || [];
-              diagEntry.teamMembersCount = altMembers.length;
-              for (const m of altMembers) {
-                const u = m.user || {};
-                const id = String(u.id);
-                if (!id) continue;
-                if (!usersMap.has(id)) {
-                  usersMap.set(id, {
-                    id,
-                    username: u.username,
-                    email: u.email,
-                    profilePicture: u.profilePicture,
-                    teams: [{ id: team.id, name: team.name }],
-                    primaryTeam: { id: team.id, name: team.name },
-                  });
-                } else {
-                  const entry = usersMap.get(id);
-                  if (!entry.teams.find((t: any) => t.id === team.id)) {
-                    entry.teams.push({ id: team.id, name: team.name });
-                  }
-                }
-              }
-              continue;
-            }
-          }
-
-          // Agregar membros do endpoint principal
-          for (const m of members) {
-            const u = m.user || {};
-            const id = String(u.id);
-            if (!id) continue;
-            if (!usersMap.has(id)) {
-              usersMap.set(id, {
-                id,
-                username: u.username,
-                email: u.email,
-                profilePicture: u.profilePicture,
-                teams: [{ id: team.id, name: team.name }],
-                primaryTeam: { id: team.id, name: team.name },
-              });
-            } else {
-              const entry = usersMap.get(id);
-              if (!entry.teams.find((t: any) => t.id === team.id)) {
-                entry.teams.push({ id: team.id, name: team.name });
-              }
-            }
-          }
+      // Helper para adicionar usuário evitando duplicata
+      const addU = (u: any) => {
+        if (!u) return;
+        const id = String(u.id || u.user?.id || '');
+        const username = u.username || u.user?.username || u.name || '';
+        const email = u.email || u.user?.email || '';
+        const profilePicture = u.profilePicture || u.user?.profilePicture || '';
+        if (!id && !email && !username) return;
+        const key = id || `${email}:${username}`;
+        if (!usersMap.has(key)) {
+          usersMap.set(key, {
+            id: id || key,
+            username,
+            email,
+            profilePicture,
+            teams: [{ id: team.id, name: team.name }],
+            primaryTeam: { id: team.id, name: team.name },
+          });
         } else {
-          diagEntry.error = `${resp.status} ${resp.statusText}`;
+          const entry = usersMap.get(key);
+          if (!entry.teams.find((t: any) => t.id === team.id)) {
+            entry.teams.push({ id: team.id, name: team.name });
+          }
+        }
+      };
+
+      // a) /team/{id}/member
+      try {
+        const r = await fetch(`https://api.clickup.com/api/v2/team/${team.id}/member`, { headers });
+        diag.endpoints.member = { status: r.status, ok: r.ok };
+        if (r.ok) {
+          const j = await r.json();
+          const members = j.members || [];
+          diag.endpoints.member.count = members.length;
+          members.forEach((m: any) => addU(m.user || m));
         }
       } catch (e: any) {
-        diagEntry.error = e.message;
+        diag.endpoints.member = { error: e.message };
       }
-      diagnostics.push(diagEntry);
+
+      // b) /team/{id}/user (algumas contas expõem por este endpoint)
+      try {
+        const r = await fetch(`https://api.clickup.com/api/v2/team/${team.id}/user`, { headers });
+        diag.endpoints.user = { status: r.status, ok: r.ok };
+        if (r.ok) {
+          const j = await r.json();
+          const users = j.users || j.members || [];
+          diag.endpoints.user.count = users.length;
+          users.forEach((u: any) => addU(u.user || u));
+        }
+      } catch (e: any) {
+        diag.endpoints.user = { error: e.message };
+      }
+
+      // c) /team/{id}/guest (convidados)
+      try {
+        const r = await fetch(`https://api.clickup.com/api/v2/team/${team.id}/guest`, { headers });
+        diag.endpoints.guest = { status: r.status, ok: r.ok };
+        if (r.ok) {
+          const j = await r.json();
+          const guests = j.guests || j.members || [];
+          diag.endpoints.guest.count = guests.length;
+          guests.forEach((g: any) => addU(g.user || g));
+        }
+      } catch (e: any) {
+        diag.endpoints.guest = { error: e.message };
+      }
+
+      // d) Fallback: /team/{id}
+      try {
+        const r = await fetch(`https://api.clickup.com/api/v2/team/${team.id}`, { headers });
+        diag.endpoints.team = { status: r.status, ok: r.ok };
+        if (r.ok) {
+          const j = await r.json();
+          const members = j.members || j.users || [];
+          diag.endpoints.team.count = members.length;
+          members.forEach((m: any) => addU(m.user || m));
+        }
+      } catch (e: any) {
+        diag.endpoints.team = { error: e.message };
+      }
+
+      diagnostics.push(diag);
     }
 
-    const users = Array.from(usersMap.values()).map((u: any) => ({
-      ...u,
-      teamsCount: u.teams.length,
-    }));
+    const users = Array.from(usersMap.values()).map((u: any) => ({ ...u, teamsCount: u.teams.length }));
 
     return new Response(JSON.stringify({
       success: true,

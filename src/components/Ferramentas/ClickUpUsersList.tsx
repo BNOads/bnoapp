@@ -42,11 +42,12 @@ export default function ClickUpUsersList() {
   const [users, setUsers] = useState<ClickUpUser[]>([]);
   const [teams, setTeams] = useState<ClickUpTeam[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTeam, setSelectedTeam] = useState<string>("");
+  const [selectedTeam, setSelectedTeam] = useState<string>("36694061");
   const [stats, setStats] = useState<{totalUsers: number, totalTeams: number}>({
     totalUsers: 0,
     totalTeams: 0
   });
+  const [diagnostics, setDiagnostics] = useState<any[]>([]);
 
   // Carregar workspaces (teams) ao montar para permitir seleção antes da busca
   useEffect(() => {
@@ -56,11 +57,19 @@ export default function ClickUpUsersList() {
           body: { action: 'getTeams' }
         });
         if (!error && data?.teams) {
-          setTeams((data.teams as any[]).map((t: any) => ({ id: String(t.id), name: t.name })));
-          setStats((s) => ({ ...s, totalTeams: (data.teams as any[]).length }));
+          const filtered = (data.teams as any[])
+            .map((t: any) => ({ id: String(t.id), name: t.name }))
+            .filter((t: any) => t.id === '36694061');
+          const list = filtered.length > 0 ? filtered : [{ id: '36694061', name: 'BNO Ads' }];
+          setTeams(list);
+          setSelectedTeam('36694061');
+          setStats((s) => ({ ...s, totalTeams: list.length }));
         }
       } catch (e) {
         console.warn('Falha ao carregar workspaces:', e);
+        // fallback mínimo
+        setTeams([{ id: '36694061', name: 'BNO Ads' }]);
+        setSelectedTeam('36694061');
       }
     })();
   }, []);
@@ -103,12 +112,13 @@ export default function ClickUpUsersList() {
 
       if (data?.success) {
         setUsers(data.users || []);
-        setTeams(data.teams || []);
+        setTeams((data.teams || []).map((t: any) => ({ id: String(t.id), name: t.name })));
+        setDiagnostics(data.diagnostics || []);
         setStats({
           totalUsers: data.totalUsers || 0,
           totalTeams: data.totalTeams || 0
         });
-        toast.success(`✅ Encontrados ${data.totalUsers} usuários em ${data.totalTeams} times`);
+        toast.success(`✅ Encontrados ${data.totalUsers} usuários em ${data.totalTeams} time(s)`);
       } else {
         console.error('Resposta de erro:', data);
         
@@ -303,10 +313,28 @@ export default function ClickUpUsersList() {
         )}
 
         {users.length === 0 && !loading && (
-          <div className="text-center py-8 text-muted-foreground">
-            Clique em "Listar Usuários" para buscar todos os usuários do ClickUp
+          <div className="text-center py-8 text-muted-foreground space-y-3">
+            <div>Clique em "Listar Usuários" para buscar todos os usuários do ClickUp</div>
+            {diagnostics.length > 0 && (
+              <div className="text-left text-xs max-w-2xl mx-auto">
+                {diagnostics.map((d, i) => (
+                  <div key={i} className="rounded-md border p-3 mt-2">
+                    <div className="font-medium mb-1">Diagnóstico do workspace {d.teamName} ({d.teamId})</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(d.endpoints || {}).map(([k, v]: any) => (
+                        <div key={k}>
+                          <span className="font-semibold">{k}:</span> {v?.status ?? '-'} {v?.ok === false ? '(falha)' : ''} {typeof v?.count === 'number' ? ` • ${v.count} usuário(s)` : ''}
+                          {v?.error ? ` • erro: ${v.error}` : ''}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
+
       </CardContent>
     </Card>
   );
