@@ -1011,13 +1011,6 @@ export const CriadorFunilView = () => {
                       </>
                     )}
 
-        {/* Share Dialog */}
-                );
-              })}
-            </div>
-          </div>
-        </div>
-                    </div>
                   </div>
                 );
               })}
