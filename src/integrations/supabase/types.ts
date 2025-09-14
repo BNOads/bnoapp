@@ -1346,6 +1346,7 @@ export type Database = {
           data_inicio_remarketing: string | null
           datas_cpls: string[] | null
           descricao: string | null
+          distribuicao_canais: Json | null
           distribuicao_fases: Json | null
           distribuicao_plataformas: Json | null
           gestor_responsavel_id: string | null
@@ -1360,6 +1361,7 @@ export type Database = {
           metas_investimentos: Json | null
           nome_lancamento: string
           observacoes: string | null
+          observacoes_verbas: string | null
           promessa: string | null
           publico_alvo: string | null
           resultado_obtido: number | null
@@ -1369,6 +1371,7 @@ export type Database = {
           tipo_aulas: string | null
           tipo_lancamento: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at: string
+          verba_por_fase: Json | null
         }
         Insert: {
           ativo?: boolean
@@ -1386,6 +1389,7 @@ export type Database = {
           data_inicio_remarketing?: string | null
           datas_cpls?: string[] | null
           descricao?: string | null
+          distribuicao_canais?: Json | null
           distribuicao_fases?: Json | null
           distribuicao_plataformas?: Json | null
           gestor_responsavel_id?: string | null
@@ -1400,6 +1404,7 @@ export type Database = {
           metas_investimentos?: Json | null
           nome_lancamento: string
           observacoes?: string | null
+          observacoes_verbas?: string | null
           promessa?: string | null
           publico_alvo?: string | null
           resultado_obtido?: number | null
@@ -1409,6 +1414,7 @@ export type Database = {
           tipo_aulas?: string | null
           tipo_lancamento: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at?: string
+          verba_por_fase?: Json | null
         }
         Update: {
           ativo?: boolean
@@ -1426,6 +1432,7 @@ export type Database = {
           data_inicio_remarketing?: string | null
           datas_cpls?: string[] | null
           descricao?: string | null
+          distribuicao_canais?: Json | null
           distribuicao_fases?: Json | null
           distribuicao_plataformas?: Json | null
           gestor_responsavel_id?: string | null
@@ -1440,6 +1447,7 @@ export type Database = {
           metas_investimentos?: Json | null
           nome_lancamento?: string
           observacoes?: string | null
+          observacoes_verbas?: string | null
           promessa?: string | null
           publico_alvo?: string | null
           resultado_obtido?: number | null
@@ -1449,6 +1457,7 @@ export type Database = {
           tipo_aulas?: string | null
           tipo_lancamento?: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at?: string
+          verba_por_fase?: Json | null
         }
         Relationships: [
           {
