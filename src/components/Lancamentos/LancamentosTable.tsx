@@ -11,6 +11,7 @@ import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import EditarLancamentoModal from './EditarLancamentoModal';
+import { Link } from 'react-router-dom';
 
 interface LancamentosTableProps {
   lancamentos: any[];
@@ -118,6 +119,19 @@ export const LancamentosTable = ({
       : <ChevronDown className="h-4 w-4 text-primary" />;
   };
 
+  const handleChangeGestor = async (lancamentoId: string, gestorId: string | null) => {
+    const { error } = await supabase
+      .from('lancamentos')
+      .update({ gestor_responsavel_id: gestorId })
+      .eq('id', lancamentoId);
+    if (error) {
+      toast({ title: 'Erro ao atualizar gestor', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Gestor atualizado' });
+      onRefresh();
+    }
+  };
+
   const SortableHeader = ({ children, sortKey }: { children: React.ReactNode; sortKey: string }) => (
     <TableHead 
       className="cursor-pointer hover:bg-muted/50 select-none"
@@ -217,6 +231,7 @@ export const LancamentosTable = ({
                 </TableHead>
                 <SortableHeader sortKey="nome_lancamento">Lançamento</SortableHeader>
                 <SortableHeader sortKey="clientes.nome">Cliente</SortableHeader>
+                <TableHead>Gestor</TableHead>
                 <SortableHeader sortKey="status_lancamento">Status</SortableHeader>
                 <SortableHeader sortKey="tipo_lancamento">Tipo</SortableHeader>
                 <SortableHeader sortKey="investimento_total">Investimento</SortableHeader>
@@ -236,7 +251,11 @@ export const LancamentosTable = ({
                   </TableCell>
                   <TableCell className="font-medium">
                     <div>
-                      <div className="font-semibold">{lancamento.nome_lancamento}</div>
+                      <div className="font-semibold">
+                        <Link to={`/lancamentos/${lancamento.id}`} className="text-primary hover:underline">
+                          {lancamento.nome_lancamento}
+                        </Link>
+                      </div>
                       {lancamento.descricao && (
                         <div className="text-sm text-muted-foreground truncate max-w-xs">
                           {lancamento.descricao}
@@ -254,6 +273,23 @@ export const LancamentosTable = ({
                     ) : (
                       <span className="text-muted-foreground">Cliente não definido</span>
                     )}
+                  </TableCell>
+
+                  <TableCell>
+                    <Select
+                      value={lancamento.gestor?.id ?? lancamento.gestor_responsavel_id ?? 'none'}
+                      onValueChange={(value) => handleChangeGestor(lancamento.id, value === 'none' ? null : value)}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Selecionar gestor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sem gestor</SelectItem>
+                        {colaboradores.map((col) => (
+                          <SelectItem key={col.id} value={col.id}>{col.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </TableCell>
 
                   <TableCell>

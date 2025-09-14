@@ -43,6 +43,10 @@ interface Lancamento {
   clientes?: {
     nome: string;
   };
+  gestor?: {
+    id: string;
+    nome: string;
+  };
 }
 
 export const LancamentosView: React.FC = () => {
@@ -100,10 +104,11 @@ export const LancamentosView: React.FC = () => {
         .from('lancamentos')
         .select(`
           *,
-          clientes:cliente_id (nome)
+          clientes:cliente_id (nome),
+          gestor:gestor_responsavel_id (id, nome)
         `)
         .eq('ativo', true)
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
       // Aplicar filtros
       if (filtros.status && filtros.status !== 'all') {
@@ -128,7 +133,17 @@ export const LancamentosView: React.FC = () => {
         return;
       }
 
-      setLancamentos(data as any || []);
+      const lista = (data as any) || [];
+      // Remover duplicados por nome, mantendo o mais recente (updated_at)
+      const map = new Map<string, any>();
+      for (const item of lista) {
+        const key = (item.nome_lancamento || '').trim().toLowerCase();
+        const prev = map.get(key);
+        if (!prev || new Date(item.updated_at) > new Date(prev.updated_at)) {
+          map.set(key, item);
+        }
+      }
+      setLancamentos(Array.from(map.values()));
     } catch (error) {
       console.error('Erro ao buscar lançamentos:', error);
       toast({

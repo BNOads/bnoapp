@@ -1335,22 +1335,38 @@ export type Database = {
           cliente_id: string | null
           created_at: string
           created_by: string
+          data_fechamento: string | null
           data_fim_captacao: string | null
+          data_fim_carrinho: string | null
+          data_fim_cpl: string | null
           data_fim_remarketing: string | null
           data_inicio_captacao: string
+          data_inicio_carrinho: string | null
+          data_inicio_cpl: string | null
           data_inicio_remarketing: string | null
           datas_cpls: string[] | null
           descricao: string | null
+          distribuicao_fases: Json | null
+          distribuicao_plataformas: Json | null
+          gestor_responsavel_id: string | null
           id: string
           investimento_total: number
+          leads_desejados: number | null
           link_briefing: string | null
           link_dashboard: string | null
+          links_uteis: Json | null
+          meta_custo_lead: number | null
           meta_investimento: number | null
+          metas_investimentos: Json | null
           nome_lancamento: string
           observacoes: string | null
+          promessa: string | null
+          publico_alvo: string | null
           resultado_obtido: number | null
           roi_percentual: number | null
           status_lancamento: Database["public"]["Enums"]["status_lancamento"]
+          ticket_produto: number | null
+          tipo_aulas: string | null
           tipo_lancamento: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at: string
         }
@@ -1359,22 +1375,38 @@ export type Database = {
           cliente_id?: string | null
           created_at?: string
           created_by: string
+          data_fechamento?: string | null
           data_fim_captacao?: string | null
+          data_fim_carrinho?: string | null
+          data_fim_cpl?: string | null
           data_fim_remarketing?: string | null
           data_inicio_captacao: string
+          data_inicio_carrinho?: string | null
+          data_inicio_cpl?: string | null
           data_inicio_remarketing?: string | null
           datas_cpls?: string[] | null
           descricao?: string | null
+          distribuicao_fases?: Json | null
+          distribuicao_plataformas?: Json | null
+          gestor_responsavel_id?: string | null
           id?: string
           investimento_total?: number
+          leads_desejados?: number | null
           link_briefing?: string | null
           link_dashboard?: string | null
+          links_uteis?: Json | null
+          meta_custo_lead?: number | null
           meta_investimento?: number | null
+          metas_investimentos?: Json | null
           nome_lancamento: string
           observacoes?: string | null
+          promessa?: string | null
+          publico_alvo?: string | null
           resultado_obtido?: number | null
           roi_percentual?: number | null
           status_lancamento?: Database["public"]["Enums"]["status_lancamento"]
+          ticket_produto?: number | null
+          tipo_aulas?: string | null
           tipo_lancamento: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at?: string
         }
@@ -1383,22 +1415,38 @@ export type Database = {
           cliente_id?: string | null
           created_at?: string
           created_by?: string
+          data_fechamento?: string | null
           data_fim_captacao?: string | null
+          data_fim_carrinho?: string | null
+          data_fim_cpl?: string | null
           data_fim_remarketing?: string | null
           data_inicio_captacao?: string
+          data_inicio_carrinho?: string | null
+          data_inicio_cpl?: string | null
           data_inicio_remarketing?: string | null
           datas_cpls?: string[] | null
           descricao?: string | null
+          distribuicao_fases?: Json | null
+          distribuicao_plataformas?: Json | null
+          gestor_responsavel_id?: string | null
           id?: string
           investimento_total?: number
+          leads_desejados?: number | null
           link_briefing?: string | null
           link_dashboard?: string | null
+          links_uteis?: Json | null
+          meta_custo_lead?: number | null
           meta_investimento?: number | null
+          metas_investimentos?: Json | null
           nome_lancamento?: string
           observacoes?: string | null
+          promessa?: string | null
+          publico_alvo?: string | null
           resultado_obtido?: number | null
           roi_percentual?: number | null
           status_lancamento?: Database["public"]["Enums"]["status_lancamento"]
+          ticket_produto?: number | null
+          tipo_aulas?: string | null
           tipo_lancamento?: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at?: string
         }
@@ -1408,6 +1456,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_gestor_responsavel_id_fkey"
+            columns: ["gestor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
             referencedColumns: ["id"]
           },
         ]
