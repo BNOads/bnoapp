@@ -33,7 +33,6 @@ interface HistoricoOrcamento {
   data_alteracao: string;
   alterado_por: string;
 }
-
 interface GestorOrcamento {
   gestor_nome: string;
   gestor_avatar?: string;
@@ -47,7 +46,6 @@ interface GestorOrcamento {
     cliente_nome: string;
   }>;
 }
-
 interface OrcamentoPorFunilProps {
   clienteId: string;
   isPublicView?: boolean;
@@ -102,12 +100,12 @@ export const OrcamentoPorFunil = ({
   const carregarOrcamentos = async () => {
     try {
       let clientInstance = supabase;
-      
       if (isPublicView) {
-        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        const {
+          createPublicSupabaseClient
+        } = await import('@/lib/supabase-public');
         clientInstance = createPublicSupabaseClient();
       }
-      
       const {
         data,
         error
@@ -126,47 +124,36 @@ export const OrcamentoPorFunil = ({
       setLoading(false);
     }
   };
-
   const carregarOrcamentosGestores = async () => {
     console.log('🔄 Carregando orçamentos dos gestores...');
     try {
-      const { data: rawData, error: rawError } = await supabase
-        .from('clientes')
-        .select(`
+      const {
+        data: rawData,
+        error: rawError
+      } = await supabase.from('clientes').select(`
           id,
           nome,
           primary_gestor_user_id
-        `)
-        .eq('ativo', true)
-        .not('primary_gestor_user_id', 'is', null);
-
+        `).eq('ativo', true).not('primary_gestor_user_id', 'is', null);
       if (rawError) throw rawError;
       console.log('📊 Clientes encontrados:', rawData?.length);
-
-      const { data: colaboradores, error: colabError } = await supabase
-        .from('colaboradores')
-        .select('user_id, nome, avatar_url')
-        .eq('ativo', true);
-
+      const {
+        data: colaboradores,
+        error: colabError
+      } = await supabase.from('colaboradores').select('user_id, nome, avatar_url').eq('ativo', true);
       if (colabError) throw colabError;
       console.log('👥 Colaboradores encontrados:', colaboradores?.length);
-
-      const { data: orcamentos, error: orcError } = await supabase
-        .from('orcamentos_funil')
-        .select('cliente_id, nome_funil, valor_investimento')
-        .eq('ativo', true);
-
+      const {
+        data: orcamentos,
+        error: orcError
+      } = await supabase.from('orcamentos_funil').select('cliente_id, nome_funil, valor_investimento').eq('ativo', true);
       if (orcError) throw orcError;
       console.log('💰 Orçamentos encontrados:', orcamentos?.length);
-
       const gestoresMap = new Map<string, GestorOrcamento>();
-
       rawData?.forEach(cliente => {
         const colaborador = colaboradores?.find(c => c.user_id === cliente.primary_gestor_user_id);
         if (!colaborador) return;
-
         const gestorId = cliente.primary_gestor_user_id;
-        
         if (!gestoresMap.has(gestorId)) {
           gestoresMap.set(gestorId, {
             gestor_nome: colaborador.nome,
@@ -178,10 +165,8 @@ export const OrcamentoPorFunil = ({
             funis: []
           });
         }
-
         const gestor = gestoresMap.get(gestorId)!;
         gestor.total_clientes++;
-
         const clienteOrcamentos = orcamentos?.filter(o => o.cliente_id === cliente.id) || [];
         clienteOrcamentos.forEach(orcamento => {
           gestor.total_orcamentos++;
@@ -193,7 +178,6 @@ export const OrcamentoPorFunil = ({
           });
         });
       });
-
       console.log('📈 Gestores processados:', Array.from(gestoresMap.values()));
       setGestoresOrcamentos(Array.from(gestoresMap.values()));
     } catch (error: any) {
@@ -342,8 +326,7 @@ export const OrcamentoPorFunil = ({
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>;
   }
-  return (
-    <div className="space-y-6 mx-0 my-0 py-0 px-0">
+  return <div className="space-y-6 mx-0 my-0 py-0 px-0">
       {/* Header Responsivo */}
       <div className="flex flex-col gap-4 sm:gap-6 lg:flex-row lg:justify-between lg:items-start">
         <div className="min-w-0 flex-1">
@@ -356,39 +339,24 @@ export const OrcamentoPorFunil = ({
             <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             <span className="truncate">Exportar CSV</span>
           </Button>
-          {canManageBudgets && !isPublicView && (
-            <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
+          {canManageBudgets && !isPublicView && <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
               <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               <span className="truncate">Novo Orçamento</span>
-            </Button>
-          )}
+            </Button>}
         </div>
       </div>
 
       {/* Tabs para alternar entre visualizações */}
       <Tabs defaultValue={clienteId ? "cliente" : "gestores"} className="w-full">
-        <TabsList className={`grid w-full ${clienteId && showGestorValues ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {clienteId && (
-            <TabsTrigger value="cliente">Por Cliente</TabsTrigger>
-          )}
-          {showGestorValues && (
-            <TabsTrigger value="gestores">Por Gestores</TabsTrigger>
-          )}
-        </TabsList>
+        
 
         {/* Aba do Cliente Específico */}
-        {clienteId && (
-          <TabsContent value="cliente" className="space-y-6">
+        {clienteId && <TabsContent value="cliente" className="space-y-6">
             {/* Filtros de Pesquisa */}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Pesquisar por nome do funil ou observações..." 
-                  value={searchTerm} 
-                  onChange={e => setSearchTerm(e.target.value)} 
-                  className="pl-10" 
-                />
+                <Input placeholder="Pesquisar por nome do funil ou observações..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
               </div>
               <div className="flex items-center gap-2 sm:min-w-[200px]">
                 <Filter className="h-4 w-4 text-muted-foreground" />
@@ -398,11 +366,9 @@ export const OrcamentoPorFunil = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos os funis</SelectItem>
-                    {funisUnicos.map(funil => (
-                      <SelectItem key={funil} value={funil}>
+                    {funisUnicos.map(funil => <SelectItem key={funil} value={funil}>
                         {funil}
-                      </SelectItem>
-                    ))}
+                      </SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -441,8 +407,8 @@ export const OrcamentoPorFunil = ({
                   <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
                   <span className="leading-tight">
                     Atualizado em {format(new Date(orcamento.data_atualizacao), "dd/MM/yyyy", {
-                  locale: ptBR
-                })}
+                      locale: ptBR
+                    })}
                   </span>
                 </div>
                 
@@ -473,15 +439,12 @@ export const OrcamentoPorFunil = ({
             </p>
           </CardContent>
         </Card>}
-          </TabsContent>
-        )}
+          </TabsContent>}
 
         {/* Aba dos Gestores */}
-        {showGestorValues && (
-        <TabsContent value="gestores" className="space-y-6">
+        {showGestorValues && <TabsContent value="gestores" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-            {gestoresOrcamentos.map(gestor => (
-              <Card key={gestor.gestor_user_id} className="relative">
+            {gestoresOrcamentos.map(gestor => <Card key={gestor.gestor_user_id} className="relative">
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12">
@@ -516,8 +479,7 @@ export const OrcamentoPorFunil = ({
                   </div>
                   
                   <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {gestor.funis.slice(0, 5).map((funil, index) => (
-                      <div key={`${funil.cliente_nome}-${funil.nome_funil}-${index}`} className="flex justify-between items-center p-2 rounded border">
+                    {gestor.funis.slice(0, 5).map((funil, index) => <div key={`${funil.cliente_nome}-${funil.nome_funil}-${index}`} className="flex justify-between items-center p-2 rounded border">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium truncate">{funil.nome_funil}</p>
                           <p className="text-xs text-muted-foreground truncate">{funil.cliente_nome}</p>
@@ -525,21 +487,16 @@ export const OrcamentoPorFunil = ({
                         <div className="text-sm font-semibold text-primary">
                           {formatarMoeda(funil.valor_investimento)}
                         </div>
-                      </div>
-                    ))}
-                    {gestor.funis.length > 5 && (
-                      <div className="text-center p-2 text-sm text-muted-foreground">
+                      </div>)}
+                    {gestor.funis.length > 5 && <div className="text-center p-2 text-sm text-muted-foreground">
                         +{gestor.funis.length - 5} funis adicionais
-                      </div>
-                    )}
+                      </div>}
                   </div>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
           
-          {gestoresOrcamentos.length === 0 && (
-            <Card>
+          {gestoresOrcamentos.length === 0 && <Card>
               <CardContent className="py-8 text-center">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium">Nenhum gestor com orçamentos encontrado</h3>
@@ -547,10 +504,8 @@ export const OrcamentoPorFunil = ({
                   Os dados dos gestores aparecerão aqui quando houver orçamentos cadastrados e gestores atribuídos aos clientes.
                 </p>
               </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        )}
+            </Card>}
+        </TabsContent>}
       </Tabs>
 
       {/* Modal Novo Orçamento */}
@@ -676,6 +631,5 @@ export const OrcamentoPorFunil = ({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>;
 };
