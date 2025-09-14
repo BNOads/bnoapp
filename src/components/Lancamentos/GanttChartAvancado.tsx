@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar, Clock, Edit, CalendarDays, BarChart3, Plus } from "lucide-react";
-import { format, addDays, startOfWeek, startOfMonth, endOfMonth, differenceInDays, isToday, parseISO, isSameDay } from "date-fns";
+import { format, addDays, addMonths, startOfWeek, startOfMonth, differenceInDays, parseISO, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 type EscalaVisao = 'dia' | 'semana' | 'mes';
@@ -122,7 +122,7 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
       } else if (escalaVisao === 'semana') {
         atual = addDays(atual, 7);
       } else {
-        atual = addDays(startOfMonth(addDays(atual, 32)), 0);
+        atual = addMonths(atual, 1);
       }
     }
 
@@ -157,18 +157,18 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
   }, [escalaVisao]);
 
   const posicaoHoje = useMemo(() => {
-    const hoje = new Date();
+    const hoje = startOfDay(new Date());
+    const inicio = startOfDay(dataInicio);
+    const fim = startOfDay(dataFim);
     
     // Verificar se hoje está dentro do intervalo de datas
-    if (hoje < dataInicio || hoje > dataFim) {
+    if (hoje < inicio || hoje > fim) {
       return -1; // Não mostrar a linha se hoje não estiver no intervalo
     }
     
-    // Cálculo baseado na escala de visualização
-    const totalDias = differenceInDays(dataFim, dataInicio);
-    const diasDoInicio = differenceInDays(hoje, dataInicio);
+    const totalDias = differenceInDays(fim, inicio) || 1;
+    const diasDoInicio = differenceInDays(hoje, inicio);
     
-    // Para todas as escalas, usar o cálculo de dias
     return Math.max(0, Math.min(100, (diasDoInicio / totalDias) * 100));
   }, [dataInicio, dataFim]);
 

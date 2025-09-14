@@ -138,7 +138,7 @@ export default function LancamentoDetalhes() {
       if (error) throw error;
 
       // Buscar dados do gestor separadamente se houver
-      let gestorData = null;
+      let gestorData: { id: string; nome: string } | null = null;
       if (clienteData.primary_gestor_user_id) {
         const { data: gestor } = await supabase
           .from('colaboradores')
@@ -152,8 +152,8 @@ export default function LancamentoDetalhes() {
       // Atualizar o lançamento com o cliente e gestor automaticamente
       const updates: any = { cliente_id: clienteId };
       
-      if (clienteData.primary_gestor_user_id) {
-        updates.gestor_responsavel_id = clienteData.primary_gestor_user_id;
+      if (gestorData?.id) {
+        updates.gestor_responsavel_id = gestorData.id;
       }
 
       const { error: updateError } = await supabase
@@ -167,7 +167,7 @@ export default function LancamentoDetalhes() {
       setLancamento(prev => prev ? {
         ...prev,
         cliente_id: clienteId,
-        gestor_responsavel_id: clienteData.primary_gestor_user_id || prev.gestor_responsavel_id,
+        gestor_responsavel_id: gestorData?.id || prev.gestor_responsavel_id,
         clientes: { nome: clienteData.nome, primary_gestor_user_id: clienteData.primary_gestor_user_id },
         gestor: gestorData || prev.gestor
       } : null);
