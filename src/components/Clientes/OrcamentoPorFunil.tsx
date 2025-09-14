@@ -8,7 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -31,6 +33,21 @@ interface HistoricoOrcamento {
   data_alteracao: string;
   alterado_por: string;
 }
+
+interface GestorOrcamento {
+  gestor_nome: string;
+  gestor_avatar?: string;
+  gestor_user_id: string;
+  total_clientes: number;
+  total_orcamentos: number;
+  total_investimento: number;
+  funis: Array<{
+    nome_funil: string;
+    valor_investimento: number;
+    cliente_nome: string;
+  }>;
+}
+
 interface OrcamentoPorFunilProps {
   clienteId: string;
   isPublicView?: boolean;
@@ -40,6 +57,7 @@ export const OrcamentoPorFunil = ({
   isPublicView = false
 }: OrcamentoPorFunilProps) => {
   const [orcamentos, setOrcamentos] = useState<OrcamentoFunil[]>([]);
+  const [gestoresOrcamentos, setGestoresOrcamentos] = useState<GestorOrcamento[]>([]);
   const [historico, setHistorico] = useState<HistoricoOrcamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNovoModal, setShowNovoModal] = useState(false);
@@ -74,6 +92,7 @@ export const OrcamentoPorFunil = ({
   const funisUnicos = Array.from(new Set(orcamentos.map(o => o.nome_funil))).sort();
   useEffect(() => {
     carregarOrcamentos();
+    carregarOrcamentosGestores();
   }, [clienteId]);
   const carregarOrcamentos = async () => {
     try {
@@ -100,6 +119,79 @@ export const OrcamentoPorFunil = ({
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const carregarOrcamentosGestores = async () => {
+    try {
+      const { data: rawData, error: rawError } = await supabase
+        .from('clientes')
+        .select(`
+          id,
+          nome,
+          primary_gestor_user_id
+        `)
+        .eq('ativo', true)
+        .not('primary_gestor_user_id', 'is', null);
+
+      if (rawError) throw rawError;
+
+      const { data: colaboradores, error: colabError } = await supabase
+        .from('colaboradores')
+        .select('user_id, nome, avatar_url')
+        .eq('ativo', true);
+
+      if (colabError) throw colabError;
+
+      const { data: orcamentos, error: orcError } = await supabase
+        .from('orcamentos_funil')
+        .select('cliente_id, nome_funil, valor_investimento')
+        .eq('ativo', true);
+
+      if (orcError) throw orcError;
+
+      const gestoresMap = new Map<string, GestorOrcamento>();
+
+      rawData?.forEach(cliente => {
+        const colaborador = colaboradores?.find(c => c.user_id === cliente.primary_gestor_user_id);
+        if (!colaborador) return;
+
+        const gestorId = cliente.primary_gestor_user_id;
+        
+        if (!gestoresMap.has(gestorId)) {
+          gestoresMap.set(gestorId, {
+            gestor_nome: colaborador.nome,
+            gestor_avatar: colaborador.avatar_url,
+            gestor_user_id: gestorId,
+            total_clientes: 0,
+            total_orcamentos: 0,
+            total_investimento: 0,
+            funis: []
+          });
+        }
+
+        const gestor = gestoresMap.get(gestorId)!;
+        gestor.total_clientes++;
+
+        const clienteOrcamentos = orcamentos?.filter(o => o.cliente_id === cliente.id) || [];
+        clienteOrcamentos.forEach(orcamento => {
+          gestor.total_orcamentos++;
+          gestor.total_investimento += Number(orcamento.valor_investimento);
+          gestor.funis.push({
+            nome_funil: orcamento.nome_funil,
+            valor_investimento: Number(orcamento.valor_investimento),
+            cliente_nome: cliente.nome
+          });
+        });
+      });
+
+      setGestoresOrcamentos(Array.from(gestoresMap.values()));
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados dos gestores: " + error.message,
+        variant: "destructive"
+      });
     }
   };
   const carregarHistorico = async (orcamentoId: string) => {
@@ -240,11 +332,11 @@ export const OrcamentoPorFunil = ({
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>;
   }
-  return <div className="space-y-6 mx-0 my-0 py-0 px-0">
+  return (
+    <div className="space-y-6 mx-0 my-0 py-0 px-0">
       {/* Header Responsivo */}
       <div className="flex flex-col gap-4 sm:gap-6 lg:flex-row lg:justify-between lg:items-start">
         <div className="min-w-0 flex-1">
-          
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Visualize o investimento de cada funil e seu histórico
           </p>
@@ -254,36 +346,57 @@ export const OrcamentoPorFunil = ({
             <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             <span className="truncate">Exportar CSV</span>
           </Button>
-          {canManageBudgets && !isPublicView && <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
+          {canManageBudgets && !isPublicView && (
+            <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
               <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               <span className="truncate">Novo Orçamento</span>
-            </Button>}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Filtros de Pesquisa */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Pesquisar por nome do funil ou observações..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
-        </div>
-        <div className="flex items-center gap-2 sm:min-w-[200px]">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <Select value={selectedFunil} onValueChange={setSelectedFunil}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filtrar por funil" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os funis</SelectItem>
-              {funisUnicos.map(funil => <SelectItem key={funil} value={funil}>
-                  {funil}
-                </SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      {/* Tabs para alternar entre visualizações */}
+      <Tabs defaultValue={clienteId ? "cliente" : "gestores"} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          {clienteId && (
+            <TabsTrigger value="cliente">Por Cliente</TabsTrigger>
+          )}
+          <TabsTrigger value="gestores">Por Gestores</TabsTrigger>
+        </TabsList>
 
-      {/* Cards de Orçamentos - Mobile First Grid */}
+        {/* Aba do Cliente Específico */}
+        {clienteId && (
+          <TabsContent value="cliente" className="space-y-6">
+            {/* Filtros de Pesquisa */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Pesquisar por nome do funil ou observações..." 
+                  value={searchTerm} 
+                  onChange={e => setSearchTerm(e.target.value)} 
+                  className="pl-10" 
+                />
+              </div>
+              <div className="flex items-center gap-2 sm:min-w-[200px]">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedFunil} onValueChange={setSelectedFunil}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por funil" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os funis</SelectItem>
+                    {funisUnicos.map(funil => (
+                      <SelectItem key={funil} value={funil}>
+                        {funil}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Cards de Orçamentos - Mobile First Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         {orcamentosFiltrados.map(orcamento => <Card key={orcamento.id} className="relative w-full">
             <CardHeader className="pb-2 sm:pb-3">
@@ -472,5 +585,9 @@ export const OrcamentoPorFunil = ({
           </div>
         </DialogContent>
       </Dialog>
-    </div>;
+          </TabsContent>
+        </Tabs>
+      </Dialog>
+    </div>
+  );
 };
