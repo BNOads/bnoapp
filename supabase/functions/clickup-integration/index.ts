@@ -1,27 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 
-// Configuração CORS específica para Lovable
-const ALLOWED_ORIGINS = [
-  'https://preview--bnoapp.lovable.app',
-  'https://bnoapp.lovable.app',
-  'https://cbfa2195-bc30-40b1-ab11-9249e5552962.sandbox.lovable.dev',
-  'http://localhost:3000',
-  'http://localhost:5173'
-];
-
-const getCorsHeaders = (origin: string | null) => {
-  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed => 
-    origin.includes(allowed) || allowed.includes(origin)
-  );
-  
-  return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-  };
-};
+// CORS headers (relaxed for web usage per Supabase/Lovable guidance)
+const getCorsHeaders = (_origin: string | null) => ({
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+});
 
 interface ClickUpTask {
   id: string;
