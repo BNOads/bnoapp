@@ -54,10 +54,11 @@ interface ClickUpComment {
 }
 
 serve(async (req) => {
+  const startTime = Date.now();
   const origin = req.headers.get('Origin');
   const corsHeaders = getCorsHeaders(origin);
 
-  // Handle CORS preflight requests
+  // Handle CORS preflight requests conforme PRD
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       status: 204,
@@ -78,10 +79,12 @@ serve(async (req) => {
     const clickupApiKey = Deno.env.get('CLICKUP_API_KEY');
     if (!clickupApiKey) {
       console.error('CLICKUP_API_KEY not found in environment');
+      const duration = Date.now() - startTime;
+      console.log(`Request completed in ${duration}ms with missing token error`);
+      
       return new Response(JSON.stringify({ 
-        success: false, 
-        error: 'Token do ClickUp ausente',
-        diagnostics: { message: 'CLICKUP_API_KEY não configurada no servidor' }
+        error: 'missing_clickup_token',
+        detail: 'Token do ClickUp não configurado no servidor'
       }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -144,11 +147,17 @@ serve(async (req) => {
     }
 
   } catch (error: any) {
+    const duration = Date.now() - startTime;
     console.error('ClickUp Integration Error:', error);
+    console.log(`Request failed in ${duration}ms with error: ${error?.message}`);
+    
     return new Response(
-      JSON.stringify({ ok: false, error: error?.message || String(error) }),
+      JSON.stringify({ 
+        error: 'edge_exception', 
+        detail: error?.message || 'Erro interno no servidor' 
+      }),
       { 
-        status: 200, 
+        status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
@@ -156,28 +165,39 @@ serve(async (req) => {
 });
 
 async function getTasks(apiKey: string, teamId: string, userEmail: string, preferredEmail?: string) {
+  const requestStart = Date.now();
   console.log(`Getting tasks for user ${userEmail} (preferred: ${preferredEmail || 'none'})`);
   console.log(`ClickUp API Key presente: ${apiKey ? 'SIM' : 'NÃO'}, Length: ${apiKey?.length || 0}`);
   console.log(`Team ID (input): ${teamId}`);
 
-  const headers = {
-    'Authorization': apiKey,
-    'Content-Type': 'application/json',
-  } as const;
-
   const corsHeaders = getCorsHeaders(null);
+  
+  // Timeout interno de 10s conforme PRD
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
-    // 1) Buscar times disponíveis
-    const teamsResponse = await fetch('https://api.clickup.com/api/v2/team', { headers });
+    const headers = {
+      'Authorization': apiKey,
+      'Content-Type': 'application/json',
+    } as const;
+
+    const emailToUse = userEmail.toLowerCase().trim();
+
+    // 1) Buscar times disponíveis com timeout
+    const teamsResponse = await fetch('https://api.clickup.com/api/v2/team', { 
+      headers,
+      signal: controller.signal 
+    });
+    
     if (!teamsResponse.ok) {
-      console.error(`Erro ao buscar teams: ${teamsResponse.status} ${teamsResponse.statusText}`);
+      const duration = Date.now() - requestStart;
+      console.error(`Erro ao buscar teams: ${teamsResponse.status} ${teamsResponse.statusText} in ${duration}ms`);
+      
       return new Response(JSON.stringify({ 
-        tasks: [], 
-        total: 0, 
-        error: 'Falha ao acessar ClickUp API',
-        diagnostics: { message: `API retornou ${teamsResponse.status}` }
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        error: 'upstream_error',
+        detail: `ClickUp API retornou ${teamsResponse.status}: ${teamsResponse.statusText}`
+      }), { status: teamsResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     
     const teamsData = await teamsResponse.json();
@@ -235,7 +255,7 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
       const url = `https://api.clickup.com/api/v2/team/${selectedTeamId}/task?${params.toString()}`;
       console.log('Buscando tarefas para usuário:', url);
       
-      const tResp = await fetch(url, { headers });
+      const tResp = await fetch(url, { headers, signal: controller.signal });
       if (tResp.ok) {
         const tdata = await tResp.json();
         allTasks = (tdata.tasks || []) as ClickUpTask[];
@@ -245,31 +265,45 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
       }
     }
 
-    console.log(`Found ${allTasks.length} tasks for user ${emailToUse}`);
+    clearTimeout(timeoutId);
+    const duration = Date.now() - requestStart;
+    console.log(`Found ${allTasks.length} tasks for user ${emailToUse} in ${duration}ms`);
 
+    // Contrato de resposta conforme PRD
     return new Response(
       JSON.stringify({ 
-        success: true,
         tasks: allTasks, 
+        page: 0,
         total: allTasks.length,
         teamId: selectedTeamId,
-        userId: userId 
+        userId: userId,
+        duration: duration
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: any) {
-    console.error('Error fetching tasks:', error);
-    const message = error?.message || String(error);
+    clearTimeout(timeoutId);
+    const duration = Date.now() - requestStart;
+    console.error(`Error fetching tasks in ${duration}ms:`, error);
+    
+    // Tratar timeout específico conforme PRD
+    if (error.name === 'AbortError') {
+      return new Response(
+        JSON.stringify({ 
+          error: 'upstream_timeout',
+          detail: 'Timeout ao consultar ClickUp (10s)' 
+        }),
+        { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ 
-        success: false,
-        tasks: [], 
-        total: 0, 
-        error: 'Erro interno no servidor',
-        diagnostics: { message } 
+        error: 'edge_exception',
+        detail: error?.message || 'Erro interno no servidor'
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 }

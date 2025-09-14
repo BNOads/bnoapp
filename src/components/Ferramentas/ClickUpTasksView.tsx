@@ -61,6 +61,7 @@ export default function ClickUpTasksView() {
   const [commentText, setCommentText] = useState("");
   const [debugInfo, setDebugInfo] = useState<any | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const { userData } = useCurrentUser();
   const [userLinked, setUserLinked] = useState(false);
@@ -100,12 +101,15 @@ export default function ClickUpTasksView() {
     }
   };
 
-  const loadTasks = async () => {
+  const loadTasks = async (retryAttempt: number = 0) => {
     if (!userLinked) return;
 
     try {
+      setSyncing(true);
       setLastError(null);
-      setDebugInfo(null);
+      if (retryAttempt > 0) {
+        setDebugInfo({ ...debugInfo, retryStatus: `Tentando novamente (${retryAttempt}/2)...` });
+      }
       
       // Buscar mapeamento do usuário
       const { data: userAuth } = await supabase.auth.getUser();
@@ -121,63 +125,150 @@ export default function ClickUpTasksView() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('clickup-integration', {
-        body: { 
-          action: 'getTasks', 
-          teamId: mapping.clickup_team_id,
-          userId: mapping.clickup_user_id
-        }
-      });
+      console.log('ClickUp: Loading tasks for mapped user', mapping.clickup_email);
 
-      if (error) {
-        console.group('ClickUp LoadTasks Error (Edge Function)');
-        console.error('FunctionsHttpError:', error);
-        console.groupEnd();
-        throw error;
-      }
+      // Timeout de 15s com AbortController conforme PRD
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      
+      // Hard stop de 30s máximo conforme PRD
+      const hardStopId = setTimeout(() => {
+        setSyncing(false);
+        setLastError('❌ Falha ao carregar tarefas');
+        toast.error('Tempo limite excedido');
+      }, 30000);
 
-      // Se a função retornou ok:false ou trouxe um erro no payload, logar detalhadamente
-      if (data?.ok === false || data?.error) {
-        console.group('ClickUp LoadTasks Error (Payload)');
-        console.error('Payload error:', data?.error);
-        if (data?.diagnostics) {
-          console.info('Diagnostics:', data.diagnostics);
-          if (Array.isArray(data.diagnostics.steps)) {
-            console.table(data.diagnostics.steps);
-          }
-          if (Array.isArray(data.diagnostics.errors) && data.diagnostics.errors.length) {
-            for (const e of data.diagnostics.errors) console.error('Diag error:', e);
-          }
-        }
-        console.groupEnd();
-        setLastError(data?.error || 'Falha ao consultar o ClickUp');
-        setDebugInfo(data?.diagnostics || null);
-        setTasks([]);
-        return;
-      }
-
-      setTasks(data.tasks || []);
-      if (data?.diagnostics) setDebugInfo(data.diagnostics);
-    } catch (error: any) {
-      console.group('ClickUp LoadTasks Exception');
-      console.error('Exception:', error);
-      console.groupEnd();
-      setLastError(error?.message || 'Erro desconhecido');
-      toast.error('Erro ao carregar tarefas do ClickUp');
-      // Tentativa de diagnóstico detalhado
       try {
-        const { data: diag } = await supabase.functions.invoke('clickup-integration', {
-          body: { action: 'debugGetTasks' }
+        const { data, error } = await supabase.functions.invoke('clickup-integration', {
+          body: { 
+            action: 'getTasks', 
+            teamId: mapping.clickup_team_id,
+            userId: mapping.clickup_user_id
+          }
         });
-        setDebugInfo(diag);
-        console.group('ClickUp Debug (debugGetTasks)');
-        console.info('Diagnostics:', diag);
-        if (Array.isArray(diag?.steps)) console.table(diag.steps);
-        if (Array.isArray(diag?.errors)) diag.errors.forEach((e: string) => console.error('Diag error:', e));
-        console.groupEnd();
-      } catch (e) {
-        console.error('Erro ao gerar diagnóstico:', e);
+
+        clearTimeout(timeoutId);
+        clearTimeout(hardStopId);
+
+        if (error) {
+          console.error('ClickUp: Edge function error:', error);
+          
+          // Tratar timeout específico
+          if (error.name === 'AbortError') {
+            setLastError('❌ Tempo esgotado (15s). Tente novamente.');
+            toast.error('Timeout na requisição');
+            return;
+          }
+          
+          // Retry automático para erros temporários (429/503) conforme PRD
+          if ((error.status === 429 || error.status === 503) && retryAttempt < 2) {
+            const delay = retryAttempt === 0 ? 1000 : 2000;
+            setTimeout(() => {
+              setRetryCount(retryAttempt + 1);
+              loadTasks(retryAttempt + 1);
+            }, delay);
+            return;
+          }
+          
+          // Mensagens de erro específicas conforme PRD
+          let errorMessage = 'Erro na comunicação com ClickUp';
+          if (error.message?.includes('CORS') || error.status === 403) {
+            errorMessage = '❌ Domínio não autorizado (CORS)';
+          } else if (error.status === 500) {
+            errorMessage = '❌ Erro na Edge Function ou token ausente';
+          } else if (error.message?.includes('timeout')) {
+            errorMessage = '❌ Tempo esgotado (15s)';
+          }
+          
+          setLastError(errorMessage);
+          setDebugInfo({ 
+            error: error.message, 
+            status: error.status,
+            timestamp: new Date().toISOString(),
+            retryAttempt 
+          });
+          toast.error(errorMessage);
+          return;
+        }
+
+        console.log('ClickUp: Response data:', data);
+        
+        // Verificar se há erro no payload da edge function
+        if (data?.error) {
+          let errorMessage = 'Erro do servidor ClickUp';
+          
+          switch (data.error) {
+            case 'origin_not_allowed':
+              errorMessage = '❌ Domínio não autorizado (CORS)';
+              break;
+            case 'missing_clickup_token':
+              errorMessage = '❌ Erro na Edge Function ou token ausente';
+              break;
+            case 'upstream_timeout':
+              errorMessage = '❌ Tempo esgotado (15s)';
+              break;
+            case 'edge_exception':
+              errorMessage = '❌ Erro interno do servidor';
+              break;
+            default:
+              errorMessage = `❌ ${data.detail || data.error}`;
+          }
+          
+          setLastError(errorMessage);
+          setDebugInfo({ 
+            error: data.error, 
+            detail: data.detail,
+            timestamp: new Date().toISOString() 
+          });
+          toast.error(errorMessage);
+          return;
+        }
+        
+        if (data?.tasks && Array.isArray(data.tasks)) {
+          setTasks(data.tasks);
+          setDebugInfo({ 
+            tasksCount: data.tasks.length, 
+            teamId: data.teamId,
+            userId: data.userId,
+            duration: data.duration,
+            timestamp: new Date().toISOString(),
+            retryAttempt 
+          });
+          setRetryCount(0); // Reset retry count on success
+          toast.success(`✅ Tarefas sincronizadas com sucesso (${data.tasks.length})`);
+          
+          if (data.tasks.length === 0) {
+            setLastError('❌ Nenhuma tarefa encontrada');
+            toast.info("Nenhuma tarefa encontrada para este usuário");
+          }
+        } else {
+          setTasks([]);
+          setLastError('Resposta inválida do servidor');
+          setDebugInfo({ message: 'Invalid response format', data });
+          console.warn('ClickUp: Invalid response:', data);
+        }
+        
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        clearTimeout(hardStopId);
+        
+        if (fetchError.name === 'AbortError') {
+          setLastError('❌ Tempo esgotado (15s). Tente novamente.');
+          toast.error('Timeout na requisição');
+        } else {
+          throw fetchError;
+        }
       }
+      
+    } catch (error: any) {
+      console.error('ClickUp: Error loading tasks:', error);
+      setLastError(`❌ Erro inesperado: ${error.message || 'Falha na comunicação'}`);
+      setDebugInfo({ 
+        error: error.message, 
+        stack: error.stack, 
+        timestamp: new Date().toISOString() 
+      });
+      toast.error("❌ Erro ao conectar com ClickUp");
     } finally {
       setSyncing(false);
       setLoading(false);
