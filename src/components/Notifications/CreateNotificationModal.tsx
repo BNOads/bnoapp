@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Bell, Calendar, Users } from "lucide-react";
+import { Bell, Calendar, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -119,8 +119,13 @@ export default function CreateNotificationModal({ onSuccess }: CreateNotificatio
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
+        <Button className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white">
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/>
+            <path d="M9.5 9a2.5 2.5 0 0 1 5 0v2a2.5 2.5 0 0 1-5 0V9z"/>
+            <path d="M9 13h6v3H9z"/>
+            <path d="M7 16h10v1H7z"/>
+          </svg>
           Nova Notificação
         </Button>
       </DialogTrigger>
