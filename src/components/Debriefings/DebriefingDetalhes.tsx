@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { AdvancedCharts } from './AdvancedCharts';
 
 interface DebriefingDetalhes {
   id: string;
@@ -432,8 +433,9 @@ export default function DebriefingDetalhes() {
           </div>
 
           <Tabs defaultValue="dashboard" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+              <TabsTrigger value="graficos">Gráficos</TabsTrigger>
               <TabsTrigger value="evolucao">Evolução</TabsTrigger>
               <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
               <TabsTrigger value="qualitativo">Qualitativo</TabsTrigger>
@@ -490,6 +492,15 @@ export default function DebriefingDetalhes() {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            <TabsContent value="graficos" className="space-y-4">
+              <AdvancedCharts 
+                dados_leads={debriefing.dados_leads || []}
+                dados_compradores={debriefing.dados_compradores || []}
+                dados_trafego={debriefing.dados_trafego || []}
+                debriefing={debriefing}
+              />
             </TabsContent>
 
             <TabsContent value="evolucao" className="space-y-4">
