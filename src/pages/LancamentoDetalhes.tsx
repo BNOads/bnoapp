@@ -151,6 +151,26 @@ export default function LancamentoDetalhes() {
         gestorId = gestorByUser?.id || null;
       }
 
+      // Se ainda não encontrou, buscar em client_roles (gestor primário)
+      if (!gestorId) {
+        const { data: primaryRole } = await supabase
+          .from('client_roles')
+          .select('user_id')
+          .eq('client_id', clienteId)
+          .eq('role', 'gestor')
+          .eq('is_primary', true)
+          .maybeSingle();
+
+        if (primaryRole?.user_id) {
+          const { data: gestorByRole } = await supabase
+            .from('colaboradores')
+            .select('id')
+            .eq('user_id', primaryRole.user_id)
+            .maybeSingle();
+          gestorId = gestorByRole?.id || null;
+        }
+      }
+
       // Preparar updates
       const updates: any = { cliente_id: clienteId };
       if (gestorId) updates.gestor_responsavel_id = gestorId;
