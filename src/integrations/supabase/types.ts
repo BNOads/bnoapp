@@ -284,6 +284,41 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_stage_mappings: {
+        Row: {
+          campaign_name: string
+          cliente_id: string | null
+          created_at: string
+          id: string
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_name: string
+          cliente_id?: string | null
+          created_at?: string
+          id?: string
+          stage: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_name?: string
+          cliente_id?: string | null
+          created_at?: string
+          id?: string
+          stage?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_stage_mappings_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clickup_user_mappings: {
         Row: {
           clickup_email: string

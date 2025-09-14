@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { AdvancedCharts } from './AdvancedCharts';
+import EditDebriefingModal from './EditDebriefingModal';
 
 interface DebriefingDetalhes {
   id: string;
@@ -240,6 +241,7 @@ export default function DebriefingDetalhes() {
             <Share className="mr-2 h-4 w-4" />
             Compartilhar
           </Button>
+          <EditDebriefingModal debriefing={debriefing} onUpdate={fetchDebriefing} />
           <Button variant="outline" onClick={handleExportPDF}>
             <Download className="mr-2 h-4 w-4" />
             Baixar PDF

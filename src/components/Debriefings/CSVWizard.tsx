@@ -11,10 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import CampaignStageValidator from "./CampaignStageValidator";
 
 interface CSVWizardProps {
   debriefingData: any;
   onComplete: () => void;
+  isEditMode?: boolean;
 }
 
 interface CSVFile {
@@ -61,7 +63,7 @@ const optionalFields = {
   outras_fontes: ['campanha', 'impressoes', 'cliques', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term']
 };
 
-export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps) {
+export default function CSVWizard({ debriefingData, onComplete, isEditMode = false }: CSVWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [csvFiles, setCsvFiles] = useState<CSVFile[]>([
     { type: 'vendas', file: null, data: [], headers: [], mapping: {}, valid: false, errors: [], optional: false },
@@ -73,6 +75,8 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
   const [consolidatedData, setConsolidatedData] = useState<ConsolidatedData | null>(null);
   const [dataConfirmed, setDataConfirmed] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [showStageValidator, setShowStageValidator] = useState(false);
+  const [stageMappings, setStageMappings] = useState<any[]>([]);
 
   const parseCSV = (csvText: string): { headers: string[], data: any[] } => {
     const lines = csvText.split('\n').filter(line => line.trim());
@@ -404,6 +408,19 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
     // Consolidar dados
     const consolidated = consolidateData();
     setConsolidatedData(consolidated);
+    
+    // Mostrar validador de etapas se há dados de tráfego
+    const trafegoFile = csvFiles.find(csv => csv.type === 'trafego' && csv.file);
+    if (trafegoFile && trafegoFile.data.length > 0) {
+      setShowStageValidator(true);
+    } else {
+      setCurrentStep(3);
+    }
+  };
+
+  const handleStageValidationConfirm = (mappings: any[]) => {
+    setStageMappings(mappings);
+    setShowStageValidator(false);
     setCurrentStep(3);
   };
 
@@ -442,6 +459,7 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
           dados_trafego: consolidatedData.dados_consolidados,
           dados_pesquisa: pesquisaCsv?.data || [],
           dados_outras_fontes: outrasfontesCsv?.data || [],
+          distribuicao_etapas: stageMappings.length > 0 ? stageMappings : null,
           status: 'concluido'
         })
         .eq('id', debriefingId);
@@ -804,6 +822,18 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
           </div>
         </div>
       )}
+
+      {/* Validador de Etapas das Campanhas */}
+      <CampaignStageValidator
+        isOpen={showStageValidator}
+        onClose={() => {
+          setShowStageValidator(false);
+          setCurrentStep(3);
+        }}
+        onConfirm={handleStageValidationConfirm}
+        trafegoData={csvFiles.find(csv => csv.type === 'trafego')?.data || []}
+        clienteId={debriefingData.cliente_id}
+      />
     </div>
   );
 }

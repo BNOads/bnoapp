@@ -20,16 +20,68 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     }).format(value);
   };
 
-  // 1. Distribuição de Verba por Etapa
+  // 1. Distribuição de Verba por Etapa (usando dados reais de mapeamento)
   const getVerbaPorEtapa = () => {
-    const totalInvestimento = debriefing.investimento_total || 0;
+    // Se há distribuição de etapas salva, usar ela
+    if (debriefing.distribuicao_etapas && Array.isArray(debriefing.distribuicao_etapas) && debriefing.distribuicao_etapas.length > 0) {
+      const stageGroups = debriefing.distribuicao_etapas.reduce((acc: any, mapping: any) => {
+        if (!acc[mapping.stage]) {
+          acc[mapping.stage] = { investment: 0, count: 0 };
+        }
+        acc[mapping.stage].investment += Number(mapping.investment) || 0;
+        acc[mapping.stage].count += 1;
+        return acc;
+      }, {});
+
+      const totalInvestment = Object.values(stageGroups).reduce((sum: number, group: any) => {
+        return sum + (Number(group.investment) || 0);
+      }, 0);
+
+      return Object.entries(stageGroups).map(([stage, data]: [string, any]) => {
+        const investment = Number(data.investment) || 0;
+        return {
+          name: getStageLabel(stage),
+          value: investment,
+          percentage: totalInvestment > 0 ? (investment / totalInvestment) * 100 : 0,
+          color: getStageColor(stage),
+          count: Number(data.count) || 0
+        };
+      });
+    }
+
+    // Fallback: distribuição padrão estimada
+    const totalInvestimento = Number(debriefing.investimento_total) || 0;
     const distribuicao = [
-      { name: 'Captação', value: totalInvestimento * 0.4, percentage: 40, color: '#0088FE' },
-      { name: 'Aquecimento', value: totalInvestimento * 0.3, percentage: 30, color: '#00C49F' },
-      { name: 'CPLs', value: totalInvestimento * 0.2, percentage: 20, color: '#FFBB28' },
-      { name: 'Lembrete', value: totalInvestimento * 0.1, percentage: 10, color: '#FF8042' },
+      { name: 'Captação', value: totalInvestimento * 0.4, percentage: 40, color: '#0088FE', count: 0 },
+      { name: 'Aquecimento', value: totalInvestimento * 0.3, percentage: 30, color: '#00C49F', count: 0 },
+      { name: 'CPL/Conteúdo', value: totalInvestimento * 0.2, percentage: 20, color: '#FFBB28', count: 0 },
+      { name: 'Lembrete', value: totalInvestimento * 0.1, percentage: 10, color: '#FF8042', count: 0 },
     ];
     return distribuicao;
+  };
+
+  const getStageLabel = (stage: string) => {
+    const labels: Record<string, string> = {
+      'captacao': 'Captação',
+      'aquecimento': 'Aquecimento',
+      'cpl': 'CPL/Conteúdo',
+      'lembrete': 'Lembrete',
+      'vendas': 'Vendas',
+      'nao_classificada': 'Não Classificada'
+    };
+    return labels[stage] || stage;
+  };
+
+  const getStageColor = (stage: string) => {
+    const colors: Record<string, string> = {
+      'captacao': '#0088FE',
+      'aquecimento': '#00C49F',
+      'cpl': '#FFBB28',
+      'lembrete': '#FF8042',
+      'vendas': '#8884D8',
+      'nao_classificada': '#999999'
+    };
+    return colors[stage] || '#cccccc';
   };
 
   // 2. Desempenho por Plataforma (incluindo outras fontes)
@@ -247,20 +299,23 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                 <Tooltip formatter={(value: number) => formatCurrency(value)} />
               </PieChart>
             </ResponsiveContainer>
-            <div className="space-y-2">
-              {verbaPorEtapa.map((etapa, index) => (
-                <div key={index} className="flex justify-between items-center p-2 border rounded">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: etapa.color }}></div>
-                    <span>{etapa.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold">{formatCurrency(etapa.value)}</div>
-                    <div className="text-sm text-muted-foreground">{etapa.percentage}%</div>
-                  </div>
+                <div className="space-y-2">
+                  {verbaPorEtapa.map((etapa, index) => (
+                    <div key={index} className="flex justify-between items-center p-2 border rounded">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: etapa.color }}></div>
+                        <span>{etapa.name}</span>
+                        {etapa.count > 0 && (
+                          <span className="text-xs text-muted-foreground">({etapa.count} campanhas)</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold">{formatCurrency(etapa.value)}</div>
+                        <div className="text-sm text-muted-foreground">{etapa.percentage.toFixed(1)}%</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
           </div>
         </CardContent>
       </Card>
