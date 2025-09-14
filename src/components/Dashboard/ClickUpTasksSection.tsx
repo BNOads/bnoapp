@@ -44,10 +44,18 @@ export default function ClickUpTasksSection() {
   const loadTasks = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('clickup-integration', {
-        body: { action: 'getTasks' }
+        body: { action: 'getTasks', preferredEmail: 'lucas.oliveirafla7@gmail.com' }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('ClickUp Dashboard: Edge function error:', error);
+        return;
+      }
+
+      if (data?.ok === false || data?.error) {
+        console.warn('ClickUp Dashboard: Payload error:', data?.error);
+        return;
+      }
 
       // Ordenar por vencimento mais próximo e depois por criação
       const sortedTasks = (data.tasks || []).sort((a: ClickUpTask, b: ClickUpTask) => {

@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, isPast, isToday, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import ClickUpDebugPanel from "./ClickUpDebugPanel";
 
 interface ClickUpTask {
   id: string;
@@ -383,48 +384,12 @@ export default function ClickUpTasksView() {
         </Button>
       </div>
 
-      {lastError && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Diagnóstico de Carregamento (ClickUp)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-sm text-muted-foreground">Ocorreu um erro ao carregar as tarefas.</p>
-            <div className="text-sm">
-              <div><strong>Erro:</strong> {lastError}</div>
-              {debugInfo && (
-                <div className="mt-2 space-y-1">
-                  <div><strong>Team ID:</strong> {debugInfo.teamId}</div>
-                  <div><strong>Usuário:</strong> {debugInfo.userEmail}</div>
-                  <div><strong>Times disponíveis:</strong> {(debugInfo.teams?.map((t: any) => `${t.name} (#${t.id})`).join(', ')) || 'N/D'}</div>
-                  <div><strong>Membros (count):</strong> {debugInfo.memberCount ?? 'N/D'} • <strong>Match encontrado:</strong> {debugInfo.matchedMember ? 'Sim' : 'Não'}</div>
-                  <div><strong>Spaces encontrados:</strong> {debugInfo.spaceCount ?? 'N/D'}</div>
-                  <div className="mt-2">
-                    <strong>Passos:</strong>
-                    <ul className="list-disc ml-6 mt-1">
-                      {(debugInfo.steps || []).map((s: any, i: number) => (
-                        <li key={i} className="text-xs">
-                          {s.step} → {s.ok ? 'OK' : 'Falhou'} ({s.status} {s.statusText})
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  {Array.isArray(debugInfo.errors) && debugInfo.errors.length > 0 && (
-                    <div className="mt-2">
-                      <strong>Erros:</strong>
-                      <ul className="list-disc ml-6 mt-1">
-                        {debugInfo.errors.map((e: string, i: number) => (
-                          <li key={i} className="text-xs">{e}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <ClickUpDebugPanel 
+        debugInfo={debugInfo}
+        lastError={lastError}
+        onRefresh={syncTasks}
+        refreshing={syncing}
+      />
 
 
       <div className="flex gap-4 items-center flex-wrap">

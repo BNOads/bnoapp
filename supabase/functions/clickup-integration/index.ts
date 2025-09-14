@@ -54,7 +54,12 @@ serve(async (req) => {
 
     const clickupApiKey = Deno.env.get('CLICKUP_API_KEY');
     if (!clickupApiKey) {
-      return new Response(JSON.stringify({ error: 'ClickUp API key not configured' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      console.error('CLICKUP_API_KEY not found in environment');
+      return new Response(JSON.stringify({ 
+        ok: false, 
+        error: 'ClickUp API key not configured',
+        diagnostics: { message: 'API key missing from environment variables' }
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const url = new URL(req.url);
@@ -69,17 +74,21 @@ serve(async (req) => {
     // Buscar dados do colaborador se houver usuário autenticado
     let colaboradorEmail: string | null = null;
     if (userData?.user?.id) {
-      const { data: colaborador } = await supabaseClient
-        .from('colaboradores')
-        .select('email')
-        .eq('user_id', userData.user.id)
-        .maybeSingle();
-      colaboradorEmail = colaborador?.email ?? null;
+      try {
+        const { data: colaborador } = await supabaseClient
+          .from('colaboradores')
+          .select('email')
+          .eq('user_id', userData.user.id)
+          .maybeSingle();
+        colaboradorEmail = colaborador?.email ?? null;
+      } catch (e) {
+        console.warn('Failed to fetch colaborador email:', e);
+      }
     }
 
-    const effectiveEmail = (colaboradorEmail || userData?.user?.email || body?.preferredEmail || '').trim();
+    const effectiveEmail = (colaboradorEmail || userData?.user?.email || body?.preferredEmail || 'lucas.oliveirafla7@gmail.com').trim();
 
-    console.log(`ClickUp Integration - Action: ${action}, EffectiveUserEmail: ${effectiveEmail || 'unknown'}`);
+    console.log(`ClickUp Integration - Action: ${action}, EffectiveUserEmail: ${effectiveEmail}`);
 
     switch (action) {
       case 'getTasks':
@@ -98,7 +107,11 @@ serve(async (req) => {
         return await debugGetTasks(clickupApiKey, teamId, effectiveEmail);
       
       default:
-        throw new Error('Invalid action');
+        return new Response(JSON.stringify({ 
+          ok: false, 
+          error: 'Invalid action',
+          diagnostics: { message: `Action '${action}' not supported` }
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
   } catch (error: any) {
