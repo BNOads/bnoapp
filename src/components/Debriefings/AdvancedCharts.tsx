@@ -171,7 +171,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     const trafegoCompleto = [...dados_trafego, ...dados_outras_fontes];
     
     const criativosData = trafegoCompleto.reduce((acc: any, item: any) => {
-      const criativo = item['Ad Name'] || item.nome_criativo || 'Criativo não identificado';
+      const criativo = item['Ad Name'] || item.ad_name || item.nome_criativo || 'Criativo não identificado';
       const linkCriativo = item.link_criativo || '';
       
       if (!acc[criativo]) {
@@ -183,21 +183,39 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
           link_criativo: linkCriativo
         };
       }
-      acc[criativo].leads += parseInt(item['Action Leads'] || item.leads || 0);
-      acc[criativo].gasto += parseFloat(item['Spend (Cost, Amount Spent)'] || item.gasto || 0);
-      acc[criativo].cliques += parseInt(item['Action Link Clicks'] || item.cliques || 0);
-      acc[criativo].impressoes += parseInt(item['Impressions'] || item.impressoes || 0);
+      acc[criativo].leads += parseInt(item['Action Leads'] || item.action_leads || item.leads || 0);
+      acc[criativo].gasto += parseFloat(item['Spend (Cost, Amount Spent)'] || item.spend || item.gasto || 0);
+      acc[criativo].cliques += parseInt(item['Action Link Clicks'] || item.action_link_clicks || item.cliques || 0);
+      acc[criativo].impressoes += parseInt(item['Impressions'] || item.impressions || item.impressoes || 0);
       return acc;
     }, {});
 
-    return Object.keys(criativosData)
-      .map(criativo => ({
+    // Cruzar dados de compradores usando ad_name e utm_content
+    const criativosComVendas = Object.keys(criativosData).map(criativo => {
+      // Buscar vendas que correspondem ao criativo através do utm_content
+      const vendasDoCriativo = dados_compradores.filter((comprador: any) => {
+        const utmContent = comprador.utm_content || comprador.utm_campaign || '';
+        // Verificar se o utm_content corresponde ao nome do criativo (ad_name)
+        return utmContent === criativo || 
+               utmContent.includes(criativo) || 
+               criativo.includes(utmContent) ||
+               // Fallback para busca parcial por palavras-chave
+               (utmContent && criativo.toLowerCase().includes(utmContent.toLowerCase())) ||
+               (utmContent && utmContent.toLowerCase().includes(criativo.toLowerCase()));
+      });
+
+      return {
         criativo,
         ...criativosData[criativo],
         cpl: criativosData[criativo].leads > 0 ? criativosData[criativo].gasto / criativosData[criativo].leads : 0,
         ctr: criativosData[criativo].impressoes > 0 ? (criativosData[criativo].cliques / criativosData[criativo].impressoes) * 100 : 0,
-        vendas: dados_compradores.filter(c => c.utm_campaign?.includes(criativo.substring(0, 10))).length || 0
-      }))
+        vendas: vendasDoCriativo.length,
+        conversao: criativosData[criativo].leads > 0 ? (vendasDoCriativo.length / criativosData[criativo].leads) * 100 : 0
+      };
+    });
+
+    return criativosComVendas
+      .filter(item => item.leads > 0 || item.gasto > 0) // Filtrar apenas criativos com dados
       .sort((a, b) => b.leads - a.leads)
       .slice(0, 5);
   };
