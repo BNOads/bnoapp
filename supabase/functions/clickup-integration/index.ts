@@ -677,6 +677,85 @@ async function userLookup(apiKey: string, teamId: string, userEmail: string) {
       }
     }
 
+    // 2b. Se ainda não encontrou, procure em TODOS os times do ClickUp (email OU nome)
+    try {
+      const teamsResp = await fetch('https://api.clickup.com/api/v2/team', { headers });
+      if (teamsResp.ok) {
+        const teamsData = await teamsResp.json();
+        const teams = teamsData.teams || [];
+
+        // Monta conjunto de aliases incluindo o nome literal
+        const searchAliases = new Set<string>(userAliases);
+        if (userName) searchAliases.add(userName.toLowerCase().trim());
+
+        for (const t of teams) {
+          const tid = String(t.id);
+          if (tid === String(teamId)) continue; // já checamos esse
+
+          try {
+            const m = await fetch(`https://api.clickup.com/api/v2/team/${tid}/member`, { headers });
+            if (!m.ok) continue;
+            const mdata = await m.json();
+
+            // 2b.i. match exato por email
+            let candidate = mdata.members?.find((mm: any) =>
+              mm.user?.email?.toLowerCase().trim() === userEmail.toLowerCase().trim()
+            );
+
+            // 2b.ii. match por aliases/nome
+            if (!candidate) {
+              for (const alias of searchAliases) {
+                candidate = mdata.members?.find((mm: any) => {
+                  const u = mm.user || {};
+                  const memberUsername = (u.username || '').toLowerCase();
+                  const memberEmail = (u.email || '').toLowerCase();
+
+                  return memberUsername.includes(alias) ||
+                         memberEmail.includes(alias) ||
+                         alias.includes(memberUsername.split('@')[0]) ||
+                         alias.includes(memberEmail.split('@')[0]);
+                });
+                if (candidate) {
+                  console.log(`Alias/name match em outro time ${tid}: ${candidate.user?.username}`);
+                  return new Response(JSON.stringify({
+                    found: true,
+                    matchType: 'found_in_other_team',
+                    matchedAlias: alias,
+                    user: {
+                      id: candidate.user.id,
+                      username: candidate.user.username,
+                      email: candidate.user.email,
+                      profilePicture: candidate.user.profilePicture,
+                      teamId: tid
+                    }
+                  }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+                }
+              }
+            }
+
+            if (candidate) {
+              console.log(`Email exato encontrado em outro time ${tid}: ${candidate.user?.email}`);
+              return new Response(JSON.stringify({
+                found: true,
+                matchType: 'exact_email_other_team',
+                user: {
+                  id: candidate.user.id,
+                  username: candidate.user.username,
+                  email: candidate.user.email,
+                  profilePicture: candidate.user.profilePicture,
+                  teamId: tid
+                }
+              }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+          } catch (e) {
+            console.warn('Falha ao varrer membros do time', tid, e);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Falha ao varrer todos os times:', e);
+    }
+
     // 3. Busca por similaridade (fuzzy matching)
     const similarities = members.map((member: any) => {
       const memberUsername = member.user?.username || '';
