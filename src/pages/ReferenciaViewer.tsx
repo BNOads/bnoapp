@@ -10,15 +10,18 @@ import {
   Eye,
   Calendar,
   User,
-  Copy
+  Copy,
+  Edit
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MarkdownViewer } from "@/components/References/MarkdownEditor/MarkdownViewer";
 import { NotionEditor } from "@/components/References/NotionEditor/NotionEditor";
 import { EditorBlock } from "@/components/References/NotionEditor/types";
+import { ReferencesEditor } from "@/components/References/ReferencesEditor";
 
 interface ReferenciaCreativo {
   id: string;
@@ -37,9 +40,11 @@ interface ReferenciaCreativo {
 export const ReferenciaViewer = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { userData: user } = useCurrentUser();
   const [referencia, setReferencia] = useState<ReferenciaCreativo | null>(null);
   const [loading, setLoading] = useState(true);
   const [editorBlocks, setEditorBlocks] = useState<EditorBlock[]>([]);
+  const [showEditor, setShowEditor] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -248,6 +253,12 @@ export const ReferenciaViewer = () => {
               {referencia.is_template && (
                 <Badge variant="outline">Template</Badge>
               )}
+              {user && (
+                <Button variant="outline" size="sm" onClick={() => setShowEditor(true)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Editar
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={copiarLinkPublico}>
                 <Share2 className="w-4 h-4 mr-2" />
                 Compartilhar Público
@@ -350,6 +361,20 @@ export const ReferenciaViewer = () => {
           </p>
         </div>
       </div>
+
+      {/* Editor Modal */}
+      {user && showEditor && (
+        <ReferencesEditor
+          isOpen={showEditor}
+          onClose={() => setShowEditor(false)}
+          referenceId={referencia.id}
+          clienteId="geral"
+          onSave={() => {
+            carregarReferencia();
+            setShowEditor(false);
+          }}
+        />
+      )}
     </div>
   );
 };

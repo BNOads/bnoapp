@@ -1,4 +1,5 @@
 import { useLocation } from "react-router-dom";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { FloatingNoteButton } from "@/components/ui/FloatingNoteButton";
 import { Header } from "@/components/Layout/Header";
 import { useRecentTabs } from "@/hooks/useRecentTabs";
@@ -9,6 +10,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
+  const { userData: user } = useCurrentUser();
   
   // Track page visits automatically
   useRecentTabs();
@@ -24,9 +26,13 @@ export function AppLayout({ children }: AppLayoutProps) {
     '/funil/publico'
   ];
   
+  // Para rotas públicas e específicas de visualização, verificar se o usuário está logado
+  const isPublicViewRoute = location.pathname.startsWith('/referencia/') && 
+                           !location.pathname.startsWith('/referencia/publica');
+  
   const shouldShowHeader = !hideHeaderRoutes.some(route => 
     location.pathname.startsWith(route)
-  );
+  ) && !(isPublicViewRoute && !user);
   
   const shouldShowFAB = shouldShowHeader;
 

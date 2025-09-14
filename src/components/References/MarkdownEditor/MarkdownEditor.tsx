@@ -622,11 +622,23 @@ export const MarkdownEditor = ({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/mov,video/webm"
+        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/mov,video/webm,video/avi"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) {
+            // Verificar tamanho do arquivo baseado no tipo
+            const maxSize = file.type.startsWith('video/') ? 50 * 1024 * 1024 : 10 * 1024 * 1024; // 50MB para vídeos, 10MB para imagens
+            
+            if (file.size > maxSize) {
+              toast({
+                title: "Arquivo muito grande",
+                description: `O arquivo deve ter no máximo ${file.type.startsWith('video/') ? '50MB' : '10MB'}.`,
+                variant: "destructive"
+              });
+              return;
+            }
+            
             const isVideo = file.type.startsWith('video/');
             handleFileUpload(file, isVideo ? 'video' : 'image');
           }
