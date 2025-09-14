@@ -78,6 +78,104 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
   const [showStageValidator, setShowStageValidator] = useState(false);
   const [stageMappings, setStageMappings] = useState<any[]>([]);
 
+  const getFieldMappings = (type: string) => {
+    const commonMappings = [
+      { key: 'nome', label: 'Nome', aliases: ['nome', 'name', 'first name', 'cliente'] },
+      { key: 'email', label: 'Email', aliases: ['email', 'e-mail', 'mail', 'endereço de email'] }
+    ];
+
+    switch (type) {
+      case 'leads':
+        return [
+          ...commonMappings,
+          { key: 'telefone', label: 'Telefone', aliases: ['telefone', 'phone', 'celular', 'whatsapp'] },
+          { key: 'data', label: 'Data', aliases: ['data', 'date', 'created', 'timestamp', 'carimbo'] },
+          { key: 'utm_source', label: 'UTM Source', aliases: ['utm_source', 'source', 'fonte'] },
+          { key: 'utm_campaign', label: 'UTM Campaign', aliases: ['utm_campaign', 'campaign', 'campanha'] }
+        ];
+      
+      case 'pesquisa':
+        return [
+          { key: 'carimbo', label: 'Carimbo de data/hora', aliases: ['carimbo de data/hora', 'timestamp', 'data', 'date'] },
+          { key: 'nome', label: 'Nome', aliases: ['nome', 'name'] },
+          { key: 'email', label: 'E-mail', aliases: ['e-mail', 'email'] },
+          { key: 'telefone', label: 'Telefone', aliases: ['telefone', 'phone'] },
+          { key: 'sexo', label: 'Sexo', aliases: ['sexo', 'gênero', 'genero', 'gender'] },
+          { key: 'idade', label: 'Idade', aliases: ['idade', 'age'] },
+          { key: 'formacao', label: 'Formação', aliases: ['qual é a sua formação?', 'formação', 'formacao', 'education'] },
+          { key: 'tempo_formado', label: 'Tempo formado', aliases: ['há quanto tempo você se formou?', 'tempo formado', 'graduation time'] },
+          { key: 'situacao_trabalho', label: 'Situação de trabalho', aliases: ['qual é a sua situação de trabalho atual?', 'situação trabalho', 'work situation'] },
+          { key: 'renda_mensal', label: 'Renda mensal', aliases: ['atualmente, qual é a sua renda mensal?', 'renda mensal', 'income'] },
+          { key: 'utm_source', label: 'UTM Source', aliases: ['utm source', 'utm_source'] },
+          { key: 'utm_medium', label: 'UTM Medium', aliases: ['utm medium', 'utm_medium'] },
+          { key: 'utm_campaign', label: 'UTM Campaign', aliases: ['utm campaign', 'utm_campaign'] },
+          { key: 'utm_term', label: 'UTM Term', aliases: ['utm term', 'utm_term'] },
+          { key: 'utm_content', label: 'UTM Content', aliases: ['utm content', 'utm_content'] }
+        ];
+
+      case 'vendas':
+        return [
+          ...commonMappings,
+          { key: 'valor', label: 'Valor da Compra', aliases: ['valor', 'value', 'price', 'preço'] },
+          { key: 'data', label: 'Data da Compra', aliases: ['data', 'date', 'purchase date', 'data compra'] },
+          { key: 'produto', label: 'Produto', aliases: ['produto', 'product', 'item'] }
+        ];
+
+      case 'trafego':
+        return [
+          { key: 'campaign_name', label: 'Nome da Campanha', aliases: ['Campaign Name', 'campanha', 'nome campanha'] },
+          { key: 'spend', label: 'Gasto/Investimento', aliases: ['Spend (Cost, Amount Spent)', 'gasto', 'investimento', 'cost'] },
+          { key: 'impressions', label: 'Impressões', aliases: ['Impressions', 'impressoes', 'impressões'] },
+          { key: 'action_link_clicks', label: 'Cliques', aliases: ['Action Link Clicks', 'cliques', 'clicks'] },
+          { key: 'action_leads', label: 'Leads', aliases: ['Action Leads', 'leads', 'conversions'] },
+          { key: 'ad_name', label: 'Nome do Criativo', aliases: ['Ad Name', 'nome criativo', 'creative'] },
+          { key: 'link_criativo', label: 'Link do Criativo', aliases: ['link criativo', 'creative link', 'image url'] },
+          { key: 'date', label: 'Data', aliases: ['date', 'data', 'day'] }
+        ];
+
+      case 'outras_fontes':
+        return [
+          { key: 'plataforma', label: 'Plataforma', aliases: ['plataforma', 'platform', 'source'] },
+          { key: 'campanha', label: 'Campanha', aliases: ['campanha', 'campaign'] },
+          { key: 'gasto', label: 'Gasto', aliases: ['gasto', 'spend', 'cost', 'investimento'] },
+          { key: 'impressoes', label: 'Impressões', aliases: ['impressoes', 'impressions'] },
+          { key: 'cliques', label: 'Cliques', aliases: ['cliques', 'clicks'] },
+          { key: 'leads', label: 'Leads', aliases: ['leads', 'conversions'] },
+          { key: 'data', label: 'Data', aliases: ['data', 'date', 'day'] }
+        ];
+
+      default:
+        return commonMappings;
+    }
+  };
+
+  const getAutoMapping = (type: string, headers: string[]) => {
+    const fieldMappings = getFieldMappings(type);
+    const autoMapping: Record<string, string> = {};
+    
+    // Para cada campo esperado, tentar encontrar correspondência nos headers
+    fieldMappings.forEach(field => {
+      const matchingHeader = headers.find(header => {
+        const normalizedHeader = header.toLowerCase().trim();
+        // Verificar correspondência exata primeiro
+        if (normalizedHeader === field.key.toLowerCase()) {
+          return true;
+        }
+        // Verificar aliases
+        return field.aliases.some(alias => 
+          normalizedHeader === alias.toLowerCase() ||
+          normalizedHeader.includes(alias.toLowerCase())
+        );
+      });
+      
+      if (matchingHeader) {
+        autoMapping[field.key] = matchingHeader.toLowerCase();
+      }
+    });
+    
+    return autoMapping;
+  };
+
   const parseCSV = (csvText: string): { headers: string[], data: any[] } => {
     const lines = csvText.split('\n').filter(line => line.trim());
     if (lines.length === 0) {
@@ -106,13 +204,19 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
       const csvText = await file.text();
       const { headers, data } = parseCSV(csvText);
       
+      // Fazer mapeamento automático baseado nos aliases
+      const autoMapping = getAutoMapping(type, headers);
+      
       setCsvFiles(prev => prev.map(csv => 
         csv.type === type 
-          ? { ...csv, file, data, headers, valid: false, errors: [] }
+          ? { ...csv, file, data, headers, mapping: autoMapping, valid: false, errors: [] }
           : csv
       ));
 
-      toast.success(`CSV de ${type} carregado com sucesso! ${data.length} registros encontrados`);
+      const mappedFields = Object.keys(autoMapping).length;
+      const totalFields = getFieldMappings(type).length;
+      
+      toast.success(`CSV de ${type} carregado! ${data.length} registros encontrados. ${mappedFields}/${totalFields} campos mapeados automaticamente.`);
     } catch (error: any) {
       toast.error(`Erro ao carregar CSV de ${type}: ${error.message}`);
     }
@@ -637,12 +741,17 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
                     <div className="grid grid-cols-2 gap-4">
                       {[...requiredFields[csv.type], ...optionalFields[csv.type]].map(field => (
                         <div key={field} className="space-y-2">
-                          <Label>
-                            {field}
-                            {requiredFields[csv.type].includes(field) && 
-                              <span className="text-red-500 ml-1">*</span>
-                            }
-                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Label>
+                              {field}
+                              {requiredFields[csv.type].includes(field) && 
+                                <span className="text-red-500 ml-1">*</span>
+                              }
+                            </Label>
+                            {csv.mapping[field] && csv.mapping[field] !== '' && (
+                              <Badge variant="secondary" className="text-xs bg-green-50 text-green-700">Auto-mapeado</Badge>
+                            )}
+                          </div>
                           <Select
                             value={csv.mapping[field] || '__none__'}
                             onValueChange={(value) => {
