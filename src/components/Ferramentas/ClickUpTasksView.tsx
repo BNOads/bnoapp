@@ -25,6 +25,7 @@ import { format, isPast, isToday, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ClickUpDebugPanel from "./ClickUpDebugPanel";
 import ClickUpUserLink from "./ClickUpUserLink";
+import ClickUpUsersList from "./ClickUpUsersList";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface ClickUpTask {
@@ -538,81 +539,106 @@ export default function ClickUpTasksView() {
         </Button>
       </div>
 
-      <ClickUpUserLink onLinked={() => setUserLinked(true)} />
-
-      {userLinked && (
-        <>
-          <ClickUpDebugPanel 
-            debugInfo={debugInfo}
-            lastError={lastError}
-            onRefresh={syncTasks}
-            refreshing={syncing}
-          />
-
-          <div className="flex gap-4 items-center flex-wrap">
-            <div className="relative flex-1 min-w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar tarefas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+      <Tabs defaultValue="tasks" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="tasks">Minhas Tarefas</TabsTrigger>
+          <TabsTrigger value="users">Usuários ClickUp</TabsTrigger>
+          <TabsTrigger value="link">Vínculo</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="tasks" className="space-y-6">
+          {userLinked ? (
+            <>
+              <ClickUpDebugPanel 
+                debugInfo={debugInfo}
+                lastError={lastError}
+                onRefresh={syncTasks}
+                refreshing={syncing}
               />
-            </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Status</SelectItem>
-                <SelectItem value="to do">A Fazer</SelectItem>
-                <SelectItem value="in progress">Em Progresso</SelectItem>
-                <SelectItem value="review">Revisão</SelectItem>
-                <SelectItem value="complete">Concluído</SelectItem>
-              </SelectContent>
-            </Select>
+              <div className="flex gap-4 items-center flex-wrap">
+                <div className="relative flex-1 min-w-64">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar tarefas..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
 
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Prioridade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="overdue">Atrasadas</SelectItem>
-                <SelectItem value="today">Hoje</SelectItem>
-                <SelectItem value="upcoming">Futuras</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Status</SelectItem>
+                    <SelectItem value="to do">A Fazer</SelectItem>
+                    <SelectItem value="in progress">Em Progresso</SelectItem>
+                    <SelectItem value="review">Revisão</SelectItem>
+                    <SelectItem value="complete">Concluído</SelectItem>
+                  </SelectContent>
+                </Select>
 
-          <div className="grid gap-4">
-            {filteredTasks.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Nenhuma tarefa encontrada</h3>
-                  <p className="text-muted-foreground">
-                    {tasks.length === 0 
-                      ? 'Conecte-se ao ClickUp ou verifique se há tarefas atribuídas a você.'
-                      : 'Tente ajustar os filtros para encontrar suas tarefas.'
-                    }
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4">
-                {filteredTasks.map(renderTaskCard)}
+                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Prioridade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="overdue">Atrasadas</SelectItem>
+                    <SelectItem value="today">Hoje</SelectItem>
+                    <SelectItem value="upcoming">Futuras</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </div>
 
-          <div className="text-sm text-muted-foreground text-center">
-            {filteredTasks.length} de {tasks.length} tarefas • 
-            Última sincronização: {format(new Date(), 'HH:mm', { locale: ptBR })}
-          </div>
-        </>
-      )}
+              <div className="grid gap-4">
+                {filteredTasks.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Nenhuma tarefa encontrada</h3>
+                      <p className="text-muted-foreground">
+                        {tasks.length === 0 
+                          ? 'Conecte-se ao ClickUp ou verifique se há tarefas atribuídas a você.'
+                          : 'Tente ajustar os filtros para encontrar suas tarefas.'
+                        }
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4">
+                    {filteredTasks.map(renderTaskCard)}
+                  </div>
+                )}
+              </div>
+
+              <div className="text-sm text-muted-foreground text-center">
+                {filteredTasks.length} de {tasks.length} tarefas • 
+                Última sincronização: {format(new Date(), 'HH:mm', { locale: ptBR })}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground mb-4">
+                Conecte-se ao ClickUp para ver suas tarefas
+              </p>
+              <Button onClick={() => setUserLinked(false)}>
+                Ir para Vínculo
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          <ClickUpUsersList />
+        </TabsContent>
+
+        <TabsContent value="link" className="space-y-6">
+          <ClickUpUserLink onLinked={() => setUserLinked(true)} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
