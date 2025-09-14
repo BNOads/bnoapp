@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { PesquisaAnalysis } from "./PesquisaAnalysis";
 
 interface AdvancedChartsProps {
   dados_leads?: any[];
@@ -721,6 +722,14 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Análise Demográfica da Pesquisa */}
+      {dados_pesquisa.length > 0 && (
+        <PesquisaAnalysis 
+          dados_pesquisa={dados_pesquisa}
+          dados_compradores={dados_compradores}
+        />
       )}
     </div>
   );

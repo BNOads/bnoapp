@@ -77,6 +77,9 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
   const [processing, setProcessing] = useState(false);
   const [showStageValidator, setShowStageValidator] = useState(false);
   const [stageMappings, setStageMappings] = useState<any[]>([]);
+  
+  // Estado para nomeação de fontes personalizadas
+  const [customSourceNames, setCustomSourceNames] = useState<Record<string, string>>({});
 
   const getFieldMappings = (type: string) => {
     const commonMappings = [
@@ -396,15 +399,18 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
     // Processar outras fontes de tráfego (opcional)
     const outrasData = outrasFontes ? outrasFontes.data.map(row => {
       const dataOutra = normalizeDate(row[outrasFontes.mapping.data]);
+      // Usar nome personalizado da fonte se fornecido
+      const nomeFonte = customSourceNames['outras_fontes'] || row[outrasFontes.mapping.plataforma] || 'Outras';
       return {
         data: dataOutra || hoje,
-        plataforma: row[outrasFontes.mapping.plataforma] || 'Outras',
+        plataforma: nomeFonte,
+        fonte_personalizada: customSourceNames['outras_fontes'] || '',
         campanha: row[outrasFontes.mapping.campanha] || 'N/A',
         gasto: parseFloat(row[outrasFontes.mapping.gasto] || '0'),
         impressoes: parseInt(row[outrasFontes.mapping.impressoes] || '0'),
         cliques: parseInt(row[outrasFontes.mapping.cliques] || '0'),
         link_criativo: row[outrasFontes.mapping.link_criativo] || '',
-        utm_source: row[outrasFontes.mapping.utm_source] || row[outrasFontes.mapping.plataforma]?.toLowerCase(),
+        utm_source: row[outrasFontes.mapping.utm_source] || nomeFonte.toLowerCase(),
         utm_medium: row[outrasFontes.mapping.utm_medium] || 'paid',
         utm_campaign: row[outrasFontes.mapping.utm_campaign] || row[outrasFontes.mapping.campanha],
         utm_term: row[outrasFontes.mapping.utm_term] || ''
@@ -717,6 +723,29 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
                   </div>
                   <p className="mt-1 text-xs text-gray-500">* Campos obrigatórios</p>
                 </div>
+                
+                {/* Campo para nomear fonte personalizada (apenas para outras_fontes) */}
+                {csv.type === 'outras_fontes' && (
+                  <div className="mt-3">
+                    <Label htmlFor={`source-name-${csv.type}`} className="text-sm font-medium">
+                      Nome da Fonte de Tráfego
+                    </Label>
+                    <Input
+                      id={`source-name-${csv.type}`}
+                      placeholder="Ex: TikTok Ads, LinkedIn Ads, Taboola..."
+                      value={customSourceNames[csv.type] || ''}
+                      onChange={(e) => setCustomSourceNames(prev => ({
+                        ...prev,
+                        [csv.type]: e.target.value
+                      }))}
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Este nome será usado para identificar a fonte nos gráficos
+                    </p>
+                  </div>
+                )}
+                
                 {csv.file && (
                   <p className="mt-2 text-sm text-green-600">
                     ✓ {csv.data.length} registros carregados
