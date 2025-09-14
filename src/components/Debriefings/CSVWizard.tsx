@@ -241,12 +241,21 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
 
     // Processar dados de pesquisa (opcional)
     const pesquisaData = pesquisa ? pesquisa.data.map(row => ({
-      email: row[pesquisa.mapping.email],
+      carimbo: row[pesquisa.mapping.carimbo] || '',
+      nome: row[pesquisa.mapping.nome] || '',
+      email: row[pesquisa.mapping.email] || '',
+      telefone: row[pesquisa.mapping.telefone] || '',
+      sexo: row[pesquisa.mapping.sexo] || '',
       idade: parseInt(row[pesquisa.mapping.idade] || '0'),
-      genero: row[pesquisa.mapping.genero] || '',
-      renda: row[pesquisa.mapping.renda] || '',
-      poder_de_compra: row[pesquisa.mapping.poder_de_compra] || '',
-      eventos: parseInt(row[pesquisa.mapping.eventos] || '0')
+      formacao: row[pesquisa.mapping.formacao] || '',
+      tempo_formado: row[pesquisa.mapping.tempo_formado] || '',
+      situacao_trabalho: row[pesquisa.mapping.situacao_trabalho] || '',
+      renda_mensal: row[pesquisa.mapping.renda_mensal] || '',
+      utm_source: row[pesquisa.mapping.utm_source] || '',
+      utm_medium: row[pesquisa.mapping.utm_medium] || '',
+      utm_campaign: row[pesquisa.mapping.utm_campaign] || '',
+      utm_term: row[pesquisa.mapping.utm_term] || '',
+      utm_content: row[pesquisa.mapping.utm_content] || ''
     })) : [];
 
     // Processar outras fontes de tráfego (opcional)

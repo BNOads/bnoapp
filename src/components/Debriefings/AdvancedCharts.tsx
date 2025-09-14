@@ -131,7 +131,21 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     const leadsData = dados_pesquisa.length > 0 ? dados_pesquisa : dados_leads;
     
     const temperaturas = leadsData.reduce((acc: any, lead: any) => {
-      const temp = lead.temperatura || 'Morno';
+      // Mapear sexo para temperatura (exemplo de lógica)
+      let temp = lead.temperatura || 'Morno';
+      
+      // Se não tem temperatura mas tem dados de pesquisa, inferir
+      if (!lead.temperatura && dados_pesquisa.length > 0) {
+        const renda = lead.renda_mensal || lead['atualmente, qual é a sua renda mensal?'] || '';
+        if (renda.includes('10.000') || renda.includes('15.000')) {
+          temp = 'Quente';
+        } else if (renda.includes('5.000') || renda.includes('3.000')) {
+          temp = 'Morno';
+        } else {
+          temp = 'Frio';
+        }
+      }
+      
       if (!acc[temp]) {
         acc[temp] = { leads: 0, vendas: 0 };
       }
@@ -212,7 +226,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     const dadosBase = dados_pesquisa.length > 0 ? dados_pesquisa : dados_leads;
     
     const generoLeads = dadosBase.reduce((acc: any, lead: any) => {
-      const genero = lead.genero || 'Não informado';
+      const genero = lead.sexo || lead.genero || lead['sexo'] || 'Não informado';
       acc[genero] = (acc[genero] || 0) + 1;
       return acc;
     }, {});
@@ -220,7 +234,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     const generoVendas = dados_compradores.reduce((acc: any, comprador: any) => {
       // Tentar mapear comprador com dados de pesquisa
       const dadosPesquisa = dados_pesquisa.find(p => p.email === comprador.email);
-      const genero = dadosPesquisa?.genero || comprador.genero || 'Não informado';
+      const genero = dadosPesquisa?.sexo || dadosPesquisa?.genero || comprador.genero || 'Não informado';
       acc[genero] = (acc[genero] || 0) + 1;
       return acc;
     }, {});
@@ -253,7 +267,8 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
 
     const idadeVendas = dados_compradores.reduce((acc: any, comprador: any) => {
       const dadosPesquisa = dados_pesquisa.find(p => p.email === comprador.email);
-      const faixa = getIdadeFaixa(dadosPesquisa?.idade || comprador.idade || 30);
+      const idade = dadosPesquisa?.idade || dadosPesquisa?.['idade'] || comprador.idade || 30;
+      const faixa = getIdadeFaixa(idade);
       acc[faixa] = (acc[faixa] || 0) + 1;
       return acc;
     }, {});
