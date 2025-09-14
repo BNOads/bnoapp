@@ -22,6 +22,34 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
 import { useNavigate } from "react-router-dom";
+
+interface Cliente {
+  id: string;
+  nome: string;
+  categoria?: string;
+  nicho?: string;
+  status_cliente?: string;
+  etapa_atual?: string;
+  funis_trabalhando?: string[];
+  primary_gestor_user_id?: string;
+  primary_cs_user_id?: string;
+  primary_gestor?: {
+    id: string;
+    nome: string;
+    avatar_url?: string;
+  };
+  primary_cs?: {
+    id: string;
+    nome: string;
+    avatar_url?: string;
+  };
+  client_roles?: Array<{
+    user_id: string;
+    role: 'gestor' | 'cs';
+    is_primary: boolean;
+  }>;
+}
+
 export const ClientesView = () => {
   const {
     canCreateContent
@@ -566,18 +594,20 @@ export const ClientesView = () => {
       setClienteKickoff(null);
     }} clienteId={clienteKickoff.id} clienteNome={clienteKickoff.nome} />}
 
-      {clienteTeam && <TeamAssignmentModal 
-        isOpen={teamModalOpen} 
-        onClose={() => {
-          setTeamModalOpen(false);
-          setClienteTeam(null);
-        }} 
-        clienteId={clienteTeam.id} 
-        clienteNome={clienteTeam.nome}
-        onSuccess={() => {
-          carregarClientes();
-        }}
-      />}
-    </div>
-  );
+      {clienteTeam && (
+        <TeamAssignmentModal 
+          isOpen={teamModalOpen} 
+          onClose={() => {
+            setTeamModalOpen(false);
+            setClienteTeam(null);
+          }} 
+          clienteId={clienteTeam.id} 
+          clienteNome={clienteTeam.nome}
+          onSuccess={() => {
+            carregarClientes();
+          }}
+        />
+      )}
+  </div>
+);
 };
