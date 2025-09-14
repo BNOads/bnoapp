@@ -164,26 +164,13 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
       return -1; // Não mostrar a linha se hoje não estiver no intervalo
     }
     
-    let totalUnidades = 0;
-    let unidadesDoInicio = 0;
+    // Cálculo baseado na escala de visualização
+    const totalDias = differenceInDays(dataFim, dataInicio);
+    const diasDoInicio = differenceInDays(hoje, dataInicio);
     
-    if (escalaVisao === 'dia') {
-      totalUnidades = differenceInDays(dataFim, dataInicio);
-      unidadesDoInicio = differenceInDays(hoje, dataInicio);
-    } else if (escalaVisao === 'semana') {
-      const inicioSemana = startOfWeek(dataInicio, { weekStartsOn: 0 });
-      const fimSemana = startOfWeek(dataFim, { weekStartsOn: 0 });
-      totalUnidades = Math.ceil(differenceInDays(fimSemana, inicioSemana) / 7);
-      unidadesDoInicio = Math.ceil(differenceInDays(startOfWeek(hoje, { weekStartsOn: 0 }), inicioSemana) / 7);
-    } else { // mês
-      const inicioMes = startOfMonth(dataInicio);
-      const fimMes = startOfMonth(dataFim);
-      totalUnidades = differenceInDays(fimMes, inicioMes) / 30; // Aproximação
-      unidadesDoInicio = differenceInDays(startOfMonth(hoje), inicioMes) / 30;
-    }
-    
-    return Math.max(0, Math.min(100, (unidadesDoInicio / totalUnidades) * 100));
-  }, [dataInicio, dataFim, escalaVisao]);
+    // Para todas as escalas, usar o cálculo de dias
+    return Math.max(0, Math.min(100, (diasDoInicio / totalDias) * 100));
+  }, [dataInicio, dataFim]);
 
   const handleEditPhase = (fase: FaseLancamento) => {
     const dataInicio = lancamento[fase.campo_inicio] || '';

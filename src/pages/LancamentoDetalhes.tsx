@@ -67,8 +67,14 @@ interface Lancamento {
   created_by: string;
   created_at: string;
   updated_at: string;
-  clientes?: { nome: string } | null;
+  clientes?: { 
+    nome: string; 
+    primary_gestor_user_id?: string;
+  } | null;
   gestor?: { id: string; nome: string } | null;
+  primary_gestor?: {
+    primary_gestor?: { id: string; nome: string } | null;
+  }[] | null;
 }
 
 export default function LancamentoDetalhes() {
@@ -80,6 +86,7 @@ export default function LancamentoDetalhes() {
   const [saving, setSaving] = useState(false);
   const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas'>('calendario');
   const [ganttView, setGanttView] = useState(false);
+  const [availableClients, setAvailableClients] = useState<any[]>([]);
 
   const handleUpdateDates = async (campo: string, valor: string) => {
     if (!lancamento) return;
@@ -113,6 +120,83 @@ export default function LancamentoDetalhes() {
     console.log('Recalculando verbas...');
   };
 
+  const handleClientChange = async (clienteId: string) => {
+    if (!clienteId) return;
+    
+    try {
+      // Buscar informações do cliente incluindo o gestor primário
+      const { data: clienteData, error } = await supabase
+        .from('clientes')
+        .select(`
+          id,
+          nome,
+          primary_gestor_user_id
+        `)
+        .eq('id', clienteId)
+        .single();
+
+      if (error) throw error;
+
+      // Buscar dados do gestor separadamente se houver
+      let gestorData = null;
+      if (clienteData.primary_gestor_user_id) {
+        const { data: gestor } = await supabase
+          .from('colaboradores')
+          .select('id, nome')
+          .eq('user_id', clienteData.primary_gestor_user_id)
+          .single();
+        
+        gestorData = gestor;
+      }
+
+      // Atualizar o lançamento com o cliente e gestor automaticamente
+      const updates: any = { cliente_id: clienteId };
+      
+      if (clienteData.primary_gestor_user_id) {
+        updates.gestor_responsavel_id = clienteData.primary_gestor_user_id;
+      }
+
+      const { error: updateError } = await supabase
+        .from('lancamentos')
+        .update(updates)
+        .eq('id', lancamento!.id);
+
+      if (updateError) throw updateError;
+
+      // Atualizar o estado local
+      setLancamento(prev => prev ? {
+        ...prev,
+        cliente_id: clienteId,
+        gestor_responsavel_id: clienteData.primary_gestor_user_id || prev.gestor_responsavel_id,
+        clientes: { nome: clienteData.nome, primary_gestor_user_id: clienteData.primary_gestor_user_id },
+        gestor: gestorData || prev.gestor
+      } : null);
+
+      toast.success('Cliente e gestor atualizados automaticamente');
+    } catch (error: any) {
+      toast.error('Erro ao atualizar cliente: ' + error.message);
+    }
+  };
+
+  const loadAvailableClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('id, nome')
+        .eq('ativo', true)
+        .order('nome');
+
+      if (error) throw error;
+      setAvailableClients(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar clientes:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadAvailableClients();
+  }, []);
+
   useEffect(() => {
     fetchLancamento();
   }, [id]);
@@ -125,8 +209,9 @@ export default function LancamentoDetalhes() {
         .from('lancamentos')
         .select(`
           *,
-          clientes:cliente_id(nome),
-          gestor:gestor_responsavel_id(id, nome)
+          clientes:cliente_id(nome, primary_gestor_user_id),
+          gestor:gestor_responsavel_id(id, nome),
+          primary_gestor:clientes(primary_gestor:primary_gestor_user_id(id, nome))
         `)
         .eq('id', id)
         .maybeSingle();
@@ -962,15 +1047,42 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Cliente</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {lancamento.clientes?.nome || 'Não vinculado'}
-                  </p>
+                  {editing ? (
+                    <select
+                      value={lancamento.cliente_id || ''}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleClientChange(e.target.value);
+                        } else {
+                          setLancamento({
+                            ...lancamento,
+                            cliente_id: null,
+                            clientes: null
+                          });
+                        }
+                      }}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="">Selecione um cliente</option>
+                      {availableClients.map((cliente) => (
+                        <option key={cliente.id} value={cliente.id}>
+                          {cliente.nome}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.clientes?.nome || 'Não vinculado'}
+                    </p>
+                  )}
                 </div>
 
                 <div>
                   <Label>Gestor Responsável</Label>
                   <p className="text-sm text-muted-foreground">
-                    {lancamento.gestor?.nome || 'Não atribuído'}
+                    {lancamento.gestor?.nome || 
+                     (lancamento.primary_gestor?.[0]?.primary_gestor?.nome) || 
+                     'Não atribuído'}
                   </p>
                 </div>
 
@@ -1089,6 +1201,96 @@ export default function LancamentoDetalhes() {
                     </p>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Links Úteis */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Links Úteis</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {editing ? (
+                  <div className="space-y-3">
+                    {(lancamento.links_uteis || []).map((link: any, index: number) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          placeholder="Título"
+                          value={link.titulo || ''}
+                          onChange={(e) => {
+                            const novosLinks = [...(lancamento.links_uteis || [])];
+                            novosLinks[index] = { ...link, titulo: e.target.value };
+                            setLancamento({
+                              ...lancamento,
+                              links_uteis: novosLinks
+                            });
+                          }}
+                        />
+                        <Input
+                          placeholder="URL"
+                          value={link.url || ''}
+                          onChange={(e) => {
+                            const novosLinks = [...(lancamento.links_uteis || [])];
+                            novosLinks[index] = { ...link, url: e.target.value };
+                            setLancamento({
+                              ...lancamento,
+                              links_uteis: novosLinks
+                            });
+                          }}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const novosLinks = (lancamento.links_uteis || []).filter((_, i) => i !== index);
+                            setLancamento({
+                              ...lancamento,
+                              links_uteis: novosLinks
+                            });
+                          }}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const novosLinks = [...(lancamento.links_uteis || []), { titulo: '', url: '' }];
+                        setLancamento({
+                          ...lancamento,
+                          links_uteis: novosLinks
+                        });
+                      }}
+                    >
+                      Adicionar Link
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {lancamento.links_uteis && lancamento.links_uteis.length > 0 ? (
+                      lancamento.links_uteis.map((link: any, index: number) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline flex items-center gap-1"
+                          >
+                            {link.titulo || link.url}
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum link adicionado
+                      </p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
