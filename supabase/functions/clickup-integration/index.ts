@@ -91,6 +91,9 @@ serve(async (req) => {
       case 'getTeams':
         return await getTeams(clickupApiKey);
       
+      case 'debugGetTasks':
+        return await debugGetTasks(clickupApiKey, teamId, userEmail);
+      
       default:
         throw new Error('Invalid action');
     }
@@ -351,5 +354,86 @@ async function getTeams(apiKey: string) {
   } catch (error) {
     console.error('Error fetching teams:', error);
     throw error;
+  }
+}
+
+async function debugGetTasks(apiKey: string, teamId: string, userEmail: string) {
+  const diagnostics: any = {
+    success: false,
+    teamId,
+    userEmail,
+    steps: [] as any[],
+    errors: [] as string[],
+  };
+
+  try {
+    // Step 1: Validate API key
+    if (!apiKey) {
+      diagnostics.errors.push('CLICKUP_API_KEY não configurada');
+      return new Response(JSON.stringify(diagnostics), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Step 2: Fetch teams
+    try {
+      const t = await fetch('https://api.clickup.com/api/v2/team', {
+        headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+      });
+      diagnostics.steps.push({ step: 'GET /team', ok: t.ok, status: t.status, statusText: t.statusText });
+      const data = t.ok ? await t.json() : null;
+      diagnostics.teams = data?.teams?.map((x: any) => ({ id: x.id, name: x.name })) || [];
+    } catch (e: any) {
+      diagnostics.errors.push(`Erro ao listar teams: ${e.message}`);
+    }
+
+    // Step 3: Team members
+    try {
+      const m = await fetch(`https://api.clickup.com/api/v2/team/${teamId}/member`, {
+        headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+      });
+      diagnostics.steps.push({ step: `GET /team/${teamId}/member`, ok: m.ok, status: m.status, statusText: m.statusText });
+      const members = m.ok ? await m.json() : null;
+      diagnostics.memberCount = members?.members?.length || 0;
+      diagnostics.matchedMember = members?.members?.find((mm: any) =>
+        mm.user?.email?.toLowerCase() === userEmail.toLowerCase() ||
+        mm.user?.username?.toLowerCase() === userEmail.toLowerCase() ||
+        mm.user?.username?.toLowerCase() === userEmail.split('@')[0].toLowerCase()
+      ) ? true : false;
+    } catch (e: any) {
+      diagnostics.errors.push(`Erro ao buscar membros do team: ${e.message}`);
+    }
+
+    // Step 4: Spaces
+    let spaces: any[] = [];
+    try {
+      const s = await fetch(`https://api.clickup.com/api/v2/team/${teamId}/space`, {
+        headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+      });
+      diagnostics.steps.push({ step: `GET /team/${teamId}/space`, ok: s.ok, status: s.status, statusText: s.statusText });
+      const sdata = s.ok ? await s.json() : null;
+      spaces = sdata?.spaces || [];
+      diagnostics.spaceCount = spaces.length;
+    } catch (e: any) {
+      diagnostics.errors.push(`Erro ao listar spaces: ${e.message}`);
+    }
+
+    // Step 5: Lists per space (limit for diagnostics)
+    diagnostics.listSamples = [] as any[];
+    for (const space of spaces.slice(0, 3)) {
+      try {
+        const l = await fetch(`https://api.clickup.com/api/v2/space/${space.id}/list`, {
+          headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+        });
+        diagnostics.steps.push({ step: `GET /space/${space.id}/list`, ok: l.ok, status: l.status, statusText: l.statusText });
+        const ldata = l.ok ? await l.json() : null;
+        diagnostics.listSamples.push({ spaceId: space.id, listCount: ldata?.lists?.length || 0 });
+      } catch (e: any) {
+        diagnostics.errors.push(`Erro ao listar listas do space ${space.id}: ${e.message}`);
+      }
+    }
+
+    return new Response(JSON.stringify(diagnostics), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  } catch (error: any) {
+    diagnostics.errors.push(error.message || String(error));
+    return new Response(JSON.stringify(diagnostics), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 }

@@ -56,6 +56,8 @@ export default function ClickUpTasksView() {
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [selectedTask, setSelectedTask] = useState<ClickUpTask | null>(null);
   const [commentText, setCommentText] = useState("");
+  const [debugInfo, setDebugInfo] = useState<any | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     loadTasks();
@@ -67,6 +69,8 @@ export default function ClickUpTasksView() {
 
   const loadTasks = async () => {
     try {
+      setLastError(null);
+      setDebugInfo(null);
       const { data, error } = await supabase.functions.invoke('clickup-integration', {
         body: { action: 'getTasks' }
       });
@@ -76,7 +80,17 @@ export default function ClickUpTasksView() {
       setTasks(data.tasks || []);
     } catch (error: any) {
       console.error('Erro ao carregar tarefas:', error);
+      setLastError(error?.message || 'Erro desconhecido');
       toast.error('Erro ao carregar tarefas do ClickUp');
+      // Tentativa de diagnóstico detalhado
+      try {
+        const { data: diag } = await supabase.functions.invoke('clickup-integration', {
+          body: { action: 'debugGetTasks' }
+        });
+        setDebugInfo(diag);
+      } catch (e) {
+        console.error('Erro ao gerar diagnóstico:', e);
+      }
     } finally {
       setLoading(false);
     }
@@ -330,11 +344,55 @@ export default function ClickUpTasksView() {
           </p>
         </div>
         
-        <Button onClick={syncTasks} disabled={syncing}>
+        <Button onClick={syncTasks} disabled={syncing} aria-label="Sincronizar tarefas do ClickUp agora">
           <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
           {syncing ? 'Sincronizando...' : 'Sincronizar'}
         </Button>
       </div>
+
+      {lastError && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Diagnóstico de Carregamento (ClickUp)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-muted-foreground">Ocorreu um erro ao carregar as tarefas.</p>
+            <div className="text-sm">
+              <div><strong>Erro:</strong> {lastError}</div>
+              {debugInfo && (
+                <div className="mt-2 space-y-1">
+                  <div><strong>Team ID:</strong> {debugInfo.teamId}</div>
+                  <div><strong>Usuário:</strong> {debugInfo.userEmail}</div>
+                  <div><strong>Times disponíveis:</strong> {(debugInfo.teams?.map((t: any) => `${t.name} (#${t.id})`).join(', ')) || 'N/D'}</div>
+                  <div><strong>Membros (count):</strong> {debugInfo.memberCount ?? 'N/D'} • <strong>Match encontrado:</strong> {debugInfo.matchedMember ? 'Sim' : 'Não'}</div>
+                  <div><strong>Spaces encontrados:</strong> {debugInfo.spaceCount ?? 'N/D'}</div>
+                  <div className="mt-2">
+                    <strong>Passos:</strong>
+                    <ul className="list-disc ml-6 mt-1">
+                      {(debugInfo.steps || []).map((s: any, i: number) => (
+                        <li key={i} className="text-xs">
+                          {s.step} → {s.ok ? 'OK' : 'Falhou'} ({s.status} {s.statusText})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  {Array.isArray(debugInfo.errors) && debugInfo.errors.length > 0 && (
+                    <div className="mt-2">
+                      <strong>Erros:</strong>
+                      <ul className="list-disc ml-6 mt-1">
+                        {debugInfo.errors.map((e: string, i: number) => (
+                          <li key={i} className="text-xs">{e}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
 
       <div className="flex gap-4 items-center flex-wrap">
         <div className="relative flex-1 min-w-64">
