@@ -56,11 +56,11 @@ const requiredFields = {
 };
 
 const optionalFields = {
-  vendas: ['data', 'produto', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
-  leads: ['nome', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
-  trafego: ['action_link_clicks', 'action_leads', 'ad_name', 'adset_name', 'reach', 'action_landing_page_view', 'action_3s_video_views', 'video_25_percent_watched', 'video_50_percent_watched', 'video_75_percent_watched', 'video_100_percent_watched', 'instagram_permalink_url', 'link_criativo'],
+  vendas: ['data', 'produto', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'],
+  leads: ['nome', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'],
+  trafego: ['action_link_clicks', 'action_leads', 'ad_name', 'adset_name', 'reach', 'action_landing_page_view', 'action_3s_video_views', 'video_25_percent_watched', 'video_50_percent_watched', 'video_75_percent_watched', 'video_100_percent_watched', 'instagram_permalink_url', 'link_criativo', 'plataforma', 'utm_content'],
   pesquisa: ['idade', 'genero', 'renda', 'poder_de_compra', 'eventos'],
-  outras_fontes: ['campanha', 'impressoes', 'cliques', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'plataforma', 'link_criativo']
+  outras_fontes: ['campanha', 'impressoes', 'cliques', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'plataforma', 'link_criativo', 'utm_content']
 };
 
 export default function CSVWizard({ debriefingData, onComplete, isEditMode = false }: CSVWizardProps) {
@@ -94,7 +94,10 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
           { key: 'telefone', label: 'Telefone', aliases: ['telefone', 'phone', 'celular', 'whatsapp'] },
           { key: 'data', label: 'Data', aliases: ['data', 'date', 'created', 'timestamp', 'carimbo'] },
           { key: 'utm_source', label: 'UTM Source', aliases: ['utm_source', 'source', 'fonte'] },
-          { key: 'utm_campaign', label: 'UTM Campaign', aliases: ['utm_campaign', 'campaign', 'campanha'] }
+          { key: 'utm_medium', label: 'UTM Medium', aliases: ['utm_medium', 'medium', 'meio'] },
+          { key: 'utm_campaign', label: 'UTM Campaign', aliases: ['utm_campaign', 'campaign', 'campanha'] },
+          { key: 'utm_term', label: 'UTM Term', aliases: ['utm_term', 'term', 'termo'] },
+          { key: 'utm_content', label: 'UTM Content', aliases: ['utm_content', 'content', 'conteudo', 'criativo'] }
         ];
       
       case 'pesquisa':
@@ -121,7 +124,12 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
           ...commonMappings,
           { key: 'valor', label: 'Valor da Compra', aliases: ['valor', 'value', 'price', 'preço'] },
           { key: 'data', label: 'Data da Compra', aliases: ['data', 'date', 'purchase date', 'data compra'] },
-          { key: 'produto', label: 'Produto', aliases: ['produto', 'product', 'item'] }
+          { key: 'produto', label: 'Produto', aliases: ['produto', 'product', 'item'] },
+          { key: 'utm_source', label: 'UTM Source', aliases: ['utm_source', 'source', 'fonte'] },
+          { key: 'utm_medium', label: 'UTM Medium', aliases: ['utm_medium', 'medium', 'meio'] },
+          { key: 'utm_campaign', label: 'UTM Campaign', aliases: ['utm_campaign', 'campaign', 'campanha'] },
+          { key: 'utm_term', label: 'UTM Term', aliases: ['utm_term', 'term', 'termo'] },
+          { key: 'utm_content', label: 'UTM Content', aliases: ['utm_content', 'content', 'conteudo', 'criativo'] }
         ];
 
       case 'trafego':
@@ -133,6 +141,8 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
           { key: 'action_leads', label: 'Leads', aliases: ['Action Leads', 'leads', 'conversions'] },
           { key: 'ad_name', label: 'Nome do Criativo', aliases: ['Ad Name', 'nome criativo', 'creative'] },
           { key: 'link_criativo', label: 'Link do Criativo', aliases: ['link criativo', 'creative link', 'image url'] },
+          { key: 'plataforma', label: 'Plataforma', aliases: ['plataforma', 'platform', 'source'] },
+          { key: 'utm_content', label: 'UTM Content', aliases: ['utm_content', 'content', 'conteudo', 'criativo'] },
           { key: 'date', label: 'Data', aliases: ['date', 'data', 'day'] }
         ];
 
