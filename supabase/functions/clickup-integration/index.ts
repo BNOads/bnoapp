@@ -128,6 +128,8 @@ serve(async (req) => {
 
 async function getTasks(apiKey: string, teamId: string, userEmail: string, preferredEmail?: string) {
   console.log(`Getting tasks for user ${userEmail} (preferred: ${preferredEmail || 'none'})`);
+  console.log(`ClickUp API Key presente: ${apiKey ? 'SIM' : 'NÃO'}, Length: ${apiKey?.length || 0}`);
+  console.log(`Team ID: ${teamId}`);
   
   try {
     // Primeiro, buscar o usuário no ClickUp usando diferentes métodos
@@ -183,6 +185,7 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
     
     // Estratégia 1: Buscar por spaces no team
     try {
+      console.log(`Fazendo chamada para: https://api.clickup.com/api/v2/team/${teamId}/space`);
       const spacesResponse = await fetch(`https://api.clickup.com/api/v2/team/${teamId}/space`, {
         headers: {
           'Authorization': apiKey,
@@ -190,9 +193,12 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
         },
       });
       
+      console.log(`Spaces response: ${spacesResponse.status} ${spacesResponse.statusText}`);
+      
       if (spacesResponse.ok) {
         const spacesData = await spacesResponse.json();
         console.log(`Found ${spacesData.spaces?.length || 0} spaces`);
+        console.log(`Spaces data:`, JSON.stringify(spacesData, null, 2));
         
         // Para cada space, buscar folders/lists
         for (const space of spacesData.spaces || []) {
@@ -231,9 +237,14 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
             console.log(`Error fetching lists for space ${space.id}:`, error);
           }
         }
+      } else {
+        console.log(`Spaces response não ok: ${spacesResponse.status} ${spacesResponse.statusText}`);
+        const responseText = await spacesResponse.text();
+        console.log(`Response body:`, responseText);
       }
     } catch (error) {
       console.log('Spaces lookup failed:', error);
+      console.error('Erro completo:', error);
     }
     
     // Filtrar tarefas do usuário usando múltiplos critérios
