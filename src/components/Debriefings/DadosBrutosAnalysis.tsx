@@ -131,8 +131,87 @@ export function DadosBrutosAnalysis({
     return respostaStats;
   };
 
+  // Análise por UTM Terms (Orgânico vs Pago)
+  const analiseUTMTerms = () => {
+    const utmStats: Record<string, {
+      leads: number;
+      vendas: number;
+      conversao: number;
+      emails: Set<string>;
+      tipo: 'organico' | 'pago';
+    }> = {};
+
+    // Analisar leads por UTM term
+    dados_leads.forEach(lead => {
+      const utmTerm = lead.utm_term || lead.utmTerm || 'não informado';
+      const email = normalizeEmail(lead.email);
+      
+      if (!utmStats[utmTerm]) {
+        utmStats[utmTerm] = {
+          leads: 0,
+          vendas: 0,
+          conversao: 0,
+          emails: new Set(),
+          tipo: utmTerm.toLowerCase().includes('organico') ? 'organico' : 'pago'
+        };
+      }
+      
+      utmStats[utmTerm].leads++;
+      utmStats[utmTerm].emails.add(email);
+      
+      if (emailsCompradores.has(email)) {
+        utmStats[utmTerm].vendas++;
+      }
+    });
+
+    // Calcular conversões
+    Object.keys(utmStats).forEach(term => {
+      utmStats[term].conversao = utmStats[term].leads > 0 ? 
+        (utmStats[term].vendas / utmStats[term].leads) * 100 : 0;
+    });
+
+    return utmStats;
+  };
+
+  // Análise por fontes de tráfego
+  const analiseFontesTrafego = () => {
+    const fontesOrganicas: Record<string, { leads: number; vendas: number; conversao: number }> = {};
+    const fontesPagas: Record<string, { leads: number; vendas: number; conversao: number }> = {};
+
+    dados_leads.forEach(lead => {
+      const utmSource = lead.utm_source || lead.utmSource || 'não informado';
+      const utmTerm = lead.utm_term || lead.utmTerm || '';
+      const email = normalizeEmail(lead.email);
+      const isOrganico = utmTerm.toLowerCase().includes('organico');
+      
+      const fontes = isOrganico ? fontesOrganicas : fontesPagas;
+      
+      if (!fontes[utmSource]) {
+        fontes[utmSource] = { leads: 0, vendas: 0, conversao: 0 };
+      }
+      
+      fontes[utmSource].leads++;
+      
+      if (emailsCompradores.has(email)) {
+        fontes[utmSource].vendas++;
+      }
+    });
+
+    // Calcular conversões
+    [fontesOrganicas, fontesPagas].forEach(fontes => {
+      Object.keys(fontes).forEach(fonte => {
+        fontes[fonte].conversao = fontes[fonte].leads > 0 ? 
+          (fontes[fonte].vendas / fontes[fonte].leads) * 100 : 0;
+      });
+    });
+
+    return { fontesOrganicas, fontesPagas };
+  };
+
   const creativosAnalise = analiseCreativos();
   const pesquisaAnalise = analisePesquisa();
+  const utmAnalise = analiseUTMTerms();
+  const { fontesOrganicas, fontesPagas } = analiseFontesTrafego();
 
   return (
     <div className="space-y-6">
@@ -273,6 +352,155 @@ export function DadosBrutosAnalysis({
           </CardContent>
         </Card>
       )}
+
+      {/* Análise de UTM Terms */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Conversão por UTM Term</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(utmAnalise)
+                .sort((a, b) => b[1].conversao - a[1].conversao)
+                .slice(0, 10)
+                .map(([term, stats]) => (
+                  <div key={term} className="border rounded p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{term}</span>
+                        <Badge variant={stats.tipo === 'organico' ? 'default' : 'secondary'}>
+                          {stats.tipo}
+                        </Badge>
+                      </div>
+                      <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "outline"}>
+                        {stats.conversao.toFixed(1)}%
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                      <span>Leads: {stats.leads}</span>
+                      <span>Vendas: {stats.vendas}</span>
+                    </div>
+                    <Progress value={stats.conversao} className="h-1 mt-2" />
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumo Orgânico vs Pago</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {(() => {
+                const organicos = Object.values(utmAnalise).filter(s => s.tipo === 'organico');
+                const pagos = Object.values(utmAnalise).filter(s => s.tipo === 'pago');
+                
+                const totalLeadsOrganicos = organicos.reduce((sum, s) => sum + s.leads, 0);
+                const totalVendasOrganicas = organicos.reduce((sum, s) => sum + s.vendas, 0);
+                const totalLeadsPagos = pagos.reduce((sum, s) => sum + s.leads, 0);
+                const totalVendasPagas = pagos.reduce((sum, s) => sum + s.vendas, 0);
+                
+                const convOrganico = totalLeadsOrganicos > 0 ? (totalVendasOrganicas / totalLeadsOrganicos) * 100 : 0;
+                const convPago = totalLeadsPagos > 0 ? (totalVendasPagas / totalLeadsPagos) * 100 : 0;
+
+                return (
+                  <>
+                    <div className="border rounded p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-medium text-green-600">Tráfego Orgânico</h4>
+                        <Badge variant="default">{convOrganico.toFixed(1)}%</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <span>Leads: {totalLeadsOrganicos}</span>
+                        <span>Vendas: {totalVendasOrganicas}</span>
+                      </div>
+                      <Progress value={convOrganico} className="h-2 mt-2" />
+                    </div>
+
+                    <div className="border rounded p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-medium text-blue-600">Tráfego Pago</h4>
+                        <Badge variant="secondary">{convPago.toFixed(1)}%</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <span>Leads: {totalLeadsPagos}</span>
+                        <span>Vendas: {totalVendasPagas}</span>
+                      </div>
+                      <Progress value={convPago} className="h-2 mt-2" />
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Melhores Fontes por Tipo */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {Object.keys(fontesOrganicas).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-green-600">Melhores Fontes Orgânicas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {Object.entries(fontesOrganicas)
+                  .sort((a, b) => b[1].conversao - a[1].conversao)
+                  .slice(0, 8)
+                  .map(([fonte, stats]) => (
+                    <div key={fonte} className="border rounded p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium">{fonte}</span>
+                        <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "outline"}>
+                          {stats.conversao.toFixed(1)}%
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                        <span>Leads: {stats.leads}</span>
+                        <span>Vendas: {stats.vendas}</span>
+                      </div>
+                      <Progress value={stats.conversao} className="h-1 mt-2" />
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {Object.keys(fontesPagas).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-blue-600">Melhores Fontes Pagas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {Object.entries(fontesPagas)
+                  .sort((a, b) => b[1].conversao - a[1].conversao)
+                  .slice(0, 8)
+                  .map(([fonte, stats]) => (
+                    <div key={fonte} className="border rounded p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium">{fonte}</span>
+                        <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "outline"}>
+                          {stats.conversao.toFixed(1)}%
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                        <span>Leads: {stats.leads}</span>
+                        <span>Vendas: {stats.vendas}</span>
+                      </div>
+                      <Progress value={stats.conversao} className="h-1 mt-2" />
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Análise por Respostas da Pesquisa */}
       {Object.keys(pesquisaAnalise).length > 0 && (
