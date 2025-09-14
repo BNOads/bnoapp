@@ -92,6 +92,11 @@ export default function CampaignStageValidator({
         const campaignName = item['Campaign Name'] || item.campanha || 'Campanha sem nome';
         const investment = parseFloat(String(item['Spend (Cost, Amount Spent)'] || item.gasto || '0'));
         
+        // Ignorar campanhas com nomes vazios ou inválidos
+        if (!campaignName || campaignName.trim() === '') {
+          return acc;
+        }
+        
         if (!acc[campaignName]) {
           acc[campaignName] = 0;
         }
@@ -99,28 +104,29 @@ export default function CampaignStageValidator({
         return acc;
       }, {} as Record<string, number>);
 
-      // Criar mapeamentos iniciais
-      const initialMappings: CampaignStageMapping[] = Object.entries(campaignGroups).map(([campaignName, investment]) => {
-        // Verificar se já existe mapeamento salvo
-        const savedStage = savedMappings[campaignName];
-        if (savedStage) {
+      const initialMappings: CampaignStageMapping[] = Object.entries(campaignGroups)
+        .map(([campaignName, investment]) => {
+          // Verificar se já existe mapeamento salvo
+          const savedStage = savedMappings[campaignName];
+          if (savedStage && savedStage.trim() !== '') {
+            return {
+              campaign_name: campaignName,
+              stage: savedStage,
+              investment: investment as number,
+              isManuallyEdited: false
+            };
+          }
+
+          // Detectar etapa automaticamente pelos aliases
+          const detectedStage = detectStageFromCampaignName(campaignName);
           return {
             campaign_name: campaignName,
-            stage: savedStage,
+            stage: detectedStage,
             investment: investment as number,
             isManuallyEdited: false
           };
-        }
-
-        // Detectar etapa automaticamente pelos aliases
-        const detectedStage = detectStageFromCampaignName(campaignName);
-        return {
-          campaign_name: campaignName,
-          stage: detectedStage,
-          investment: investment as number,
-          isManuallyEdited: false
-        };
-      });
+        })
+        .filter(mapping => mapping.stage && mapping.stage.trim() !== ''); // Filtrar mapeamentos com stage vazio
 
       setMappings(initialMappings);
     } catch (error) {
@@ -132,6 +138,11 @@ export default function CampaignStageValidator({
   };
 
   const detectStageFromCampaignName = (campaignName: string): string => {
+    // Garantir que o nome da campanha não seja vazio
+    if (!campaignName || campaignName.trim() === '') {
+      return 'nao_classificada';
+    }
+    
     const lowerName = campaignName.toLowerCase();
     
     for (const [stage, aliases] of Object.entries(STAGE_ALIASES)) {
