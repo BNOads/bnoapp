@@ -1,4 +1,4 @@
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, CalendarDays, MessageCircle, Palette, Rocket, Star } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -43,7 +43,7 @@ export const Header = ({}: HeaderProps) => {
     {
       id: 'treinamentos',
       label: 'Treinamentos',
-      icon: CalendarDays,
+      icon: Video,
       path: '/treinamentos'
     },
     {
