@@ -275,7 +275,8 @@ export const ClientesView = () => {
     setSearchTerm('');
     setClientesSelecionados([]);
   };
-  return <div className="space-y-8">
+  return (
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
         <div>
@@ -608,6 +609,6 @@ export const ClientesView = () => {
           }}
         />
       )}
-  </div>
-);
+    </div>
+  );
 };
