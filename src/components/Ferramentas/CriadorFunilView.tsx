@@ -277,28 +277,49 @@ export const CriadorFunilView = () => {
     }
   };
 
-  const exportFunnel = () => {
+  const deleteConnection = (connectionId: string) => {
+    if (!currentFunil) return;
+    
+    if (!confirm('Tem certeza que deseja excluir esta conexão?')) return;
+
+    setCurrentFunil({
+      ...currentFunil,
+      dados_funil: {
+        ...currentFunil.dados_funil,
+        connections: currentFunil.dados_funil.connections.filter(conn => conn.id !== connectionId)
+      }
+    });
+    
+    toast.success('Conexão excluída com sucesso');
+  };
+
+  const exportFunnel = async () => {
     if (!canvasRef.current) return;
     
-    // Create a temporary canvas for export
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = 1200;
-    canvas.height = 800;
+    const { default: html2canvas } = await import('html2canvas');
     
-    // White background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Export as PNG
-    const link = document.createElement('a');
-    link.download = `funil-${currentFunil?.titulo || 'export'}.png`;
-    link.href = canvas.toDataURL();
-    link.click();
-    
-    toast.success('Funil exportado com sucesso!');
+    try {
+      // Capture the canvas area
+      const canvas = await html2canvas(canvasRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        width: 1200,
+        height: 800
+      });
+      
+      // Download as PNG
+      const link = document.createElement('a');
+      link.download = `funil-${currentFunil?.titulo || 'export'}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+      toast.success('Funil exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+      toast.error('Erro ao exportar o funil');
+    }
   };
 
   const handleCanvasClick = (e: React.MouseEvent) => {
@@ -467,21 +488,6 @@ export const CriadorFunilView = () => {
     });
   };
 
-  const deleteConnection = (connectionId: string) => {
-    if (!currentFunil) return;
-    
-    if (!confirm('Tem certeza que deseja excluir esta conexão?')) return;
-
-    setCurrentFunil({
-      ...currentFunil,
-      dados_funil: {
-        ...currentFunil.dados_funil,
-        connections: currentFunil.dados_funil.connections.filter(conn => conn.id !== connectionId)
-      }
-    });
-    
-    toast.success('Conexão excluída com sucesso');
-  };
 
   // Duplo clique para editar
   const handleElementDoubleClick = (elementId: string) => {
@@ -838,8 +844,9 @@ export const CriadorFunilView = () => {
                       stroke="hsl(var(--primary))"
                       strokeWidth="2"
                       fill="none"
-                      className="drop-shadow-sm"
+                      className="drop-shadow-sm cursor-pointer hover:opacity-70"
                       markerEnd="url(#arrowhead)"
+                      onClick={(e) => { e.stopPropagation(); deleteConnection(connection.id); }}
                     />
                   );
                 })}
