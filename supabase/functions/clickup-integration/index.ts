@@ -890,43 +890,81 @@ async function listAllUsers(apiKey: string, teamId?: string) {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // 3) Agregar membros dos workspaces selecionados
+    // 3) Agregar membros dos workspaces selecionados e coletar diagnósticos
     const usersMap = new Map<string, any>();
+    const diagnostics: any[] = [];
 
     for (const team of selectedTeams) {
+      const diagEntry: any = { teamId: team.id, teamName: team.name };
       try {
+        // Endpoint principal
         const resp = await fetch(`https://api.clickup.com/api/v2/team/${team.id}/member`, { headers });
-        if (!resp.ok) {
-          console.warn(`GET /team/${team.id}/member -> ${resp.status} ${resp.statusText}`);
-          continue;
-        }
-        const data = await resp.json();
-        const members = data.members || [];
+        diagEntry.memberEndpoint = { status: resp.status, ok: resp.ok };
+        if (resp.ok) {
+          const data = await resp.json();
+          const members = data.members || [];
+          diagEntry.memberCount = members.length;
 
-        for (const m of members) {
-          const u = m.user || {};
-          const id = String(u.id);
-          if (!id) continue;
-          if (!usersMap.has(id)) {
-            usersMap.set(id, {
-              id,
-              username: u.username,
-              email: u.email,
-              profilePicture: u.profilePicture,
-              teams: [{ id: team.id, name: team.name }],
-              primaryTeam: { id: team.id, name: team.name },
-            });
-          } else {
-            const entry = usersMap.get(id);
-            // evitar duplicados
-            if (!entry.teams.find((t: any) => t.id === team.id)) {
-              entry.teams.push({ id: team.id, name: team.name });
+          // Fallback: se 0, tentar /team/{id}
+          if (members.length === 0) {
+            const alt = await fetch(`https://api.clickup.com/api/v2/team/${team.id}`, { headers });
+            diagEntry.teamEndpoint = { status: alt.status, ok: alt.ok };
+            if (alt.ok) {
+              const altData = await alt.json();
+              const altMembers = altData.members || [];
+              diagEntry.teamMembersCount = altMembers.length;
+              for (const m of altMembers) {
+                const u = m.user || {};
+                const id = String(u.id);
+                if (!id) continue;
+                if (!usersMap.has(id)) {
+                  usersMap.set(id, {
+                    id,
+                    username: u.username,
+                    email: u.email,
+                    profilePicture: u.profilePicture,
+                    teams: [{ id: team.id, name: team.name }],
+                    primaryTeam: { id: team.id, name: team.name },
+                  });
+                } else {
+                  const entry = usersMap.get(id);
+                  if (!entry.teams.find((t: any) => t.id === team.id)) {
+                    entry.teams.push({ id: team.id, name: team.name });
+                  }
+                }
+              }
+              continue;
             }
           }
+
+          // Agregar membros do endpoint principal
+          for (const m of members) {
+            const u = m.user || {};
+            const id = String(u.id);
+            if (!id) continue;
+            if (!usersMap.has(id)) {
+              usersMap.set(id, {
+                id,
+                username: u.username,
+                email: u.email,
+                profilePicture: u.profilePicture,
+                teams: [{ id: team.id, name: team.name }],
+                primaryTeam: { id: team.id, name: team.name },
+              });
+            } else {
+              const entry = usersMap.get(id);
+              if (!entry.teams.find((t: any) => t.id === team.id)) {
+                entry.teams.push({ id: team.id, name: team.name });
+              }
+            }
+          }
+        } else {
+          diagEntry.error = `${resp.status} ${resp.statusText}`;
         }
-      } catch (e) {
-        console.warn('Erro ao listar membros do team', team.id, e);
+      } catch (e: any) {
+        diagEntry.error = e.message;
       }
+      diagnostics.push(diagEntry);
     }
 
     const users = Array.from(usersMap.values()).map((u: any) => ({
@@ -940,6 +978,7 @@ async function listAllUsers(apiKey: string, teamId?: string) {
       totalTeams: selectedTeams.length,
       users,
       teams: selectedTeams,
+      diagnostics,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error: any) {
