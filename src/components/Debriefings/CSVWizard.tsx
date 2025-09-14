@@ -45,15 +45,15 @@ interface ConsolidatedData {
 }
 
 const requiredFields = {
-  vendas: ['data', 'pedido_id', 'valor'],
-  leads: ['data', 'lead_id'],
-  trafego: ['data', 'gasto']
+  vendas: ['data', 'email', 'valor'],
+  leads: ['data', 'email'],
+  trafego: ['date', 'spend', 'impressions', 'campaign_name']
 };
 
 const optionalFields = {
   vendas: ['produto', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
   leads: ['nome', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
-  trafego: ['plataforma', 'campanha', 'impressoes', 'cliques', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term']
+  trafego: ['action_link_clicks', 'action_leads', 'ad_name', 'adset_name', 'reach', 'action_landing_page_view', 'action_3s_video_views', 'video_25_percent_watched', 'video_50_percent_watched', 'video_75_percent_watched', 'video_100_percent_watched', 'instagram_permalink_url']
 };
 
 export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps) {
@@ -125,8 +125,9 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
         const row = csv.data[i];
         
         // Validar data
-        if (csv.mapping.data) {
-          const dateValue = row[csv.mapping.data];
+        const dateField = csv.type === 'trafego' ? csv.mapping.date : csv.mapping.data;
+        if (dateField) {
+          const dateValue = row[dateField];
           if (dateValue && !isValidDate(dateValue)) {
             errors.push(`Linha ${i + 2}: Data inválida '${dateValue}'`);
           }
@@ -141,10 +142,10 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
         }
 
         if (csv.type === 'trafego') {
-          if (csv.mapping.gasto) {
-            const gasto = parseFloat(row[csv.mapping.gasto]);
+          if (csv.mapping.spend) {
+            const gasto = parseFloat(row[csv.mapping.spend]);
             if (isNaN(gasto) || gasto < 0) {
-              errors.push(`Linha ${i + 2}: Gasto inválido '${row[csv.mapping.gasto]}'`);
+              errors.push(`Linha ${i + 2}: Gasto inválido '${row[csv.mapping.spend]}'`);
             }
           }
         }
@@ -180,7 +181,7 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
     // Mapear dados de cada CSV
     const vendasData = vendas.data.map(row => ({
       data: normalizeDate(row[vendas.mapping.data]),
-      pedido_id: row[vendas.mapping.pedido_id],
+      email: row[vendas.mapping.email],
       valor: parseFloat(row[vendas.mapping.valor] || '0'),
       utm_source: row[vendas.mapping.utm_source] || '(sem atribuição)',
       utm_medium: row[vendas.mapping.utm_medium] || '(sem atribuição)',
@@ -190,7 +191,7 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
 
     const leadsData = leads.data.map(row => ({
       data: normalizeDate(row[leads.mapping.data]),
-      lead_id: row[leads.mapping.lead_id],
+      email: row[leads.mapping.email],
       utm_source: row[leads.mapping.utm_source] || '(sem atribuição)',
       utm_medium: row[leads.mapping.utm_medium] || '(sem atribuição)',
       utm_campaign: row[leads.mapping.utm_campaign] || '(sem atribuição)',
@@ -198,15 +199,18 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
     }));
 
     const trafegoData = trafego.data.map(row => ({
-      data: normalizeDate(row[trafego.mapping.data]),
-      plataforma: row[trafego.mapping.plataforma] || 'N/A',
-      gasto: parseFloat(row[trafego.mapping.gasto] || '0'),
-      impressoes: parseInt(row[trafego.mapping.impressoes] || '0'),
-      cliques: parseInt(row[trafego.mapping.cliques] || '0'),
-      utm_source: row[trafego.mapping.utm_source] || '(sem atribuição)',
-      utm_medium: row[trafego.mapping.utm_medium] || '(sem atribuição)',
-      utm_campaign: row[trafego.mapping.utm_campaign] || '(sem atribuição)',
-      utm_term: row[trafego.mapping.utm_term] || ''
+      data: normalizeDate(row[trafego.mapping.date]),
+      campanha: row[trafego.mapping.campaign_name] || 'N/A',
+      gasto: parseFloat(row[trafego.mapping.spend] || '0'),
+      impressoes: parseInt(row[trafego.mapping.impressions] || '0'),
+      cliques: parseInt(row[trafego.mapping.action_link_clicks] || '0'),
+      leads_trafego: parseInt(row[trafego.mapping.action_leads] || '0'),
+      ad_name: row[trafego.mapping.ad_name] || '',
+      adset_name: row[trafego.mapping.adset_name] || '',
+      utm_source: 'facebook',
+      utm_medium: 'paid',
+      utm_campaign: row[trafego.mapping.campaign_name] || '(sem atribuição)',
+      utm_term: ''
     }));
 
     // Consolidar por data + UTM
@@ -451,9 +455,9 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
                   {csv.file && <CheckCircle className="h-5 w-5 text-green-500" />}
                 </CardTitle>
                 <CardDescription>
-                  {csv.type === 'vendas' && 'Dados de vendas realizadas com UTMs de origem'}
-                  {csv.type === 'leads' && 'Dados de leads capturados com UTMs de origem'}
-                  {csv.type === 'trafego' && 'Dados de investimento e performance de tráfego'}
+                  {csv.type === 'vendas' && 'Dados de vendas realizadas com email do cliente'}
+                  {csv.type === 'leads' && 'Dados de leads capturados com email'}
+                  {csv.type === 'trafego' && 'Dados do Facebook/Meta Ads (export do Ads Manager)'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
