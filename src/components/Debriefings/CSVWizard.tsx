@@ -96,21 +96,21 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
       
       case 'pesquisa':
         return [
-          { key: 'carimbo', label: 'Carimbo de data/hora', aliases: ['carimbo de data/hora', 'timestamp', 'data', 'date'] },
+          { key: 'data', label: 'Data', aliases: ['Data', 'data', 'carimbo de data/hora', 'timestamp', 'date'] },
           { key: 'nome', label: 'Nome', aliases: ['nome', 'name'] },
-          { key: 'email', label: 'E-mail', aliases: ['e-mail', 'email'] },
-          { key: 'telefone', label: 'Telefone', aliases: ['telefone', 'phone'] },
-          { key: 'sexo', label: 'Sexo', aliases: ['sexo', 'gênero', 'genero', 'gender'] },
-          { key: 'idade', label: 'Idade', aliases: ['idade', 'age'] },
-          { key: 'formacao', label: 'Formação', aliases: ['qual é a sua formação?', 'formação', 'formacao', 'education'] },
-          { key: 'tempo_formado', label: 'Tempo formado', aliases: ['há quanto tempo você se formou?', 'tempo formado', 'graduation time'] },
-          { key: 'situacao_trabalho', label: 'Situação de trabalho', aliases: ['qual é a sua situação de trabalho atual?', 'situação trabalho', 'work situation'] },
-          { key: 'renda_mensal', label: 'Renda mensal', aliases: ['atualmente, qual é a sua renda mensal?', 'renda mensal', 'income'] },
-          { key: 'utm_source', label: 'UTM Source', aliases: ['utm source', 'utm_source'] },
-          { key: 'utm_medium', label: 'UTM Medium', aliases: ['utm medium', 'utm_medium'] },
-          { key: 'utm_campaign', label: 'UTM Campaign', aliases: ['utm campaign', 'utm_campaign'] },
-          { key: 'utm_term', label: 'UTM Term', aliases: ['utm term', 'utm_term'] },
-          { key: 'utm_content', label: 'UTM Content', aliases: ['utm content', 'utm_content'] }
+          { key: 'email', label: 'E-mail', aliases: ['E-mail', 'e-mail', 'email'] },
+          { key: 'telefone', label: 'Telefone', aliases: ['Telefone', 'telefone', 'phone'] },
+          { key: 'sexo', label: 'Sexo', aliases: ['Sexo', 'sexo', 'gênero', 'genero', 'gender'] },
+          { key: 'idade', label: 'Idade', aliases: ['Idade', 'idade', 'age'] },
+          { key: 'formacao', label: 'Formação', aliases: ['Qual é a sua formação?', 'qual é a sua formação?', 'formação', 'formacao', 'education'] },
+          { key: 'tempo_formado', label: 'Tempo formado', aliases: ['Há quanto tempo você se formou?', 'há quanto tempo você se formou?', 'tempo formado', 'graduation time'] },
+          { key: 'situacao_trabalho', label: 'Situação de trabalho', aliases: ['Qual é a sua situação de trabalho atual?', 'qual é a sua situação de trabalho atual?', 'situação trabalho', 'work situation'] },
+          { key: 'renda_mensal', label: 'Renda mensal', aliases: ['Atualmente, qual é a sua renda mensal?', 'atualmente, qual é a sua renda mensal?', 'renda mensal', 'income'] },
+          { key: 'utm_source', label: 'UTM Source', aliases: ['UTM SOURCE', 'utm source', 'utm_source'] },
+          { key: 'utm_medium', label: 'UTM Medium', aliases: ['UTM MEDIUM', 'utm medium', 'utm_medium'] },
+          { key: 'utm_campaign', label: 'UTM Campaign', aliases: ['UTM CAMPAIGN', 'utm campaign', 'utm_campaign'] },
+          { key: 'utm_term', label: 'UTM Term', aliases: ['UTM TERM', 'utm term', 'utm_term'] },
+          { key: 'utm_content', label: 'UTM Content', aliases: ['UTM CONTENT', 'utm content', 'utm_content'] }
         ];
 
       case 'vendas':
@@ -162,11 +162,23 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
         }
         
         const normalizedHeader = header.toLowerCase().trim();
-        // Verificar correspondência exata primeiro
+        
+        // Verificar correspondência exata com o nome original do campo primeiro (prioritário)
+        if (header === field.key) {
+          return true;
+        }
+        
+        // Verificar correspondência exata com aliases (incluindo campos nativos)
+        if (field.aliases.some(alias => header === alias)) {
+          return true;
+        }
+        
+        // Verificar correspondência case-insensitive
         if (normalizedHeader === field.key.toLowerCase()) {
           return true;
         }
-        // Verificar aliases
+        
+        // Verificar aliases case-insensitive e includes
         return field.aliases.some(alias => 
           normalizedHeader === alias.toLowerCase() ||
           normalizedHeader.includes(alias.toLowerCase())
@@ -352,7 +364,7 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
 
     // Processar dados de pesquisa (opcional)
     const pesquisaData = pesquisa ? pesquisa.data.map(row => ({
-      carimbo: row[pesquisa.mapping.carimbo] || '',
+      data: row[pesquisa.mapping.data] || row[pesquisa.mapping.carimbo] || '',
       nome: row[pesquisa.mapping.nome] || '',
       email: row[pesquisa.mapping.email] || '',
       telefone: row[pesquisa.mapping.telefone] || '',
