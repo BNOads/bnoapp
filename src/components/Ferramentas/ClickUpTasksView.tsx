@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { format, isPast, isToday, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ClickUpDebugPanel from "./ClickUpDebugPanel";
+import ClickUpUserLink from "./ClickUpUserLink";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface ClickUpTask {
@@ -62,22 +63,70 @@ export default function ClickUpTasksView() {
   const [lastError, setLastError] = useState<string | null>(null);
 
   const { userData } = useCurrentUser();
+  const [userLinked, setUserLinked] = useState(false);
 
   useEffect(() => {
-    loadTasks();
-
-    // Sincronização automática a cada 5 minutos
-    const interval = setInterval(loadTasks, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    checkUserMapping();
   }, [userData?.email]);
 
+  useEffect(() => {
+    if (userLinked) {
+      loadTasks();
+
+      // Sincronização automática a cada 5 minutos
+      const interval = setInterval(loadTasks, 5 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [userLinked]);
+
+  const checkUserMapping = async () => {
+    if (!userData?.email) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('clickup_user_mappings')
+        .select('*')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking mapping:', error);
+        return;
+      }
+
+      setUserLinked(!!data);
+    } catch (error) {
+      console.error('Error checking mapping:', error);
+    }
+  };
+
   const loadTasks = async () => {
+    if (!userLinked) return;
+
     try {
       setLastError(null);
       setDebugInfo(null);
-      const preferredEmail = userData?.email;
+      
+      // Buscar mapeamento do usuário
+      const { data: userAuth } = await supabase.auth.getUser();
+      const { data: mapping } = await supabase
+        .from('clickup_user_mappings')
+        .select('*')
+        .eq('user_id', userAuth.user?.id)
+        .maybeSingle();
+
+      if (!mapping) {
+        setLastError('Usuário não vinculado ao ClickUp');
+        setTasks([]);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('clickup-integration', {
-        body: { action: 'getTasks', preferredEmail }
+        body: { 
+          action: 'getTasks', 
+          teamId: mapping.clickup_team_id,
+          userId: mapping.clickup_user_id
+        }
       });
 
       if (error) {
@@ -388,76 +437,81 @@ export default function ClickUpTasksView() {
         </Button>
       </div>
 
-      <ClickUpDebugPanel 
-        debugInfo={debugInfo}
-        lastError={lastError}
-        onRefresh={syncTasks}
-        refreshing={syncing}
-      />
+      <ClickUpUserLink onLinked={() => setUserLinked(true)} />
 
-
-      <div className="flex gap-4 items-center flex-wrap">
-        <div className="relative flex-1 min-w-64">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar tarefas..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+      {userLinked && (
+        <>
+          <ClickUpDebugPanel 
+            debugInfo={debugInfo}
+            lastError={lastError}
+            onRefresh={syncTasks}
+            refreshing={syncing}
           />
-        </div>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Status</SelectItem>
-            <SelectItem value="to do">A Fazer</SelectItem>
-            <SelectItem value="in progress">Em Progresso</SelectItem>
-            <SelectItem value="review">Revisão</SelectItem>
-            <SelectItem value="complete">Concluído</SelectItem>
-          </SelectContent>
-        </Select>
+          <div className="flex gap-4 items-center flex-wrap">
+            <div className="relative flex-1 min-w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar tarefas..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
 
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Prioridade" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            <SelectItem value="overdue">Atrasadas</SelectItem>
-            <SelectItem value="today">Hoje</SelectItem>
-            <SelectItem value="upcoming">Futuras</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="to do">A Fazer</SelectItem>
+                <SelectItem value="in progress">Em Progresso</SelectItem>
+                <SelectItem value="review">Revisão</SelectItem>
+                <SelectItem value="complete">Concluído</SelectItem>
+              </SelectContent>
+            </Select>
 
-      <div className="grid gap-4">
-        {filteredTasks.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Nenhuma tarefa encontrada</h3>
-              <p className="text-muted-foreground">
-                {tasks.length === 0 
-                  ? 'Conecte-se ao ClickUp ou verifique se há tarefas atribuídas a você.'
-                  : 'Tente ajustar os filtros para encontrar suas tarefas.'
-                }
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {filteredTasks.map(renderTaskCard)}
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Prioridade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="overdue">Atrasadas</SelectItem>
+                <SelectItem value="today">Hoje</SelectItem>
+                <SelectItem value="upcoming">Futuras</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        )}
-      </div>
 
-      <div className="text-sm text-muted-foreground text-center">
-        {filteredTasks.length} de {tasks.length} tarefas • 
-        Última sincronização: {format(new Date(), 'HH:mm', { locale: ptBR })}
-      </div>
+          <div className="grid gap-4">
+            {filteredTasks.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Nenhuma tarefa encontrada</h3>
+                  <p className="text-muted-foreground">
+                    {tasks.length === 0 
+                      ? 'Conecte-se ao ClickUp ou verifique se há tarefas atribuídas a você.'
+                      : 'Tente ajustar os filtros para encontrar suas tarefas.'
+                    }
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {filteredTasks.map(renderTaskCard)}
+              </div>
+            )}
+          </div>
+
+          <div className="text-sm text-muted-foreground text-center">
+            {filteredTasks.length} de {tasks.length} tarefas • 
+            Última sincronização: {format(new Date(), 'HH:mm', { locale: ptBR })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

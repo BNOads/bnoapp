@@ -94,6 +94,12 @@ serve(async (req) => {
       case 'getTasks':
         return await getTasks(clickupApiKey, teamId, effectiveEmail, body?.preferredEmail);
       
+      case 'userLookup':
+        return await userLookup(clickupApiKey, teamId, effectiveEmail);
+      
+      case 'linkUser':
+        return await linkUser(supabaseClient, userData, body);
+      
       case 'updateTask':
         return await updateTask(clickupApiKey, body);
       
@@ -136,22 +142,36 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
     'Content-Type': 'application/json',
   } as const;
 
-  const emailToUse = (preferredEmail || userEmail).trim();
+  // Usar o userId específico se fornecido no body, caso contrário buscar por email
+  const bodyData = JSON.parse(preferredEmail || '{}');
+  const specificUserId = bodyData.userId;
+  const specificTeamId = bodyData.teamId || teamId;
+
+  console.log(`Specific userId: ${specificUserId}, teamId: ${specificTeamId}`);
 
   try {
-    // 1) Listar todos os teams acessíveis para detectar automaticamente
-    let teams: any[] = [];
-    try {
-      const teamsResp = await fetch('https://api.clickup.com/api/v2/team', { headers });
-      if (teamsResp.ok) {
-        const tdata = await teamsResp.json();
-        teams = tdata.teams || [];
-        console.log(`Teams disponíveis: ${teams.map((t: any) => `${t.name}#${t.id}`).join(', ')}`);
+    let allTasks: ClickUpTask[] = [];
+    
+    if (specificUserId) {
+      // Buscar tarefas diretamente por userId usando endpoint do team
+      const params = new URLSearchParams({ 
+        include_closed: 'true', 
+        subtasks: 'true', 
+        page: '0',
+        assignees: specificUserId
+      });
+      
+      const url = `https://api.clickup.com/api/v2/team/${specificTeamId}/task?${params.toString()}`;
+      console.log('Buscando tarefas por userId específico:', url);
+      
+      const response = await fetch(url, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        allTasks = data.tasks || [];
+        console.log(`Tarefas encontradas para userId ${specificUserId}: ${allTasks.length}`);
       } else {
-        console.warn(`Falha ao listar teams: ${teamsResp.status} ${teamsResp.statusText}`);
+        console.warn(`Falha ao buscar por userId: ${response.status} ${response.statusText}`);
       }
-    } catch (e) {
-      console.warn('Erro ao listar teams:', e);
     }
 
     // 2) Montar candidatos de teamId (prioriza o recebido via body)
@@ -451,5 +471,105 @@ async function debugGetTasks(apiKey: string, teamId: string, userEmail: string) 
   } catch (error: any) {
     diagnostics.errors.push(error.message || String(error));
     return new Response(JSON.stringify(diagnostics), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+}
+
+async function userLookup(apiKey: string, teamId: string, userEmail: string) {
+  console.log(`Looking up user ${userEmail} in team ${teamId}`);
+  
+  const headers = { 'Authorization': apiKey, 'Content-Type': 'application/json' };
+
+  try {
+    // Buscar membros do team
+    const response = await fetch(`https://api.clickup.com/api/v2/team/${teamId}/member`, { headers });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch team members: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const members = data.members || [];
+
+    // Procurar usuário por email (case-insensitive)
+    const foundUser = members.find((member: any) => 
+      member.user?.email?.toLowerCase().trim() === userEmail.toLowerCase().trim()
+    );
+
+    if (foundUser) {
+      return new Response(JSON.stringify({
+        found: true,
+        user: {
+          id: foundUser.user.id,
+          username: foundUser.user.username,
+          email: foundUser.user.email,
+          profilePicture: foundUser.user.profilePicture,
+          teamId: teamId
+        }
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    } else {
+      // Retornar lista de usuários disponíveis para seleção manual
+      const availableUsers = members.map((member: any) => ({
+        id: member.user.id,
+        username: member.user.username,
+        email: member.user.email,
+        profilePicture: member.user.profilePicture
+      }));
+
+      return new Response(JSON.stringify({
+        found: false,
+        message: 'not_found',
+        availableUsers
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+  } catch (error: any) {
+    console.error('Error in userLookup:', error);
+    return new Response(JSON.stringify({
+      found: false,
+      message: 'api_error',
+      error: error.message
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+}
+
+async function linkUser(supabaseClient: any, userData: any, linkData: any) {
+  console.log('Linking user to ClickUp:', linkData);
+  
+  if (!userData?.user?.id) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'User not authenticated'
+    }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
+  const { clickupUserId, clickupUsername, clickupEmail, clickupProfilePicture, teamId } = linkData;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('clickup_user_mappings')
+      .upsert({
+        user_id: userData.user.id,
+        clickup_user_id: clickupUserId,
+        clickup_username: clickupUsername,
+        clickup_email: clickupEmail,
+        clickup_profile_picture: clickupProfilePicture,
+        clickup_team_id: teamId
+      }, {
+        onConflict: 'user_id,clickup_team_id'
+      });
+
+    if (error) throw error;
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'User linked successfully'
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+  } catch (error: any) {
+    console.error('Error linking user:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 }

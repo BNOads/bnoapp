@@ -284,6 +284,42 @@ export type Database = {
         }
         Relationships: []
       }
+      clickup_user_mappings: {
+        Row: {
+          clickup_email: string
+          clickup_profile_picture: string | null
+          clickup_team_id: string
+          clickup_user_id: string
+          clickup_username: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          clickup_email: string
+          clickup_profile_picture?: string | null
+          clickup_team_id: string
+          clickup_user_id: string
+          clickup_username: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          clickup_email?: string
+          clickup_profile_picture?: string | null
+          clickup_team_id?: string
+          clickup_user_id?: string
+          clickup_username?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       client_roles: {
         Row: {
           client_id: string
