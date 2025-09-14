@@ -79,8 +79,8 @@ export default function DebriefingDetalhes() {
           dados_leads: debriefingData.dados_leads,
           dados_compradores: debriefingData.dados_compradores,
           dados_trafego: debriefingData.dados_trafego,
-          dados_pesquisa: debriefingData.dados_pesquisa,
-          dados_outras_fontes: debriefingData.dados_outras_fontes
+          dados_pesquisa: (debriefingData as any).dados_pesquisa || [],
+          dados_outras_fontes: (debriefingData as any).dados_outras_fontes || []
         });
       } else {
         console.log('Nenhum debriefing encontrado para o ID:', id);

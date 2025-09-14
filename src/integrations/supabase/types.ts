@@ -843,6 +843,8 @@ export type Database = {
           created_by: string
           dados_compradores: Json | null
           dados_leads: Json | null
+          dados_outras_fontes: Json | null
+          dados_pesquisa: Json | null
           dados_trafego: Json | null
           faturamento_total: number | null
           id: string
@@ -874,6 +876,8 @@ export type Database = {
           created_by: string
           dados_compradores?: Json | null
           dados_leads?: Json | null
+          dados_outras_fontes?: Json | null
+          dados_pesquisa?: Json | null
           dados_trafego?: Json | null
           faturamento_total?: number | null
           id?: string
@@ -905,6 +909,8 @@ export type Database = {
           created_by?: string
           dados_compradores?: Json | null
           dados_leads?: Json | null
+          dados_outras_fontes?: Json | null
+          dados_pesquisa?: Json | null
           dados_trafego?: Json | null
           faturamento_total?: number | null
           id?: string
