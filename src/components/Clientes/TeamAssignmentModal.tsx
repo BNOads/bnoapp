@@ -60,11 +60,9 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
       const { data: colaboradores, error: colaboradoresError } = await supabase
         .from('colaboradores')
         .select(`
-          user_id, nome, email, avatar_url, nivel_acesso,
-          profiles!inner(ativo)
+          user_id, nome, email, avatar_url, nivel_acesso
         `)
-        .eq('ativo', true)
-        .eq('profiles.ativo', true);
+        .eq('ativo', true);
 
       if (colaboradoresError) throw colaboradoresError;
 
