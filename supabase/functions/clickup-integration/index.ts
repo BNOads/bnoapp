@@ -101,12 +101,12 @@ serve(async (req) => {
         throw new Error('Invalid action');
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('ClickUp Integration Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ ok: false, error: error?.message || String(error) }),
       { 
-        status: 400, 
+        status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );

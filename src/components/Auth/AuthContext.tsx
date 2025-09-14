@@ -190,25 +190,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     setLoading(true);
     try {
+      // Limpa tokens locais primeiro para evitar loops de sessão
+      await supabase.auth.signOut({ scope: 'local' });
+      // Tenta invalidar no servidor (ignora erro de sessão inexistente)
       const { error } = await supabase.auth.signOut({ scope: 'global' });
-      if (error) {
-        toast({
-          title: "Erro",
-          description: "Erro ao fazer logout.",
-          variant: "destructive",
-        });
-      } else {
-        // Garantir limpeza total e redirecionamento para a página de login
-        window.location.href = '/auth';
+      if (error && !String(error.message).toLowerCase().includes('session')) {
+        toast({ title: 'Erro', description: 'Erro ao fazer logout.', variant: 'destructive' });
       }
     } catch (e) {
-      toast({
-        title: "Erro",
-        description: "Falha inesperada no logout.",
-        variant: "destructive",
-      });
+      // Ignora e segue com redirecionamento seguro
     } finally {
       setLoading(false);
+      window.location.href = '/auth';
     }
   };
   const value = {
