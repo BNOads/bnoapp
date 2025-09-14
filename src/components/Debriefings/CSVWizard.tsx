@@ -156,6 +156,11 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
     // Para cada campo esperado, tentar encontrar correspondência nos headers
     fieldMappings.forEach(field => {
       const matchingHeader = headers.find(header => {
+        // Ignorar headers vazios ou apenas com espaços
+        if (!header || header.trim() === '') {
+          return false;
+        }
+        
         const normalizedHeader = header.toLowerCase().trim();
         // Verificar correspondência exata primeiro
         if (normalizedHeader === field.key.toLowerCase()) {
@@ -182,7 +187,9 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
       throw new Error('Arquivo CSV vazio');
     }
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const headers = lines[0].split(',')
+      .map(h => h.trim().replace(/"/g, ''))
+      .filter(h => h !== ''); // Filtrar headers vazios
     const data = [];
 
     for (let i = 1; i < lines.length; i++) {
@@ -767,11 +774,13 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__none__">Não mapear</SelectItem>
-                              {csv.headers.map(header => (
-                                <SelectItem key={header} value={header.toLowerCase()}>
-                                  {header}
-                                </SelectItem>
-                              ))}
+                              {csv.headers
+                                .filter(header => header && header.trim() !== '') // Filtrar headers vazios
+                                .map(header => (
+                                  <SelectItem key={header} value={header.toLowerCase()}>
+                                    {header}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         </div>
