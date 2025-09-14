@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Upload, FileText, Users, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import GoogleSheetsSection from "./GoogleSheetsSection";
+import CSVUploadSection from "./CSVUploadSection";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Cliente {
@@ -266,12 +266,12 @@ export default function NovoDebriefing() {
           <Card>
             <CardHeader>
               <CardTitle>Upload de Dados</CardTitle>
-            <CardDescription>
-              Conecte suas planilhas do Google Sheets com dados de leads, compradores e tráfego
-            </CardDescription>
+              <CardDescription>
+                Importe seus dados de vendas, leads e investimento via arquivo CSV
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <GoogleSheetsSection 
+              <CSVUploadSection 
                 debriefingData={debriefingData}
                 onComplete={handleFileUploadComplete}
               />

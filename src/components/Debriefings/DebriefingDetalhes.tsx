@@ -304,7 +304,55 @@ export default function DebriefingDetalhes() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {debriefing.vendas_total || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Vendas realizadas
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total de Leads</CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {debriefing.leads_total || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Leads gerados
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Custo por Venda</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {debriefing.investimento_total && debriefing.vendas_total 
+                    ? formatCurrency(debriefing.investimento_total / debriefing.vendas_total)
+                    : '-'
+                  }
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Investimento ÷ vendas
+                </p>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Custo por Lead</CardTitle>
@@ -315,11 +363,13 @@ export default function DebriefingDetalhes() {
                   {debriefing.cpl ? formatCurrency(debriefing.cpl) : '-'}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {debriefing.leads_total} leads gerados
+                  Investimento ÷ leads
                 </p>
               </CardContent>
             </Card>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle>
