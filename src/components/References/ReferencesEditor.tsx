@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Save, X, Eye, Copy, ExternalLink } from "lucide-react";
-import { NotionEditor } from "./NotionEditor/NotionEditor";
-import { EditorBlock } from "./NotionEditor/types";
+import { MarkdownEditor } from "./MarkdownEditor/MarkdownEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,7 +27,7 @@ export const ReferencesEditor = ({
   onSave 
 }: ReferencesEditorProps) => {
   const [loading, setLoading] = useState(false);
-  const [blocks, setBlocks] = useState<EditorBlock[]>([]);
+  const [markdownContent, setMarkdownContent] = useState('');
   const [formData, setFormData] = useState({
     titulo: "",
     categoria: "infoproduto" as "infoproduto" | "negocio_local" | "pagina",
@@ -65,26 +64,38 @@ export const ReferencesEditor = ({
         link_publico: data.link_publico || ""
       });
 
-      // Converter conteúdo para blocos do editor
-      if (data.conteudo && Array.isArray(data.conteudo)) {
-        const convertedBlocks: EditorBlock[] = data.conteudo.map((item: any, index: number) => ({
-          id: item.id || `block-${index}`,
-          type: item.tipo || 'text',
-          content: {
-            text: item.conteudo,
-            url: item.url,
-            caption: item.descricao,
-            title: item.titulo,
-            level: item.level,
-            checked: item.checked
-          },
-          order: index,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }));
-        setBlocks(convertedBlocks);
+      // Converter conteúdo para markdown
+      if (data.conteudo_markdown) {
+        setMarkdownContent(data.conteudo_markdown);
+      } else if (data.conteudo && Array.isArray(data.conteudo)) {
+        // Migração do formato antigo - converter blocos para markdown
+        let markdown = '';
+        data.conteudo.forEach((item: any) => {
+          switch (item.tipo) {
+            case 'heading':
+              const level = '#'.repeat(item.level || 1);
+              markdown += `${level} ${item.conteudo}\n\n`;
+              break;
+            case 'text':
+              markdown += `${item.conteudo}\n\n`;
+              break;
+            case 'image':
+              markdown += `![${item.descricao || ''}](${item.url})\n\n`;
+              break;
+            case 'link':
+              markdown += `[${item.titulo || item.conteudo}](${item.url})\n\n`;
+              break;
+            case 'checklist':
+              const checked = item.checked ? 'x' : ' ';
+              markdown += `- [${checked}] ${item.conteudo}\n`;
+              break;
+            default:
+              markdown += `${item.conteudo}\n\n`;
+          }
+        });
+        setMarkdownContent(markdown);
       } else {
-        setBlocks([]);
+        setMarkdownContent('');
       }
     } catch (error) {
       console.error('Erro ao carregar referência:', error);
@@ -105,7 +116,7 @@ export const ReferencesEditor = ({
       is_template: false,
       link_publico: ""
     });
-    setBlocks([]);
+    setMarkdownContent('');
   };
 
   const handleSave = async () => {
@@ -121,23 +132,11 @@ export const ReferencesEditor = ({
     try {
       setLoading(true);
 
-      // Converter blocos para formato antigo do banco
-      const conteudo = blocks.map(block => ({
-        id: block.id,
-        tipo: block.type,
-        conteudo: block.content.text || '',
-        url: block.content.url || '',
-        titulo: block.content.title || '',
-        descricao: block.content.caption || '',
-        level: block.content.level,
-        checked: block.content.checked
-      }));
-
       const dataToSave = {
         titulo: formData.titulo,
         categoria: formData.categoria,
         is_template: formData.is_template,
-        conteudo: conteudo,
+        conteudo_markdown: markdownContent,
         cliente_id: clienteId === 'geral' ? null : clienteId,
         created_by: (await supabase.auth.getUser()).data.user?.id
       };
@@ -277,11 +276,13 @@ export const ReferencesEditor = ({
                   Conteúdo
                 </CardTitle>
               </CardHeader>
-              <CardContent className="h-full overflow-y-auto">
-                <NotionEditor
-                  blocks={blocks}
-                  onChange={setBlocks}
-                  className="min-h-[400px]"
+              <CardContent className="h-full overflow-y-auto p-0">
+                <MarkdownEditor
+                  content={markdownContent}
+                  onChange={setMarkdownContent}
+                  onSave={handleSave}
+                  autoSave={true}
+                  className="border-none"
                 />
               </CardContent>
             </Card>
