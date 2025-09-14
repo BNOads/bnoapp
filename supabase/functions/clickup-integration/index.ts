@@ -48,17 +48,13 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     );
 
-    const authHeader = req.headers.get('Authorization')!;
+    const authHeader = req.headers.get('Authorization') || '';
     const token = authHeader.replace('Bearer ', '');
-    const { data: user } = await supabaseClient.auth.getUser(token);
-
-    if (!user.user) {
-      throw new Error('Unauthorized');
-    }
+    const { data: userData } = await supabaseClient.auth.getUser(token);
 
     const clickupApiKey = Deno.env.get('CLICKUP_API_KEY');
     if (!clickupApiKey) {
-      throw new Error('ClickUp API key not configured');
+      return new Response(JSON.stringify({ error: 'ClickUp API key not configured' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const url = new URL(req.url);
@@ -70,20 +66,24 @@ serve(async (req) => {
     const action = (body?.action || url.searchParams.get('action') || 'getTasks') as string;
     const teamId = (body?.teamId || url.searchParams.get('teamId') || '90140307863') as string;
 
-    console.log(`ClickUp Integration - Action: ${action}, User: ${user.user.email}`);
+    // Buscar dados do colaborador se houver usuário autenticado
+    let colaboradorEmail: string | null = null;
+    if (userData?.user?.id) {
+      const { data: colaborador } = await supabaseClient
+        .from('colaboradores')
+        .select('email')
+        .eq('user_id', userData.user.id)
+        .maybeSingle();
+      colaboradorEmail = colaborador?.email ?? null;
+    }
 
-    // Buscar dados do colaborador para vincular com ClickUp
-    const { data: colaborador } = await supabaseClient
-      .from('colaboradores')
-      .select('email')
-      .eq('user_id', user.user.id)
-      .single();
+    const effectiveEmail = (colaboradorEmail || userData?.user?.email || body?.preferredEmail || '').trim();
 
-    const userEmail = colaborador?.email || user.user.email;
+    console.log(`ClickUp Integration - Action: ${action}, EffectiveUserEmail: ${effectiveEmail || 'unknown'}`);
 
     switch (action) {
       case 'getTasks':
-        return await getTasks(clickupApiKey, teamId, userEmail, body?.preferredEmail);
+        return await getTasks(clickupApiKey, teamId, effectiveEmail, body?.preferredEmail);
       
       case 'updateTask':
         return await updateTask(clickupApiKey, body);
@@ -95,7 +95,7 @@ serve(async (req) => {
         return await getTeams(clickupApiKey);
       
       case 'debugGetTasks':
-        return await debugGetTasks(clickupApiKey, teamId, userEmail);
+        return await debugGetTasks(clickupApiKey, teamId, effectiveEmail);
       
       default:
         throw new Error('Invalid action');
