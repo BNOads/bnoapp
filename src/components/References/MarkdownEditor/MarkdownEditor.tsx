@@ -267,6 +267,16 @@ export const MarkdownEditor = ({
     return html;
   }, []);
 
+  // Sincronizar conteúdo inicial quando recebido via props
+  useEffect(() => {
+    if (content && editor && !editor.getHTML().includes(content)) {
+      // Se o conteúdo prop mudou e é diferente do editor atual
+      const html = markdownToHtml(content);
+      editor.commands.setContent(html);
+      setMarkdownContent(content);
+    }
+  }, [content, editor, markdownToHtml]);
+
   useEffect(() => {
     if (activeView === 'markdown' && editor) {
       const html = editor.getHTML();
