@@ -99,11 +99,18 @@ export default function ClickUpUserLink({ onLinked }: ClickUpUserLinkProps) {
         } else if (data.matchType === 'similarity_match') {
           const percentage = Math.round(data.similarity * 100);
           toast.success(`🎯 Correspondência próxima encontrada: ${data.user.username} (${percentage}% similaridade)`);
+        } else if (data.matchType === 'found_in_other_team') {
+          toast.success(`✅ Usuário encontrado em outro time: ${data.user.username}`);
+        } else if (data.matchType === 'found_in_target_team') {
+          toast.success(`✅ Usuário encontrado: ${data.user.username}`);
         }
       } else {
         // Não encontrado - configurar opções manuais
-        if (data?.availableUsers) {
-          setAvailableUsers(data.availableUsers);
+        if (data?.alternative?.options) {
+          const manualOption = data.alternative.options.find((opt: any) => opt.type === 'manual_selection');
+          if (manualOption?.availableUsers) {
+            setAvailableUsers(manualOption.availableUsers);
+          }
         }
         
         if (data?.searchedAliases) {
@@ -311,7 +318,68 @@ export default function ClickUpUserLink({ onLinked }: ClickUpUserLinkProps) {
                   </AlertDescription>
                 </Alert>
 
-                {availableUsers.length > 0 && (
+                {/* Apresentar alternativa estruturada */}
+                {searchResult?.alternative && (
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="font-medium text-blue-800 mb-2">{searchResult.alternative.title}</h4>
+                    <p className="text-sm text-blue-700 mb-3">{searchResult.alternative.description}</p>
+                    
+                    <div className="space-y-3">
+                      {searchResult.alternative.options?.map((option: any, index: number) => (
+                        <div key={index} className="p-3 bg-white rounded border">
+                          <div className="flex items-start gap-2">
+                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-medium">
+                              {index + 1}
+                            </div>
+                            <div className="flex-1">
+                              <h5 className="font-medium text-sm">{option.title}</h5>
+                              <p className="text-xs text-muted-foreground">{option.description}</p>
+                              
+                              {option.type === 'manual_selection' && option.availableUsers && (
+                                <div className="mt-2 space-y-2">
+                                  <Select value={selectedUser} onValueChange={setSelectedUser}>
+                                    <SelectTrigger className="h-8">
+                                      <SelectValue placeholder="Escolha um usuário" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {option.availableUsers.map((user: ClickUpUser) => (
+                                        <SelectItem key={user.id} value={user.id}>
+                                          <div className="flex items-center gap-2">
+                                            <span>{user.username}</span>
+                                            <span className="text-muted-foreground text-xs">({user.email})</span>
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  
+                                  {selectedUser && (
+                                    <Button 
+                                      onClick={handleManualSelection}
+                                      disabled={linking}
+                                      size="sm"
+                                      className="w-full"
+                                    >
+                                      {linking ? (
+                                        <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="h-3 w-3 mr-2" />
+                                      )}
+                                      {linking ? 'Vinculando...' : 'Confirmar Vínculo'}
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Fallback para compatibilidade - se não há alternativa estruturada */}
+                {!searchResult?.alternative && availableUsers.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
