@@ -125,6 +125,7 @@ INSTRUÇÕES AVANÇADAS:
 - Para GRAVAÇÕES: Sugira gravações relevantes com links diretos
 - Para TAREFAS: Priorize por urgência e relevância para o usuário
 - Para PDIS: Acompanhe progressos e prazos
+- Para KICKOFFS: Forneça informações sobre documentos de início de projeto, status e conteúdo estruturado
 - Para TRANSCRIÇÕES: Use as transcrições para responder sobre reuniões específicas, compromissos feitos, decisões tomadas
 - Para RESUMOS: Gere resumos em bullet points ou texto corrido conforme solicitado
 
@@ -425,6 +426,49 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
       });
     }
 
+    // KICKOFFS - Documentos de início de projeto
+    let kickoffsQuery = supabase
+      .from('kickoffs')
+      .select(`
+        id, client_id, status, created_at, updated_at,
+        kickoff_content (
+          id, content_md, version, created_at
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (userClientId && !isAdmin) {
+      kickoffsQuery = kickoffsQuery.eq('client_id', userClientId);
+    }
+
+    const { data: kickoffs } = await kickoffsQuery.limit(20);
+
+    if (kickoffs && kickoffs.length > 0) {
+      context += `🚀 KICKOFFS - DOCUMENTOS DE INÍCIO (${kickoffs.length})\n\n`;
+      kickoffs.forEach((kickoff: any) => {
+        const clienteKickoff = clientes?.find(c => c.id === kickoff.client_id);
+        const statusEmoji = { 'draft': '📝', 'published': '✅', 'archived': '📁' };
+        
+        context += `${statusEmoji[kickoff.status] || '📄'} **Kickoff ${clienteKickoff?.nome || 'Cliente não encontrado'}** [${kickoff.status}]\n`;
+        context += `   📅 Criado: ${new Date(kickoff.created_at).toLocaleDateString('pt-BR')}\n`;
+        context += `   🔄 Atualizado: ${new Date(kickoff.updated_at).toLocaleDateString('pt-BR')}\n`;
+        
+        if (kickoff.kickoff_content && kickoff.kickoff_content.length > 0) {
+          const latestContent = kickoff.kickoff_content[kickoff.kickoff_content.length - 1];
+          context += `   📄 Versão: ${latestContent.version}\n`;
+          
+          // Extrair informações principais do conteúdo markdown
+          if (latestContent.content_md) {
+            const contentPreview = extractKickoffSummary(latestContent.content_md);
+            if (contentPreview) {
+              context += `   📋 Conteúdo:\n${contentPreview}\n`;
+            }
+          }
+        }
+        context += `\n`;
+      });
+    }
+
     // PDIs (Planos de Desenvolvimento Individual)
     const { data: pdis } = await supabase
       .from('pdis')
@@ -454,6 +498,7 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     context += `├── 🎥 Gravações: ${gravacoes?.length || 0}\n`;
     context += `├── 💰 Orçamentos: ${orcamentos?.length || 0}\n`;
     context += `├── ✅ Tarefas ativas: ${tarefas?.length || 0}\n`;
+    context += `├── 🚀 Kickoffs: ${kickoffs?.length || 0}\n`;
     context += `└── 🎯 PDIs: ${pdis?.length || 0}\n\n`;
 
     if (userClientId && !isAdmin) {
@@ -636,4 +681,49 @@ function extractRelevantExcerpts(transcricao: string, query: string, maxLength: 
   
   const result = relevantSentences.join('\n');
   return result.length > maxLength ? result.substring(0, maxLength) + '...' : result;
+}
+
+// Função para extrair resumo do conteúdo do kickoff
+function extractKickoffSummary(contentMd: string): string {
+  if (!contentMd) return '';
+  
+  try {
+    // Extrair seções principais do markdown
+    const lines = contentMd.split('\n');
+    let summary = '';
+    let currentSection = '';
+    
+    for (const line of lines) {
+      // Detectar headers principais
+      if (line.startsWith('##') && !line.startsWith('###')) {
+        currentSection = line.replace(/^##\s*/, '').trim();
+        summary += `      • ${currentSection}\n`;
+      }
+      // Extrair informações importantes de listas
+      else if (line.match(/^\s*[-*+]\s+/) && currentSection) {
+        const item = line.replace(/^\s*[-*+]\s+/, '').trim();
+        if (item.length > 10 && item.length < 100) {
+          summary += `        - ${item}\n`;
+        }
+      }
+      // Extrair objetivos ou metas se houver
+      else if (line.toLowerCase().includes('objetivo') || line.toLowerCase().includes('meta')) {
+        const objective = line.trim();
+        if (objective.length < 150) {
+          summary += `        🎯 ${objective}\n`;
+        }
+      }
+    }
+    
+    // Limitar tamanho do resumo
+    if (summary.length > 500) {
+      summary = summary.substring(0, 500) + '...\n';
+    }
+    
+    return summary || '        (Conteúdo estruturado disponível)';
+    
+  } catch (error) {
+    console.error('Erro ao extrair resumo do kickoff:', error);
+    return '        (Erro ao processar conteúdo)';
+  }
 }
