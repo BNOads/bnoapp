@@ -284,6 +284,54 @@ export type Database = {
         }
         Relationships: []
       }
+      client_roles: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          role: string
+          since: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          role: string
+          since?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          role?: string
+          since?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_roles_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           aliases: string[] | null
@@ -306,6 +354,8 @@ export type Database = {
           nome: string
           observacoes: string | null
           pasta_drive_url: string | null
+          primary_cs_user_id: string | null
+          primary_gestor_user_id: string | null
           progresso_etapa: number | null
           status_cliente: string | null
           total_acessos: number | null
@@ -335,6 +385,8 @@ export type Database = {
           nome: string
           observacoes?: string | null
           pasta_drive_url?: string | null
+          primary_cs_user_id?: string | null
+          primary_gestor_user_id?: string | null
           progresso_etapa?: number | null
           status_cliente?: string | null
           total_acessos?: number | null
@@ -364,6 +416,8 @@ export type Database = {
           nome?: string
           observacoes?: string | null
           pasta_drive_url?: string | null
+          primary_cs_user_id?: string | null
+          primary_gestor_user_id?: string | null
           progresso_etapa?: number | null
           status_cliente?: string | null
           total_acessos?: number | null
@@ -379,6 +433,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "colaboradores"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clientes_primary_cs_user_id_fkey"
+            columns: ["primary_cs_user_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "clientes_primary_gestor_user_id_fkey"
+            columns: ["primary_gestor_user_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "clientes_traffic_manager_id_fkey"

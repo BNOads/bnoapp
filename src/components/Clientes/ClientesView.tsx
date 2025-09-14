@@ -3,10 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Rocket } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
@@ -16,6 +17,7 @@ import { EditarClienteModal } from "./EditarClienteModal";
 import { EdicaoMassaModal } from "./EdicaoMassaModal";
 import { AlocacaoClientes } from "./AlocacaoClientes";
 import { KickoffModal } from "./KickoffModal";
+import { TeamAssignmentModal } from "./TeamAssignmentModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
@@ -39,8 +41,14 @@ export const ClientesView = () => {
     id: string;
     nome: string;
   } | null>(null);
+  const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const [clienteTeam, setClienteTeam] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoriaFilter, setCategoriaFilter] = useState<string>('all');
   const [nichoFilter, setNichoFilter] = useState<string>('all');
@@ -53,12 +61,19 @@ export const ClientesView = () => {
   const navigate = useNavigate();
   const carregarClientes = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('clientes').select('*').order('created_at', {
-        ascending: false
-      });
+      const { data, error } = await supabase
+        .from('clientes')
+        .select(`
+          *,
+          primary_gestor:colaboradores!clientes_primary_gestor_user_id_fkey(user_id, nome, avatar_url),
+          primary_cs:colaboradores!clientes_primary_cs_user_id_fkey(user_id, nome, avatar_url),
+          client_roles(
+            user_id, role, is_primary,
+            colaboradores(user_id, nome, avatar_url)
+          )
+        `)
+        .eq('ativo', true)
+        .order('created_at', { ascending: false });
       if (error) {
         throw error;
       }
@@ -74,8 +89,23 @@ export const ClientesView = () => {
       setLoading(false);
     }
   };
+
+  const carregarColaboradores = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('colaboradores')
+        .select('user_id, nome, email, avatar_url, nivel_acesso')
+        .eq('ativo', true);
+
+      if (error) throw error;
+      setColaboradores(data || []);
+    } catch (error) {
+      console.error('Error loading colaboradores:', error);
+    }
+  };
   useEffect(() => {
     carregarClientes();
+    carregarColaboradores();
   }, []);
   const getStatusColor = (etapa: string) => {
     switch (etapa) {
@@ -337,13 +367,15 @@ export const ClientesView = () => {
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status_cliente')}>
-                    <div className="flex items-center">
-                      Status
-                      <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-center">Ações</TableHead>
+                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status_cliente')}>
+                     <div className="flex items-center">
+                       Status
+                       <ArrowUpDown className="ml-2 h-4 w-4" />
+                     </div>
+                   </TableHead>
+                   <TableHead className="text-center">Gestor</TableHead>
+                   <TableHead className="text-center">CS</TableHead>
+                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -382,8 +414,87 @@ export const ClientesView = () => {
                       <Badge className={`${getStatusColor(cliente.status_cliente || cliente.etapa_atual)} text-xs`}>
                         {getStatusLabel(cliente.status_cliente || cliente.etapa_atual)}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
+                     </TableCell>
+                     
+                     {/* Gestor Column */}
+                     <TableCell className="text-center">
+                       {cliente.primary_gestor ? (
+                         <div className="flex justify-center">
+                           <Avatar 
+                             className="h-8 w-8 cursor-pointer hover:opacity-80" 
+                             onClick={() => {
+                               setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                               setTeamModalOpen(true);
+                             }}
+                           >
+                             <AvatarImage src={cliente.primary_gestor.avatar_url} />
+                             <AvatarFallback className="text-xs">
+                               {cliente.primary_gestor.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                             </AvatarFallback>
+                           </Avatar>
+                         </div>
+                       ) : (
+                         <Button 
+                           variant="ghost" 
+                           size="sm" 
+                           className="h-8 w-8 p-0 text-muted-foreground"
+                           onClick={() => {
+                             setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                             setTeamModalOpen(true);
+                           }}
+                         >
+                           <Users className="h-4 w-4" />
+                         </Button>
+                       )}
+                     </TableCell>
+
+                     {/* CS Column */}
+                     <TableCell className="text-center">
+                       {(() => {
+                         const csTeam = cliente.client_roles?.filter(cr => cr.role === 'cs') || [];
+                         const primaryCs = cliente.primary_cs;
+                         
+                         if (primaryCs) {
+                           return (
+                             <div className="flex justify-center items-center gap-1">
+                               <Avatar 
+                                 className="h-8 w-8 cursor-pointer hover:opacity-80" 
+                                 onClick={() => {
+                                   setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                                   setTeamModalOpen(true);
+                                 }}
+                               >
+                                 <AvatarImage src={primaryCs.avatar_url} />
+                                 <AvatarFallback className="text-xs">
+                                   {primaryCs.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                 </AvatarFallback>
+                               </Avatar>
+                               {csTeam.length > 1 && (
+                                 <Badge variant="secondary" className="text-xs px-1 h-5">
+                                   +{csTeam.length - 1}
+                                 </Badge>
+                               )}
+                             </div>
+                           );
+                         } else {
+                           return (
+                             <Button 
+                               variant="ghost" 
+                               size="sm" 
+                               className="h-8 w-8 p-0 text-muted-foreground"
+                               onClick={() => {
+                                 setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                                 setTeamModalOpen(true);
+                               }}
+                             >
+                               <Users className="h-4 w-4" />
+                             </Button>
+                           );
+                         }
+                       })()}
+                     </TableCell>
+                     
+                     <TableCell>
                       <div className="flex items-center justify-center space-x-1">
                          
 
@@ -454,5 +565,19 @@ export const ClientesView = () => {
       setKickoffModalOpen(false);
       setClienteKickoff(null);
     }} clienteId={clienteKickoff.id} clienteNome={clienteKickoff.nome} />}
-    </div>;
+
+      {clienteTeam && <TeamAssignmentModal 
+        isOpen={teamModalOpen} 
+        onClose={() => {
+          setTeamModalOpen(false);
+          setClienteTeam(null);
+        }} 
+        clienteId={clienteTeam.id} 
+        clienteNome={clienteTeam.nome}
+        onSuccess={() => {
+          carregarClientes();
+        }}
+      />}
+    </div>
+  );
 };
