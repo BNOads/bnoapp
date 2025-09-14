@@ -45,13 +45,13 @@ interface ConsolidatedData {
 }
 
 const requiredFields = {
-  vendas: ['data', 'email', 'valor'],
+  vendas: ['email', 'valor'],
   leads: ['data', 'email'],
   trafego: ['date', 'spend', 'impressions', 'campaign_name']
 };
 
 const optionalFields = {
-  vendas: ['produto', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
+  vendas: ['data', 'produto', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
   leads: ['nome', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
   trafego: ['action_link_clicks', 'action_leads', 'ad_name', 'adset_name', 'reach', 'action_landing_page_view', 'action_3s_video_views', 'video_25_percent_watched', 'video_50_percent_watched', 'video_75_percent_watched', 'video_100_percent_watched', 'instagram_permalink_url']
 };
@@ -126,7 +126,7 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
         
         // Validar data
         const dateField = csv.type === 'trafego' ? csv.mapping.date : csv.mapping.data;
-        if (dateField) {
+        if (dateField && csv.type !== 'vendas') { // Para vendas, data é opcional
           const dateValue = row[dateField];
           if (dateValue && !isValidDate(dateValue)) {
             errors.push(`Linha ${i + 2}: Data inválida '${dateValue}'`);
@@ -179,8 +179,9 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
     const trafego = csvFiles.find(csv => csv.type === 'trafego')!;
 
     // Mapear dados de cada CSV
+    const hoje = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const vendasData = vendas.data.map(row => ({
-      data: normalizeDate(row[vendas.mapping.data]),
+      data: vendas.mapping.data ? normalizeDate(row[vendas.mapping.data]) : hoje,
       email: row[vendas.mapping.email],
       valor: parseFloat(row[vendas.mapping.valor] || '0'),
       utm_source: row[vendas.mapping.utm_source] || '(sem atribuição)',
