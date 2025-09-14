@@ -6,6 +6,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import bnoadsLogo from "@/assets/bnoads-logo.png";
 interface HeaderProps {}
 
 export const Header = ({}: HeaderProps) => {
@@ -65,7 +66,7 @@ export const Header = ({}: HeaderProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 sm:space-x-4">
             <div className="p-1 sm:p-2">
-              <img src="/lovable-uploads/04b4bc6e-c3c0-4f8e-9819-9f578ec4da19.png" alt="BNOads Logo" className="h-8 w-8 sm:h-12 sm:w-12 object-contain rounded-lg" />
+              <img src={bnoadsLogo} alt="BNOads Logo" className="h-8 w-8 sm:h-12 sm:w-12 object-contain rounded-lg" />
             </div>
             <div className="min-w-0">
               <h1 className="text-lg sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">

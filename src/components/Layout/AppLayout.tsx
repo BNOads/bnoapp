@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { FloatingNoteButton } from "@/components/ui/FloatingNoteButton";
 import { Header } from "@/components/Layout/Header";
+import { PublicLogo } from "@/components/Layout/PublicLogo";
 import { useRecentTabs } from "@/hooks/useRecentTabs";
 
 interface AppLayoutProps {
@@ -38,8 +39,16 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {shouldShowHeader && <Header />}
-      <main className={shouldShowHeader ? "container mx-auto px-6 py-8" : ""}>
+      {shouldShowHeader ? (
+        <Header />
+      ) : user ? (
+        // Usuário logado mas em página pública - mostrar header mesmo assim
+        <Header />
+      ) : (
+        // Usuário não logado - mostrar apenas logo
+        <PublicLogo />
+      )}
+      <main className={shouldShowHeader || user ? "container mx-auto px-6 py-8" : "container mx-auto px-6"}>
         {children}
       </main>
       {shouldShowFAB && <FloatingNoteButton />}

@@ -11,6 +11,7 @@ import { ForgotPasswordModal } from '@/components/Auth/ForgotPasswordModal';
 import { PasswordChangeModal } from '@/components/Auth/PasswordChangeModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import bnoadsLogo from "@/assets/bnoads-logo.png";
 
 const Auth = () => {
   const { user, loading, signIn } = useAuth();
@@ -111,7 +112,7 @@ const Auth = () => {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <img 
-              src="/lovable-uploads/04b4bc6e-c3c0-4f8e-9819-9f578ec4da19.png" 
+              src={bnoadsLogo} 
               alt="BNOads" 
               className="h-12 w-auto rounded-lg"
             />
