@@ -75,12 +75,39 @@ export default function ClickUpTasksView() {
         body: { action: 'getTasks', preferredEmail: 'lucas.oliveirafla7@gmail.com' }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.group('ClickUp LoadTasks Error (Edge Function)');
+        console.error('FunctionsHttpError:', error);
+        console.groupEnd();
+        throw error;
+      }
+
+      // Se a função retornou ok:false ou trouxe um erro no payload, logar detalhadamente
+      if (data?.ok === false || data?.error) {
+        console.group('ClickUp LoadTasks Error (Payload)');
+        console.error('Payload error:', data?.error);
+        if (data?.diagnostics) {
+          console.info('Diagnostics:', data.diagnostics);
+          if (Array.isArray(data.diagnostics.steps)) {
+            console.table(data.diagnostics.steps);
+          }
+          if (Array.isArray(data.diagnostics.errors) && data.diagnostics.errors.length) {
+            for (const e of data.diagnostics.errors) console.error('Diag error:', e);
+          }
+        }
+        console.groupEnd();
+        setLastError(data?.error || 'Falha ao consultar o ClickUp');
+        setDebugInfo(data?.diagnostics || null);
+        setTasks([]);
+        return;
+      }
 
       setTasks(data.tasks || []);
       if (data?.diagnostics) setDebugInfo(data.diagnostics);
     } catch (error: any) {
-      console.error('Erro ao carregar tarefas:', error);
+      console.group('ClickUp LoadTasks Exception');
+      console.error('Exception:', error);
+      console.groupEnd();
       setLastError(error?.message || 'Erro desconhecido');
       toast.error('Erro ao carregar tarefas do ClickUp');
       // Tentativa de diagnóstico detalhado
@@ -89,6 +116,11 @@ export default function ClickUpTasksView() {
           body: { action: 'debugGetTasks' }
         });
         setDebugInfo(diag);
+        console.group('ClickUp Debug (debugGetTasks)');
+        console.info('Diagnostics:', diag);
+        if (Array.isArray(diag?.steps)) console.table(diag.steps);
+        if (Array.isArray(diag?.errors)) diag.errors.forEach((e: string) => console.error('Diag error:', e));
+        console.groupEnd();
       } catch (e) {
         console.error('Erro ao gerar diagnóstico:', e);
       }
