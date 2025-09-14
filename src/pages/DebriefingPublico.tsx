@@ -106,23 +106,28 @@ export default function DebriefingPublico() {
         body: { debriefing_id: id }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro na função PDF:', error);
+        throw error;
+      }
 
-      if (data?.pdf_url) {
+      console.log('Resposta da função PDF:', data);
+
+      if (data?.data?.url && data.data.url !== 'https://example.com/pdf/' + id + '.pdf') {
         const link = document.createElement('a');
-        link.href = data.pdf_url;
-        link.download = data.filename || `debriefing_${debriefing?.nome_lancamento}.pdf`;
+        link.href = data.data.url;
+        link.download = data.data.filename || `debriefing_${debriefing?.nome_lancamento}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         
         toast.success('PDF baixado com sucesso!');
       } else {
-        toast.success('PDF gerado com sucesso!');
+        toast.error('PDF ainda não foi implementado completamente. A funcionalidade está em desenvolvimento.');
       }
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
-      toast.error('Erro ao gerar PDF');
+      toast.error('Erro ao gerar PDF. A funcionalidade está em desenvolvimento.');
     }
   };
 
