@@ -98,17 +98,21 @@ export const OrcamentosView = () => {
 
       if (orcamentosError) throw orcamentosError;
 
+      // Buscar apenas clientes que têm orçamentos
+      const clienteIds = Array.from(new Set((orcamentosData || []).map(o => o.cliente_id).filter(Boolean)));
       const { data: clientesData, error: clientesError } = await supabase
         .from('clientes')
         .select('id, nome, primary_gestor_user_id')
-        .eq('ativo', true);
+        .in('id', clienteIds.length > 0 ? clienteIds : ['00000000-0000-0000-0000-000000000000']);
 
       if (clientesError) throw clientesError;
 
+      // Buscar apenas os gestores usados pelos clientes acima
+      const gestorIds = Array.from(new Set((clientesData || []).map(c => c.primary_gestor_user_id).filter(Boolean)));
       const { data: colaboradoresData, error: colaboradoresError } = await supabase
         .from('colaboradores')
         .select('user_id, nome, avatar_url')
-        .eq('ativo', true);
+        .in('user_id', gestorIds.length > 0 ? gestorIds : ['00000000-0000-0000-0000-000000000000']);
 
       if (colaboradoresError) throw colaboradoresError;
 
