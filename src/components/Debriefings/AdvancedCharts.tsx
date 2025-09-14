@@ -34,17 +34,20 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
       }, {});
 
       const totalInvestment = Object.values(stageGroups).reduce((sum: number, group: any) => {
-        return sum + (Number(group.investment) || 0);
+        const groupInvestment = Number(group?.investment) || 0;
+        return sum + groupInvestment;
       }, 0);
 
       return Object.entries(stageGroups).map(([stage, data]: [string, any]) => {
-        const investment = Number(data.investment) || 0;
+        const investment = Number(data?.investment) || 0;
+        const totalInv = Number(totalInvestment) || 0;
+        const percentage = totalInv > 0 ? (investment / totalInv) * 100 : 0;
         return {
           name: getStageLabel(stage),
           value: investment,
-          percentage: totalInvestment > 0 ? (investment / totalInvestment) * 100 : 0,
+          percentage,
           color: getStageColor(stage),
-          count: Number(data.count) || 0
+          count: Number(data?.count) || 0
         };
       });
     }

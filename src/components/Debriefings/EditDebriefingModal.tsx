@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Edit, Upload, Download, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import CSVWizard from "./CSVWizard";
+import EditBasicInfo from "./EditBasicInfo";
 
 interface EditDebriefingModalProps {
   debriefing: any;
@@ -85,72 +86,10 @@ export default function EditDebriefingModal({ debriefing, onUpdate }: EditDebrie
 
           {/* Aba Informações Básicas */}
           {activeTab === 'info' && (
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informações do Lançamento</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Cliente</label>
-                      <p className="text-sm text-muted-foreground">{debriefing.cliente_nome}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Nome do Lançamento</label>
-                      <p className="text-sm text-muted-foreground">{debriefing.nome_lancamento}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Período</label>
-                      <p className="text-sm text-muted-foreground">
-                        {debriefing.periodo_inicio ? new Date(debriefing.periodo_inicio).toLocaleDateString('pt-BR') : 'N/A'} - {' '}
-                        {debriefing.periodo_fim ? new Date(debriefing.periodo_fim).toLocaleDateString('pt-BR') : 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Status</label>
-                      <div>
-                        <Badge className={getStatusColor(debriefing.status)}>
-                          {getStatusLabel(debriefing.status)}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {debriefing.status === 'concluido' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Métricas Atuais</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center p-3 border rounded">
-                        <div className="text-2xl font-bold text-blue-600">{debriefing.leads_total || 0}</div>
-                        <p className="text-sm text-muted-foreground">Leads</p>
-                      </div>
-                      <div className="text-center p-3 border rounded">
-                        <div className="text-2xl font-bold text-green-600">{debriefing.vendas_total || 0}</div>
-                        <p className="text-sm text-muted-foreground">Vendas</p>
-                      </div>
-                      <div className="text-center p-3 border rounded">
-                        <div className="text-2xl font-bold text-red-600">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(debriefing.investimento_total || 0)}
-                        </div>
-                        <p className="text-sm text-muted-foreground">Investimento</p>
-                      </div>
-                      <div className="text-center p-3 border rounded">
-                        <div className="text-2xl font-bold text-purple-600">
-                          {debriefing.roas ? `${debriefing.roas.toFixed(2)}x` : '-'}
-                        </div>
-                        <p className="text-sm text-muted-foreground">ROAS</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            <EditBasicInfo 
+              debriefing={debriefing} 
+              onUpdate={onUpdate}
+            />
           )}
 
           {/* Aba Importar/Atualizar Dados */}
