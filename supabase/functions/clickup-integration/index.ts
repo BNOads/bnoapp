@@ -204,8 +204,6 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
     const teams = teamsData.teams || [];
     console.log(`Teams disponíveis: ${teams.map((t: any) => `${t.name}#${t.id}`).join(', ')}`);
 
-    const emailToUse = userEmail.toLowerCase().trim();
-
     // 2) Montar candidatos de teamId (prioriza o recebido via body)
     const candidateTeamIds = Array.from(new Set([
       ...(teamId ? [String(teamId)] : []),
@@ -313,6 +311,8 @@ async function updateTask(apiKey: string, updateData: any) {
   
   console.log(`Updating task ${taskId}:`, updates);
 
+  const corsHeaders = getCorsHeaders(null);
+
   try {
     const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}`, {
       method: 'PUT',
@@ -346,6 +346,8 @@ async function addComment(apiKey: string, commentData: any) {
   const { taskId, comment } = commentData;
   
   console.log(`Adding comment to task ${taskId}`);
+
+  const corsHeaders = getCorsHeaders(null);
 
   try {
     const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/comment`, {
@@ -382,6 +384,8 @@ async function addComment(apiKey: string, commentData: any) {
 async function getTeams(apiKey: string) {
   console.log('Getting ClickUp teams');
 
+  const corsHeaders = getCorsHeaders(null);
+
   try {
     const response = await fetch('https://api.clickup.com/api/v2/team', {
       headers: {
@@ -417,6 +421,8 @@ async function debugGetTasks(apiKey: string, teamId: string, userEmail: string) 
     steps: [] as any[],
     errors: [] as string[],
   };
+
+  const corsHeaders = getCorsHeaders(null);
 
   try {
     // Step 1: Validate API key
@@ -688,7 +694,7 @@ async function userLookup(apiKey: string, teamId: string, userEmail: string) {
         );
       }
       
-      const maxSimilarity = Math.max(usernameAlias, emailSimilarity, nameSimilarity);
+      const maxSimilarity = Math.max(usernameSimilarity, emailSimilarity, nameSimilarity);
       
       return {
         member,
