@@ -89,7 +89,13 @@ export const MapaMentalView = () => {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [tempConnection, setTempConnection] = useState<{ x: number; y: number } | null>(null);
+  const [selectedElement, setSelectedElement] = useState<{id: string, type: 'node' | 'note'} | null>(null);
+  const [draggedConnection, setDraggedConnection] = useState<{
+    startNode: {id: string, type: 'node' | 'note'},
+    currentPos: {x: number, y: number}
+  } | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchMapas();
@@ -175,6 +181,24 @@ export const MapaMentalView = () => {
     }
   };
 
+  // Auto-save função
+  const autoSave = async () => {
+    if (!currentMapa) return;
+
+    try {
+      const { error } = await supabase
+        .from('mapas_mentais')
+        .update({
+          dados_mapa: currentMapa.dados_mapa as any
+        })
+        .eq('id', currentMapa.id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erro no auto-save:', error);
+    }
+  };
+
   const saveMapa = async () => {
     if (!currentMapa) return;
 
@@ -194,6 +218,25 @@ export const MapaMentalView = () => {
       toast.error('Erro ao salvar mapa mental');
     }
   };
+
+  // Trigger auto-save quando os dados mudam
+  useEffect(() => {
+    if (!currentMapa) return;
+    
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      autoSave();
+    }, 1000); // Auto-save após 1 segundo de inatividade
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [currentMapa?.dados_mapa]);
 
   const shareMap = async () => {
     if (!currentMapa) return;
@@ -368,6 +411,8 @@ export const MapaMentalView = () => {
 
   const deleteNode = (nodeId: string) => {
     if (!currentMapa || nodeId === 'central') return;
+    
+    if (!confirm('Tem certeza que deseja excluir este nó e suas conexões?')) return;
 
     setCurrentMapa({
       ...currentMapa,
@@ -379,10 +424,15 @@ export const MapaMentalView = () => {
         notes: currentMapa.dados_mapa.notes
       }
     });
+    
+    setSelectedElement(null);
+    toast.success('Nó excluído com sucesso');
   };
 
   const deleteNote = (noteId: string) => {
     if (!currentMapa) return;
+    
+    if (!confirm('Tem certeza que deseja excluir esta anotação e suas conexões?')) return;
 
     setCurrentMapa({
       ...currentMapa,
@@ -395,9 +445,86 @@ export const MapaMentalView = () => {
         )
       }
     });
+    
+    setSelectedElement(null);
+    toast.success('Anotação excluída com sucesso');
   };
 
-  const handleElementClick = (elementId: string, elementType: 'node' | 'note') => {
+  const deleteConnection = (connectionId: string) => {
+    if (!currentMapa) return;
+    
+    if (!confirm('Tem certeza que deseja excluir esta conexão?')) return;
+
+    setCurrentMapa({
+      ...currentMapa,
+      dados_mapa: {
+        ...currentMapa.dados_mapa,
+        connections: currentMapa.dados_mapa.connections.filter(conn => conn.id !== connectionId)
+      }
+    });
+    
+    toast.success('Conexão excluída com sucesso');
+  };
+
+  // Duplo clique para editar
+  const handleNodeDoubleClick = (nodeId: string) => {
+    const node = currentMapa?.dados_mapa.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    setEditingNode(nodeId);
+    setNodeText(node.text);
+  };
+
+  const handleNoteDoubleClick = (noteId: string) => {
+    const note = currentMapa?.dados_mapa.notes.find(n => n.id === noteId);
+    if (!note) return;
+    
+    setEditingNote(noteId);
+    setNoteText(note.text);
+  };
+
+  // Controles de teclado
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!currentMapa) return;
+      
+      // Delete key - excluir elemento selecionado
+      if (e.key === 'Delete' && selectedElement) {
+        if (selectedElement.type === 'node') {
+          deleteNode(selectedElement.id);
+        } else if (selectedElement.type === 'note') {
+          deleteNote(selectedElement.id);
+        }
+      }
+      
+      // Enter key - iniciar edição
+      if (e.key === 'Enter' && selectedElement) {
+        if (selectedElement.type === 'node') {
+          handleNodeDoubleClick(selectedElement.id);
+        } else if (selectedElement.type === 'note') {
+          handleNoteDoubleClick(selectedElement.id);
+        }
+      }
+      
+      // Escape - cancelar edição
+      if (e.key === 'Escape') {
+        setEditingNode(null);
+        setEditingNote(null);
+        setSelectedElement(null);
+        setConnectionStart(null);
+        setIsConnecting(false);
+        setTempConnection(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentMapa, selectedElement]);
+
+  // Click simples para selecionar elemento
+  const handleElementClick = (elementId: string, elementType: 'node' | 'note', e: React.MouseEvent) => {
+    e.stopPropagation();
+    
     if (activeTool === 'connection') {
       if (!connectionStart) {
         setConnectionStart({ id: elementId, type: elementType });
@@ -408,8 +535,11 @@ export const MapaMentalView = () => {
         }
         setConnectionStart(null);
       }
+    } else {
+      setSelectedElement({ id: elementId, type: elementType });
     }
   };
+
 
   const createConnection = (from: {id: string, type: 'node' | 'note'}, to: {id: string, type: 'node' | 'note'}) => {
     if (!currentMapa) return;
@@ -775,7 +905,7 @@ export const MapaMentalView = () => {
                        setConnectionStart(null);
                        setTempConnection(null);
                      } else {
-                       handleElementClick(note.id, 'note');
+                       handleElementClick(note.id, 'note', e);
                      }
                    }}
                   onDoubleClick={() => {
@@ -837,7 +967,11 @@ export const MapaMentalView = () => {
               {currentMapa.dados_mapa.nodes.map(node => (
                 <div
                   key={node.id}
-                  className="absolute bg-background border-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                  className={`absolute bg-background border-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 ${
+                    selectedElement?.id === node.id && selectedElement?.type === 'node' 
+                      ? 'ring-2 ring-primary ring-offset-2' 
+                      : ''
+                  }`}
                   style={{
                     left: node.x,
                     top: node.y,
@@ -863,7 +997,7 @@ export const MapaMentalView = () => {
                        setConnectionStart(null);
                        setTempConnection(null);
                      } else {
-                       handleElementClick(node.id, 'node');
+                       handleElementClick(node.id, 'node', e);
                      }
                    }}
                   onDoubleClick={() => {
@@ -950,8 +1084,38 @@ export const MapaMentalView = () => {
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           )}
-                        </div>
-                      )}
+                     </div>
+                   )}
+                   
+                   {/* Botões de controle quando selecionado */}
+                   {selectedElement?.id === node.id && selectedElement?.type === 'node' && (
+                     <div className="absolute -top-10 right-0 flex gap-1">
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         className="h-6 w-6 p-0 bg-background border shadow-sm hover:bg-accent"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           handleNodeDoubleClick(node.id);
+                         }}
+                       >
+                         <Edit className="h-3 w-3" />
+                       </Button>
+                       {node.id !== 'central' && (
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           className="h-6 w-6 p-0 bg-background border shadow-sm hover:bg-destructive hover:text-destructive-foreground"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             deleteNode(node.id);
+                           }}
+                         >
+                           <Trash2 className="h-3 w-3" />
+                         </Button>
+                       )}
+                     </div>
+                   )}
                     </div>
                   )}
                   

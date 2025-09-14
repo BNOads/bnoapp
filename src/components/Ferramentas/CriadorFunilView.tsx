@@ -119,8 +119,11 @@ export const CriadorFunilView = () => {
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const [tempConnection, setTempConnection] = useState<{ x: number; y: number } | null>(null);
   const [editingElement, setEditingElement] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const [selectedElement, setSelectedElement] = useState<string | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchFunis();
@@ -188,6 +191,43 @@ export const CriadorFunilView = () => {
       toast.error('Erro ao criar funil');
     }
   };
+
+  // Auto-save funcionalidade
+  const autoSave = async () => {
+    if (!currentFunil) return;
+
+    try {
+      const { error } = await supabase
+        .from('funis_marketing')
+        .update({
+          dados_funil: currentFunil.dados_funil as any
+        })
+        .eq('id', currentFunil.id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erro no auto-save:', error);
+    }
+  };
+
+  // Trigger auto-save quando os dados mudam
+  useEffect(() => {
+    if (!currentFunil) return;
+    
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      autoSave();
+    }, 1000); // Auto-save após 1 segundo de inatividade
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [currentFunil?.dados_funil]);
 
   const saveFunil = async () => {
     if (!currentFunil) return;
@@ -396,6 +436,8 @@ export const CriadorFunilView = () => {
 
   const deleteElement = (elementId: string) => {
     if (!currentFunil) return;
+    
+    if (!confirm('Tem certeza que deseja excluir este elemento e suas conexões?')) return;
 
     setCurrentFunil({
       ...currentFunil,
@@ -406,6 +448,9 @@ export const CriadorFunilView = () => {
         )
       }
     });
+    
+    setSelectedElement(null);
+    toast.success('Elemento excluído com sucesso');
   };
 
   const updateElement = (elementId: string, updates: Partial<FunnelElement>) => {
@@ -420,6 +465,79 @@ export const CriadorFunilView = () => {
         )
       }
     });
+  };
+
+  const deleteConnection = (connectionId: string) => {
+    if (!currentFunil) return;
+    
+    if (!confirm('Tem certeza que deseja excluir esta conexão?')) return;
+
+    setCurrentFunil({
+      ...currentFunil,
+      dados_funil: {
+        ...currentFunil.dados_funil,
+        connections: currentFunil.dados_funil.connections.filter(conn => conn.id !== connectionId)
+      }
+    });
+    
+    toast.success('Conexão excluída com sucesso');
+  };
+
+  // Duplo clique para editar
+  const handleElementDoubleClick = (elementId: string) => {
+    const element = currentFunil?.dados_funil.elements.find(el => el.id === elementId);
+    if (!element) return;
+    
+    setEditingElement(elementId);
+    setEditingText(element.title);
+  };
+
+  // Controles de teclado
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!currentFunil) return;
+      
+      // Delete key - excluir elemento selecionado
+      if (e.key === 'Delete' && selectedElement) {
+        deleteElement(selectedElement);
+      }
+      
+      // Enter key - iniciar edição
+      if (e.key === 'Enter' && selectedElement) {
+        handleElementDoubleClick(selectedElement);
+      }
+      
+      // Escape - cancelar edição
+      if (e.key === 'Escape') {
+        setEditingElement(null);
+        setSelectedElement(null);
+        setConnectionStart(null);
+        setIsConnecting(false);
+        setTempConnection(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentFunil, selectedElement]);
+
+  // Click simples para selecionar elemento
+  const handleElementClick = (elementId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (selectedTool === 'connect') {
+      if (!connectionStart) {
+        setConnectionStart(elementId);
+        setIsConnecting(true);
+        toast.info('Clique em outro elemento para criar a conexão');
+      } else if (connectionStart !== elementId) {
+        createConnection(connectionStart, elementId);
+        setConnectionStart(null);
+        setIsConnecting(false);
+      }
+    } else {
+      setSelectedElement(elementId);
+    }
   };
 
   const deleteFunil = async (id: string) => {
@@ -762,7 +880,11 @@ export const CriadorFunilView = () => {
                 return (
                   <div
                     key={element.id}
-                    className="absolute bg-background border-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 group"
+                    className={`absolute bg-background border-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 group ${
+                      selectedElement === element.id 
+                        ? 'ring-2 ring-primary ring-offset-2' 
+                        : ''
+                    }`}
                     style={{
                       left: element.x,
                       top: element.y,
@@ -772,7 +894,8 @@ export const CriadorFunilView = () => {
                       cursor: selectedTool === 'select' ? 'move' : selectedTool === 'connect' ? 'pointer' : 'default'
                     }}
                     onMouseDown={(e) => handleElementMouseDown(e, element.id)}
-                    onDoubleClick={() => setEditingElement(element.id)}
+                    onClick={(e) => handleElementClick(element.id, e)}
+                    onDoubleClick={() => handleElementDoubleClick(element.id)}
                   >
                     <div className="p-3 h-full flex flex-col">
                       <div className="flex items-center justify-between mb-2">
@@ -782,22 +905,30 @@ export const CriadorFunilView = () => {
                         >
                           <IconComponent className="h-3 w-3" />
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteElement(element.id);
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
                       </div>
                       
-                      <h4 className="text-xs font-semibold mb-1 line-clamp-2">
-                        {element.title}
-                      </h4>
+                      <div className="text-xs font-semibold mb-1 line-clamp-2">
+                        {editingElement === element.id ? (
+                          <Input
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            onBlur={() => {
+                              updateElement(element.id, { title: editingText });
+                              setEditingElement(null);
+                            }}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                updateElement(element.id, { title: editingText });
+                                setEditingElement(null);
+                              }
+                            }}
+                            className="text-xs font-semibold border-none p-0 h-auto bg-transparent focus-visible:ring-0"
+                            autoFocus
+                          />
+                        ) : (
+                          element.title
+                        )}
+                      </div>
                       
                       {element.description && (
                         <p className="text-xs text-muted-foreground line-clamp-1">
@@ -812,6 +943,80 @@ export const CriadorFunilView = () => {
                           )}
                         </div>
                       )}
+                    </div>
+                    
+                    {/* Botões de controle quando selecionado */}
+                    {selectedElement === element.id && (
+                      <div className="absolute -top-8 right-0 flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 bg-background border shadow-sm hover:bg-accent"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleElementDoubleClick(element.id);
+                          }}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 bg-background border shadow-sm hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteElement(element.id);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Pontos de conexão */}
+                    {selectedTool === 'connect' && (
+                      <>
+                        {/* Ponto superior */}
+                        <div 
+                          className="absolute w-3 h-3 bg-primary border-2 border-background rounded-full -top-1.5 left-1/2 transform -translate-x-1/2 cursor-pointer hover:scale-110 transition-transform"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleElementClick(element.id, e);
+                          }}
+                        />
+                        {/* Ponto direito */}
+                        <div 
+                          className="absolute w-3 h-3 bg-primary border-2 border-background rounded-full -right-1.5 top-1/2 transform -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleElementClick(element.id, e);
+                          }}
+                        />
+                        {/* Ponto inferior */}
+                        <div 
+                          className="absolute w-3 h-3 bg-primary border-2 border-background rounded-full -bottom-1.5 left-1/2 transform -translate-x-1/2 cursor-pointer hover:scale-110 transition-transform"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleElementClick(element.id, e);
+                          }}
+                        />
+                        {/* Ponto esquerdo */}
+                        <div 
+                          className="absolute w-3 h-3 bg-primary border-2 border-background rounded-full -left-1.5 top-1/2 transform -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleElementClick(element.id, e);
+                          }}
+                        />
+                      </>
+                    )}
+
+        {/* Share Dialog */}
+                );
+              })}
+            </div>
+          </div>
+        </div>
                     </div>
                   </div>
                 );
