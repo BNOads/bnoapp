@@ -65,7 +65,7 @@ export default function ClickUpTasksView() {
 
   useEffect(() => {
     loadTasks();
-    
+
     // Sincronização automática a cada 5 minutos
     const interval = setInterval(loadTasks, 5 * 60 * 1000);
     return () => clearInterval(interval);
