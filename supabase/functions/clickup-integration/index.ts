@@ -62,8 +62,13 @@ serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const action = url.searchParams.get('action') || 'getTasks';
-    const teamId = url.searchParams.get('teamId') || '90140307863'; // ID padrão do team
+    // Suporta ação via body (POST) ou querystring
+    let body: any = null;
+    if (req.method !== 'GET') {
+      try { body = await req.json(); } catch { /* body pode estar vazio */ }
+    }
+    const action = (body?.action || url.searchParams.get('action') || 'getTasks') as string;
+    const teamId = (body?.teamId || url.searchParams.get('teamId') || '90140307863') as string;
 
     console.log(`ClickUp Integration - Action: ${action}, User: ${user.user.email}`);
 
@@ -81,12 +86,10 @@ serve(async (req) => {
         return await getTasks(clickupApiKey, teamId, userEmail);
       
       case 'updateTask':
-        const updateData = await req.json();
-        return await updateTask(clickupApiKey, updateData);
+        return await updateTask(clickupApiKey, body);
       
       case 'addComment':
-        const commentData = await req.json();
-        return await addComment(clickupApiKey, commentData);
+        return await addComment(clickupApiKey, body);
       
       case 'getTeams':
         return await getTeams(clickupApiKey);
