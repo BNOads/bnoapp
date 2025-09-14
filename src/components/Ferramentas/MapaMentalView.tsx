@@ -963,10 +963,22 @@ export const MapaMentalView = () => {
                   )}
                   {activeTool === 'connection' && (
                     <>
-                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
-                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
-                      <div className="absolute top-1/2 -left-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
-                      <div className="absolute top-1/2 -right-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
+                      <div
+                        className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm cursor-crosshair"
+                        onMouseDown={(e) => { e.stopPropagation(); setIsConnecting(true); setConnectionStart({ id: note.id, type: 'note' }); }}
+                      />
+                      <div
+                        className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm cursor-crosshair"
+                        onMouseDown={(e) => { e.stopPropagation(); setIsConnecting(true); setConnectionStart({ id: note.id, type: 'note' }); }}
+                      />
+                      <div
+                        className="absolute top-1/2 -left-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm cursor-crosshair"
+                        onMouseDown={(e) => { e.stopPropagation(); setIsConnecting(true); setConnectionStart({ id: note.id, type: 'note' }); }}
+                      />
+                      <div
+                        className="absolute top-1/2 -right-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm cursor-crosshair"
+                        onMouseDown={(e) => { e.stopPropagation(); setIsConnecting(true); setConnectionStart({ id: note.id, type: 'note' }); }}
+                      />
                     </>
                   )}
                 </div>
@@ -1096,35 +1108,6 @@ export const MapaMentalView = () => {
                      </div>
                    )}
                    
-                   {/* Botões de controle quando selecionado */}
-                   {selectedElement?.id === node.id && selectedElement?.type === 'node' && (
-                     <div className="absolute -top-10 right-0 flex gap-1">
-                       <Button
-                         variant="ghost"
-                         size="sm"
-                         className="h-6 w-6 p-0 bg-background border shadow-sm hover:bg-accent"
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           handleNodeDoubleClick(node.id);
-                         }}
-                       >
-                         <Edit className="h-3 w-3" />
-                       </Button>
-                       {node.id !== 'central' && (
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           className="h-6 w-6 p-0 bg-background border shadow-sm hover:bg-destructive hover:text-destructive-foreground"
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             deleteNode(node.id);
-                           }}
-                         >
-                           <Trash2 className="h-3 w-3" />
-                         </Button>
-                       )}
-                     </div>
-                   )}
                     </div>
                   )}
                   
@@ -1135,10 +1118,22 @@ export const MapaMentalView = () => {
                   />
                   {activeTool === 'connection' && (
                     <>
-                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
-                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
-                      <div className="absolute top-1/2 -left-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
-                      <div className="absolute top-1/2 -right-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
+                      <div
+                        className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm cursor-crosshair"
+                        onMouseDown={(e) => { e.stopPropagation(); setIsConnecting(true); setConnectionStart({ id: node.id, type: 'node' }); }}
+                      />
+                      <div
+                        className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm cursor-crosshair"
+                        onMouseDown={(e) => { e.stopPropagation(); setIsConnecting(true); setConnectionStart({ id: node.id, type: 'node' }); }}
+                      />
+                      <div
+                        className="absolute top-1/2 -left-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm cursor-crosshair"
+                        onMouseDown={(e) => { e.stopPropagation(); setIsConnecting(true); setConnectionStart({ id: node.id, type: 'node' }); }}
+                      />
+                      <div
+                        className="absolute top-1/2 -right-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm cursor-crosshair"
+                        onMouseDown={(e) => { e.stopPropagation(); setIsConnecting(true); setConnectionStart({ id: node.id, type: 'node' }); }}
+                      />
                     </>
                   )}
                 </div>
