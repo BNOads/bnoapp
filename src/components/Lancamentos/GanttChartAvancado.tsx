@@ -6,11 +6,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Calendar, Clock, Edit } from "lucide-react";
-import { format, addDays, startOfWeek, startOfMonth, endOfMonth, differenceInDays, isToday, parseISO } from "date-fns";
+import { Calendar, Clock, Edit, CalendarDays, BarChart3, Plus } from "lucide-react";
+import { format, addDays, startOfWeek, startOfMonth, endOfMonth, differenceInDays, isToday, parseISO, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 type EscalaVisao = 'dia' | 'semana' | 'mes';
+type TipoVisualizacao = 'gantt' | 'calendario' | 'timeline';
 
 interface FaseLancamento {
   nome: string;
@@ -63,6 +64,7 @@ const fases: FaseLancamento[] = [
 
 export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttChartAvancadoProps) {
   const [escalaVisao, setEscalaVisao] = useState<EscalaVisao>('dia');
+  const [tipoVisualizacao, setTipoVisualizacao] = useState<TipoVisualizacao>('gantt');
   const [editingPhase, setEditingPhase] = useState<FaseLancamento | null>(null);
   const [tempDates, setTempDates] = useState<{ inicio: string; fim: string }>({ inicio: '', fim: '' });
 
@@ -166,6 +168,140 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
     return differenceInDays(parseISO(fim), parseISO(inicio)) + 1;
   };
 
+  const renderCalendarioView = () => {
+    const events = fases.map(fase => ({
+      ...fase,
+      dataInicio: lancamento[fase.campo_inicio],
+      dataFim: lancamento[fase.campo_fim]
+    })).filter(event => event.dataInicio);
+
+    const sortedEvents = events.sort((a, b) => 
+      new Date(a.dataInicio!).getTime() - new Date(b.dataInicio!).getTime()
+    );
+
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-4">
+          {sortedEvents.map((event, index) => {
+            const inicio = parseISO(event.dataInicio!);
+            const fim = event.dataFim ? parseISO(event.dataFim) : inicio;
+            const dias = calcularDiasFase(event.dataInicio, event.dataFim);
+            const isHoje = event.dataInicio && isSameDay(new Date(), inicio);
+
+            return (
+              <div 
+                key={index}
+                className={`relative border rounded-lg p-4 ${isHoje ? 'border-red-500 bg-red-50' : 'border-border'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-4 h-4 rounded ${event.cor}`}></div>
+                    <div>
+                      <h4 className="font-medium">{event.nome}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {format(inicio, 'dd/MM/yyyy', { locale: ptBR })}
+                        {event.dataFim && ` - ${format(fim, 'dd/MM/yyyy', { locale: ptBR })}`}
+                        {dias > 0 && ` (${dias} dias)`}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEditPhase(event)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+                {isHoje && (
+                  <Badge variant="destructive" className="absolute top-2 right-12">
+                    Hoje
+                  </Badge>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => setEditingPhase({
+            nome: 'Nova Fase',
+            dataInicio: null,
+            dataFim: null,
+            cor: 'bg-purple-500',
+            campo_inicio: 'data_inicio_captacao' as any,
+            campo_fim: 'data_fim_captacao' as any
+          })}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Adicionar Nova Fase
+        </Button>
+      </div>
+    );
+  };
+
+  const renderTimelineView = () => {
+    const events = fases.map(fase => ({
+      ...fase,
+      dataInicio: lancamento[fase.campo_inicio],
+      dataFim: lancamento[fase.campo_fim]
+    })).filter(event => event.dataInicio).sort((a, b) => 
+      new Date(a.dataInicio!).getTime() - new Date(b.dataInicio!).getTime()
+    );
+
+    return (
+      <div className="space-y-6">
+        <div className="relative">
+          {/* Linha vertical principal */}
+          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"></div>
+          
+          {events.map((event, index) => {
+            const inicio = parseISO(event.dataInicio!);
+            const fim = event.dataFim ? parseISO(event.dataFim) : inicio;
+            const dias = calcularDiasFase(event.dataInicio, event.dataFim);
+            const isHoje = isSameDay(new Date(), inicio);
+
+            return (
+              <div key={index} className="relative flex items-start gap-6 pb-8">
+                {/* Marcador na linha */}
+                <div className={`relative z-10 w-8 h-8 rounded-full border-4 border-background ${event.cor} ${isHoje ? 'ring-2 ring-red-500' : ''}`}>
+                  <div className="w-full h-full rounded-full bg-current opacity-80"></div>
+                </div>
+                
+                {/* Conteúdo */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-sm">{event.nome}</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {format(inicio, 'dd/MM/yyyy', { locale: ptBR })}
+                        {event.dataFim && ` - ${format(fim, 'dd/MM/yyyy', { locale: ptBR })}`}
+                      </p>
+                      {dias > 0 && (
+                        <Badge variant="secondary" className="mt-1 text-xs">
+                          {dias} dias
+                        </Badge>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditPhase(event)}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <TooltipProvider>
       <Card>
@@ -173,127 +309,162 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Cronograma Gantt
+              Cronograma
             </CardTitle>
             <div className="flex gap-2">
-              <Button
-                variant={escalaVisao === 'dia' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setEscalaVisao('dia')}
-              >
-                Dia
-              </Button>
-              <Button
-                variant={escalaVisao === 'semana' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setEscalaVisao('semana')}
-              >
-                Semana
-              </Button>
-              <Button
-                variant={escalaVisao === 'mes' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setEscalaVisao('mes')}
-              >
-                Mês
-              </Button>
+              {/* Tipo de Visualização */}
+              <div className="flex gap-1 border rounded p-1">
+                <Button
+                  variant={tipoVisualizacao === 'gantt' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTipoVisualizacao('gantt')}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={tipoVisualizacao === 'calendario' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTipoVisualizacao('calendario')}
+                >
+                  <CalendarDays className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={tipoVisualizacao === 'timeline' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTipoVisualizacao('timeline')}
+                >
+                  <Clock className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Escala de Visualização - apenas no Gantt */}
+              {tipoVisualizacao === 'gantt' && (
+                <div className="flex gap-2">
+                  <Button
+                    variant={escalaVisao === 'dia' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setEscalaVisao('dia')}
+                  >
+                    Dia
+                  </Button>
+                  <Button
+                    variant={escalaVisao === 'semana' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setEscalaVisao('semana')}
+                  >
+                    Semana
+                  </Button>
+                  <Button
+                    variant={escalaVisao === 'mes' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setEscalaVisao('mes')}
+                  >
+                    Mês
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {/* Cabeçalho com datas */}
-            <div className="relative">
-              <div className="grid grid-cols-12 gap-1 text-xs text-muted-foreground mb-2">
-                {pontosNoTempo.slice(0, 12).map((data, index) => (
-                  <div key={index} className="text-center">
-                    {formatarDataHeader(data)}
+          {tipoVisualizacao === 'gantt' && (
+            <div className="space-y-4">
+              {/* Cabeçalho com datas */}
+              <div className="relative">
+                <div className="grid grid-cols-12 gap-1 text-xs text-muted-foreground mb-2">
+                  {pontosNoTempo.slice(0, 12).map((data, index) => (
+                    <div key={index} className="text-center">
+                      {formatarDataHeader(data)}
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Timeline base */}
+                <div className="relative h-2 bg-muted rounded mb-4">
+                  {/* Linha do "hoje" */}
+                  <div
+                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
+                    style={{ left: `${posicaoHoje}%` }}
+                  >
+                    <div className="absolute -top-1 -left-2 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
+                    <div className="absolute -bottom-6 -left-4 text-xs text-red-500 font-medium">
+                      Hoje
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fases do lançamento */}
+              <div className="space-y-3">
+                {fases.map((fase) => {
+                  const dataInicio = lancamento[fase.campo_inicio];
+                  const dataFim = lancamento[fase.campo_fim];
+                  const posicao = calcularPosicao(dataInicio);
+                  const largura = calcularLargura(dataInicio, dataFim);
+                  const dias = calcularDiasFase(dataInicio, dataFim);
+
+                  return (
+                    <div key={fase.nome} className="flex items-center gap-4">
+                      <div className="w-24 text-sm font-medium">{fase.nome}</div>
+                      
+                      <div className="flex-1 relative h-8">
+                        {dataInicio && dataFim && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className={`absolute h-6 rounded ${fase.cor} opacity-80 hover:opacity-100 cursor-pointer transition-opacity flex items-center justify-center group`}
+                                style={{ 
+                                  left: `${posicao}%`,
+                                  width: `${largura}%`,
+                                  minWidth: '40px'
+                                }}
+                                onClick={() => handleEditPhase(fase)}
+                              >
+                                <Edit className="h-3 w-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="text-sm">
+                                <div className="font-medium">{fase.nome}</div>
+                                <div>Início: {format(parseISO(dataInicio), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                                <div>Fim: {format(parseISO(dataFim), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                                <div>Duração: {dias} dias</div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+
+                      <div className="w-16 text-xs text-muted-foreground text-right">
+                        {dias > 0 ? `${dias}d` : '-'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Legenda */}
+              <div className="flex flex-wrap gap-4 pt-4 border-t">
+                {fases.map((fase) => (
+                  <div key={fase.nome} className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded ${fase.cor}`}></div>
+                    <span className="text-sm">{fase.nome}</span>
                   </div>
                 ))}
-              </div>
-              
-              {/* Timeline base */}
-              <div className="relative h-2 bg-muted rounded mb-4">
-                {/* Linha do "hoje" */}
-                <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
-                  style={{ left: `${posicaoHoje}%` }}
-                >
-                  <div className="absolute -top-1 -left-2 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
-                  <div className="absolute -bottom-6 -left-4 text-xs text-red-500 font-medium">
-                    Hoje
-                  </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded"></div>
+                  <span className="text-sm">Hoje</span>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Fases do lançamento */}
-            <div className="space-y-3">
-              {fases.map((fase) => {
-                const dataInicio = lancamento[fase.campo_inicio];
-                const dataFim = lancamento[fase.campo_fim];
-                const posicao = calcularPosicao(dataInicio);
-                const largura = calcularLargura(dataInicio, dataFim);
-                const dias = calcularDiasFase(dataInicio, dataFim);
-
-                return (
-                  <div key={fase.nome} className="flex items-center gap-4">
-                    <div className="w-24 text-sm font-medium">{fase.nome}</div>
-                    
-                    <div className="flex-1 relative h-8">
-                      {dataInicio && dataFim && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div
-                              className={`absolute h-6 rounded ${fase.cor} opacity-80 hover:opacity-100 cursor-pointer transition-opacity flex items-center justify-center group`}
-                              style={{ 
-                                left: `${posicao}%`,
-                                width: `${largura}%`,
-                                minWidth: '40px'
-                              }}
-                              onClick={() => handleEditPhase(fase)}
-                            >
-                              <Edit className="h-3 w-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-sm">
-                              <div className="font-medium">{fase.nome}</div>
-                              <div>Início: {format(parseISO(dataInicio), 'dd/MM/yyyy', { locale: ptBR })}</div>
-                              <div>Fim: {format(parseISO(dataFim), 'dd/MM/yyyy', { locale: ptBR })}</div>
-                              <div>Duração: {dias} dias</div>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-
-                    <div className="w-16 text-xs text-muted-foreground text-right">
-                      {dias > 0 ? `${dias}d` : '-'}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Legenda */}
-            <div className="flex flex-wrap gap-4 pt-4 border-t">
-              {fases.map((fase) => (
-                <div key={fase.nome} className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded ${fase.cor}`}></div>
-                  <span className="text-sm">{fase.nome}</span>
-                </div>
-              ))}
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-500 rounded"></div>
-                <span className="text-sm">Hoje</span>
-              </div>
-            </div>
-          </div>
+          {tipoVisualizacao === 'calendario' && renderCalendarioView()}
+          {tipoVisualizacao === 'timeline' && renderTimelineView()}
         </CardContent>
       </Card>
 
-      {/* Modal de edição */}
+      {/* Modal de edição de fase */}
       <Dialog open={!!editingPhase} onOpenChange={() => setEditingPhase(null)}>
         <DialogContent>
           <DialogHeader>
