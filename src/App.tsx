@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import ColaboradoresPage from "./pages/Colaboradores";
 import ClientesPage from "./pages/Clientes";
 import LancamentosPage from "./pages/Lancamentos";
+import LancamentoDetalhes from "./pages/LancamentoDetalhes";
 import AssistentePage from "./pages/Assistente";
 import TreinamentosPage from "./pages/Treinamentos";
 import FerramentasPage from "./pages/Ferramentas";
@@ -106,6 +107,11 @@ function App() {
                 <Route path="/lancamentos" element={
                   <ProtectedRoute>
                     <LancamentosPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/lancamentos/:id" element={
+                  <ProtectedRoute>
+                    <LancamentoDetalhes />
                   </ProtectedRoute>
                 } />
                 <Route path="/assistente" element={
