@@ -51,10 +51,12 @@ interface GestorOrcamento {
 interface OrcamentoPorFunilProps {
   clienteId: string;
   isPublicView?: boolean;
+  showGestorValues?: boolean;
 }
 export const OrcamentoPorFunil = ({
   clienteId,
-  isPublicView = false
+  isPublicView = false,
+  showGestorValues = true
 }: OrcamentoPorFunilProps) => {
   const [orcamentos, setOrcamentos] = useState<OrcamentoFunil[]>([]);
   const [gestoresOrcamentos, setGestoresOrcamentos] = useState<GestorOrcamento[]>([]);
@@ -93,8 +95,10 @@ export const OrcamentoPorFunil = ({
   useEffect(() => {
     console.log('🚀 Iniciando carregamento - clienteId:', clienteId);
     carregarOrcamentos();
-    carregarOrcamentosGestores();
-  }, [clienteId]);
+    if (showGestorValues) {
+      carregarOrcamentosGestores();
+    }
+  }, [clienteId, showGestorValues]);
   const carregarOrcamentos = async () => {
     try {
       let clientInstance = supabase;
@@ -362,12 +366,14 @@ export const OrcamentoPorFunil = ({
       </div>
 
       {/* Tabs para alternar entre visualizações */}
-      <Tabs defaultValue="gestores" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue={clienteId ? "cliente" : "gestores"} className="w-full">
+        <TabsList className={`grid w-full ${clienteId && showGestorValues ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {clienteId && (
             <TabsTrigger value="cliente">Por Cliente</TabsTrigger>
           )}
-          <TabsTrigger value="gestores">Por Gestores</TabsTrigger>
+          {showGestorValues && (
+            <TabsTrigger value="gestores">Por Gestores</TabsTrigger>
+          )}
         </TabsList>
 
         {/* Aba do Cliente Específico */}
@@ -471,6 +477,7 @@ export const OrcamentoPorFunil = ({
         )}
 
         {/* Aba dos Gestores */}
+        {showGestorValues && (
         <TabsContent value="gestores" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
             {gestoresOrcamentos.map(gestor => (
@@ -543,6 +550,7 @@ export const OrcamentoPorFunil = ({
             </Card>
           )}
         </TabsContent>
+        )}
       </Tabs>
 
       {/* Modal Novo Orçamento */}
