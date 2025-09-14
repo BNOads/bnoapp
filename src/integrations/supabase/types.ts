@@ -1960,6 +1960,7 @@ export type Database = {
           cliente_id: string | null
           configuracoes_editor: Json | null
           conteudo: Json
+          conteudo_markdown: string | null
           created_at: string
           created_by: string
           data_expiracao: string | null
@@ -1978,6 +1979,7 @@ export type Database = {
           cliente_id?: string | null
           configuracoes_editor?: Json | null
           conteudo?: Json
+          conteudo_markdown?: string | null
           created_at?: string
           created_by: string
           data_expiracao?: string | null
@@ -1996,6 +1998,7 @@ export type Database = {
           cliente_id?: string | null
           configuracoes_editor?: Json | null
           conteudo?: Json
+          conteudo_markdown?: string | null
           created_at?: string
           created_by?: string
           data_expiracao?: string | null
@@ -2702,6 +2705,10 @@ export type Database = {
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: string
+      }
+      migrate_reference_content_to_markdown: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       sparsevec_out: {
         Args: { "": unknown }

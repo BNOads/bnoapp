@@ -65,8 +65,8 @@ export const ReferencesEditor = ({
       });
 
       // Converter conteúdo para markdown
-      if (data.conteudo_markdown) {
-        setMarkdownContent(data.conteudo_markdown);
+      if ((data as any).conteudo_markdown) {
+        setMarkdownContent((data as any).conteudo_markdown);
       } else if (data.conteudo && Array.isArray(data.conteudo)) {
         // Migração do formato antigo - converter blocos para markdown
         let markdown = '';

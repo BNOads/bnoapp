@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { MarkdownViewer } from "@/components/References/MarkdownEditor/MarkdownViewer";
 import { NotionEditor } from "@/components/References/NotionEditor/NotionEditor";
 import { EditorBlock } from "@/components/References/NotionEditor/types";
 
@@ -24,6 +25,7 @@ interface ReferenciaCreativo {
   titulo: string;
   categoria: string;
   conteudo: any;
+  conteudo_markdown?: string;
   link_publico: string;
   created_at: string;
   updated_at: string;
@@ -312,7 +314,14 @@ export const ReferenciaViewer = () => {
 
         {/* Content */}
         <div className="space-y-8">
-          {(referencia.versao_editor || 1) >= 2 ? (
+          {referencia.conteudo_markdown ? (
+            /* Novo formato Markdown */
+            <MarkdownViewer
+              content={referencia.conteudo_markdown}
+              className="max-w-none"
+            />
+          ) : (referencia.versao_editor || 1) >= 2 ? (
+            /* Formato NotionEditor (versão 2+) */
             <NotionEditor
               blocks={editorBlocks}
               onChange={() => {}} // Read-only
@@ -320,6 +329,7 @@ export const ReferenciaViewer = () => {
               className="max-w-none"
             />
           ) : (
+            /* Formato clássico (versão 1) */
             Array.isArray(referencia.conteudo) 
               ? referencia.conteudo.map((bloco, index) => (
                 <div key={index} className="space-y-6">
