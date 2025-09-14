@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import * as XLSX from 'xlsx';
+import GanttChartAvancado from "@/components/Lancamentos/GanttChartAvancado";
 
 interface VerbaFase {
   captacao: { percentual: number; dias: number };
@@ -75,6 +76,38 @@ export default function LancamentoDetalhes() {
   const [saving, setSaving] = useState(false);
   const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas'>('calendario');
   const [ganttView, setGanttView] = useState(false);
+
+  const handleUpdateDates = async (campo: string, valor: string) => {
+    if (!lancamento) return;
+
+    try {
+      setSaving(true);
+      const { error } = await supabase
+        .from('lancamentos')
+        .update({ [campo]: valor })
+        .eq('id', lancamento.id);
+
+      if (error) throw error;
+
+      setLancamento(prev => prev ? { ...prev, [campo]: valor } : null);
+      toast.success('Data atualizada com sucesso');
+      
+      // Recalcular verbas automaticamente quando datas mudarem
+      await recalcularVerbas();
+    } catch (error: any) {
+      toast.error('Erro ao atualizar data: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const recalcularVerbas = async () => {
+    if (!lancamento) return;
+
+    // Aqui você pode implementar lógica para recalcular automaticamente
+    // as verbas baseado nas novas datas
+    console.log('Recalculando verbas...');
+  };
 
   useEffect(() => {
     fetchLancamento();
@@ -574,14 +607,10 @@ export default function LancamentoDetalhes() {
         </TabsList>
 
         <TabsContent value="calendario" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Cronograma do Lançamento</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderTimeline()}
-            </CardContent>
-          </Card>
+          <GanttChartAvancado
+            lancamento={lancamento}
+            onUpdateDates={handleUpdateDates}
+          />
         </TabsContent>
 
         <TabsContent value="informacoes" className="space-y-6">
