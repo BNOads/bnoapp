@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Save, Trash2, Edit, Brain, Share2, Link2, Square, Circle, Triangle, StickyNote, Mouse } from "lucide-react";
+import { Plus, Save, Trash2, Edit, Brain, Share2, Link2, Square, Circle, Triangle, StickyNote, Mouse, MousePointer2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface MapNode {
@@ -68,7 +68,7 @@ interface MapaMentalDB {
   compartilhado_em?: string;
 }
 
-type Tool = 'select' | 'node' | 'note' | 'connection' | 'circle' | 'rectangle' | 'triangle';
+type Tool = 'select' | 'node' | 'note' | 'connection' | 'circle' | 'rectangle' | 'triangle' | 'multiselect';
 
 export const MapaMentalView = () => {
   const { user } = useAuth();
@@ -90,6 +90,9 @@ export const MapaMentalView = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [tempConnection, setTempConnection] = useState<{ x: number; y: number } | null>(null);
   const [selectedElement, setSelectedElement] = useState<{id: string, type: 'node' | 'note'} | null>(null);
+  const [selectedElements, setSelectedElements] = useState<Array<{id: string, type: 'node' | 'note'}>>([]);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionBox, setSelectionBox] = useState<{x: number, y: number, width: number, height: number} | null>(null);
   const [draggedConnection, setDraggedConnection] = useState<{
     startNode: {id: string, type: 'node' | 'note'},
     currentPos: {x: number, y: number}
@@ -304,6 +307,9 @@ export const MapaMentalView = () => {
       addNode(x, y, activeTool);
     } else if (activeTool === 'note') {
       addNote(x, y);
+    } else if (activeTool === 'select' || activeTool === 'multiselect') {
+      setSelectedElement(null);
+      setSelectedElements([]);
     }
   };
 
@@ -488,12 +494,25 @@ export const MapaMentalView = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!currentMapa) return;
       
-      // Delete key - excluir elemento selecionado
-      if (e.key === 'Delete' && selectedElement) {
-        if (selectedElement.type === 'node') {
-          deleteNode(selectedElement.id);
-        } else if (selectedElement.type === 'note') {
-          deleteNote(selectedElement.id);
+      // Delete key - excluir elemento(s) selecionado(s)
+      if (e.key === 'Delete') {
+        if (selectedElements.length > 0) {
+          if (confirm(`Tem certeza que deseja excluir ${selectedElements.length} elemento(s) selecionado(s)?`)) {
+            selectedElements.forEach(element => {
+              if (element.type === 'node') {
+                deleteNode(element.id);
+              } else if (element.type === 'note') {
+                deleteNote(element.id);
+              }
+            });
+            setSelectedElements([]);
+          }
+        } else if (selectedElement) {
+          if (selectedElement.type === 'node') {
+            deleteNode(selectedElement.id);
+          } else if (selectedElement.type === 'note') {
+            deleteNote(selectedElement.id);
+          }
         }
       }
       
@@ -536,7 +555,18 @@ export const MapaMentalView = () => {
         setConnectionStart(null);
       }
     } else {
-      setSelectedElement({ id: elementId, type: elementType });
+      if (e.ctrlKey || e.metaKey) {
+        // Multi-select mode
+        const isAlreadySelected = selectedElements.some(el => el.id === elementId && el.type === elementType);
+        if (isAlreadySelected) {
+          setSelectedElements(selectedElements.filter(el => !(el.id === elementId && el.type === elementType)));
+        } else {
+          setSelectedElements([...selectedElements, { id: elementId, type: elementType }]);
+        }
+      } else {
+        setSelectedElement({ id: elementId, type: elementType });
+        setSelectedElements([]);
+      }
     }
   };
 
@@ -622,6 +652,51 @@ export const MapaMentalView = () => {
       return;
     }
 
+    // Handle selection box dragging
+    if (isSelecting && selectionBox) {
+      const startX = selectionBox.x;
+      const startY = selectionBox.y;
+      const width = mouseX - startX;
+      const height = mouseY - startY;
+      
+      setSelectionBox({
+        x: width < 0 ? mouseX : startX,
+        y: height < 0 ? mouseY : startY,
+        width: Math.abs(width),
+        height: Math.abs(height)
+      });
+      
+      // Update selected elements based on selection box
+      const selected: Array<{id: string, type: 'node' | 'note'}> = [];
+      
+      currentMapa.dados_mapa.nodes.forEach(node => {
+        const nodeRight = node.x + (node.width || 150);
+        const nodeBottom = node.y + (node.height || 60);
+        
+        if (node.x < selectionBox.x + selectionBox.width &&
+            nodeRight > selectionBox.x &&
+            node.y < selectionBox.y + selectionBox.height &&
+            nodeBottom > selectionBox.y) {
+          selected.push({ id: node.id, type: 'node' });
+        }
+      });
+      
+      currentMapa.dados_mapa.notes.forEach(note => {
+        const noteRight = note.x + note.width;
+        const noteBottom = note.y + note.height;
+        
+        if (note.x < selectionBox.x + selectionBox.width &&
+            noteRight > selectionBox.x &&
+            note.y < selectionBox.y + selectionBox.height &&
+            noteBottom > selectionBox.y) {
+          selected.push({ id: note.id, type: 'note' });
+        }
+      });
+      
+      setSelectedElements(selected);
+      return;
+    }
+
     const newX = mouseX - dragOffset.x;
     const newY = mouseY - dragOffset.y;
 
@@ -660,6 +735,8 @@ export const MapaMentalView = () => {
     setIsConnecting(false);
     setConnectionStart(null);
     setTempConnection(null);
+    setIsSelecting(false);
+    setSelectionBox(null);
   };
 
   const getElementPosition = (elementId: string, elementType: 'node' | 'note') => {
@@ -709,6 +786,7 @@ export const MapaMentalView = () => {
 
   const tools = [
     { id: 'select', icon: Mouse, label: 'Selecionar' },
+    { id: 'multiselect', icon: MousePointer2, label: 'Seleção Múltipla' },
     { id: 'node', icon: Plus, label: 'Adicionar Nó' },
     { id: 'note', icon: StickyNote, label: 'Adicionar Nota' },
     { id: 'connection', icon: Link2, label: 'Conectar' },
@@ -819,12 +897,21 @@ export const MapaMentalView = () => {
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
               onClick={handleCanvasClick}
+              onMouseDown={(e) => {
+                if (activeTool === 'multiselect' && canvasRef.current) {
+                  const rect = canvasRef.current.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  const y = e.clientY - rect.top;
+                  setIsSelecting(true);
+                  setSelectionBox({ x, y, width: 0, height: 0 });
+                }
+              }}
               style={{
                 backgroundImage: `
                   radial-gradient(circle, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px)
                 `,
                 backgroundSize: '20px 20px',
-                cursor: activeTool === 'select' ? 'default' : 'crosshair'
+                cursor: activeTool === 'select' ? 'default' : activeTool === 'multiselect' ? 'crosshair' : 'crosshair'
               }}
             >
               {/* Render connections */}
@@ -961,6 +1048,10 @@ export const MapaMentalView = () => {
                       </Button>
                     </div>
                   )}
+                  {/* Multi-selection indicator */}
+                  {selectedElements.some(el => el.id === note.id && el.type === 'note') && (
+                    <div className="absolute -inset-1 border-2 border-blue-500 bg-blue-100/20 rounded-lg pointer-events-none" />
+                  )}
                   {activeTool === 'connection' && (
                     <>
                       <div
@@ -983,6 +1074,19 @@ export const MapaMentalView = () => {
                   )}
                 </div>
               ))}
+
+              {/* Selection box */}
+              {selectionBox && (
+                <div
+                  className="absolute border-2 border-blue-500 bg-blue-100/20 pointer-events-none"
+                  style={{
+                    left: selectionBox.x,
+                    top: selectionBox.y,
+                    width: selectionBox.width,
+                    height: selectionBox.height
+                  }}
+                />
+              )}
 
               {/* Render nodes */}
               {currentMapa.dados_mapa.nodes.map(node => (
@@ -1109,6 +1213,11 @@ export const MapaMentalView = () => {
                    )}
                    
                     </div>
+                  )}
+                  
+                  {/* Multi-selection indicator */}
+                  {selectedElements.some(el => el.id === node.id && el.type === 'node') && (
+                    <div className="absolute -inset-1 border-2 border-blue-500 bg-blue-100/20 rounded-xl pointer-events-none" />
                   )}
                   
                   {/* Node indicator */}
