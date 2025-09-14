@@ -334,7 +334,7 @@ export default function LancamentoDetalhes() {
               <Calculator className="h-5 w-5" />
               Distribuição por Fase
               <Badge variant={totalPercentualVerbas === 100 ? "default" : "destructive"}>
-                Total: {totalPercentualVerbas}%
+                Total: {Number(totalPercentualVerbas)}%
               </Badge>
             </CardTitle>
           </CardHeader>
@@ -404,7 +404,7 @@ export default function LancamentoDetalhes() {
               <BarChart3 className="h-5 w-5" />
               Distribuição por Canal
               <Badge variant={totalPercentualCanais === 100 ? "default" : "destructive"}>
-                Total: {totalPercentualCanais}%
+                Total: {Number(totalPercentualCanais)}%
               </Badge>
             </CardTitle>
           </CardHeader>
@@ -422,8 +422,8 @@ export default function LancamentoDetalhes() {
                 {Object.entries(canais as any).map(([canal, dados]: [string, any]) => {
                   const percentual = dados?.percentual || 0;
                   const valorTotal = lancamento.investimento_total * percentual / 100;
-                  const diasCampanha = Object.values(verbas as any).reduce((sum: number, fase: any) => sum + (fase?.dias || 0), 0);
-                  const valorDiario = diasCampanha > 0 ? valorTotal / diasCampanha : 0;
+                  const diasCampanha = Object.values(verbas as any).reduce((sum: number, fase: any) => sum + (Number(fase?.dias) || 0), 0);
+                  const valorDiario = Number(diasCampanha) > 0 ? valorTotal / Number(diasCampanha) : 0;
                   
                   return (
                     <TableRow key={canal}>
