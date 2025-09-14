@@ -542,11 +542,11 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
                             }
                           </Label>
                           <Select
-                            value={csv.mapping[field] || ''}
+                            value={csv.mapping[field] || '__none__'}
                             onValueChange={(value) => {
                               setCsvFiles(prev => prev.map(c => 
                                 c.type === csv.type 
-                                  ? { ...c, mapping: { ...c.mapping, [field]: value } }
+                                  ? { ...c, mapping: { ...c.mapping, [field]: value === "__none__" ? "" : value } }
                                   : c
                               ));
                             }}
@@ -555,7 +555,7 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
                               <SelectValue placeholder="Selecione a coluna" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Não mapear</SelectItem>
+                              <SelectItem value="__none__">Não mapear</SelectItem>
                               {csv.headers.map(header => (
                                 <SelectItem key={header} value={header.toLowerCase()}>
                                   {header}
