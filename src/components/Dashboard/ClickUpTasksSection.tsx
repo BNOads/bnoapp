@@ -11,6 +11,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { format, isPast, isToday, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -37,14 +38,17 @@ export default function ClickUpTasksSection() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const { userData } = useCurrentUser();
+
   useEffect(() => {
     loadTasks();
-  }, []);
+  }, [userData?.email]);
 
   const loadTasks = async () => {
     try {
+      const preferredEmail = userData?.email;
       const { data, error } = await supabase.functions.invoke('clickup-integration', {
-        body: { action: 'getTasks', preferredEmail: 'lucas.oliveirafla7@gmail.com' }
+        body: { action: 'getTasks', preferredEmail }
       });
 
       if (error) {

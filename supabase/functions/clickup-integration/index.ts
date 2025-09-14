@@ -129,156 +129,137 @@ serve(async (req) => {
 async function getTasks(apiKey: string, teamId: string, userEmail: string, preferredEmail?: string) {
   console.log(`Getting tasks for user ${userEmail} (preferred: ${preferredEmail || 'none'})`);
   console.log(`ClickUp API Key presente: ${apiKey ? 'SIM' : 'NÃO'}, Length: ${apiKey?.length || 0}`);
-  console.log(`Team ID: ${teamId}`);
-  
+  console.log(`Team ID (input): ${teamId}`);
+
+  const headers = {
+    'Authorization': apiKey,
+    'Content-Type': 'application/json',
+  } as const;
+
+  const emailToUse = (preferredEmail || userEmail).trim();
+
   try {
-    // Primeiro, buscar o usuário no ClickUp usando diferentes métodos
-    let userId = null;
-    
-    // Método 1: Buscar por email nos membros do team
+    // 1) Listar todos os teams acessíveis para detectar automaticamente
+    let teams: any[] = [];
     try {
-      const teamResponse = await fetch(`https://api.clickup.com/api/v2/team/${teamId}/member`, {
-        headers: {
-          'Authorization': apiKey,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (teamResponse.ok) {
-        const teamData = await teamResponse.json();
-        const member = teamData.members?.find((m: any) => 
-          m.user?.email?.toLowerCase() === userEmail.toLowerCase() ||
-          m.user?.username?.toLowerCase() === userEmail.toLowerCase() ||
-          m.user?.username?.toLowerCase() === userEmail.split('@')[0].toLowerCase()
-        );
-        
-        if (member) {
-          userId = member.user.id;
-          console.log(`Found user by team membership: ${userId}`);
-        }
+      const teamsResp = await fetch('https://api.clickup.com/api/v2/team', { headers });
+      if (teamsResp.ok) {
+        const tdata = await teamsResp.json();
+        teams = tdata.teams || [];
+        console.log(`Teams disponíveis: ${teams.map((t: any) => `${t.name}#${t.id}`).join(', ')}`);
+      } else {
+        console.warn(`Falha ao listar teams: ${teamsResp.status} ${teamsResp.statusText}`);
       }
-    } catch (error) {
-      console.log('Team member lookup failed:', error);
+    } catch (e) {
+      console.warn('Erro ao listar teams:', e);
     }
-    
-    // Método 2: Se não encontrou pelo team, buscar por workspace
-    if (!userId) {
+
+    // 2) Montar candidatos de teamId (prioriza o recebido via body)
+    const candidateTeamIds = Array.from(new Set([
+      ...(teamId ? [String(teamId)] : []),
+      ...teams.map((t: any) => String(t.id)),
+    ]));
+
+    // 3) Encontrar o userId do ClickUp pelo email/alias em algum time
+    let selectedTeamId: string | null = null;
+    let userId: string | null = null;
+    const emailLower = emailToUse.toLowerCase();
+    const alias = emailLower.split('@')[0];
+
+    for (const tid of candidateTeamIds) {
       try {
-        const workspaceResponse = await fetch(`https://api.clickup.com/api/v2/team`, {
-          headers: {
-            'Authorization': apiKey,
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (workspaceResponse.ok) {
-          const workspaceData = await workspaceResponse.json();
-          console.log(`Available teams: ${workspaceData.teams?.map((t: any) => t.id).join(', ')}`);
+        const m = await fetch(`https://api.clickup.com/api/v2/team/${tid}/member`, { headers });
+        if (!m.ok) {
+          console.warn(`GET /team/${tid}/member -> ${m.status} ${m.statusText}`);
+          continue;
         }
-      } catch (error) {
-        console.log('Workspace lookup failed:', error);
+        const mdata = await m.json();
+        const member = mdata.members?.find((mm: any) =>
+          mm.user?.email?.toLowerCase() === emailLower ||
+          mm.user?.username?.toLowerCase() === emailLower ||
+          mm.user?.username?.toLowerCase() === alias
+        );
+        if (member) {
+          selectedTeamId = String(tid);
+          userId = String(member.user?.id);
+          console.log(`Usuário encontrado no time ${selectedTeamId}: userId=${userId}`);
+          break;
+        }
+      } catch (e) {
+        console.warn(`Erro ao buscar membros do time ${tid}:`, e);
       }
     }
-    
-    // Buscar tarefas usando diferentes estratégias
+
+    // 4) Buscar tarefas utilizando o endpoint agregado de team (mais robusto)
     let allTasks: ClickUpTask[] = [];
-    
-    // Estratégia 1: Buscar por spaces no team
-    try {
-      console.log(`Fazendo chamada para: https://api.clickup.com/api/v2/team/${teamId}/space`);
-      const spacesResponse = await fetch(`https://api.clickup.com/api/v2/team/${teamId}/space`, {
-        headers: {
-          'Authorization': apiKey,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      console.log(`Spaces response: ${spacesResponse.status} ${spacesResponse.statusText}`);
-      
-      if (spacesResponse.ok) {
-        const spacesData = await spacesResponse.json();
-        console.log(`Found ${spacesData.spaces?.length || 0} spaces`);
-        console.log(`Spaces data:`, JSON.stringify(spacesData, null, 2));
-        
-        // Para cada space, buscar folders/lists
-        for (const space of spacesData.spaces || []) {
-          try {
-            const listsResponse = await fetch(`https://api.clickup.com/api/v2/space/${space.id}/list`, {
-              headers: {
-                'Authorization': apiKey,
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            if (listsResponse.ok) {
+    if (selectedTeamId) {
+      const params = new URLSearchParams({ include_closed: 'true', subtasks: 'true', page: '0' });
+      if (userId) params.append('assignees[]', userId);
+      const url = `https://api.clickup.com/api/v2/team/${selectedTeamId}/task?${params.toString()}`;
+      console.log('Buscando tarefas no endpoint agregado:', url);
+      const tResp = await fetch(url, { headers });
+      if (tResp.ok) {
+        const tdata = await tResp.json();
+        allTasks = (tdata.tasks || []) as ClickUpTask[];
+        console.log(`Total de tarefas retornadas (agregado): ${allTasks.length}`);
+      } else {
+        console.warn(`Falha no agregado: ${tResp.status} ${tResp.statusText}`);
+      }
+    }
+
+    // 5) Fallback: se nada foi encontrado pelo endpoint agregado, tentar via spaces/lists nos primeiros teams
+    if (allTasks.length === 0) {
+      const teamsToTry = candidateTeamIds.slice(0, 3);
+      for (const tid of teamsToTry) {
+        try {
+          console.log(`Fallback spaces: time ${tid}`);
+          const spacesResponse = await fetch(`https://api.clickup.com/api/v2/team/${tid}/space`, { headers });
+          if (!spacesResponse.ok) {
+            console.warn(`GET /team/${tid}/space -> ${spacesResponse.status} ${spacesResponse.statusText}`);
+            continue;
+          }
+          const spacesData = await spacesResponse.json();
+          for (const space of spacesData.spaces || []) {
+            try {
+              const listsResponse = await fetch(`https://api.clickup.com/api/v2/space/${space.id}/list`, { headers });
+              if (!listsResponse.ok) continue;
               const listsData = await listsResponse.json();
-              
-              // Para cada list, buscar tasks
               for (const list of listsData.lists || []) {
                 try {
-                  const tasksResponse = await fetch(`https://api.clickup.com/api/v2/list/${list.id}/task`, {
-                    headers: {
-                      'Authorization': apiKey,
-                      'Content-Type': 'application/json',
-                    },
-                  });
-                  
-                  if (tasksResponse.ok) {
-                    const tasksData = await tasksResponse.json();
-                    const listTasks = tasksData.tasks || [];
-                    allTasks.push(...listTasks);
-                  }
-                } catch (error) {
-                  console.log(`Error fetching tasks for list ${list.id}:`, error);
-                }
+                  const tasksResponse = await fetch(`https://api.clickup.com/api/v2/list/${list.id}/task`, { headers });
+                  if (!tasksResponse.ok) continue;
+                  const tasksData = await tasksResponse.json();
+                  allTasks.push(...(tasksData.tasks || []));
+                } catch {}
               }
-            }
-          } catch (error) {
-            console.log(`Error fetching lists for space ${space.id}:`, error);
+            } catch {}
           }
+        } catch (e) {
+          console.warn(`Erro no fallback spaces para time ${tid}:`, e);
         }
-      } else {
-        console.log(`Spaces response não ok: ${spacesResponse.status} ${spacesResponse.statusText}`);
-        const responseText = await spacesResponse.text();
-        console.log(`Response body:`, responseText);
       }
-    } catch (error) {
-      console.log('Spaces lookup failed:', error);
-      console.error('Erro completo:', error);
+      console.log(`Total de tarefas após fallback: ${allTasks.length}`);
     }
-    
-    // Filtrar tarefas do usuário usando múltiplos critérios
-    const userTasks = allTasks.filter((task: ClickUpTask) => {
+
+    // 6) Filtrar por email/alias quando necessário
+    const filteredTasks = allTasks.filter((task: ClickUpTask) => {
       if (!task.assignees || task.assignees.length === 0) return false;
-      
       return task.assignees.some(assignee => {
         const assigneeEmail = assignee.email?.toLowerCase() || '';
         const assigneeUsername = assignee.username?.toLowerCase() || '';
-        const userEmailLower = userEmail.toLowerCase();
-        const userAlias = userEmail.split('@')[0].toLowerCase();
-        const preferredLower = (preferredEmail || '').toLowerCase();
-        const preferredAlias = preferredLower ? preferredLower.split('@')[0] : '';
-        
-        return assigneeEmail === userEmailLower ||
-               assigneeUsername === userEmailLower ||
-               assigneeUsername === userAlias ||
-               assigneeEmail.includes(userAlias) ||
-               assigneeUsername.includes(userAlias) ||
-               (preferredLower && (assigneeEmail === preferredLower || assigneeUsername === preferredLower)) ||
-               (preferredAlias && (assigneeUsername === preferredAlias || assigneeEmail.includes(preferredAlias) || assigneeUsername.includes(preferredAlias)));
+        return assigneeEmail === emailLower ||
+               assigneeUsername === emailLower ||
+               assigneeUsername === alias ||
+               assigneeEmail.includes(alias) ||
+               assigneeUsername.includes(alias);
       });
     });
 
-    console.log(`Found ${allTasks.length} total tasks, ${userTasks.length} for user ${userEmail}`);
+    console.log(`Found ${allTasks.length} total tasks, ${filteredTasks.length} for user ${emailToUse}`);
 
     return new Response(
-      JSON.stringify({ 
-        tasks: userTasks,
-        total: userTasks.length 
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ tasks: filteredTasks, total: filteredTasks.length }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: any) {

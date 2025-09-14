@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { format, isPast, isToday, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ClickUpDebugPanel from "./ClickUpDebugPanel";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface ClickUpTask {
   id: string;
@@ -60,20 +61,23 @@ export default function ClickUpTasksView() {
   const [debugInfo, setDebugInfo] = useState<any | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
+  const { userData } = useCurrentUser();
+
   useEffect(() => {
     loadTasks();
     
     // Sincronização automática a cada 5 minutos
     const interval = setInterval(loadTasks, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [userData?.email]);
 
   const loadTasks = async () => {
     try {
       setLastError(null);
       setDebugInfo(null);
+      const preferredEmail = userData?.email;
       const { data, error } = await supabase.functions.invoke('clickup-integration', {
-        body: { action: 'getTasks', preferredEmail: 'lucas.oliveirafla7@gmail.com' }
+        body: { action: 'getTasks', preferredEmail }
       });
 
       if (error) {
