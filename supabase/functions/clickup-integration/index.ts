@@ -80,7 +80,7 @@ serve(async (req) => {
     if (req.method !== 'GET') {
       try { body = await req.json(); } catch { /* body pode estar vazio */ }
     }
-    const action = (body?.action || url.searchParams.get('action') || 'getTasks') as string;
+    const action = (body?.action || body?.mode || url.searchParams.get('action') || url.searchParams.get('mode') || 'getTasks') as string;
     const teamId = (body?.teamId || url.searchParams.get('teamId') || '90140307863') as string;
 
     // Buscar dados do colaborador se houver usuário autenticado
@@ -1002,15 +1002,17 @@ async function listUsersPRD(apiKey: string, teamId: string) {
   
   const corsHeaders = getCorsHeaders(null);
 
-  // Helper para tratar 404 como lista vazia
+  // Helper para tratar 404 como lista vazia com diagnóstico de URL e preview do corpo
   async function fetchJSON(url: string, token: string) {
     try {
-      const r = await fetch(url, { headers: { Authorization: token, 'Content-Type': 'application/json' } });
-      if (r.status === 404) return { ok: true, json: {}, status: 404 };
-      const json = await r.json().catch(() => ({}));
-      return { ok: r.ok, json, status: r.status };
+      const r = await fetch(url, { method: 'GET', headers: { Authorization: token } });
+      const text = await r.text();
+      let json: any = {};
+      try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+      if (r.status === 404) return { ok: true, json: {}, status: 404, url, bodyPreview: text.slice(0, 200) };
+      return { ok: r.ok, json, status: r.status, url, bodyPreview: text.slice(0, 200) };
     } catch (e: any) {
-      return { ok: false, json: {}, status: 0, error: e.message };
+      return { ok: false, json: {}, status: 0, url, bodyPreview: String(e?.message || e) };
     }
   }
 
@@ -1050,6 +1052,10 @@ async function listUsersPRD(apiKey: string, teamId: string) {
       counts: { users: users.length, guests: guests.length },
       users: allUsers,
       raw: { uStatus: u.status, gStatus: g.status },
+      diag: {
+        user: { url: u.url, status: u.status, ok: u.ok, bodyPreview: u.bodyPreview },
+        guest: { url: g.url, status: g.status, ok: g.ok, bodyPreview: g.bodyPreview }
+      }
     }), { 
       status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

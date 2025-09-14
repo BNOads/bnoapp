@@ -82,7 +82,7 @@ export default function ClickUpUsersList() {
       
       const { data, error } = await supabase.functions.invoke('clickup-integration', {
         body: {
-          action: 'listUsers',
+          mode: 'listUsers',
           teamId: selectedTeam
         }
       });
@@ -115,8 +115,16 @@ export default function ClickUpUsersList() {
         const total = (data.counts?.users || 0) + (data.counts?.guests || 0);
         toast.success(`✅ Encontrados ${data.counts?.users || 0} usuários e ${data.counts?.guests || 0} convidados (total: ${total})`);
         
-        // Limpar diagnóstico anterior se sucesso
-        setDiagnostics([]);
+        // Registrar diagnóstico mesmo em sucesso
+        setDiagnostics([
+          {
+            teamId: selectedTeam,
+            teamName: 'BNO Ads',
+            teamStatus: data?.teamStatus || 200,
+            raw: data?.raw || {},
+            diag: data?.diag
+          }
+        ]);
       } else {
         // Falha - exibir diagnóstico PRD
         setUsers([]);
@@ -126,6 +134,7 @@ export default function ClickUpUsersList() {
           teamName: 'BNO Ads',
           teamStatus: data?.teamStatus || 'erro',
           raw: data?.raw || {},
+          diag: data?.diag,
           error: data?.error || 'Falha na consulta'
         }]);
         toast.error(`❌ Falha ao listar usuários: ${data?.error || 'Status ' + data?.teamStatus}`);
@@ -318,9 +327,23 @@ export default function ClickUpUsersList() {
                   <div key={i} className="rounded-md border p-3 mt-2 bg-muted/30">
                     <div className="font-medium mb-1">Diagnóstico PRD - Workspace {d.teamName} ({d.teamId})</div>
                     <div className="space-y-1">
-                      <div><span className="font-semibold">Status Geral:</span> {d.teamStatus}</div>
-                      <div><span className="font-semibold">Endpoint /user:</span> {d.raw?.uStatus} {d.raw?.uStatus === 404 ? '(endpoint não disponível)' : ''}</div>
-                      <div><span className="font-semibold">Endpoint /guest:</span> {d.raw?.gStatus} {d.raw?.gStatus === 404 ? '(endpoint não disponível)' : ''}</div>
+                      <div><span className="font-semibold">Status Geral:</span> {d.teamStatus || ((d.diag?.user?.ok || d.diag?.guest?.ok) ? 'ok' : 'erro')}</div>
+                      <div className="mt-1">
+                        <div className="font-semibold">Endpoint /user:</div>
+                        <div>URL: {d.diag?.user?.url || '—'}</div>
+                        <div>Status: {d.diag?.user?.status ?? d.raw?.uStatus}</div>
+                        {d.diag?.user?.bodyPreview && (
+                          <div className="text-muted-foreground break-words">Preview: {d.diag.user.bodyPreview}</div>
+                        )}
+                      </div>
+                      <div className="mt-1">
+                        <div className="font-semibold">Endpoint /guest:</div>
+                        <div>URL: {d.diag?.guest?.url || '—'}</div>
+                        <div>Status: {d.diag?.guest?.status ?? d.raw?.gStatus} {((d.diag?.guest?.status ?? d.raw?.gStatus) === 404) ? '(endpoint não disponível)' : ''}</div>
+                        {d.diag?.guest?.bodyPreview && (
+                          <div className="text-muted-foreground break-words">Preview: {d.diag.guest.bodyPreview}</div>
+                        )}
+                      </div>
                       {d.error && <div className="text-destructive"><span className="font-semibold">Erro:</span> {d.error}</div>}
                     </div>
                   </div>
