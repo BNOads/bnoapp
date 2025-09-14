@@ -91,6 +91,7 @@ export const OrcamentoPorFunil = ({
   // Lista única de funis para o filtro
   const funisUnicos = Array.from(new Set(orcamentos.map(o => o.nome_funil))).sort();
   useEffect(() => {
+    console.log('🚀 Iniciando carregamento - clienteId:', clienteId);
     carregarOrcamentos();
     carregarOrcamentosGestores();
   }, [clienteId]);
@@ -123,6 +124,7 @@ export const OrcamentoPorFunil = ({
   };
 
   const carregarOrcamentosGestores = async () => {
+    console.log('🔄 Carregando orçamentos dos gestores...');
     try {
       const { data: rawData, error: rawError } = await supabase
         .from('clientes')
@@ -135,6 +137,7 @@ export const OrcamentoPorFunil = ({
         .not('primary_gestor_user_id', 'is', null);
 
       if (rawError) throw rawError;
+      console.log('📊 Clientes encontrados:', rawData?.length);
 
       const { data: colaboradores, error: colabError } = await supabase
         .from('colaboradores')
@@ -142,6 +145,7 @@ export const OrcamentoPorFunil = ({
         .eq('ativo', true);
 
       if (colabError) throw colabError;
+      console.log('👥 Colaboradores encontrados:', colaboradores?.length);
 
       const { data: orcamentos, error: orcError } = await supabase
         .from('orcamentos_funil')
@@ -149,6 +153,7 @@ export const OrcamentoPorFunil = ({
         .eq('ativo', true);
 
       if (orcError) throw orcError;
+      console.log('💰 Orçamentos encontrados:', orcamentos?.length);
 
       const gestoresMap = new Map<string, GestorOrcamento>();
 
@@ -185,6 +190,7 @@ export const OrcamentoPorFunil = ({
         });
       });
 
+      console.log('📈 Gestores processados:', Array.from(gestoresMap.values()));
       setGestoresOrcamentos(Array.from(gestoresMap.values()));
     } catch (error: any) {
       toast({
@@ -356,7 +362,7 @@ export const OrcamentoPorFunil = ({
       </div>
 
       {/* Tabs para alternar entre visualizações */}
-      <Tabs defaultValue={clienteId ? "cliente" : "gestores"} className="w-full">
+      <Tabs defaultValue="gestores" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           {clienteId && (
             <TabsTrigger value="cliente">Por Cliente</TabsTrigger>
