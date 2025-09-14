@@ -138,10 +138,32 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
 
   const posicaoHoje = useMemo(() => {
     const hoje = new Date();
-    const totalDias = differenceInDays(dataFim, dataInicio);
-    const diasDoInicio = differenceInDays(hoje, dataInicio);
-    return Math.max(0, Math.min(100, (diasDoInicio / totalDias) * 100));
-  }, [dataInicio, dataFim]);
+    
+    // Verificar se hoje está dentro do intervalo de datas
+    if (hoje < dataInicio || hoje > dataFim) {
+      return -1; // Não mostrar a linha se hoje não estiver no intervalo
+    }
+    
+    let totalUnidades = 0;
+    let unidadesDoInicio = 0;
+    
+    if (escalaVisao === 'dia') {
+      totalUnidades = differenceInDays(dataFim, dataInicio);
+      unidadesDoInicio = differenceInDays(hoje, dataInicio);
+    } else if (escalaVisao === 'semana') {
+      const inicioSemana = startOfWeek(dataInicio, { weekStartsOn: 0 });
+      const fimSemana = startOfWeek(dataFim, { weekStartsOn: 0 });
+      totalUnidades = Math.ceil(differenceInDays(fimSemana, inicioSemana) / 7);
+      unidadesDoInicio = Math.ceil(differenceInDays(startOfWeek(hoje, { weekStartsOn: 0 }), inicioSemana) / 7);
+    } else { // mês
+      const inicioMes = startOfMonth(dataInicio);
+      const fimMes = startOfMonth(dataFim);
+      totalUnidades = differenceInDays(fimMes, inicioMes) / 30; // Aproximação
+      unidadesDoInicio = differenceInDays(startOfMonth(hoje), inicioMes) / 30;
+    }
+    
+    return Math.max(0, Math.min(100, (unidadesDoInicio / totalUnidades) * 100));
+  }, [dataInicio, dataFim, escalaVisao]);
 
   const handleEditPhase = (fase: FaseLancamento) => {
     const dataInicio = lancamento[fase.campo_inicio] || '';
@@ -381,16 +403,18 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
                 
                 {/* Timeline base */}
                 <div className="relative h-2 bg-muted rounded mb-4">
-                  {/* Linha do "hoje" */}
-                  <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
-                    style={{ left: `${posicaoHoje}%` }}
-                  >
-                    <div className="absolute -top-1 -left-2 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
-                    <div className="absolute -bottom-6 -left-4 text-xs text-red-500 font-medium">
-                      Hoje
+                  {/* Linha do "hoje" - só mostrar se estiver no intervalo */}
+                  {posicaoHoje >= 0 && (
+                    <div
+                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
+                      style={{ left: `${posicaoHoje}%` }}
+                    >
+                      <div className="absolute -top-1 -left-2 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
+                      <div className="absolute -bottom-6 -left-4 text-xs text-red-500 font-medium">
+                        Hoje
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 

@@ -657,9 +657,135 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Tipo de Aulas</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {lancamento.tipo_aulas === 'ao_vivo' ? 'Ao Vivo' : 'Gravadas'}
-                  </p>
+                  {editing ? (
+                    <select
+                      value={lancamento.tipo_aulas}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        tipo_aulas: e.target.value
+                      })}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="ao_vivo">Ao Vivo</option>
+                      <option value="gravadas">Gravadas</option>
+                    </select>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.tipo_aulas === 'ao_vivo' ? 'Ao Vivo' : 'Gravadas'}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Status do Lançamento</Label>
+                  {editing ? (
+                    <select
+                      value={lancamento.status_lancamento}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        status_lancamento: e.target.value
+                      })}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="em_captacao">Em Captação</option>
+                      <option value="em_cpl">Em CPL</option>
+                      <option value="em_carrinho">Em Carrinho</option>
+                      <option value="finalizado">Finalizado</option>
+                      <option value="pausado">Pausado</option>
+                      <option value="cancelado">Cancelado</option>
+                    </select>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.status_lancamento}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Tipo de Lançamento</Label>
+                  {editing ? (
+                    <select
+                      value={lancamento.tipo_lancamento}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        tipo_lancamento: e.target.value
+                      })}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="webinar">Webinar</option>
+                      <option value="workshop">Workshop</option>
+                      <option value="curso">Curso</option>
+                      <option value="mentoria">Mentoria</option>
+                      <option value="evento">Evento</option>
+                    </select>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.tipo_lancamento}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Início da Captação</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_inicio_captacao}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_inicio_captacao: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_inicio_captacao ? 
+                        format(parseISO(lancamento.data_inicio_captacao), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Fim da Captação</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_fim_captacao || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_fim_captacao: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_fim_captacao ? 
+                        format(parseISO(lancamento.data_fim_captacao), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Fechamento</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_fechamento || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_fechamento: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_fechamento ? 
+                        format(parseISO(lancamento.data_fechamento), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -674,6 +800,25 @@ export default function LancamentoDetalhes() {
                   <p className="text-sm text-muted-foreground">
                     {lancamento.gestor?.nome || 'Não atribuído'}
                   </p>
+                </div>
+
+                <div>
+                  <Label>Observações</Label>
+                  {editing ? (
+                    <Textarea
+                      value={lancamento.observacoes || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        observacoes: e.target.value
+                      })}
+                      placeholder="Adicione observações sobre o lançamento"
+                      rows={3}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.observacoes || 'Nenhuma observação'}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
