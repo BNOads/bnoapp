@@ -4,6 +4,7 @@ import { FloatingNoteButton } from "@/components/ui/FloatingNoteButton";
 import { Header } from "@/components/Layout/Header";
 import { PublicLogo } from "@/components/Layout/PublicLogo";
 import { useRecentTabs } from "@/hooks/useRecentTabs";
+import NotificationPopup from "@/components/Notifications/NotificationPopup";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -53,6 +54,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {children}
       </main>
       {shouldShowFAB && <FloatingNoteButton />}
+      <NotificationPopup />
     </div>
   );
 }

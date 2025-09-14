@@ -7,11 +7,15 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import bnoadsLogo from "@/assets/bnoads-logo-new.png";
+import NotificationBell from "@/components/Notifications/NotificationBell";
+import CreateNotificationModal from "@/components/Notifications/CreateNotificationModal";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 interface HeaderProps {}
 
 export const Header = ({}: HeaderProps) => {
   const { user, signOut } = useAuth();
   const { userData } = useCurrentUser();
+  const { isAdmin } = useUserPermissions();
   const { toggleCurrentPageFavorite, isCurrentPageFavorite } = useFavoriteTabs();
   const navigate = useNavigate();
   const location = useLocation();
@@ -122,6 +126,14 @@ export const Header = ({}: HeaderProps) => {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            {/* Admin Create Notification */}
+            {isAdmin && (
+              <CreateNotificationModal />
+            )}
+
+            {/* Notification Bell */}
+            <NotificationBell />
 
             {/* Favorite Star Button */}
             <Button
