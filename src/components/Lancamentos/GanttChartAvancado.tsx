@@ -114,6 +114,13 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
     const pontos: Date[] = [];
     let atual = inicio;
 
+    // Alinhar início conforme a escala selecionada
+    if (escalaVisao === 'semana') {
+      atual = startOfWeek(inicio, { weekStartsOn: 1 });
+    } else if (escalaVisao === 'mes') {
+      atual = startOfMonth(inicio);
+    }
+
     while (atual <= fim) {
       pontos.push(new Date(atual));
       
@@ -156,21 +163,27 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
     }
   }, [escalaVisao]);
 
-  const posicaoHoje = useMemo(() => {
+  const cellWidth = useMemo(() => (escalaVisao === 'dia' ? 36 : escalaVisao === 'semana' ? 64 : 96), [escalaVisao]);
+
+  const indexHoje = useMemo(() => {
     const hoje = startOfDay(new Date());
-    const inicio = startOfDay(dataInicio);
-    const fim = startOfDay(dataFim);
-    
-    // Verificar se hoje está dentro do intervalo de datas
-    if (hoje < inicio || hoje > fim) {
-      return -1; // Não mostrar a linha se hoje não estiver no intervalo
+    if (!pontosNoTempo.length) return -1;
+
+    if (escalaVisao === 'dia') {
+      return pontosNoTempo.findIndex(d => isSameDay(startOfDay(d), hoje));
     }
-    
-    const totalDias = differenceInDays(fim, inicio) || 1;
-    const diasDoInicio = differenceInDays(hoje, inicio);
-    
-    return Math.max(0, Math.min(100, (diasDoInicio / totalDias) * 100));
-  }, [dataInicio, dataFim]);
+    if (escalaVisao === 'semana') {
+      const inicioSemanaHoje = startOfWeek(hoje, { weekStartsOn: 1 });
+      return pontosNoTempo.findIndex(d => isSameDay(startOfWeek(d, { weekStartsOn: 1 }), inicioSemanaHoje));
+    }
+    // mês
+    return pontosNoTempo.findIndex(d => d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear());
+  }, [pontosNoTempo, escalaVisao]);
+
+  const posicaoHojePx = useMemo(() => {
+    if (indexHoje < 0) return -1;
+    return indexHoje * cellWidth + cellWidth / 2;
+  }, [indexHoje, cellWidth]);
 
   const handleEditPhase = (fase: FaseLancamento) => {
     const dataInicio = lancamento[fase.campo_inicio] || '';
@@ -398,30 +411,38 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
         <CardContent>
           {tipoVisualizacao === 'gantt' && (
             <div className="space-y-4">
-              {/* Cabeçalho com datas */}
-              <div className="relative">
-                <div className="grid grid-cols-12 gap-1 text-xs text-muted-foreground mb-2">
-                  {pontosNoTempo.slice(0, 12).map((data, index) => (
-                    <div key={index} className="text-center">
-                      {formatarDataHeader(data)}
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Timeline base */}
-                <div className="relative h-2 bg-muted rounded mb-4">
-                  {/* Linha do "hoje" - só mostrar se estiver no intervalo */}
-                  {posicaoHoje >= 0 && (
-                    <div
-                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
-                      style={{ left: `${posicaoHoje}%` }}
-                    >
-                      <div className="absolute -top-1 -left-2 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
-                      <div className="absolute -bottom-6 -left-4 text-xs text-red-500 font-medium">
-                        Hoje
+              {/* Cabeçalho com datas + linha do tempo (alinhados e roláveis) */}
+              <div className="relative overflow-x-auto">
+                <div className="min-w-max">
+                  <div
+                    className="grid gap-1 text-xs text-muted-foreground mb-2"
+                    style={{ gridTemplateColumns: `repeat(${pontosNoTempo.length}, ${cellWidth}px)` }}
+                  >
+                    {pontosNoTempo.map((data, index) => (
+                      <div key={index} className="text-center">
+                        {formatarDataHeader(data)}
                       </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
+
+                  {/* Timeline base */}
+                  <div
+                    className="relative h-2 bg-muted rounded mb-4"
+                    style={{ width: `${pontosNoTempo.length * cellWidth}px` }}
+                  >
+                    {/* Linha do "hoje" - só mostrar se estiver no intervalo */}
+                    {posicaoHojePx >= 0 && (
+                      <div
+                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
+                        style={{ left: `${posicaoHojePx}px` }}
+                      >
+                        <div className="absolute -top-1 -left-2 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
+                        <div className="absolute -bottom-6 -left-4 text-xs text-red-500 font-medium">
+                          Hoje
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

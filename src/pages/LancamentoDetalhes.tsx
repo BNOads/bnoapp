@@ -121,58 +121,67 @@ export default function LancamentoDetalhes() {
   };
 
   const handleClientChange = async (clienteId: string) => {
-    if (!clienteId) return;
+    if (!clienteId || !lancamento) return;
     
     try {
-      // Buscar informações do cliente incluindo o gestor primário
-      const { data: clienteData, error } = await supabase
+      // Buscar informações do cliente incluindo gestor vinculado
+      const { data: clienteData, error: clienteError } = await supabase
         .from('clientes')
         .select(`
           id,
           nome,
+          traffic_manager_id,
           primary_gestor_user_id
         `)
         .eq('id', clienteId)
         .single();
 
-      if (error) throw error;
+      if (clienteError) throw clienteError;
 
-      // Buscar dados do gestor separadamente se houver
-      let gestorData: { id: string; nome: string } | null = null;
-      if (clienteData.primary_gestor_user_id) {
-        const { data: gestor } = await supabase
+      // Determinar o gestor_responsavel_id
+      let gestorId: string | null = (clienteData as any)?.traffic_manager_id || null;
+
+      // Se não houver traffic_manager_id, tentar via primary_gestor_user_id
+      if (!gestorId && (clienteData as any)?.primary_gestor_user_id) {
+        const { data: gestorByUser } = await supabase
           .from('colaboradores')
-          .select('id, nome')
-          .eq('user_id', clienteData.primary_gestor_user_id)
-          .single();
-        
-        gestorData = gestor;
+          .select('id')
+          .eq('user_id', (clienteData as any).primary_gestor_user_id)
+          .maybeSingle();
+        gestorId = gestorByUser?.id || null;
       }
 
-      // Atualizar o lançamento com o cliente e gestor automaticamente
+      // Preparar updates
       const updates: any = { cliente_id: clienteId };
-      
-      if (gestorData?.id) {
-        updates.gestor_responsavel_id = gestorData.id;
-      }
+      if (gestorId) updates.gestor_responsavel_id = gestorId;
 
       const { error: updateError } = await supabase
         .from('lancamentos')
         .update(updates)
-        .eq('id', lancamento!.id);
+        .eq('id', lancamento.id);
 
       if (updateError) throw updateError;
 
-      // Atualizar o estado local
+      // Carregar dados do gestor para exibir nome (opcional)
+      let gestorData: { id: string; nome: string } | null = null;
+      if (gestorId) {
+        const { data: gestor } = await supabase
+          .from('colaboradores')
+          .select('id, nome')
+          .eq('id', gestorId)
+          .maybeSingle();
+        gestorData = gestor || null;
+      }
+
       setLancamento(prev => prev ? {
         ...prev,
         cliente_id: clienteId,
-        gestor_responsavel_id: gestorData?.id || prev.gestor_responsavel_id,
-        clientes: { nome: clienteData.nome, primary_gestor_user_id: clienteData.primary_gestor_user_id },
+        gestor_responsavel_id: gestorId || prev.gestor_responsavel_id,
+        clientes: { nome: (clienteData as any).nome, primary_gestor_user_id: (clienteData as any).primary_gestor_user_id },
         gestor: gestorData || prev.gestor
       } : null);
 
-      toast.success('Cliente e gestor atualizados automaticamente');
+      toast.success('Cliente atualizado e gestor vinculado automaticamente');
     } catch (error: any) {
       toast.error('Erro ao atualizar cliente: ' + error.message);
     }
