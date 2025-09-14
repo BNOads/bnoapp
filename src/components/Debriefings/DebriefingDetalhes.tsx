@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { AdvancedCharts } from './AdvancedCharts';
+import { DadosBrutosAnalysis } from './DadosBrutosAnalysis';
 import EditDebriefingModal from './EditDebriefingModal';
 
 interface DebriefingDetalhes {
@@ -406,51 +407,13 @@ export default function DebriefingDetalhes() {
         </TabsContent>
 
         <TabsContent value="data">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Dados de Leads</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {debriefing.dados_leads?.length || 0} registros carregados
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Dados de Vendas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {debriefing.dados_compradores?.length || 0} registros carregados
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Dados de Tráfego</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {debriefing.dados_trafego?.length || 0} registros carregados
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Dados de Pesquisa</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {debriefing.dados_pesquisa?.length || 0} registros carregados
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <DadosBrutosAnalysis
+            dados_leads={debriefing.dados_leads || []}
+            dados_compradores={debriefing.dados_compradores || []}
+            dados_trafego={debriefing.dados_trafego || []}
+            dados_pesquisa={debriefing.dados_pesquisa || []}
+            dados_outras_fontes={debriefing.dados_outras_fontes || []}
+          />
         </TabsContent>
       </Tabs>
     </div>
