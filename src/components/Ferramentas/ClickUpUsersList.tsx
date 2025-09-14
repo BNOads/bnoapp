@@ -52,13 +52,34 @@ export default function ClickUpUsersList() {
     setLoading(true);
     
     try {
+      console.log('Tentando listar usuários do ClickUp...');
+      
+      // Primeiro, tentar uma ação que sabemos que funciona (getTeams)
+      console.log('Testando conexão com getTeams...');
+      const { data: teamsData, error: teamsError } = await supabase.functions.invoke('clickup-integration', {
+        body: {
+          action: 'getTeams'
+        }
+      });
+      
+      console.log('Resposta getTeams:', { teamsData, teamsError });
+      
+      if (teamsError) {
+        throw new Error('Erro de conexão com ClickUp: ' + teamsError.message);
+      }
+      
+      // Agora tentar listar usuários
+      console.log('Testando listAllUsers...');
       const { data, error } = await supabase.functions.invoke('clickup-integration', {
         body: {
           action: 'listAllUsers'
         }
       });
 
+      console.log('Resposta da edge function:', { data, error });
+
       if (error) {
+        console.error('Erro na edge function:', error);
         throw new Error(error.message || 'Erro ao listar usuários');
       }
 
@@ -71,11 +92,32 @@ export default function ClickUpUsersList() {
         });
         toast.success(`✅ Encontrados ${data.totalUsers} usuários em ${data.totalTeams} times`);
       } else {
-        throw new Error(data?.error || 'Falha ao listar usuários');
+        console.error('Resposta de erro:', data);
+        
+        // Se listAllUsers não funcionar, vamos usar getTeams e extrair dados básicos
+        if (teamsData?.teams) {
+          console.log('Fallback: usando dados dos times');
+          setTeams(teamsData.teams);
+          setStats({
+            totalUsers: 0,
+            totalTeams: teamsData.teams.length
+          });
+          toast.info(`Teams encontrados: ${teamsData.teams.length}. A função listAllUsers pode precisar ser redeployada.`);
+        } else {
+          throw new Error(data?.error || 'Falha ao listar usuários');
+        }
       }
     } catch (error: any) {
       console.error('Error listing users:', error);
-      toast.error('Erro ao listar usuários do ClickUp');
+      
+      // Diagnóstico mais detalhado
+      if (error.message === 'Invalid action') {
+        toast.error('Edge function não reconhece a ação listAllUsers. Pode precisar ser redeployada.');
+      } else if (error.message.includes('Failed to fetch')) {
+        toast.error('Erro de conexão com a edge function');
+      } else {
+        toast.error('Erro ao listar usuários do ClickUp: ' + error.message);
+      }
     } finally {
       setLoading(false);
     }

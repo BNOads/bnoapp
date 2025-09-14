@@ -124,6 +124,7 @@ serve(async (req) => {
         return await userLookup(clickupApiKey, teamId, effectiveEmail);
       
       case 'listAllUsers':
+        console.log('Action listAllUsers called');
         return await listAllUsers(clickupApiKey);
       
       case 'linkUser':
@@ -868,16 +869,21 @@ async function linkUser(supabaseClient: any, userData: any, linkData: any) {
 }
 
 async function listAllUsers(apiKey: string) {
-  console.log('Listing all ClickUp users across teams');
+  console.log('listAllUsers function called');
+  console.log('API Key present:', !!apiKey);
   
-  const headers = { 'Authorization': apiKey, 'Content-Type': 'application/json' };
   const corsHeaders = getCorsHeaders(null);
-  const allUsers: any[] = [];
-  const userMap = new Map(); // Para evitar duplicatas
 
   try {
-    // 1. Buscar todos os times
-    const teamsResponse = await fetch('https://api.clickup.com/api/v2/team', { headers });
+    // Teste simples primeiro - apenas buscar teams
+    const teamsResponse = await fetch('https://api.clickup.com/api/v2/team', {
+      headers: {
+        'Authorization': apiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('Teams response status:', teamsResponse.status);
     
     if (!teamsResponse.ok) {
       throw new Error(`Failed to fetch teams: ${teamsResponse.status} ${teamsResponse.statusText}`);
@@ -888,70 +894,18 @@ async function listAllUsers(apiKey: string) {
     
     console.log(`Found ${teams.length} teams`);
 
-    // 2. Buscar membros de cada time
-    for (const team of teams) {
-      try {
-        const membersResponse = await fetch(`https://api.clickup.com/api/v2/team/${team.id}/member`, { headers });
-        
-        if (!membersResponse.ok) {
-          console.warn(`Failed to fetch members for team ${team.id}: ${membersResponse.status}`);
-          continue;
-        }
-
-        const membersData = await membersResponse.json();
-        const members = membersData.members || [];
-        
-        console.log(`Team "${team.name}" (${team.id}): ${members.length} members`);
-
-        // 3. Processar cada membro
-        for (const member of members) {
-          const user = member.user;
-          if (!user?.id) continue;
-
-          // Usar email como chave única para evitar duplicatas
-          const userKey = user.email?.toLowerCase() || user.id;
-          
-          if (!userMap.has(userKey)) {
-            userMap.set(userKey, {
-              id: user.id,
-              username: user.username,
-              email: user.email,
-              profilePicture: user.profilePicture,
-              teams: []
-            });
-          }
-
-          // Adicionar este time à lista de times do usuário
-          const existingUser = userMap.get(userKey);
-          existingUser.teams.push({
-            id: team.id,
-            name: team.name
-          });
-        }
-      } catch (error) {
-        console.warn(`Error fetching members for team ${team.id}:`, error);
-      }
-    }
-
-    // 4. Converter Map para Array
-    const finalUsers = Array.from(userMap.values()).map(user => ({
-      ...user,
-      teamsCount: user.teams.length,
-      primaryTeam: user.teams[0] // Primeiro time como primário
-    }));
-
-    console.log(`Total unique users found: ${finalUsers.length}`);
-
+    // Por enquanto, retornar apenas os teams para testar
     return new Response(JSON.stringify({
       success: true,
-      totalUsers: finalUsers.length,
+      totalUsers: 0,
       totalTeams: teams.length,
-      users: finalUsers,
-      teams: teams.map(t => ({ id: t.id, name: t.name }))
+      users: [],
+      teams: teams.map(t => ({ id: t.id, name: t.name })),
+      message: 'Teste inicial - apenas teams retornados'
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error: any) {
-    console.error('Error listing users:', error);
+    console.error('Error in listAllUsers:', error);
     return new Response(JSON.stringify({
       success: false,
       error: error.message,
