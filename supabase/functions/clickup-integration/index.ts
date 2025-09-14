@@ -83,7 +83,7 @@ serve(async (req) => {
 
     switch (action) {
       case 'getTasks':
-        return await getTasks(clickupApiKey, teamId, userEmail);
+        return await getTasks(clickupApiKey, teamId, userEmail, body?.preferredEmail);
       
       case 'updateTask':
         return await updateTask(clickupApiKey, body);
@@ -113,8 +113,8 @@ serve(async (req) => {
   }
 });
 
-async function getTasks(apiKey: string, teamId: string, userEmail: string) {
-  console.log(`Getting tasks for user ${userEmail}`);
+async function getTasks(apiKey: string, teamId: string, userEmail: string, preferredEmail?: string) {
+  console.log(`Getting tasks for user ${userEmail} (preferred: ${preferredEmail || 'none'})`);
   
   try {
     // Primeiro, buscar o usuário no ClickUp usando diferentes métodos
@@ -232,12 +232,16 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string) {
         const assigneeUsername = assignee.username?.toLowerCase() || '';
         const userEmailLower = userEmail.toLowerCase();
         const userAlias = userEmail.split('@')[0].toLowerCase();
+        const preferredLower = (preferredEmail || '').toLowerCase();
+        const preferredAlias = preferredLower ? preferredLower.split('@')[0] : '';
         
         return assigneeEmail === userEmailLower ||
                assigneeUsername === userEmailLower ||
                assigneeUsername === userAlias ||
                assigneeEmail.includes(userAlias) ||
-               assigneeUsername.includes(userAlias);
+               assigneeUsername.includes(userAlias) ||
+               (preferredLower && (assigneeEmail === preferredLower || assigneeUsername === preferredLower)) ||
+               (preferredAlias && (assigneeUsername === preferredAlias || assigneeEmail.includes(preferredAlias) || assigneeUsername.includes(preferredAlias)));
       });
     });
 
@@ -253,9 +257,13 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string) {
       }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching tasks:', error);
-    throw error;
+    const message = error?.message || String(error);
+    return new Response(
+      JSON.stringify({ tasks: [], total: 0, diagnostics: { message } }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 }
 

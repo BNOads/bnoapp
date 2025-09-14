@@ -72,12 +72,13 @@ export default function ClickUpTasksView() {
       setLastError(null);
       setDebugInfo(null);
       const { data, error } = await supabase.functions.invoke('clickup-integration', {
-        body: { action: 'getTasks' }
+        body: { action: 'getTasks', preferredEmail: 'lucas.oliveirafla7@gmail.com' }
       });
 
       if (error) throw error;
 
       setTasks(data.tasks || []);
+      if (data?.diagnostics) setDebugInfo(data.diagnostics);
     } catch (error: any) {
       console.error('Erro ao carregar tarefas:', error);
       setLastError(error?.message || 'Erro desconhecido');
