@@ -744,7 +744,6 @@ async function userLookup(apiKey: string, teamId: string, userEmail: string) {
       searchedAliases: userAliases,
       availableUsers: availableUsers.slice(0, 10) // Limitar a 10 para não sobrecarregar
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
   } catch (error: any) {
     console.error('Error in userLookup:', error);
@@ -758,7 +757,7 @@ async function userLookup(apiKey: string, teamId: string, userEmail: string) {
 
 async function linkUser(supabaseClient: any, userData: any, linkData: any) {
   console.log('Linking user to ClickUp:', linkData);
-  
+  const corsHeaders = getCorsHeaders(null);
   if (!userData?.user?.id) {
     return new Response(JSON.stringify({
       success: false,
