@@ -304,7 +304,7 @@ export default function DebriefingDetalhes() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
@@ -337,7 +337,22 @@ export default function DebriefingDetalhes() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Custo por Venda</CardTitle>
+                <CardTitle className="text-sm font-medium">CPL</CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {debriefing.cpl ? formatCurrency(debriefing.cpl) : '-'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Custo por Lead
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">CPV</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -348,39 +363,24 @@ export default function DebriefingDetalhes() {
                   }
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Investimento ÷ vendas
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Custo por Lead</CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {debriefing.cpl ? formatCurrency(debriefing.cpl) : '-'}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Investimento ÷ leads
+                  Custo por Venda
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle>
+                <CardTitle className="text-sm font-medium">ROAS</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {debriefing.conversao_lead_venda ? `${(debriefing.conversao_lead_venda * 100).toFixed(1)}%` : '-'}
+                  {debriefing.roas ? `${debriefing.roas.toFixed(2)}x` : '-'}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {debriefing.vendas_total} vendas de {debriefing.leads_total} leads
+                  Return on Ad Spend
                 </p>
               </CardContent>
             </Card>
@@ -395,7 +395,37 @@ export default function DebriefingDetalhes() {
                   {debriefing.ticket_medio ? formatCurrency(debriefing.ticket_medio) : '-'}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Média por venda
+                  Valor médio por venda
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {debriefing.conversao_lead_venda ? `${(debriefing.conversao_lead_venda * 100).toFixed(1)}%` : '-'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Lead para Venda
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gasto Total</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {debriefing.investimento_total ? formatCurrency(debriefing.investimento_total) : '-'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Investimento em tráfego
                 </p>
               </CardContent>
             </Card>

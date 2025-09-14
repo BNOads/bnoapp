@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Upload, FileText, Users, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import CSVUploadSection from "./CSVUploadSection";
+import CSVWizard from "./CSVWizard";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Cliente {
@@ -265,13 +265,13 @@ export default function NovoDebriefing() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Upload de Dados</CardTitle>
+              <CardTitle>Importação de Dados</CardTitle>
               <CardDescription>
-                Importe seus dados de vendas, leads e investimento via arquivo CSV
+                Importe 3 arquivos CSV (Vendas, Leads, Tráfego) para gerar o debriefing completo
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <CSVUploadSection 
+              <CSVWizard 
                 debriefingData={debriefingData}
                 onComplete={handleFileUploadComplete}
               />
