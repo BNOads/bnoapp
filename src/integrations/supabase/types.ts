@@ -1336,13 +1336,17 @@ export type Database = {
           created_at: string
           created_by: string
           data_fechamento: string | null
+          data_fim_aquecimento: string | null
           data_fim_captacao: string | null
           data_fim_carrinho: string | null
           data_fim_cpl: string | null
+          data_fim_lembrete: string | null
           data_fim_remarketing: string | null
+          data_inicio_aquecimento: string | null
           data_inicio_captacao: string
           data_inicio_carrinho: string | null
           data_inicio_cpl: string | null
+          data_inicio_lembrete: string | null
           data_inicio_remarketing: string | null
           datas_cpls: string[] | null
           descricao: string | null
@@ -1379,13 +1383,17 @@ export type Database = {
           created_at?: string
           created_by: string
           data_fechamento?: string | null
+          data_fim_aquecimento?: string | null
           data_fim_captacao?: string | null
           data_fim_carrinho?: string | null
           data_fim_cpl?: string | null
+          data_fim_lembrete?: string | null
           data_fim_remarketing?: string | null
+          data_inicio_aquecimento?: string | null
           data_inicio_captacao: string
           data_inicio_carrinho?: string | null
           data_inicio_cpl?: string | null
+          data_inicio_lembrete?: string | null
           data_inicio_remarketing?: string | null
           datas_cpls?: string[] | null
           descricao?: string | null
@@ -1422,13 +1430,17 @@ export type Database = {
           created_at?: string
           created_by?: string
           data_fechamento?: string | null
+          data_fim_aquecimento?: string | null
           data_fim_captacao?: string | null
           data_fim_carrinho?: string | null
           data_fim_cpl?: string | null
+          data_fim_lembrete?: string | null
           data_fim_remarketing?: string | null
+          data_inicio_aquecimento?: string | null
           data_inicio_captacao?: string
           data_inicio_carrinho?: string | null
           data_inicio_cpl?: string | null
+          data_inicio_lembrete?: string | null
           data_inicio_remarketing?: string | null
           datas_cpls?: string[] | null
           descricao?: string | null

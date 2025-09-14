@@ -37,12 +37,28 @@ const fases: FaseLancamento[] = [
     campo_fim: "data_fim_captacao" as any
   },
   {
+    nome: "Aquecimento", 
+    dataInicio: null,
+    dataFim: null,
+    cor: "bg-purple-500",
+    campo_inicio: "data_inicio_aquecimento" as any,
+    campo_fim: "data_fim_aquecimento" as any
+  },
+  {
     nome: "CPL", 
     dataInicio: null,
     dataFim: null,
     cor: "bg-green-500",
     campo_inicio: "data_inicio_cpl" as any,
     campo_fim: "data_fim_cpl" as any
+  },
+  {
+    nome: "Lembrete",
+    dataInicio: null,
+    dataFim: null,
+    cor: "bg-yellow-500",
+    campo_inicio: "data_inicio_lembrete" as any,
+    campo_fim: "data_fim_lembrete" as any
   },
   {
     nome: "Carrinho",
@@ -77,8 +93,12 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
     const todasDatas = [
       lancamento.data_inicio_captacao,
       lancamento.data_fim_captacao,
+      lancamento.data_inicio_aquecimento,
+      lancamento.data_fim_aquecimento,
       lancamento.data_inicio_cpl,
       lancamento.data_fim_cpl,
+      lancamento.data_inicio_lembrete,
+      lancamento.data_fim_lembrete,
       lancamento.data_inicio_carrinho,
       lancamento.data_fim_carrinho,
       lancamento.data_fechamento

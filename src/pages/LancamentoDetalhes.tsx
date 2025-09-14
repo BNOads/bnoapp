@@ -39,8 +39,12 @@ interface Lancamento {
   tipo_lancamento: string;
   data_inicio_captacao: string;
   data_fim_captacao: string | null;
+  data_inicio_aquecimento: string | null;
+  data_fim_aquecimento: string | null;
   data_inicio_cpl: string | null;
   data_fim_cpl: string | null;
+  data_inicio_lembrete: string | null;
+  data_fim_lembrete: string | null;
   data_inicio_carrinho: string | null;
   data_fim_carrinho: string | null;
   data_fechamento: string | null;
@@ -761,6 +765,174 @@ export default function LancamentoDetalhes() {
                     <p className="text-sm text-muted-foreground">
                       {lancamento.data_fim_captacao ? 
                         format(parseISO(lancamento.data_fim_captacao), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Início do Aquecimento</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_inicio_aquecimento || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_inicio_aquecimento: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_inicio_aquecimento ? 
+                        format(parseISO(lancamento.data_inicio_aquecimento), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Fim do Aquecimento</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_fim_aquecimento || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_fim_aquecimento: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_fim_aquecimento ? 
+                        format(parseISO(lancamento.data_fim_aquecimento), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Início do CPL</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_inicio_cpl || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_inicio_cpl: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_inicio_cpl ? 
+                        format(parseISO(lancamento.data_inicio_cpl), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Fim do CPL</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_fim_cpl || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_fim_cpl: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_fim_cpl ? 
+                        format(parseISO(lancamento.data_fim_cpl), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Início do Lembrete</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_inicio_lembrete || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_inicio_lembrete: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_inicio_lembrete ? 
+                        format(parseISO(lancamento.data_inicio_lembrete), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Fim do Lembrete</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_fim_lembrete || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_fim_lembrete: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_fim_lembrete ? 
+                        format(parseISO(lancamento.data_fim_lembrete), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Início do Carrinho</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_inicio_carrinho || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_inicio_carrinho: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_inicio_carrinho ? 
+                        format(parseISO(lancamento.data_inicio_carrinho), 'dd/MM/yyyy', { locale: ptBR }) : 
+                        'Não informado'
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Data de Fim do Carrinho</Label>
+                  {editing ? (
+                    <Input
+                      type="date"
+                      value={lancamento.data_fim_carrinho || ''}
+                      onChange={(e) => setLancamento({
+                        ...lancamento,
+                        data_fim_carrinho: e.target.value
+                      })}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {lancamento.data_fim_carrinho ? 
+                        format(parseISO(lancamento.data_fim_carrinho), 'dd/MM/yyyy', { locale: ptBR }) : 
                         'Não informado'
                       }
                     </p>
