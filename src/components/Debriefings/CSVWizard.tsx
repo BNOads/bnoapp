@@ -166,6 +166,8 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
   };
 
   const normalizeDate = (dateStr: string): string => {
+    if (!dateStr || dateStr.trim() === '') return '';
+    
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
       const [day, month, year] = dateStr.split('/');
       return `${year}-${month}-${day}`;
@@ -180,39 +182,48 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
 
     // Mapear dados de cada CSV
     const hoje = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const vendasData = vendas.data.map(row => ({
-      data: vendas.mapping.data ? normalizeDate(row[vendas.mapping.data]) : hoje,
-      email: row[vendas.mapping.email],
-      valor: parseFloat(row[vendas.mapping.valor] || '0'),
-      utm_source: row[vendas.mapping.utm_source] || '(sem atribuição)',
-      utm_medium: row[vendas.mapping.utm_medium] || '(sem atribuição)',
-      utm_campaign: row[vendas.mapping.utm_campaign] || '(sem atribuição)',
-      utm_term: row[vendas.mapping.utm_term] || ''
-    }));
+    const vendasData = vendas.data.map(row => {
+      const dataVenda = vendas.mapping.data ? normalizeDate(row[vendas.mapping.data]) : '';
+      return {
+        data: dataVenda || hoje,
+        email: row[vendas.mapping.email],
+        valor: parseFloat(row[vendas.mapping.valor] || '0'),
+        utm_source: row[vendas.mapping.utm_source] || '(sem atribuição)',
+        utm_medium: row[vendas.mapping.utm_medium] || '(sem atribuição)',
+        utm_campaign: row[vendas.mapping.utm_campaign] || '(sem atribuição)',
+        utm_term: row[vendas.mapping.utm_term] || ''
+      };
+    });
 
-    const leadsData = leads.data.map(row => ({
-      data: normalizeDate(row[leads.mapping.data]),
-      email: row[leads.mapping.email],
-      utm_source: row[leads.mapping.utm_source] || '(sem atribuição)',
-      utm_medium: row[leads.mapping.utm_medium] || '(sem atribuição)',
-      utm_campaign: row[leads.mapping.utm_campaign] || '(sem atribuição)',
-      utm_term: row[leads.mapping.utm_term] || ''
-    }));
+    const leadsData = leads.data.map(row => {
+      const dataLead = normalizeDate(row[leads.mapping.data]);
+      return {
+        data: dataLead || hoje,
+        email: row[leads.mapping.email],
+        utm_source: row[leads.mapping.utm_source] || '(sem atribuição)',
+        utm_medium: row[leads.mapping.utm_medium] || '(sem atribuição)',
+        utm_campaign: row[leads.mapping.utm_campaign] || '(sem atribuição)',
+        utm_term: row[leads.mapping.utm_term] || ''
+      };
+    });
 
-    const trafegoData = trafego.data.map(row => ({
-      data: normalizeDate(row[trafego.mapping.date]),
-      campanha: row[trafego.mapping.campaign_name] || 'N/A',
-      gasto: parseFloat(row[trafego.mapping.spend] || '0'),
-      impressoes: parseInt(row[trafego.mapping.impressions] || '0'),
-      cliques: parseInt(row[trafego.mapping.action_link_clicks] || '0'),
-      leads_trafego: parseInt(row[trafego.mapping.action_leads] || '0'),
-      ad_name: row[trafego.mapping.ad_name] || '',
-      adset_name: row[trafego.mapping.adset_name] || '',
-      utm_source: 'facebook',
-      utm_medium: 'paid',
-      utm_campaign: row[trafego.mapping.campaign_name] || '(sem atribuição)',
-      utm_term: ''
-    }));
+    const trafegoData = trafego.data.map(row => {
+      const dataTrafego = normalizeDate(row[trafego.mapping.date]);
+      return {
+        data: dataTrafego || hoje,
+        campanha: row[trafego.mapping.campaign_name] || 'N/A',
+        gasto: parseFloat(row[trafego.mapping.spend] || '0'),
+        impressoes: parseInt(row[trafego.mapping.impressions] || '0'),
+        cliques: parseInt(row[trafego.mapping.action_link_clicks] || '0'),
+        leads_trafego: parseInt(row[trafego.mapping.action_leads] || '0'),
+        ad_name: row[trafego.mapping.ad_name] || '',
+        adset_name: row[trafego.mapping.adset_name] || '',
+        utm_source: 'facebook',
+        utm_medium: 'paid',
+        utm_campaign: row[trafego.mapping.campaign_name] || '(sem atribuição)',
+        utm_term: ''
+      };
+    });
 
     // Consolidar por data + UTM
     const consolidated: Record<string, any> = {};
@@ -300,9 +311,9 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
     const roas = gasto_total > 0 ? faturamento_total / gasto_total : 0;
 
     // Detectar período
-    const dates = dados_consolidados.map(item => item.data).sort();
-    const periodo_inicio = dates[0] || '';
-    const periodo_fim = dates[dates.length - 1] || '';
+    const dates = dados_consolidados.map(item => item.data).filter(date => date && date !== '').sort();
+    const periodo_inicio = dates.length > 0 ? dates[0] : hoje;
+    const periodo_fim = dates.length > 0 ? dates[dates.length - 1] : hoje;
 
     return {
       vendas_total,
@@ -374,8 +385,8 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
           roas: consolidatedData.roas,
           ticket_medio: consolidatedData.ticket_medio,
           conversao_lead_venda: consolidatedData.conversao_lead_venda,
-          periodo_inicio: consolidatedData.periodo_inicio,
-          periodo_fim: consolidatedData.periodo_fim,
+          periodo_inicio: consolidatedData.periodo_inicio || null,
+          periodo_fim: consolidatedData.periodo_fim || null,
           dados_trafego: consolidatedData.dados_consolidados,
           status: 'concluido'
         })
