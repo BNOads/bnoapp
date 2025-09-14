@@ -461,6 +461,83 @@ export const OrcamentoPorFunil = ({
             </p>
           </CardContent>
         </Card>}
+          </TabsContent>
+        )}
+
+        {/* Aba dos Gestores */}
+        <TabsContent value="gestores" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+            {gestoresOrcamentos.map(gestor => (
+              <Card key={gestor.gestor_user_id} className="relative">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={gestor.gestor_avatar} />
+                      <AvatarFallback>
+                        {gestor.gestor_nome.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg font-semibold truncate">
+                        {gestor.gestor_nome}
+                      </CardTitle>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          <span>{gestor.total_clientes} cliente{gestor.total_clientes !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <TrendingUp className="h-4 w-4" />
+                          <span>{gestor.total_orcamentos} funis</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center p-4 bg-muted/50 rounded-lg">
+                    <div className="text-2xl font-bold text-primary">
+                      {formatarMoeda(gestor.total_investimento)}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Total Investimento</p>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {gestor.funis.slice(0, 5).map((funil, index) => (
+                      <div key={`${funil.cliente_nome}-${funil.nome_funil}-${index}`} className="flex justify-between items-center p-2 rounded border">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{funil.nome_funil}</p>
+                          <p className="text-xs text-muted-foreground truncate">{funil.cliente_nome}</p>
+                        </div>
+                        <div className="text-sm font-semibold text-primary">
+                          {formatarMoeda(funil.valor_investimento)}
+                        </div>
+                      </div>
+                    ))}
+                    {gestor.funis.length > 5 && (
+                      <div className="text-center p-2 text-sm text-muted-foreground">
+                        +{gestor.funis.length - 5} funis adicionais
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          {gestoresOrcamentos.length === 0 && (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium">Nenhum gestor com orçamentos encontrado</h3>
+                <p className="text-muted-foreground">
+                  Os dados dos gestores aparecerão aqui quando houver orçamentos cadastrados e gestores atribuídos aos clientes.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Modal Novo Orçamento */}
       <Dialog open={showNovoModal} onOpenChange={setShowNovoModal}>
@@ -584,9 +661,6 @@ export const OrcamentoPorFunil = ({
               </div>}
           </div>
         </DialogContent>
-      </Dialog>
-          </TabsContent>
-        </Tabs>
       </Dialog>
     </div>
   );
