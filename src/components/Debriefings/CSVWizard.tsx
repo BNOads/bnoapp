@@ -50,17 +50,17 @@ interface ConsolidatedData {
 const requiredFields = {
   vendas: ['email', 'valor'],
   leads: ['data', 'email'],
-  trafego: ['date', 'spend', 'impressions', 'campaign_name', 'link_criativo'],
+  trafego: ['date', 'spend', 'impressions', 'campaign_name'],
   pesquisa: ['email'],
-  outras_fontes: ['data', 'plataforma', 'gasto', 'link_criativo']
+  outras_fontes: ['data', 'gasto']
 };
 
 const optionalFields = {
   vendas: ['data', 'produto', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
   leads: ['nome', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
-  trafego: ['action_link_clicks', 'action_leads', 'ad_name', 'adset_name', 'reach', 'action_landing_page_view', 'action_3s_video_views', 'video_25_percent_watched', 'video_50_percent_watched', 'video_75_percent_watched', 'video_100_percent_watched', 'instagram_permalink_url'],
+  trafego: ['action_link_clicks', 'action_leads', 'ad_name', 'adset_name', 'reach', 'action_landing_page_view', 'action_3s_video_views', 'video_25_percent_watched', 'video_50_percent_watched', 'video_75_percent_watched', 'video_100_percent_watched', 'instagram_permalink_url', 'link_criativo'],
   pesquisa: ['idade', 'genero', 'renda', 'poder_de_compra', 'eventos'],
-  outras_fontes: ['campanha', 'impressoes', 'cliques', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term']
+  outras_fontes: ['campanha', 'impressoes', 'cliques', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'plataforma', 'link_criativo']
 };
 
 export default function CSVWizard({ debriefingData, onComplete, isEditMode = false }: CSVWizardProps) {
@@ -302,10 +302,19 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
   const normalizeDate = (dateStr: string): string => {
     if (!dateStr || dateStr.trim() === '') return '';
     
+    // Extrair apenas a parte da data se for um timestamp completo (DD/MM/YYYY HH:MM:SS)
+    if (/^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2}$/.test(dateStr)) {
+      const dateOnly = dateStr.split(' ')[0]; // Pega apenas a parte da data
+      const [day, month, year] = dateOnly.split('/');
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Normalizar data simples DD/MM/YYYY
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
       const [day, month, year] = dateStr.split('/');
       return `${year}-${month}-${day}`;
     }
+    
     return dateStr;
   };
 
@@ -363,23 +372,26 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
     });
 
     // Processar dados de pesquisa (opcional)
-    const pesquisaData = pesquisa ? pesquisa.data.map(row => ({
-      data: row[pesquisa.mapping.data] || row[pesquisa.mapping.carimbo] || '',
-      nome: row[pesquisa.mapping.nome] || '',
-      email: row[pesquisa.mapping.email] || '',
-      telefone: row[pesquisa.mapping.telefone] || '',
-      sexo: row[pesquisa.mapping.sexo] || '',
-      idade: parseInt(row[pesquisa.mapping.idade] || '0'),
-      formacao: row[pesquisa.mapping.formacao] || '',
-      tempo_formado: row[pesquisa.mapping.tempo_formado] || '',
-      situacao_trabalho: row[pesquisa.mapping.situacao_trabalho] || '',
-      renda_mensal: row[pesquisa.mapping.renda_mensal] || '',
-      utm_source: row[pesquisa.mapping.utm_source] || '',
-      utm_medium: row[pesquisa.mapping.utm_medium] || '',
-      utm_campaign: row[pesquisa.mapping.utm_campaign] || '',
-      utm_term: row[pesquisa.mapping.utm_term] || '',
-      utm_content: row[pesquisa.mapping.utm_content] || ''
-    })) : [];
+    const pesquisaData = pesquisa ? pesquisa.data.map(row => {
+      const dataPesquisa = normalizeDate(row[pesquisa.mapping.data] || row[pesquisa.mapping.carimbo] || '');
+      return {
+        data: dataPesquisa || hoje,
+        nome: row[pesquisa.mapping.nome] || '',
+        email: row[pesquisa.mapping.email] || '',
+        telefone: row[pesquisa.mapping.telefone] || '',
+        sexo: row[pesquisa.mapping.sexo] || '',
+        idade: parseInt(row[pesquisa.mapping.idade] || '0'),
+        formacao: row[pesquisa.mapping.formacao] || '',
+        tempo_formado: row[pesquisa.mapping.tempo_formado] || '',
+        situacao_trabalho: row[pesquisa.mapping.situacao_trabalho] || '',
+        renda_mensal: row[pesquisa.mapping.renda_mensal] || '',
+        utm_source: row[pesquisa.mapping.utm_source] || '',
+        utm_medium: row[pesquisa.mapping.utm_medium] || '',
+        utm_campaign: row[pesquisa.mapping.utm_campaign] || '',
+        utm_term: row[pesquisa.mapping.utm_term] || '',
+        utm_content: row[pesquisa.mapping.utm_content] || ''
+      };
+    }) : [];
 
     // Processar outras fontes de tráfego (opcional)
     const outrasData = outrasFontes ? outrasFontes.data.map(row => {
