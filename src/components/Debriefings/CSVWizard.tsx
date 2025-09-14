@@ -18,13 +18,14 @@ interface CSVWizardProps {
 }
 
 interface CSVFile {
-  type: 'vendas' | 'leads' | 'trafego';
+  type: 'vendas' | 'leads' | 'trafego' | 'pesquisa' | 'outras_fontes';
   file: File | null;
   data: any[];
   headers: string[];
   mapping: Record<string, string>;
   valid: boolean;
   errors: string[];
+  optional?: boolean;
 }
 
 interface ConsolidatedData {
@@ -47,21 +48,27 @@ interface ConsolidatedData {
 const requiredFields = {
   vendas: ['email', 'valor'],
   leads: ['data', 'email'],
-  trafego: ['date', 'spend', 'impressions', 'campaign_name']
+  trafego: ['date', 'spend', 'impressions', 'campaign_name', 'link_criativo'],
+  pesquisa: ['email'],
+  outras_fontes: ['data', 'plataforma', 'gasto', 'link_criativo']
 };
 
 const optionalFields = {
   vendas: ['data', 'produto', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
   leads: ['nome', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'],
-  trafego: ['action_link_clicks', 'action_leads', 'ad_name', 'adset_name', 'reach', 'action_landing_page_view', 'action_3s_video_views', 'video_25_percent_watched', 'video_50_percent_watched', 'video_75_percent_watched', 'video_100_percent_watched', 'instagram_permalink_url']
+  trafego: ['action_link_clicks', 'action_leads', 'ad_name', 'adset_name', 'reach', 'action_landing_page_view', 'action_3s_video_views', 'video_25_percent_watched', 'video_50_percent_watched', 'video_75_percent_watched', 'video_100_percent_watched', 'instagram_permalink_url'],
+  pesquisa: ['idade', 'genero', 'renda', 'poder_de_compra', 'eventos'],
+  outras_fontes: ['campanha', 'impressoes', 'cliques', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term']
 };
 
 export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [csvFiles, setCsvFiles] = useState<CSVFile[]>([
-    { type: 'vendas', file: null, data: [], headers: [], mapping: {}, valid: false, errors: [] },
-    { type: 'leads', file: null, data: [], headers: [], mapping: {}, valid: false, errors: [] },
-    { type: 'trafego', file: null, data: [], headers: [], mapping: {}, valid: false, errors: [] }
+    { type: 'vendas', file: null, data: [], headers: [], mapping: {}, valid: false, errors: [], optional: false },
+    { type: 'leads', file: null, data: [], headers: [], mapping: {}, valid: false, errors: [], optional: false },
+    { type: 'trafego', file: null, data: [], headers: [], mapping: {}, valid: false, errors: [], optional: false },
+    { type: 'pesquisa', file: null, data: [], headers: [], mapping: {}, valid: false, errors: [], optional: true },
+    { type: 'outras_fontes', file: null, data: [], headers: [], mapping: {}, valid: false, errors: [], optional: true }
   ]);
   const [consolidatedData, setConsolidatedData] = useState<ConsolidatedData | null>(null);
   const [dataConfirmed, setDataConfirmed] = useState(false);
@@ -90,7 +97,7 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
     return { headers, data };
   };
 
-  const handleFileUpload = async (type: 'vendas' | 'leads' | 'trafego', file: File) => {
+  const handleFileUpload = async (type: 'vendas' | 'leads' | 'trafego' | 'pesquisa' | 'outras_fontes', file: File) => {
     try {
       const csvText = await file.text();
       const { headers, data } = parseCSV(csvText);
@@ -179,6 +186,8 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
     const vendas = csvFiles.find(csv => csv.type === 'vendas')!;
     const leads = csvFiles.find(csv => csv.type === 'leads')!;
     const trafego = csvFiles.find(csv => csv.type === 'trafego')!;
+    const pesquisa = csvFiles.find(csv => csv.type === 'pesquisa' && csv.file);
+    const outrasFontes = csvFiles.find(csv => csv.type === 'outras_fontes' && csv.file);
 
     // Mapear dados de cada CSV
     const hoje = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -218,12 +227,41 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
         leads_trafego: parseInt(row[trafego.mapping.action_leads] || '0'),
         ad_name: row[trafego.mapping.ad_name] || '',
         adset_name: row[trafego.mapping.adset_name] || '',
+        link_criativo: row[trafego.mapping.link_criativo] || '',
         utm_source: 'facebook',
         utm_medium: 'paid',
         utm_campaign: row[trafego.mapping.campaign_name] || '(sem atribuição)',
         utm_term: ''
       };
     });
+
+    // Processar dados de pesquisa (opcional)
+    const pesquisaData = pesquisa ? pesquisa.data.map(row => ({
+      email: row[pesquisa.mapping.email],
+      idade: parseInt(row[pesquisa.mapping.idade] || '0'),
+      genero: row[pesquisa.mapping.genero] || '',
+      renda: row[pesquisa.mapping.renda] || '',
+      poder_de_compra: row[pesquisa.mapping.poder_de_compra] || '',
+      eventos: parseInt(row[pesquisa.mapping.eventos] || '0')
+    })) : [];
+
+    // Processar outras fontes de tráfego (opcional)
+    const outrasData = outrasFontes ? outrasFontes.data.map(row => {
+      const dataOutra = normalizeDate(row[outrasFontes.mapping.data]);
+      return {
+        data: dataOutra || hoje,
+        plataforma: row[outrasFontes.mapping.plataforma] || 'Outras',
+        campanha: row[outrasFontes.mapping.campanha] || 'N/A',
+        gasto: parseFloat(row[outrasFontes.mapping.gasto] || '0'),
+        impressoes: parseInt(row[outrasFontes.mapping.impressoes] || '0'),
+        cliques: parseInt(row[outrasFontes.mapping.cliques] || '0'),
+        link_criativo: row[outrasFontes.mapping.link_criativo] || '',
+        utm_source: row[outrasFontes.mapping.utm_source] || row[outrasFontes.mapping.plataforma]?.toLowerCase(),
+        utm_medium: row[outrasFontes.mapping.utm_medium] || 'paid',
+        utm_campaign: row[outrasFontes.mapping.utm_campaign] || row[outrasFontes.mapping.campanha],
+        utm_term: row[outrasFontes.mapping.utm_term] || ''
+      };
+    }) : [];
 
     // Consolidar por data + UTM
     const consolidated: Record<string, any> = {};
@@ -334,24 +372,30 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
   };
 
   const handleProceedToMapping = () => {
-    const hasFiles = csvFiles.every(csv => csv.file !== null);
-    if (!hasFiles) {
-      toast.error('Selecione todos os 3 arquivos CSV antes de continuar');
+    const requiredFiles = csvFiles.filter(csv => !csv.optional);
+    const hasRequiredFiles = requiredFiles.every(csv => csv.file !== null);
+    if (!hasRequiredFiles) {
+      toast.error('Selecione os 3 arquivos CSV obrigatórios (Vendas, Leads e Tráfego) antes de continuar');
       return;
     }
     setCurrentStep(2);
   };
 
   const handleProceedToConfirmation = () => {
-    // Validar mapeamentos
+    // Validar mapeamentos apenas dos arquivos carregados
     const updatedCsvFiles = csvFiles.map(csv => {
-      const validation = validateMapping(csv);
-      return { ...csv, valid: validation.valid, errors: validation.errors };
+      if (csv.file !== null) {
+        const validation = validateMapping(csv);
+        return { ...csv, valid: validation.valid, errors: validation.errors };
+      }
+      return { ...csv, valid: true, errors: [] }; // Arquivos opcionais não carregados são válidos
     });
 
     setCsvFiles(updatedCsvFiles);
 
-    const allValid = updatedCsvFiles.every(csv => csv.valid);
+    // Verificar se todos os arquivos carregados são válidos
+    const loadedFiles = updatedCsvFiles.filter(csv => csv.file !== null);
+    const allValid = loadedFiles.every(csv => csv.valid);
     if (!allValid) {
       toast.error('Corrija os erros de mapeamento antes de continuar');
       return;
@@ -374,6 +418,12 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
       const debriefingId = sessionStorage.getItem('current_debriefing_id');
       if (!debriefingId) throw new Error('ID do debriefing não encontrado');
 
+      // Preparar dados para salvamento
+      const vendasCsv = csvFiles.find(csv => csv.type === 'vendas');
+      const leadsCsv = csvFiles.find(csv => csv.type === 'leads');
+      const pesquisaCsv = csvFiles.find(csv => csv.type === 'pesquisa' && csv.file);
+      const outrasfontesCsv = csvFiles.find(csv => csv.type === 'outras_fontes' && csv.file);
+
       const { error } = await supabase
         .from('debriefings')
         .update({
@@ -387,7 +437,11 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
           conversao_lead_venda: consolidatedData.conversao_lead_venda,
           periodo_inicio: consolidatedData.periodo_inicio || null,
           periodo_fim: consolidatedData.periodo_fim || null,
+          dados_leads: leadsCsv?.data || [],
+          dados_compradores: vendasCsv?.data || [],
           dados_trafego: consolidatedData.dados_consolidados,
+          dados_pesquisa: pesquisaCsv?.data || [],
+          dados_outras_fontes: outrasfontesCsv?.data || [],
           status: 'concluido'
         })
         .eq('id', debriefingId);
@@ -463,13 +517,18 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
             <Card key={csv.type}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>CSV de {csv.type.charAt(0).toUpperCase() + csv.type.slice(1)}</span>
+                  <span>
+                    CSV de {csv.type.charAt(0).toUpperCase() + csv.type.slice(1).replace('_', ' ')}
+                    {csv.optional && <Badge variant="secondary" className="ml-2">Opcional</Badge>}
+                  </span>
                   {csv.file && <CheckCircle className="h-5 w-5 text-green-500" />}
                 </CardTitle>
                 <CardDescription>
                   {csv.type === 'vendas' && 'Dados de vendas realizadas com email do cliente'}
                   {csv.type === 'leads' && 'Dados de leads capturados com email'}
                   {csv.type === 'trafego' && 'Dados do Facebook/Meta Ads (export do Ads Manager)'}
+                  {csv.type === 'pesquisa' && 'Dados demográficos dos leads (opcional)'}
+                  {csv.type === 'outras_fontes' && 'Dados de outras plataformas de tráfego como TikTok, LinkedIn Ads (opcional)'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -509,7 +568,7 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
           <div className="flex justify-end">
             <Button 
               onClick={handleProceedToMapping}
-              disabled={!csvFiles.every(csv => csv.file)}
+              disabled={!csvFiles.filter(csv => !csv.optional).every(csv => csv.file)}
             >
               Próximo: Mapeamento <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -528,10 +587,10 @@ export default function CSVWizard({ debriefingData, onComplete }: CSVWizardProps
           </div>
 
           <Tabs defaultValue="vendas">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-5">
               {csvFiles.map(csv => (
-                <TabsTrigger key={csv.type} value={csv.type}>
-                  {csv.type.charAt(0).toUpperCase() + csv.type.slice(1)}
+                <TabsTrigger key={csv.type} value={csv.type} disabled={!csv.file}>
+                  {csv.type.charAt(0).toUpperCase() + csv.type.slice(1).replace('_', ' ')}
                   {csv.valid && <CheckCircle className="ml-2 h-4 w-4 text-green-500" />}
                 </TabsTrigger>
               ))}

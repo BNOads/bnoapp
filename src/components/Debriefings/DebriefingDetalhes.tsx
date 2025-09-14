@@ -30,6 +30,8 @@ interface DebriefingDetalhes {
   dados_leads?: any;
   dados_compradores?: any;
   dados_trafego?: any;
+  dados_pesquisa?: any;
+  dados_outras_fontes?: any;
 }
 
 export default function DebriefingDetalhes() {
@@ -76,7 +78,9 @@ export default function DebriefingDetalhes() {
           conversao_lead_venda: debriefingData.conversao_lead_venda,
           dados_leads: debriefingData.dados_leads,
           dados_compradores: debriefingData.dados_compradores,
-          dados_trafego: debriefingData.dados_trafego
+          dados_trafego: debriefingData.dados_trafego,
+          dados_pesquisa: debriefingData.dados_pesquisa,
+          dados_outras_fontes: debriefingData.dados_outras_fontes
         });
       } else {
         console.log('Nenhum debriefing encontrado para o ID:', id);
@@ -499,6 +503,8 @@ export default function DebriefingDetalhes() {
                 dados_leads={debriefing.dados_leads || []}
                 dados_compradores={debriefing.dados_compradores || []}
                 dados_trafego={debriefing.dados_trafego || []}
+                dados_pesquisa={debriefing.dados_pesquisa || []}
+                dados_outras_fontes={debriefing.dados_outras_fontes || []}
                 debriefing={debriefing}
               />
             </TabsContent>

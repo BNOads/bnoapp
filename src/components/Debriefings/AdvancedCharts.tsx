@@ -5,12 +5,14 @@ interface AdvancedChartsProps {
   dados_leads?: any[];
   dados_compradores?: any[];
   dados_trafego?: any[];
+  dados_pesquisa?: any[];
+  dados_outras_fontes?: any[];
   debriefing: any;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
-export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados_trafego = [], debriefing }: AdvancedChartsProps) => {
+export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados_trafego = [], dados_pesquisa = [], dados_outras_fontes = [], debriefing }: AdvancedChartsProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -30,10 +32,19 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     return distribuicao;
   };
 
-  // 2. Desempenho por Plataforma
+  // 2. Desempenho por Plataforma (incluindo outras fontes)
   const getDesempenhoPorPlataforma = () => {
-    const trafegoAgrupado = dados_trafego.reduce((acc: any, item: any) => {
-      const plataforma = item['Campaign Name']?.includes('Google') ? 'Google Ads' : 'Meta Ads';
+    const trafegoCompleto = [...dados_trafego, ...dados_outras_fontes];
+    
+    const trafegoAgrupado = trafegoCompleto.reduce((acc: any, item: any) => {
+      let plataforma = 'Meta Ads';
+      
+      if (item.plataforma) {
+        plataforma = item.plataforma;
+      } else if (item['Campaign Name']?.includes('Google')) {
+        plataforma = 'Google Ads';
+      }
+      
       if (!acc[plataforma]) {
         acc[plataforma] = {
           investimento: 0,
@@ -44,10 +55,10 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
           ctr: 0
         };
       }
-      acc[plataforma].investimento += parseFloat(item['Spend (Cost, Amount Spent)'] || 0);
-      acc[plataforma].impressoes += parseInt(item['Impressions'] || 0);
-      acc[plataforma].cliques += parseInt(item['Action Link Clicks'] || 0);
-      acc[plataforma].leads += parseInt(item['Action Leads'] || 0);
+      acc[plataforma].investimento += parseFloat(item['Spend (Cost, Amount Spent)'] || item.gasto || 0);
+      acc[plataforma].impressoes += parseInt(item['Impressions'] || item.impressoes || 0);
+      acc[plataforma].cliques += parseInt(item['Action Link Clicks'] || item.cliques || 0);
+      acc[plataforma].leads += parseInt(item['Action Leads'] || item.leads || 0);
       return acc;
     }, {});
 
@@ -59,9 +70,12 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     }));
   };
 
-  // 3. Temperatura do Público
+  // 3. Temperatura do Público (com dados de pesquisa)
   const getTemperaturaPublico = () => {
-    const temperaturas = dados_leads.reduce((acc: any, lead: any) => {
+    // Se temos dados de pesquisa, usar eles, senão usar dados dos leads padrão
+    const leadsData = dados_pesquisa.length > 0 ? dados_pesquisa : dados_leads;
+    
+    const temperaturas = leadsData.reduce((acc: any, lead: any) => {
       const temp = lead.temperatura || 'Morno';
       if (!acc[temp]) {
         acc[temp] = { leads: 0, vendas: 0 };
@@ -83,22 +97,27 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     }));
   };
 
-  // 4. Top Criativos
+  // 4. Top Criativos (com links e miniaturas)
   const getTopCriativos = () => {
-    const criativosData = dados_trafego.reduce((acc: any, item: any) => {
-      const criativo = item['Ad Name'] || 'Criativo não identificado';
+    const trafegoCompleto = [...dados_trafego, ...dados_outras_fontes];
+    
+    const criativosData = trafegoCompleto.reduce((acc: any, item: any) => {
+      const criativo = item['Ad Name'] || item.nome_criativo || 'Criativo não identificado';
+      const linkCriativo = item.link_criativo || '';
+      
       if (!acc[criativo]) {
         acc[criativo] = {
           leads: 0,
           gasto: 0,
           cliques: 0,
-          impressoes: 0
+          impressoes: 0,
+          link_criativo: linkCriativo
         };
       }
-      acc[criativo].leads += parseInt(item['Action Leads'] || 0);
-      acc[criativo].gasto += parseFloat(item['Spend (Cost, Amount Spent)'] || 0);
-      acc[criativo].cliques += parseInt(item['Action Link Clicks'] || 0);
-      acc[criativo].impressoes += parseInt(item['Impressions'] || 0);
+      acc[criativo].leads += parseInt(item['Action Leads'] || item.leads || 0);
+      acc[criativo].gasto += parseFloat(item['Spend (Cost, Amount Spent)'] || item.gasto || 0);
+      acc[criativo].cliques += parseInt(item['Action Link Clicks'] || item.cliques || 0);
+      acc[criativo].impressoes += parseInt(item['Impressions'] || item.impressoes || 0);
       return acc;
     }, {});
 
@@ -107,7 +126,8 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
         criativo,
         ...criativosData[criativo],
         cpl: criativosData[criativo].leads > 0 ? criativosData[criativo].gasto / criativosData[criativo].leads : 0,
-        ctr: criativosData[criativo].impressoes > 0 ? (criativosData[criativo].cliques / criativosData[criativo].impressoes) * 100 : 0
+        ctr: criativosData[criativo].impressoes > 0 ? (criativosData[criativo].cliques / criativosData[criativo].impressoes) * 100 : 0,
+        vendas: dados_compradores.filter(c => c.utm_campaign?.includes(criativo.substring(0, 10))).length || 0
       }))
       .sort((a, b) => b.leads - a.leads)
       .slice(0, 5);
@@ -132,16 +152,20 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
       }));
   };
 
-  // 6. Perfil Demográfico - Gênero
+  // 6. Perfil Demográfico - Gênero (com dados de pesquisa)
   const getPerfilGenero = () => {
-    const generoLeads = dados_leads.reduce((acc: any, lead: any) => {
+    const dadosBase = dados_pesquisa.length > 0 ? dados_pesquisa : dados_leads;
+    
+    const generoLeads = dadosBase.reduce((acc: any, lead: any) => {
       const genero = lead.genero || 'Não informado';
       acc[genero] = (acc[genero] || 0) + 1;
       return acc;
     }, {});
 
     const generoVendas = dados_compradores.reduce((acc: any, comprador: any) => {
-      const genero = comprador.genero || 'Não informado';
+      // Tentar mapear comprador com dados de pesquisa
+      const dadosPesquisa = dados_pesquisa.find(p => p.email === comprador.email);
+      const genero = dadosPesquisa?.genero || comprador.genero || 'Não informado';
       acc[genero] = (acc[genero] || 0) + 1;
       return acc;
     }, {});
@@ -154,7 +178,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     }));
   };
 
-  // 7. Perfil por Idade
+  // 7. Perfil por Idade (com dados de pesquisa)
   const getPerfilIdade = () => {
     const getIdadeFaixa = (idade: number) => {
       if (idade < 25) return '18-24';
@@ -164,14 +188,17 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
       return '55+';
     };
 
-    const idadeLeads = dados_leads.reduce((acc: any, lead: any) => {
+    const dadosBase = dados_pesquisa.length > 0 ? dados_pesquisa : dados_leads;
+
+    const idadeLeads = dadosBase.reduce((acc: any, lead: any) => {
       const faixa = getIdadeFaixa(lead.idade || 30);
       acc[faixa] = (acc[faixa] || 0) + 1;
       return acc;
     }, {});
 
     const idadeVendas = dados_compradores.reduce((acc: any, comprador: any) => {
-      const faixa = getIdadeFaixa(comprador.idade || 30);
+      const dadosPesquisa = dados_pesquisa.find(p => p.email === comprador.email);
+      const faixa = getIdadeFaixa(dadosPesquisa?.idade || comprador.idade || 30);
       acc[faixa] = (acc[faixa] || 0) + 1;
       return acc;
     }, {});
@@ -321,7 +348,9 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="border border-gray-300 p-2 text-left">Criativo</th>
+                    <th className="border border-gray-300 p-2 text-center">Preview</th>
                     <th className="border border-gray-300 p-2 text-center">Leads</th>
+                    <th className="border border-gray-300 p-2 text-center">Vendas</th>
                     <th className="border border-gray-300 p-2 text-center">CPL</th>
                     <th className="border border-gray-300 p-2 text-center">CTR</th>
                     <th className="border border-gray-300 p-2 text-center">Gasto</th>
@@ -330,8 +359,38 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                 <tbody>
                   {topCriativos.map((criativo, index) => (
                     <tr key={index}>
-                      <td className="border border-gray-300 p-2">{criativo.criativo}</td>
+                      <td className="border border-gray-300 p-2">
+                        <div className="font-medium">{criativo.criativo}</div>
+                      </td>
+                      <td className="border border-gray-300 p-2 text-center">
+                        {criativo.link_criativo ? (
+                          <a 
+                            href={criativo.link_criativo} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-block hover:opacity-80 transition-opacity"
+                          >
+                            <img 
+                              src={criativo.link_criativo} 
+                              alt={`Preview do criativo ${criativo.criativo}`}
+                              className="w-12 h-12 object-cover rounded border"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
+                              }}
+                            />
+                            <div className="hidden w-12 h-12 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
+                              N/A
+                            </div>
+                          </a>
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
+                            N/A
+                          </div>
+                        )}
+                      </td>
                       <td className="border border-gray-300 p-2 text-center">{criativo.leads}</td>
+                      <td className="border border-gray-300 p-2 text-center">{criativo.vendas}</td>
                       <td className="border border-gray-300 p-2 text-center">{formatCurrency(criativo.cpl)}</td>
                       <td className="border border-gray-300 p-2 text-center">{criativo.ctr.toFixed(2)}%</td>
                       <td className="border border-gray-300 p-2 text-center">{formatCurrency(criativo.gasto)}</td>
