@@ -17,8 +17,25 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: 'BRL'
+      currency: 'BRL',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
     }).format(value);
+  };
+
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    }).format(value);
+  };
+
+  const formatPercentage = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'percent',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    }).format(value / 100);
   };
 
   // 1. Distribuição de Verba por Etapa (usando dados reais de mapeamento)
@@ -370,7 +387,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percentage }) => `${name} ${percentage}%`}
+                  label={({ name, percentage }) => `${name} ${percentage.toFixed(1)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
@@ -416,10 +433,10 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                 <XAxis dataKey="plataforma" />
                 <YAxis />
                 <Tooltip formatter={(value: number, name: string) => {
-                  if (name === 'investimento') return formatCurrency(value);
-                  if (name === 'cpl') return formatCurrency(value);
-                  if (name === 'ctr') return `${value.toFixed(2)}%`;
-                  return value;
+                  if (name === 'investimento') return [formatCurrency(value), 'Investimento'];
+                  if (name === 'cpl') return [formatCurrency(value), 'CPL'];
+                  if (name === 'ctr') return [`${formatNumber(value)}%`, 'CTR'];
+                  return [formatNumber(value), name];
                 }} />
                 <Bar dataKey="leads" fill="#8884d8" name="Leads" />
                 <Bar dataKey="cpl" fill="#82ca9d" name="CPL" />
@@ -453,7 +470,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value: number) => [formatNumber(value), 'Leads']} />
                 </PieChart>
               </ResponsiveContainer>
               <ResponsiveContainer width="100%" height={300}>
@@ -462,8 +479,8 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                   <XAxis dataKey="temperatura" />
                   <YAxis />
                   <Tooltip formatter={(value: number, name: string) => {
-                    if (name === 'conversao') return `${value.toFixed(1)}%`;
-                    return value;
+                    if (name === 'conversao') return [`${formatNumber(value)}%`, 'Taxa de Conversão'];
+                    return [formatNumber(value), name];
                   }} />
                   <Bar dataKey="vendas" fill="#82ca9d" name="Vendas" />
                   <Bar dataKey="conversao" fill="#ffc658" name="Taxa de Conversão %" />
@@ -530,7 +547,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                       <td className="border border-gray-300 p-2 text-center">{criativo.leads}</td>
                       <td className="border border-gray-300 p-2 text-center">{criativo.vendas}</td>
                       <td className="border border-gray-300 p-2 text-center">{formatCurrency(criativo.cpl)}</td>
-                      <td className="border border-gray-300 p-2 text-center">{criativo.ctr.toFixed(2)}%</td>
+                      <td className="border border-gray-300 p-2 text-center">{formatNumber(criativo.ctr)}%</td>
                       <td className="border border-gray-300 p-2 text-center">{formatCurrency(criativo.gasto)}</td>
                     </tr>
                   ))}
@@ -553,7 +570,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="data" />
                 <YAxis />
-                <Tooltip />
+                <Tooltip formatter={(value: number) => [formatNumber(value), 'Vendas']} />
                 <Line type="monotone" dataKey="vendas" stroke="#8884d8" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
@@ -574,8 +591,8 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                 <XAxis dataKey="genero" />
                 <YAxis />
                 <Tooltip formatter={(value: number, name: string) => {
-                  if (name === 'conversao') return `${value.toFixed(1)}%`;
-                  return value;
+                  if (name === 'conversao') return [`${formatNumber(value)}%`, 'Conversão'];
+                  return [formatNumber(value), name];
                 }} />
                 <Bar dataKey="leads" fill="#8884d8" name="Leads" />
                 <Bar dataKey="vendas" fill="#82ca9d" name="Vendas" />
@@ -599,8 +616,8 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                 <XAxis dataKey="faixa" />
                 <YAxis />
                 <Tooltip formatter={(value: number, name: string) => {
-                  if (name === 'conversao') return `${value.toFixed(1)}%`;
-                  return value;
+                  if (name === 'conversao') return [`${formatNumber(value)}%`, 'Conversão'];
+                  return [formatNumber(value), name];
                 }} />
                 <Bar dataKey="leads" fill="#8884d8" name="Leads" />
                 <Bar dataKey="vendas" fill="#82ca9d" name="Vendas" />
@@ -632,8 +649,8 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                     />
                     <YAxis />
                     <Tooltip formatter={(value: number, name: string) => {
-                      if (name === 'conversao') return `${value.toFixed(1)}%`;
-                      return value;
+                      if (name === 'conversao') return [`${formatNumber(value)}%`, 'Conversão'];
+                      return [formatNumber(value), name];
                     }} />
                     <Bar dataKey="leads" fill="#8884d8" name="Leads" />
                     <Bar dataKey="vendas" fill="#82ca9d" name="Vendas" />
@@ -678,7 +695,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                         <Cell key={`cell-${index}`} fill={entry.tipo === 'Orgânico' ? '#82ca9d' : '#8884d8'} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip formatter={(value: number) => [formatNumber(value), 'Leads']} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -713,7 +730,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                         </td>
                         <td className="border border-gray-200 p-2 text-center">{fonte.leads}</td>
                         <td className="border border-gray-200 p-2 text-center">{fonte.vendas}</td>
-                        <td className="border border-gray-200 p-2 text-center">{fonte.conversao.toFixed(1)}%</td>
+                        <td className="border border-gray-200 p-2 text-center">{formatNumber(fonte.conversao)}%</td>
                       </tr>
                     ))}
                   </tbody>

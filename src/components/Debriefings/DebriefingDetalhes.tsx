@@ -342,7 +342,7 @@ export default function DebriefingDetalhes() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">ROAS</p>
-                <p className="text-2xl font-bold">{debriefing.roas?.toFixed(2) || '0.00'}x</p>
+                <p className="text-2xl font-bold">{debriefing.roas?.toFixed(1) || '0,0'}x</p>
               </div>
               <Target className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -374,7 +374,7 @@ export default function DebriefingDetalhes() {
           <CardContent className="p-6">
             <div className="text-center">
               <p className="text-sm font-medium text-muted-foreground">Conversão Lead → Venda</p>
-              <p className="text-xl font-semibold">{((debriefing.conversao_lead_venda || 0) * 100).toFixed(2)}%</p>
+              <p className="text-xl font-semibold">{((debriefing.conversao_lead_venda || 0) * 100).toFixed(1)}%</p>
             </div>
           </CardContent>
         </Card>

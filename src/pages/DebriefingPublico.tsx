@@ -94,7 +94,16 @@ export default function DebriefingPublico() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: 'BRL'
+      currency: 'BRL',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    }).format(value);
+  };
+
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
     }).format(value);
   };
 
@@ -222,7 +231,7 @@ export default function DebriefingPublico() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {debriefing.roas ? `${debriefing.roas.toFixed(2)}x` : '-'}
+                {debriefing.roas ? `${formatNumber(debriefing.roas)}x` : '-'}
               </div>
             </CardContent>
           </Card>
@@ -251,7 +260,7 @@ export default function DebriefingPublico() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {debriefing.conversao_lead_venda ? `${(debriefing.conversao_lead_venda * 100).toFixed(1)}%` : '-'}
+                {debriefing.conversao_lead_venda ? `${formatNumber(debriefing.conversao_lead_venda * 100)}%` : '-'}
               </div>
               <p className="text-xs text-muted-foreground">
                 {debriefing.vendas_total} vendas de {debriefing.leads_total} leads
@@ -297,7 +306,7 @@ export default function DebriefingPublico() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip formatter={(value: number) => [formatNumber(value), '']} />
                       <Bar dataKey="value" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -319,7 +328,7 @@ export default function DebriefingPublico() {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) => `${name}: ${formatNumber(percent * 100)}%`}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="value"
@@ -327,7 +336,7 @@ export default function DebriefingPublico() {
                         <Cell fill="#ff7c7c" />
                         <Cell fill="#8dd1e1" />
                       </Pie>
-                      <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, '']} />
+                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
                     </PieChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -351,7 +360,7 @@ export default function DebriefingPublico() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
-                    <Tooltip formatter={(value) => [Number(value).toFixed(2), '']} />
+                    <Tooltip formatter={(value) => [formatNumber(Number(value)), '']} />
                     <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
