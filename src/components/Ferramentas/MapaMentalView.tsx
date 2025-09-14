@@ -828,7 +828,7 @@ export const MapaMentalView = () => {
               }}
             >
               {/* Render connections */}
-              <svg className="absolute inset-0 w-full h-full pointer-events-none">
+              <svg className="absolute inset-0 w-full h-full">
                 {currentMapa.dados_mapa.connections.map(connection => {
                   const fromPos = getElementPosition(connection.fromNodeId, connection.fromType || 'node');
                   const toPos = getElementPosition(connection.toNodeId, connection.toType || 'node');
@@ -840,11 +840,12 @@ export const MapaMentalView = () => {
                     <path
                       key={connection.id}
                       d={`M ${fromPos.x} ${fromPos.y} Q ${fromPos.x + dx/2} ${fromPos.y + dy/2 - 30} ${toPos.x} ${toPos.y}`}
-                      stroke="hsl(var(--muted-foreground) / 0.4)"
-                      strokeWidth="2"
+                      stroke="hsl(var(--muted-foreground) / 0.5)"
+                      strokeWidth="2.5"
                       fill="none"
-                      className="drop-shadow-sm"
+                      className="drop-shadow-sm cursor-pointer hover:opacity-80"
                       markerEnd="url(#arrowhead)"
+                      onClick={(e) => { e.stopPropagation(); deleteConnection(connection.id); }}
                     />
                   );
                  })}
@@ -959,6 +960,14 @@ export const MapaMentalView = () => {
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
+                  )}
+                  {activeTool === 'connection' && (
+                    <>
+                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
+                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
+                      <div className="absolute top-1/2 -left-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
+                      <div className="absolute top-1/2 -right-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
+                    </>
                   )}
                 </div>
               ))}
@@ -1124,6 +1133,14 @@ export const MapaMentalView = () => {
                     className="absolute -top-1 -left-1 w-3 h-3 rounded-full"
                     style={{ backgroundColor: node.color }}
                   />
+                  {activeTool === 'connection' && (
+                    <>
+                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
+                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
+                      <div className="absolute top-1/2 -left-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
+                      <div className="absolute top-1/2 -right-2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border border-background shadow-sm pointer-events-none" />
+                    </>
+                  )}
                 </div>
               ))}
             </div>
