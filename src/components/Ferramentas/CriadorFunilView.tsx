@@ -488,7 +488,6 @@ export const CriadorFunilView = () => {
     });
   };
 
-
   // Duplo clique para editar
   const handleElementDoubleClick = (elementId: string) => {
     const element = currentFunil?.dados_funil.elements.find(el => el.id === elementId);
