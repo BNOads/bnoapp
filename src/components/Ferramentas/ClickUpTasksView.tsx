@@ -81,7 +81,10 @@ export default function ClickUpTasksView() {
   }, [userLinked]);
 
   const checkUserMapping = async () => {
-    if (!userData?.email) return;
+    if (!userData?.email) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
@@ -92,12 +95,14 @@ export default function ClickUpTasksView() {
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error checking mapping:', error);
-        return;
       }
 
       setUserLinked(!!data);
     } catch (error) {
       console.error('Error checking mapping:', error);
+    } finally {
+      // Garante que a tela não fique carregando indefinidamente
+      setLoading(false);
     }
   };
 
@@ -134,18 +139,25 @@ export default function ClickUpTasksView() {
       // Hard stop de 30s máximo conforme PRD
       const hardStopId = setTimeout(() => {
         setSyncing(false);
+        setLoading(false);
         setLastError('❌ Falha ao carregar tarefas');
         toast.error('Tempo limite excedido');
       }, 30000);
 
       try {
-        const { data, error } = await supabase.functions.invoke('clickup-integration', {
+        const invokePromise = supabase.functions.invoke('clickup-integration', {
           body: { 
             action: 'getTasks', 
             teamId: mapping.clickup_team_id,
             userId: mapping.clickup_user_id
           }
         });
+
+        const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
+          setTimeout(() => resolve({ data: { error: 'client_timeout' }, error: { name: 'TimeoutError', message: 'Timeout 15s' } }), 15000)
+        );
+
+        const { data, error } = await Promise.race<any>([invokePromise, timeoutPromise]);
 
         clearTimeout(timeoutId);
         clearTimeout(hardStopId);
