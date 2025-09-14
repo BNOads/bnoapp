@@ -603,7 +603,6 @@ export default function CSVWizard({ debriefingData, onComplete, isEditMode = fal
           dados_trafego: consolidatedData.dados_consolidados,
           dados_pesquisa: pesquisaCsv?.data || [],
           dados_outras_fontes: outrasfontesCsv?.data || [],
-          distribuicao_etapas: stageMappings.length > 0 ? stageMappings : null,
           status: 'concluido'
         })
         .eq('id', debriefingId);
