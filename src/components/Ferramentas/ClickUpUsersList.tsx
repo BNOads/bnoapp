@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,23 @@ export default function ClickUpUsersList() {
     totalTeams: 0
   });
 
+  // Carregar workspaces (teams) ao montar para permitir seleção antes da busca
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('clickup-integration', {
+          body: { action: 'getTeams' }
+        });
+        if (!error && data?.teams) {
+          setTeams((data.teams as any[]).map((t: any) => ({ id: String(t.id), name: t.name })));
+          setStats((s) => ({ ...s, totalTeams: (data.teams as any[]).length }));
+        }
+      } catch (e) {
+        console.warn('Falha ao carregar workspaces:', e);
+      }
+    })();
+  }, []);
+
   const handleListUsers = async () => {
     setLoading(true);
     
@@ -68,11 +85,12 @@ export default function ClickUpUsersList() {
         throw new Error('Erro de conexão com ClickUp: ' + teamsError.message);
       }
       
-      // Agora tentar listar usuários
-      console.log('Testando listAllUsers...');
+      // Agora tentar listar usuários (respeitando workspace selecionado)
+      console.log('Testando listAllUsers...', selectedTeam ? `teamId=${selectedTeam}` : 'todos os workspaces');
       const { data, error } = await supabase.functions.invoke('clickup-integration', {
         body: {
-          action: 'listAllUsers'
+          action: 'listAllUsers',
+          teamId: selectedTeam || undefined
         }
       });
 
@@ -199,13 +217,25 @@ export default function ClickUpUsersList() {
       </CardHeader>
       
       <CardContent className="space-y-4">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-col sm:flex-row items-start">
+          <div className="w-full sm:w-64">
+            <select
+              value={selectedTeam}
+              onChange={(e) => setSelectedTeam(e.target.value)}
+              className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+            >
+              <option value="">Todos os workspaces</option>
+              {teams.map(team => (
+                <option key={team.id} value={team.id}>{team.name}</option>
+              ))}
+            </select>
+          </div>
           <Button 
             onClick={handleListUsers} 
             disabled={loading}
             className="w-full sm:w-auto"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`${loading ? 'animate-spin' : ''} h-4 w-4 mr-2`} />
             {loading ? 'Carregando...' : 'Listar Usuários'}
           </Button>
         </div>

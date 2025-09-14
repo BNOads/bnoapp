@@ -111,7 +111,7 @@ serve(async (req) => {
       
       case 'listAllUsers':
         console.log('Action listAllUsers called');
-        return await listAllUsers(clickupApiKey);
+        return await listAllUsers(clickupApiKey, teamId);
       
       case 'linkUser':
         return await linkUser(supabaseClient, userData, body);
@@ -854,40 +854,92 @@ async function linkUser(supabaseClient: any, userData: any, linkData: any) {
   }
 }
 
-async function listAllUsers(apiKey: string) {
+async function listAllUsers(apiKey: string, teamId?: string) {
   console.log('listAllUsers function called');
-  console.log('API Key present:', !!apiKey);
+  console.log('API Key present:', !!apiKey, 'teamId:', teamId);
   
   const corsHeaders = getCorsHeaders(null);
 
   try {
-    // Teste simples primeiro - apenas buscar teams
-    const teamsResponse = await fetch('https://api.clickup.com/api/v2/team', {
-      headers: {
-        'Authorization': apiKey,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    console.log('Teams response status:', teamsResponse.status);
-    
+    const headers = {
+      'Authorization': apiKey,
+      'Content-Type': 'application/json'
+    };
+
+    // 1) Buscar todos os workspaces (teams)
+    const teamsResponse = await fetch('https://api.clickup.com/api/v2/team', { headers });
     if (!teamsResponse.ok) {
       throw new Error(`Failed to fetch teams: ${teamsResponse.status} ${teamsResponse.statusText}`);
     }
-
     const teamsData = await teamsResponse.json();
-    const teams = teamsData.teams || [];
-    
-    console.log(`Found ${teams.length} teams`);
+    const allTeams = (teamsData.teams || []).map((t: any) => ({ id: String(t.id), name: t.name }));
 
-    // Por enquanto, retornar apenas os teams para testar
+    // 2) Selecionar o(s) workspace(s)
+    const selectedTeams = teamId && teamId !== ''
+      ? allTeams.filter((t: any) => String(t.id) === String(teamId))
+      : allTeams;
+
+    if (selectedTeams.length === 0) {
+      return new Response(JSON.stringify({
+        success: true,
+        totalUsers: 0,
+        totalTeams: 0,
+        users: [],
+        teams: [],
+        message: 'Nenhum workspace correspondente ao teamId informado'
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // 3) Agregar membros dos workspaces selecionados
+    const usersMap = new Map<string, any>();
+
+    for (const team of selectedTeams) {
+      try {
+        const resp = await fetch(`https://api.clickup.com/api/v2/team/${team.id}/member`, { headers });
+        if (!resp.ok) {
+          console.warn(`GET /team/${team.id}/member -> ${resp.status} ${resp.statusText}`);
+          continue;
+        }
+        const data = await resp.json();
+        const members = data.members || [];
+
+        for (const m of members) {
+          const u = m.user || {};
+          const id = String(u.id);
+          if (!id) continue;
+          if (!usersMap.has(id)) {
+            usersMap.set(id, {
+              id,
+              username: u.username,
+              email: u.email,
+              profilePicture: u.profilePicture,
+              teams: [{ id: team.id, name: team.name }],
+              primaryTeam: { id: team.id, name: team.name },
+            });
+          } else {
+            const entry = usersMap.get(id);
+            // evitar duplicados
+            if (!entry.teams.find((t: any) => t.id === team.id)) {
+              entry.teams.push({ id: team.id, name: team.name });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao listar membros do team', team.id, e);
+      }
+    }
+
+    const users = Array.from(usersMap.values()).map((u: any) => ({
+      ...u,
+      teamsCount: u.teams.length,
+    }));
+
     return new Response(JSON.stringify({
       success: true,
-      totalUsers: 0,
-      totalTeams: teams.length,
-      users: [],
-      teams: teams.map(t => ({ id: t.id, name: t.name })),
-      message: 'Teste inicial - apenas teams retornados'
+      totalUsers: users.length,
+      totalTeams: selectedTeams.length,
+      users,
+      teams: selectedTeams,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error: any) {
