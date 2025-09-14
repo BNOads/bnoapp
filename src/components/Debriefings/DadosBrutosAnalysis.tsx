@@ -502,6 +502,117 @@ export function DadosBrutosAnalysis({
         )}
       </div>
 
+      {/* Top 5 Anúncios (cruzamento leads com anúncios) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Top 5 Anúncios (Cruzamento Leads x Anúncios)</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Anúncios com mais leads baseado no cruzamento entre planilha de leads e anúncios
+          </p>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            // Criar mapa de anúncios do dados_trafego
+            const anunciosMap: { [key: string]: any } = {};
+            dados_trafego.forEach((anuncio: any) => {
+              const nome = anuncio.nome_criativo || anuncio.creative_name || anuncio.criativo;
+              if (nome) {
+                anunciosMap[nome] = anuncio;
+              }
+            });
+
+            // Analisar leads por content/anúncio
+            const anunciosStats: { [key: string]: { 
+              nome: string; 
+              link: string; 
+              leads: number; 
+              conversions: number; 
+              rate: number; 
+            } } = {};
+
+            dados_leads.forEach((lead: any) => {
+              const content = lead.content || lead.utm_content || '';
+              if (content) {
+                // Procurar anúncio correspondente
+                const anuncio = anunciosMap[content] || 
+                               Object.values(anunciosMap).find((a: any) => 
+                                 a.nome_criativo && content.includes(a.nome_criativo)
+                               ) ||
+                               Object.values(anunciosMap).find((a: any) => 
+                                 a.creative_name && content.includes(a.creative_name)
+                               );
+
+                if (anuncio) {
+                  const nomeAnuncio = anuncio.nome_criativo || anuncio.creative_name || anuncio.criativo;
+                  if (!anunciosStats[nomeAnuncio]) {
+                    anunciosStats[nomeAnuncio] = {
+                      nome: nomeAnuncio,
+                      link: anuncio.link_criativo || anuncio.creative_url || '',
+                      leads: 0,
+                      conversions: 0,
+                      rate: 0
+                    };
+                  }
+                  anunciosStats[nomeAnuncio].leads++;
+                  
+                  if (emailsCompradores.has(normalizeEmail(lead.email))) {
+                    anunciosStats[nomeAnuncio].conversions++;
+                  }
+                }
+              }
+            });
+
+            // Calcular taxa de conversão e ordenar
+            const topAnuncios = Object.values(anunciosStats)
+              .map(stats => ({
+                ...stats,
+                rate: stats.leads > 0 ? (stats.conversions / stats.leads) * 100 : 0
+              }))
+              .sort((a, b) => b.leads - a.leads)
+              .slice(0, 5);
+
+            return (
+              <div className="space-y-3">
+                {topAnuncios.map((anuncio, index) => (
+                  <div key={index} className="border rounded p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{anuncio.nome}</p>
+                        {anuncio.link && (
+                          <a 
+                            href={anuncio.link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline truncate block mt-1"
+                          >
+                            Ver anúncio
+                          </a>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        <Badge variant="default">{anuncio.leads} leads</Badge>
+                        <Badge variant="secondary">{anuncio.rate.toFixed(1)}% conv.</Badge>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <span>Leads: {anuncio.leads}</span>
+                      <span>Conversões: {anuncio.conversions}</span>
+                    </div>
+                    <Progress value={anuncio.rate} className="h-1 mt-2" />
+                  </div>
+                ))}
+                {topAnuncios.length === 0 && (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    Nenhum cruzamento encontrado entre leads e anúncios.<br />
+                    Verifique se os campos 'content' nos leads correspondem aos nomes dos criativos.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
       {/* Análise por Respostas da Pesquisa */}
       {Object.keys(pesquisaAnalise).length > 0 && (
         <Card>
