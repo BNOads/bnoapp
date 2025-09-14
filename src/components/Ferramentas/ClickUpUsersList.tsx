@@ -78,62 +78,57 @@ export default function ClickUpUsersList() {
     setLoading(true);
     
     try {
-      console.log('Tentando listar usuários do ClickUp...');
+      console.log('Usando modo PRD para listar usuários do workspace:', selectedTeam);
       
-      // Primeiro, tentar uma ação que sabemos que funciona (getTeams)
-      console.log('Testando conexão com getTeams...');
-      const { data: teamsData, error: teamsError } = await supabase.functions.invoke('clickup-integration', {
-        body: {
-          action: 'getTeams'
-        }
-      });
-      
-      console.log('Resposta getTeams:', { teamsData, teamsError });
-      
-      if (teamsError) {
-        throw new Error('Erro de conexão com ClickUp: ' + teamsError.message);
-      }
-      
-      // Agora tentar listar usuários (respeitando workspace selecionado)
-      console.log('Testando listAllUsers...', selectedTeam ? `teamId=${selectedTeam}` : 'todos os workspaces');
       const { data, error } = await supabase.functions.invoke('clickup-integration', {
         body: {
-          action: 'listAllUsers',
-          teamId: selectedTeam || undefined
+          action: 'listUsers',
+          teamId: selectedTeam
         }
       });
 
-      console.log('Resposta da edge function:', { data, error });
+      console.log('Resposta PRD:', { data, error });
 
       if (error) {
         console.error('Erro na edge function:', error);
         throw new Error(error.message || 'Erro ao listar usuários');
       }
 
-      if (data?.success) {
-        setUsers(data.users || []);
-        setTeams((data.teams || []).map((t: any) => ({ id: String(t.id), name: t.name })));
-        setDiagnostics(data.diagnostics || []);
+      // Resposta conforme PRD
+      if (data?.teamStatus && data.teamStatus >= 200 && data.teamStatus < 300) {
+        const users = (data.users || []).map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          email: u.email,
+          profilePicture: u.profilePicture,
+          teams: [{ id: selectedTeam, name: 'BNO Ads' }],
+          primaryTeam: { id: selectedTeam, name: 'BNO Ads' },
+          teamsCount: 1,
+        }));
+
+        setUsers(users);
         setStats({
-          totalUsers: data.totalUsers || 0,
-          totalTeams: data.totalTeams || 0
+          totalUsers: data.counts?.users || 0,
+          totalTeams: 1
         });
-        toast.success(`✅ Encontrados ${data.totalUsers} usuários em ${data.totalTeams} time(s)`);
-      } else {
-        console.error('Resposta de erro:', data);
+
+        const total = (data.counts?.users || 0) + (data.counts?.guests || 0);
+        toast.success(`✅ Encontrados ${data.counts?.users || 0} usuários e ${data.counts?.guests || 0} convidados (total: ${total})`);
         
-        // Se listAllUsers não funcionar, vamos usar getTeams e extrair dados básicos
-        if (teamsData?.teams) {
-          console.log('Fallback: usando dados dos times');
-          setTeams(teamsData.teams);
-          setStats({
-            totalUsers: 0,
-            totalTeams: teamsData.teams.length
-          });
-          toast.info(`Teams encontrados: ${teamsData.teams.length}. A função listAllUsers pode precisar ser redeployada.`);
-        } else {
-          throw new Error(data?.error || 'Falha ao listar usuários');
-        }
+        // Limpar diagnóstico anterior se sucesso
+        setDiagnostics([]);
+      } else {
+        // Falha - exibir diagnóstico PRD
+        setUsers([]);
+        setStats({ totalUsers: 0, totalTeams: 1 });
+        setDiagnostics([{
+          teamId: selectedTeam,
+          teamName: 'BNO Ads',
+          teamStatus: data?.teamStatus || 'erro',
+          raw: data?.raw || {},
+          error: data?.error || 'Falha na consulta'
+        }]);
+        toast.error(`❌ Falha ao listar usuários: ${data?.error || 'Status ' + data?.teamStatus}`);
       }
     } catch (error: any) {
       console.error('Error listing users:', error);
@@ -314,19 +309,19 @@ export default function ClickUpUsersList() {
 
         {users.length === 0 && !loading && (
           <div className="text-center py-8 text-muted-foreground space-y-3">
-            <div>Clique em "Listar Usuários" para buscar todos os usuários do ClickUp</div>
+            <div>
+              {diagnostics.length > 0 ? "Nenhum usuário encontrado neste workspace" : "Clique em 'Listar Usuários' para buscar todos os usuários do ClickUp"}
+            </div>
             {diagnostics.length > 0 && (
               <div className="text-left text-xs max-w-2xl mx-auto">
                 {diagnostics.map((d, i) => (
-                  <div key={i} className="rounded-md border p-3 mt-2">
-                    <div className="font-medium mb-1">Diagnóstico do workspace {d.teamName} ({d.teamId})</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(d.endpoints || {}).map(([k, v]: any) => (
-                        <div key={k}>
-                          <span className="font-semibold">{k}:</span> {v?.status ?? '-'} {v?.ok === false ? '(falha)' : ''} {typeof v?.count === 'number' ? ` • ${v.count} usuário(s)` : ''}
-                          {v?.error ? ` • erro: ${v.error}` : ''}
-                        </div>
-                      ))}
+                  <div key={i} className="rounded-md border p-3 mt-2 bg-muted/30">
+                    <div className="font-medium mb-1">Diagnóstico PRD - Workspace {d.teamName} ({d.teamId})</div>
+                    <div className="space-y-1">
+                      <div><span className="font-semibold">Status Geral:</span> {d.teamStatus}</div>
+                      <div><span className="font-semibold">Endpoint /user:</span> {d.raw?.uStatus} {d.raw?.uStatus === 404 ? '(endpoint não disponível)' : ''}</div>
+                      <div><span className="font-semibold">Endpoint /guest:</span> {d.raw?.gStatus} {d.raw?.gStatus === 404 ? '(endpoint não disponível)' : ''}</div>
+                      {d.error && <div className="text-destructive"><span className="font-semibold">Erro:</span> {d.error}</div>}
                     </div>
                   </div>
                 ))}

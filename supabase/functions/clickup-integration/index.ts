@@ -113,6 +113,10 @@ serve(async (req) => {
         console.log('Action listAllUsers called');
         return await listAllUsers(clickupApiKey, teamId);
       
+      case 'listUsers':
+        console.log('Action listUsers called (PRD mode)');
+        return await listUsersPRD(clickupApiKey, teamId);
+      
       case 'linkUser':
         return await linkUser(supabaseClient, userData, body);
       
@@ -989,5 +993,79 @@ async function listAllUsers(apiKey: string, teamId?: string) {
       error: error.message,
       totalUsers: 0
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+}
+
+// Função conforme PRD - endpoints singulares, 404 como lista vazia
+async function listUsersPRD(apiKey: string, teamId: string) {
+  console.log('listUsersPRD function called for teamId:', teamId);
+  
+  const corsHeaders = getCorsHeaders(null);
+
+  // Helper para tratar 404 como lista vazia
+  async function fetchJSON(url: string, token: string) {
+    try {
+      const r = await fetch(url, { headers: { Authorization: token, 'Content-Type': 'application/json' } });
+      if (r.status === 404) return { ok: true, json: {}, status: 404 };
+      const json = await r.json().catch(() => ({}));
+      return { ok: r.ok, json, status: r.status };
+    } catch (e: any) {
+      return { ok: false, json: {}, status: 0, error: e.message };
+    }
+  }
+
+  try {
+    if (!teamId) {
+      return new Response(JSON.stringify({
+        teamStatus: 400,
+        counts: { users: 0, guests: 0 },
+        users: [],
+        raw: { uStatus: 400, gStatus: 400 },
+        error: 'teamId é obrigatório'
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const token = apiKey;
+    const base = `https://api.clickup.com/api/v2/team/${teamId}`;
+
+    // Chamar endpoints singulares conforme PRD
+    const [u, g] = await Promise.all([
+      fetchJSON(`${base}/user`, token),
+      fetchJSON(`${base}/guest`, token),
+    ]);
+
+    // Normalizar - ClickUp pode usar members, users, guests
+    const users = (u.json?.members ?? u.json?.users ?? []).map((m: any) => m.user ?? m);
+    const guests = (g.json?.guests ?? g.json?.members ?? []).map((x: any) => x.user ?? x);
+
+    const allUsers = [...users, ...guests].map((p: any) => ({
+      id: p.id,
+      username: p.username,
+      email: p.email,
+      profilePicture: p.profilePicture,
+    })).filter(u => u.id); // Filtrar entradas inválidas
+
+    return new Response(JSON.stringify({
+      teamStatus: u.ok || g.ok ? 200 : Math.max(u.status, g.status),
+      counts: { users: users.length, guests: guests.length },
+      users: allUsers,
+      raw: { uStatus: u.status, gStatus: g.status },
+    }), { 
+      status: 200, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
+
+  } catch (error: any) {
+    console.error('Error in listUsersPRD:', error);
+    return new Response(JSON.stringify({
+      teamStatus: 500,
+      counts: { users: 0, guests: 0 },
+      users: [],
+      raw: { uStatus: 500, gStatus: 500 },
+      error: error.message
+    }), { 
+      status: 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
 }
