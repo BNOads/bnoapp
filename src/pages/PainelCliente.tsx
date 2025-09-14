@@ -164,19 +164,6 @@ const PainelCliente = () => {
   
   return (
     <>
-      {!isAuthenticated && (
-        <div className="bg-background border-b border-border">
-          <div className="container mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold">Painel do Cliente</h1>
-              <Button variant="outline" onClick={() => navigate('/auth')} size="sm">
-                <LogIn className="h-4 w-4 mr-2" />
-                Fazer Login
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border">
         <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">

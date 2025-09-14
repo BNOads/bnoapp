@@ -6,7 +6,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import bnoadsLogo from "@/assets/bnoads-logo.png";
+import bnoadsLogo from "@/assets/bnoads-logo-new.png";
 interface HeaderProps {}
 
 export const Header = ({}: HeaderProps) => {

@@ -24,7 +24,8 @@ export function AppLayout({ children }: AppLayoutProps) {
     '/referencia/publica',
     '/debriefing/publico',
     '/mapa-mental/publico',
-    '/funil/publico'
+    '/funil/publico',
+    '/painel'
   ];
   
   // Para rotas públicas e específicas de visualização, verificar se o usuário está logado
@@ -45,10 +46,10 @@ export function AppLayout({ children }: AppLayoutProps) {
         // Usuário logado mas em página pública - mostrar header mesmo assim
         <Header />
       ) : (
-        // Usuário não logado - mostrar apenas logo
+        // Usuário não logado - mostrar apenas logo e botão de login
         <PublicLogo />
       )}
-      <main className={shouldShowHeader || user ? "container mx-auto px-6 py-8" : "container mx-auto px-6"}>
+      <main className={shouldShowHeader || user ? "container mx-auto px-6 py-8" : ""}>
         {children}
       </main>
       {shouldShowFAB && <FloatingNoteButton />}
