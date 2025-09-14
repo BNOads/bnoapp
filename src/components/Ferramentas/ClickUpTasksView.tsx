@@ -179,15 +179,13 @@ export default function ClickUpTasksView() {
         console.error('Erro ao gerar diagnóstico:', e);
       }
     } finally {
+      setSyncing(false);
       setLoading(false);
     }
   };
 
   const syncTasks = async () => {
-    setSyncing(true);
     await loadTasks();
-    setSyncing(false);
-    toast.success('Tarefas sincronizadas com sucesso!');
   };
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {

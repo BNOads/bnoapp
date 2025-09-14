@@ -1,9 +1,26 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Configuração CORS específica para Lovable
+const ALLOWED_ORIGINS = [
+  'https://preview--bnoapp.lovable.app',
+  'https://bnoapp.lovable.app',
+  'https://cbfa2195-bc30-40b1-ab11-9249e5552962.sandbox.lovable.dev',
+  'http://localhost:3000',
+  'http://localhost:5173'
+];
+
+const getCorsHeaders = (origin: string | null) => {
+  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed => 
+    origin.includes(allowed) || allowed.includes(origin)
+  );
+  
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+  };
 };
 
 interface ClickUpTask {
@@ -37,9 +54,15 @@ interface ClickUpComment {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 204,
+      headers: corsHeaders 
+    });
   }
 
   try {
@@ -56,10 +79,10 @@ serve(async (req) => {
     if (!clickupApiKey) {
       console.error('CLICKUP_API_KEY not found in environment');
       return new Response(JSON.stringify({ 
-        ok: false, 
-        error: 'ClickUp API key not configured',
-        diagnostics: { message: 'API key missing from environment variables' }
-      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        success: false, 
+        error: 'Token do ClickUp ausente',
+        diagnostics: { message: 'CLICKUP_API_KEY não configurada no servidor' }
+      }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const url = new URL(req.url);
@@ -142,37 +165,26 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
     'Content-Type': 'application/json',
   } as const;
 
-  // Usar o userId específico se fornecido no body, caso contrário buscar por email
-  const bodyData = JSON.parse(preferredEmail || '{}');
-  const specificUserId = bodyData.userId;
-  const specificTeamId = bodyData.teamId || teamId;
-
-  console.log(`Specific userId: ${specificUserId}, teamId: ${specificTeamId}`);
+  const corsHeaders = getCorsHeaders(null);
 
   try {
-    let allTasks: ClickUpTask[] = [];
-    
-    if (specificUserId) {
-      // Buscar tarefas diretamente por userId usando endpoint do team
-      const params = new URLSearchParams({ 
-        include_closed: 'true', 
-        subtasks: 'true', 
-        page: '0',
-        assignees: specificUserId
-      });
-      
-      const url = `https://api.clickup.com/api/v2/team/${specificTeamId}/task?${params.toString()}`;
-      console.log('Buscando tarefas por userId específico:', url);
-      
-      const response = await fetch(url, { headers });
-      if (response.ok) {
-        const data = await response.json();
-        allTasks = data.tasks || [];
-        console.log(`Tarefas encontradas para userId ${specificUserId}: ${allTasks.length}`);
-      } else {
-        console.warn(`Falha ao buscar por userId: ${response.status} ${response.statusText}`);
-      }
+    // 1) Buscar times disponíveis
+    const teamsResponse = await fetch('https://api.clickup.com/api/v2/team', { headers });
+    if (!teamsResponse.ok) {
+      console.error(`Erro ao buscar teams: ${teamsResponse.status} ${teamsResponse.statusText}`);
+      return new Response(JSON.stringify({ 
+        tasks: [], 
+        total: 0, 
+        error: 'Falha ao acessar ClickUp API',
+        diagnostics: { message: `API retornou ${teamsResponse.status}` }
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    
+    const teamsData = await teamsResponse.json();
+    const teams = teamsData.teams || [];
+    console.log(`Teams disponíveis: ${teams.map((t: any) => `${t.name}#${t.id}`).join(', ')}`);
+
+    const emailToUse = userEmail.toLowerCase().trim();
 
     // 2) Montar candidatos de teamId (prioriza o recebido via body)
     const candidateTeamIds = Array.from(new Set([
@@ -183,8 +195,7 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
     // 3) Encontrar o userId do ClickUp pelo email/alias em algum time
     let selectedTeamId: string | null = null;
     let userId: string | null = null;
-    const emailLower = emailToUse.toLowerCase();
-    const alias = emailLower.split('@')[0];
+    const alias = emailToUse.split('@')[0];
 
     for (const tid of candidateTeamIds) {
       try {
@@ -195,8 +206,8 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
         }
         const mdata = await m.json();
         const member = mdata.members?.find((mm: any) =>
-          mm.user?.email?.toLowerCase() === emailLower ||
-          mm.user?.username?.toLowerCase() === emailLower ||
+          mm.user?.email?.toLowerCase() === emailToUse ||
+          mm.user?.username?.toLowerCase() === emailToUse ||
           mm.user?.username?.toLowerCase() === alias
         );
         if (member) {
@@ -210,75 +221,40 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
       }
     }
 
-    // 4) Buscar tarefas utilizando o endpoint agregado de team (mais robusto)
+    // 4) Buscar tarefas utilizando o endpoint do team
     let allTasks: ClickUpTask[] = [];
-    if (selectedTeamId) {
-      const params = new URLSearchParams({ include_closed: 'true', subtasks: 'true', page: '0' });
-      if (userId) params.append('assignees[]', userId);
+    if (selectedTeamId && userId) {
+      const params = new URLSearchParams({ 
+        include_closed: 'true', 
+        subtasks: 'true', 
+        page: '0',
+        order_by: 'due_date',
+        'assignees[]': userId
+      });
+      
       const url = `https://api.clickup.com/api/v2/team/${selectedTeamId}/task?${params.toString()}`;
-      console.log('Buscando tarefas no endpoint agregado:', url);
+      console.log('Buscando tarefas para usuário:', url);
+      
       const tResp = await fetch(url, { headers });
       if (tResp.ok) {
         const tdata = await tResp.json();
         allTasks = (tdata.tasks || []) as ClickUpTask[];
-        console.log(`Total de tarefas retornadas (agregado): ${allTasks.length}`);
+        console.log(`Total de tarefas encontradas: ${allTasks.length}`);
       } else {
-        console.warn(`Falha no agregado: ${tResp.status} ${tResp.statusText}`);
+        console.warn(`Falha ao buscar tarefas: ${tResp.status} ${tResp.statusText}`);
       }
     }
 
-    // 5) Fallback: se nada foi encontrado pelo endpoint agregado, tentar via spaces/lists nos primeiros teams
-    if (allTasks.length === 0) {
-      const teamsToTry = candidateTeamIds.slice(0, 3);
-      for (const tid of teamsToTry) {
-        try {
-          console.log(`Fallback spaces: time ${tid}`);
-          const spacesResponse = await fetch(`https://api.clickup.com/api/v2/team/${tid}/space`, { headers });
-          if (!spacesResponse.ok) {
-            console.warn(`GET /team/${tid}/space -> ${spacesResponse.status} ${spacesResponse.statusText}`);
-            continue;
-          }
-          const spacesData = await spacesResponse.json();
-          for (const space of spacesData.spaces || []) {
-            try {
-              const listsResponse = await fetch(`https://api.clickup.com/api/v2/space/${space.id}/list`, { headers });
-              if (!listsResponse.ok) continue;
-              const listsData = await listsResponse.json();
-              for (const list of listsData.lists || []) {
-                try {
-                  const tasksResponse = await fetch(`https://api.clickup.com/api/v2/list/${list.id}/task`, { headers });
-                  if (!tasksResponse.ok) continue;
-                  const tasksData = await tasksResponse.json();
-                  allTasks.push(...(tasksData.tasks || []));
-                } catch {}
-              }
-            } catch {}
-          }
-        } catch (e) {
-          console.warn(`Erro no fallback spaces para time ${tid}:`, e);
-        }
-      }
-      console.log(`Total de tarefas após fallback: ${allTasks.length}`);
-    }
-
-    // 6) Filtrar por email/alias quando necessário
-    const filteredTasks = allTasks.filter((task: ClickUpTask) => {
-      if (!task.assignees || task.assignees.length === 0) return false;
-      return task.assignees.some(assignee => {
-        const assigneeEmail = assignee.email?.toLowerCase() || '';
-        const assigneeUsername = assignee.username?.toLowerCase() || '';
-        return assigneeEmail === emailLower ||
-               assigneeUsername === emailLower ||
-               assigneeUsername === alias ||
-               assigneeEmail.includes(alias) ||
-               assigneeUsername.includes(alias);
-      });
-    });
-
-    console.log(`Found ${allTasks.length} total tasks, ${filteredTasks.length} for user ${emailToUse}`);
+    console.log(`Found ${allTasks.length} tasks for user ${emailToUse}`);
 
     return new Response(
-      JSON.stringify({ tasks: filteredTasks, total: filteredTasks.length }),
+      JSON.stringify({ 
+        success: true,
+        tasks: allTasks, 
+        total: allTasks.length,
+        teamId: selectedTeamId,
+        userId: userId 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
@@ -286,7 +262,13 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
     console.error('Error fetching tasks:', error);
     const message = error?.message || String(error);
     return new Response(
-      JSON.stringify({ tasks: [], total: 0, diagnostics: { message } }),
+      JSON.stringify({ 
+        success: false,
+        tasks: [], 
+        total: 0, 
+        error: 'Erro interno no servidor',
+        diagnostics: { message } 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
