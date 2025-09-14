@@ -1,4 +1,4 @@
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, CalendarDays, UserCheck, Palette, Rocket, Star } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, CalendarDays, MessageCircle, Palette, Rocket, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -37,7 +37,7 @@ export const Header = ({}: HeaderProps) => {
     {
       id: 'assistente',
       label: 'Assistente',
-      icon: UserCheck,
+      icon: MessageCircle,
       path: '/assistente'
     },
     {
