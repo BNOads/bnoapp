@@ -299,6 +299,51 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     }));
   };
 
+  // 8. Melhores Fontes (Orgânicas vs Tráfego Pago)
+  const getMelhoresFontes = () => {
+    const todasFontes = [...dados_leads, ...dados_compradores];
+    
+    const fontesData = todasFontes.reduce((acc: any, item: any) => {
+      const utmSource = item.utm_source || item['UTM SOURCE'] || 'direct';
+      const isOrganic = ['organic', 'direct', 'referral', 'email', 'social'].includes(utmSource.toLowerCase()) ||
+                       utmSource.toLowerCase().includes('organic') ||
+                       utmSource.toLowerCase().includes('direct') ||
+                       utmSource === '';
+      
+      const tipoFonte = isOrganic ? 'Orgânico' : 'Tráfego Pago';
+      const fonte = utmSource || 'Direct';
+      
+      if (!acc[fonte]) {
+        acc[fonte] = {
+          fonte,
+          tipo: tipoFonte,
+          leads: 0,
+          vendas: 0
+        };
+      }
+      
+      // Contar como lead se vier dos dados de leads
+      if (dados_leads.some(l => l.email === item.email || l.utm_source === item.utm_source)) {
+        acc[fonte].leads++;
+      }
+      
+      // Contar como venda se vier dos dados de compradores
+      if (dados_compradores.some(c => c.email === item.email)) {
+        acc[fonte].vendas++;
+      }
+      
+      return acc;
+    }, {});
+
+    const fontesArray = Object.values(fontesData).map((fonte: any) => ({
+      ...fonte,
+      conversao: fonte.leads > 0 ? (fonte.vendas / fonte.leads) * 100 : 0,
+      roas: fonte.vendas > 0 ? fonte.vendas * (debriefing.ticket_medio || 0) : 0
+    }));
+
+    return fontesArray.sort((a: any, b: any) => b.leads - a.leads);
+  };
+
   const verbaPorEtapa = getVerbaPorEtapa();
   const plataformas = getDesempenhoPorPlataforma();
   const temperaturas = getTemperaturaPublico();
@@ -306,6 +351,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
   const vendasPorDia = getVendasPorDia();
   const perfilGenero = getPerfilGenero();
   const perfilIdade = getPerfilIdade();
+  const melhoresFontes = getMelhoresFontes();
 
   return (
     <div className="space-y-6">
@@ -560,6 +606,119 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
                 <Bar dataKey="conversao" fill="#ffc658" name="Conversão %" />
               </BarChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Melhores Fontes (Orgânicas vs Tráfego Pago) */}
+      {melhoresFontes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Melhores Fontes de Tráfego</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-lg font-semibold mb-4">Leads por Fonte</h4>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={melhoresFontes.slice(0, 8)}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="fonte" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis />
+                    <Tooltip formatter={(value: number, name: string) => {
+                      if (name === 'conversao') return `${value.toFixed(1)}%`;
+                      return value;
+                    }} />
+                    <Bar dataKey="leads" fill="#8884d8" name="Leads" />
+                    <Bar dataKey="vendas" fill="#82ca9d" name="Vendas" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              
+              <div>
+                <h4 className="text-lg font-semibold mb-4">Orgânico vs Tráfego Pago</h4>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={melhoresFontes.reduce((acc: any, fonte: any) => {
+                        const tipo = fonte.tipo;
+                        if (!acc.find((item: any) => item.tipo === tipo)) {
+                          acc.push({
+                            tipo,
+                            leads: 0,
+                            vendas: 0
+                          });
+                        }
+                        const index = acc.findIndex((item: any) => item.tipo === tipo);
+                        acc[index].leads += fonte.leads;
+                        acc[index].vendas += fonte.vendas;
+                        return acc;
+                      }, [])}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ tipo, leads }) => `${tipo} (${leads})`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="leads"
+                    >
+                      {melhoresFontes.reduce((acc: any, fonte: any) => {
+                        const tipo = fonte.tipo;
+                        if (!acc.find((item: any) => item.tipo === tipo)) {
+                          acc.push({ tipo });
+                        }
+                        return acc;
+                      }, []).map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.tipo === 'Orgânico' ? '#82ca9d' : '#8884d8'} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Tabela de Detalhes das Fontes */}
+            <div className="mt-6">
+              <h4 className="text-lg font-semibold mb-4">Detalhes por Fonte</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-gray-200">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-200 p-2 text-left">Fonte</th>
+                      <th className="border border-gray-200 p-2 text-left">Tipo</th>
+                      <th className="border border-gray-200 p-2 text-center">Leads</th>
+                      <th className="border border-gray-200 p-2 text-center">Vendas</th>
+                      <th className="border border-gray-200 p-2 text-center">Conversão</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {melhoresFontes.slice(0, 10).map((fonte: any, index: number) => (
+                      <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="border border-gray-200 p-2">{fonte.fonte}</td>
+                        <td className="border border-gray-200 p-2">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            fonte.tipo === 'Orgânico' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {fonte.tipo}
+                          </span>
+                        </td>
+                        <td className="border border-gray-200 p-2 text-center">{fonte.leads}</td>
+                        <td className="border border-gray-200 p-2 text-center">{fonte.vendas}</td>
+                        <td className="border border-gray-200 p-2 text-center">{fonte.conversao.toFixed(1)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
