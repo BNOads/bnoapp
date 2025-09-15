@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { WYSIWYGEditor } from "@/components/ui/WYSIWYGEditor";
 import { 
   Calendar, 
   Plus, 
@@ -1199,14 +1200,21 @@ export function PautaReuniaoView() {
                           {currentDocument.status === 'ata_concluida' ? 'Ata Concluída' : 'Em Andamento'}
                         </Badge>
                       </div>
-                      <Textarea
-                        value={currentDocument.descricao || ''}
-                        onChange={(e) => {
-                          setCurrentDocument(prev => prev ? { ...prev, descricao: e.target.value } : null);
+                      <WYSIWYGEditor
+                        content={currentDocument.descricao || ''}
+                        onChange={(content) => {
+                          setCurrentDocument(prev => prev ? { ...prev, descricao: content } : null);
                           scheduleAutosave();
                         }}
                         placeholder="Descrição e objetivo da reunião"
-                        className="mt-2 min-h-[60px] text-sm"
+                        className="mt-2"
+                        showToolbar={true}
+                        onTitleExtracted={(titles) => {
+                          setExtractedTitles(prev => {
+                            const filtered = prev.filter(t => !titles.includes(t));
+                            return [...filtered, ...titles];
+                          });
+                        }}
                       />
                     </CardHeader>
                   </Card>
@@ -1583,19 +1591,22 @@ export function PautaReuniaoView() {
 
       default:
         return (
-          <div className="space-y-2">
-            <Textarea
-              value={block.conteudo.texto || ''}
-              onChange={(e) => updateBlock(block.id, { 
-                conteudo: { ...block.conteudo, texto: e.target.value }
-              })}
-              placeholder="Digite o conteúdo..."
-              className="min-h-[120px] text-sm"
-            />
-            <div className="text-xs text-muted-foreground">
-              Dica: Use **negrito**, *itálico*, [links](url) e ## Títulos
-            </div>
-          </div>
+          <WYSIWYGEditor
+            content={block.conteudo.texto || ''}
+            onChange={(content) => updateBlock(block.id, { 
+              conteudo: { ...block.conteudo, texto: content }
+            })}
+            placeholder="Digite o conteúdo..."
+            className="min-h-[120px]"
+            showToolbar={true}
+            onTitleExtracted={(titles) => {
+              // Update the block's extracted titles for index
+              setExtractedTitles(prev => {
+                const filtered = prev.filter(t => !titles.includes(t));
+                return [...filtered, ...titles];
+              });
+            }}
+          />
         );
     }
   }
