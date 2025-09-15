@@ -35,7 +35,11 @@ import {
   Video,
   Link,
   Upload,
-  Expand
+  Expand,
+  ChevronDown,
+  ChevronUp,
+  Minus,
+  PlusIcon
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -113,6 +117,7 @@ export function PautaReuniaoView() {
   const [extractedTitles, setExtractedTitles] = useState<string[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
   const [newBlockInCreation, setNewBlockInCreation] = useState<string | null>(null);
+  const [minimizedBlocks, setMinimizedBlocks] = useState<Set<string>>(new Set());
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -169,7 +174,7 @@ export function PautaReuniaoView() {
       setSelectedDate({
         ano: parseInt(yearParam),
         mes: parseInt(monthParam),
-        dia: dayParam ? parseInt(dayParam) : undefined
+        dia: dayParam ? parseInt(dayParam) : currentDay // Se não tem dia na URL, usar dia atual
       });
     } else {
       // Auto-navigate to today's date
@@ -327,9 +332,19 @@ export function PautaReuniaoView() {
       setCurrentDocument(docsMap[selectedDate.dia.toString()]);
       setBlocks(docsMap[selectedDate.dia.toString()].blocos || []);
     } else if (selectedDate.dia && !docsMap[selectedDate.dia.toString()]) {
-      // Clear current document if selected day has no document
-      setCurrentDocument(null);
-      setBlocks([]);
+      // If selected day has no document, create one automatically if it's today or in the future
+      const today = new Date();
+      const selectedDateObj = new Date(selectedDate.ano, selectedDate.mes - 1, selectedDate.dia);
+      const todayObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      
+      if (selectedDateObj >= todayObj) {
+        // Auto-create document for today or future dates
+        createOrOpenDocument(selectedDate.dia);
+      } else {
+        // Clear current document for past dates without documents
+        setCurrentDocument(null);
+        setBlocks([]);
+      }
     }
   };
 
@@ -637,7 +652,25 @@ export function PautaReuniaoView() {
       if (newBlockInCreation === blockId) {
         setNewBlockInCreation(null);
       }
+      // Remove from minimized blocks if it was minimized
+      setMinimizedBlocks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(blockId);
+        return newSet;
+      });
     }
+  };
+
+  const toggleBlockMinimized = (blockId: string) => {
+    setMinimizedBlocks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(blockId)) {
+        newSet.delete(blockId);
+      } else {
+        newSet.add(blockId);
+      }
+      return newSet;
+    });
   };
 
   const getDefaultContent = (tipo: string) => {
@@ -1235,37 +1268,74 @@ export function PautaReuniaoView() {
                   </Card>
 
                   {/* Blocks */}
-                  {blocks.map((block, index) => (
-                    <Card key={block.id} id={`block-${block.id}`} className="border-l-2 border-l-muted">
-                      <CardHeader className="pb-2">
-                         <CardTitle className="flex items-center gap-2 text-base">
-                           {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
-                             className: "h-4 w-4"
-                           })}
-                           <Input
-                             value={block.titulo || ''}
-                             onChange={(e) => updateBlock(block.id, { titulo: e.target.value })}
-                             className="border-none p-0 h-auto bg-transparent font-semibold flex-1 text-foreground"
-                             placeholder="Título do bloco"
-                           />
-                           <Badge variant="outline" className="ml-2 text-xs h-5">
-                             {index + 1}
-                           </Badge>
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             onClick={() => handleDeleteBlock(block.id, block.titulo || '')}
-                             className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
-                           >
-                             <Trash2 className="h-3 w-3" />
-                           </Button>
-                         </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-2">
-                        {renderBlockContent(block)}
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {blocks.map((block, index) => {
+                    const isMinimized = minimizedBlocks.has(block.id);
+                    
+                    return (
+                      <Card key={block.id} id={`block-${block.id}`} className="border-l-2 border-l-muted">
+                        <CardHeader className="pb-2">
+                           <CardTitle className="flex items-center gap-2 text-base">
+                             {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
+                               className: "h-4 w-4"
+                             })}
+                             <Input
+                               id={`title-input-${block.id}`}
+                               value={block.titulo || ''}
+                               onChange={(e) => handleBlockTitleChange(block.id, e.target.value)}
+                               onBlur={() => {
+                                 // Se é um bloco novo sendo criado e está vazio, descartar
+                                 if (newBlockInCreation === block.id) {
+                                   discardEmptyBlock(block.id);
+                                 }
+                               }}
+                               className="border-none p-0 h-auto bg-transparent font-bold flex-1 text-foreground text-lg"
+                               placeholder="Título da pauta"
+                               style={{ fontSize: '18px', fontWeight: 'bold' }}
+                             />
+                             <Badge variant="outline" className="ml-2 text-xs h-5">
+                               {index + 1}
+                             </Badge>
+                             
+                             {/* Botão Minimizar/Expandir */}
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => toggleBlockMinimized(block.id)}
+                               className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                               title={isMinimized ? 'Expandir pauta' : 'Minimizar pauta'}
+                             >
+                               {isMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+                             </Button>
+                             
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => handleDeleteBlock(block.id, block.titulo || '')}
+                               className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
+                             >
+                               <Trash2 className="h-3 w-3" />
+                             </Button>
+                           </CardTitle>
+                        </CardHeader>
+                        
+                        {/* Conteúdo - só mostra se não estiver minimizado */}
+                        {!isMinimized && (
+                          <CardContent className="pt-2">
+                            {renderBlockContent(block)}
+                          </CardContent>
+                        )}
+                        
+                        {/* Indicador visual quando minimizado */}
+                        {isMinimized && (
+                          <CardContent className="pt-0 pb-2">
+                            <div className="text-xs text-muted-foreground italic">
+                              Conteúdo minimizado - clique em ▼ para expandir
+                            </div>
+                          </CardContent>
+                        )}
+                      </Card>
+                    );
+                  })}
 
                   {/* Botão Nova Pauta inline no final */}
                   {currentDocument && (
