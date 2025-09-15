@@ -1104,21 +1104,42 @@ export function PautaReuniaoView() {
                       titulo_reuniao: e.target.value
                     } : null);
                     scheduleAutosave();
-                  }} className="text-lg font-bold border-none p-0 h-auto bg-transparent text-foreground" placeholder="Título da reunião" />
+                  }} className="text-lg font-bold border-none p-0 h-auto bg-transparent text-foreground flex-1" placeholder="Título da reunião" />
                         
+                        {/* Botão Minimizar/Expandir para pauta padrão */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleBlockMinimized('default-agenda')}
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground ml-2"
+                          title={minimizedBlocks.has('default-agenda') ? 'Expandir pauta' : 'Minimizar pauta'}
+                        >
+                          {minimizedBlocks.has('default-agenda') ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+                        </Button>
                       </div>
-                      <WYSIWYGEditor content={currentDocument.descricao || ''} onChange={content => {
-                  setCurrentDocument(prev => prev ? {
-                    ...prev,
-                    descricao: content
-                  } : null);
-                  scheduleAutosave();
-                }} placeholder="Descrição e objetivo da reunião" className="mt-2" showToolbar={true} onTitleExtracted={titles => {
-                  setExtractedTitles(prev => {
-                    const filtered = prev.filter(t => !titles.includes(t));
-                    return [...filtered, ...titles];
-                  });
-                }} />
+                      
+                      {/* Conteúdo - só mostra se não estiver minimizado */}
+                      {!minimizedBlocks.has('default-agenda') && (
+                        <WYSIWYGEditor content={currentDocument.descricao || ''} onChange={content => {
+                          setCurrentDocument(prev => prev ? {
+                            ...prev,
+                            descricao: content
+                          } : null);
+                          scheduleAutosave();
+                        }} placeholder="Descrição e objetivo da reunião" className="mt-2" showToolbar={true} onTitleExtracted={titles => {
+                          setExtractedTitles(prev => {
+                            const filtered = prev.filter(t => !titles.includes(t));
+                            return [...filtered, ...titles];
+                          });
+                        }} />
+                      )}
+                      
+                      {/* Indicador visual quando minimizado */}
+                      {minimizedBlocks.has('default-agenda') && (
+                        <div className="text-xs text-muted-foreground italic mt-2">
+                          Conteúdo minimizado - clique em ▼ para expandir
+                        </div>
+                      )}
                     </CardHeader>
                   </Card>
 
