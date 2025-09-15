@@ -112,14 +112,7 @@ export function PautaReuniaoView() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [extractedTitles, setExtractedTitles] = useState<string[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
-  const [showAddPautaModal, setShowAddPautaModal] = useState(false);
-  const [newPautaData, setNewPautaData] = useState({
-    titulo: '',
-    descricao: '',
-    includeAcoes: false,
-    includeDecisoes: false,
-    includeFollowups: false
-  });
+  const [newBlockInCreation, setNewBlockInCreation] = useState<string | null>(null);
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -583,46 +576,68 @@ export function PautaReuniaoView() {
     }
   };
 
-  const addBlock = (tipo: string, titulo?: string, descricao?: string, includeExtras?: any) => {
-    const tipoDb = tipo === 'texto' ? 'descricao' : tipo;
+  const addNewPautaInline = () => {
+    if (!currentDocument) return;
+    
     const newBlock: MeetingBlock = {
       id: `temp-${Date.now()}`,
-      tipo: tipoDb,
-      titulo: titulo || BLOCK_TYPES[tipoDb as keyof typeof BLOCK_TYPES]?.label || 'Novo Bloco',
-      conteudo: {
-        ...getDefaultContent(tipoDb),
-        texto: descricao || '',
-        ...(includeExtras?.includeAcoes ? { acoes: [] } : {}),
-        ...(includeExtras?.includeDecisoes ? { decisoes: [] } : {}),
-        ...(includeExtras?.includeFollowups ? { followups: [] } : {})
-      },
-      ordem: blocks.length > 0 ? Math.min(...blocks.map(b => b.ordem || 0)) + 1 : 1,
+      tipo: 'descricao',
+      titulo: '',
+      conteudo: { texto: '' },
+      ordem: blocks.length,
       ancora: null
     };
     
-    // Insert after first block (position 2)
-    const updatedBlocks = [...blocks];
-    if (blocks.length > 0) {
-      // Adjust order of existing blocks to make room
-      updatedBlocks.forEach(block => {
-        if ((block.ordem || 0) >= 1) {
-          block.ordem = (block.ordem || 0) + 1;
-        }
-      });
-      newBlock.ordem = 1;
-    }
+    setBlocks(prev => [...prev, newBlock]);
+    setNewBlockInCreation(newBlock.id);
     
-    updatedBlocks.push(newBlock);
-    setBlocks(updatedBlocks);
-    scheduleAutosave();
-    
-    // Scroll to new block after a brief delay
+    // Focus no título após um breve delay
     setTimeout(() => {
-      const element = document.getElementById(`block-${newBlock.id}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const titleInput = document.querySelector(`#title-input-${newBlock.id}`) as HTMLInputElement;
+      if (titleInput) {
+        titleInput.focus();
+        titleInput.select();
       }
     }, 100);
+  };
+
+  const handleBlockTitleChange = (blockId: string, title: string) => {
+    updateBlock(blockId, { titulo: title });
+    
+    // Se estiver criando um novo bloco e o título foi preenchido, não é mais "em criação"
+    if (newBlockInCreation === blockId && title.trim()) {
+      setNewBlockInCreation(null);
+    }
+  };
+
+  const handleBlockContentChange = (blockId: string, content: string) => {
+    updateBlock(blockId, { 
+      conteudo: { ...blocks.find(b => b.id === blockId)?.conteudo, texto: content }
+    });
+    
+    // Se estiver criando um novo bloco e o conteúdo foi preenchido, não é mais "em criação"
+    if (newBlockInCreation === blockId && content.trim()) {
+      setNewBlockInCreation(null);
+    }
+  };
+
+  const shouldDiscardBlock = (blockId: string) => {
+    const block = blocks.find(b => b.id === blockId);
+    if (!block) return false;
+    
+    const hasTitle = block.titulo?.trim();
+    const hasContent = block.conteudo?.texto?.trim();
+    
+    return !hasTitle && !hasContent;
+  };
+
+  const discardEmptyBlock = (blockId: string) => {
+    if (shouldDiscardBlock(blockId)) {
+      setBlocks(prev => prev.filter(b => b.id !== blockId));
+      if (newBlockInCreation === blockId) {
+        setNewBlockInCreation(null);
+      }
+    }
   };
 
   const getDefaultContent = (tipo: string) => {
@@ -1160,7 +1175,7 @@ export function PautaReuniaoView() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowAddPautaModal(true)}
+                  onClick={addNewPautaInline}
                   className="h-7 text-xs"
                 >
                   <Plus className="h-3 w-3 mr-1" />
@@ -1252,14 +1267,14 @@ export function PautaReuniaoView() {
                     </Card>
                   ))}
 
-                  {/* Botão Nova Pauta no final */}
+                  {/* Botão Nova Pauta inline no final */}
                   {currentDocument && (
-                    <Card className="border-dashed border-2 border-muted-foreground/30">
-                      <CardContent className="text-center py-6">
+                    <Card className="border-dashed border-2 border-muted-foreground/30 hover:border-primary/50 transition-colors">
+                      <CardContent className="text-center py-8">
                         <Button
                           variant="outline"
-                          onClick={() => setShowAddPautaModal(true)}
-                          className="text-sm"
+                          onClick={addNewPautaInline}
+                          className="text-sm hover:bg-primary hover:text-primary-foreground transition-colors"
                         >
                           <Plus className="h-4 w-4 mr-2" />
                           Nova Pauta
@@ -1316,124 +1331,6 @@ export function PautaReuniaoView() {
           )}
       </div>
       
-      {/* Modal para Adicionar Pauta */}
-      <Dialog open={showAddPautaModal} onOpenChange={setShowAddPautaModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Adicionar Nova Pauta</DialogTitle>
-            <DialogDescription>
-              Crie um novo bloco de pauta para a reunião
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Título da Pauta *</label>
-              <Input
-                value={newPautaData.titulo}
-                onChange={(e) => setNewPautaData(prev => ({ ...prev, titulo: e.target.value }))}
-                placeholder="Ex: Revisão do projeto X"
-                className="mt-1"
-              />
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium">Descrição (opcional)</label>
-              <Textarea
-                value={newPautaData.descricao}
-                onChange={(e) => setNewPautaData(prev => ({ ...prev, descricao: e.target.value }))}
-                placeholder="Descreva brevemente o tópico da pauta..."
-                className="mt-1"
-                rows={3}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Seções adicionais</label>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="include-acoes"
-                    checked={newPautaData.includeAcoes}
-                    onCheckedChange={(checked) => 
-                      setNewPautaData(prev => ({ ...prev, includeAcoes: checked as boolean }))
-                    }
-                  />
-                  <label htmlFor="include-acoes" className="text-sm">
-                    Incluir seção de Ações
-                  </label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="include-decisoes"
-                    checked={newPautaData.includeDecisoes}
-                    onCheckedChange={(checked) => 
-                      setNewPautaData(prev => ({ ...prev, includeDecisoes: checked as boolean }))
-                    }
-                  />
-                  <label htmlFor="include-decisoes" className="text-sm">
-                    Incluir seção de Decisões
-                  </label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="include-followups"
-                    checked={newPautaData.includeFollowups}
-                    onCheckedChange={(checked) => 
-                      setNewPautaData(prev => ({ ...prev, includeFollowups: checked as boolean }))
-                    }
-                  />
-                  <label htmlFor="include-followups" className="text-sm">
-                    Incluir seção de Follow-ups
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setShowAddPautaModal(false);
-                setNewPautaData({
-                  titulo: '',
-                  descricao: '',
-                  includeAcoes: false,
-                  includeDecisoes: false,
-                  includeFollowups: false
-                });
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              onClick={() => {
-                if (newPautaData.titulo.trim()) {
-                  addBlock('descricao', newPautaData.titulo, newPautaData.descricao, {
-                    includeAcoes: newPautaData.includeAcoes,
-                    includeDecisoes: newPautaData.includeDecisoes,
-                    includeFollowups: newPautaData.includeFollowups
-                  });
-                  setShowAddPautaModal(false);
-                  setNewPautaData({
-                    titulo: '',
-                    descricao: '',
-                    includeAcoes: false,
-                    includeDecisoes: false,
-                    includeFollowups: false
-                  });
-                }
-              }}
-              disabled={!newPautaData.titulo.trim()}
-            >
-              Criar Pauta
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Modal de confirmação de exclusão */}
       <Dialog open={deleteConfirmation.isOpen} onOpenChange={(open) => !open && setDeleteConfirmation({ isOpen: false, blockId: null, blockTitle: '' })}>
         <DialogContent className="sm:max-w-md">
@@ -1593,10 +1490,8 @@ export function PautaReuniaoView() {
         return (
           <WYSIWYGEditor
             content={block.conteudo.texto || ''}
-            onChange={(content) => updateBlock(block.id, { 
-              conteudo: { ...block.conteudo, texto: content }
-            })}
-            placeholder="Digite o conteúdo..."
+            onChange={(content) => handleBlockContentChange(block.id, content)}
+            placeholder="Digite o conteúdo da pauta..."
             className="min-h-[120px]"
             showToolbar={true}
             onTitleExtracted={(titles) => {
