@@ -247,8 +247,19 @@ export const ClientesView = () => {
 
   // Aplicar ordenação aos clientes filtrados
   const sortedAndFilteredClientes = [...filteredClientes].sort((a, b) => {
-    let aValue = a[sortField];
-    let bValue = b[sortField];
+    let aValue, bValue;
+
+    // Tratamento especial para campos de gestor e cs
+    if (sortField === 'gestor') {
+      aValue = a.primary_gestor?.nome || '';
+      bValue = b.primary_gestor?.nome || '';
+    } else if (sortField === 'cs') {
+      aValue = a.primary_cs?.nome || '';
+      bValue = b.primary_cs?.nome || '';
+    } else {
+      aValue = a[sortField];
+      bValue = b[sortField];
+    }
 
     // Tratar valores nulos
     if (!aValue) aValue = '';
@@ -402,8 +413,18 @@ export const ClientesView = () => {
                        <ArrowUpDown className="ml-2 h-4 w-4" />
                      </div>
                    </TableHead>
-                   <TableHead className="text-center">Gestor</TableHead>
-                   <TableHead className="text-center">CS</TableHead>
+                   <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('gestor')}>
+                     <div className="flex items-center justify-center">
+                       Gestor
+                       <ArrowUpDown className="ml-2 h-4 w-4" />
+                     </div>
+                   </TableHead>
+                   <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('cs')}>
+                     <div className="flex items-center justify-center">
+                       CS
+                       <ArrowUpDown className="ml-2 h-4 w-4" />
+                     </div>
+                   </TableHead>
                    <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>

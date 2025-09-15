@@ -33,6 +33,33 @@ export function useFavoriteTabs() {
       '/reset-password': { id: 'reset-password', name: 'Redefinir Senha', icon: 'Lock', path: '/reset-password' },
     };
 
+    // Handle specific tools within ferramentas
+    if (pathname.startsWith('/ferramentas/')) {
+      const toolName = pathname.split('/')[2];
+      const toolMap: Record<string, string> = {
+        'pauta-reuniao': 'Pauta de Reunião',
+        'referencias': 'Referências',
+        'debriefings': 'Debriefings',
+        'notas': 'Bloco de Notas',
+        'mapa-mental': 'Mapa Mental',
+        'criador-funil': 'Criador de Funil',
+        'orcamentos-funil': 'Orçamentos por Funil',
+        'lancamentos': 'Gestão de Lançamentos',
+        'utm-builder': 'Criador de UTM',
+        'acessos-logins': 'Acessos & Logins',
+        'clickup-tasks': 'Tarefas (ClickUp)'
+      };
+      
+      if (toolMap[toolName]) {
+        return {
+          id: `ferramenta-${toolName}`,
+          name: toolMap[toolName],
+          icon: 'Wrench',
+          path: pathname
+        };
+      }
+    }
+
     // Handle dynamic routes
     if (pathname.startsWith('/pdi/')) {
       const id = pathname.split('/')[2];
