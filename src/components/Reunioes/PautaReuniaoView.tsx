@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { 
   Calendar, 
   Plus, 
@@ -30,7 +29,12 @@ import {
   Check,
   Clock,
   Hourglass,
-  Trash2
+  Trash2,
+  Image,
+  Video,
+  Link,
+  Upload,
+  Expand
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -647,9 +651,10 @@ export function PautaReuniaoView() {
     
     setSaveStatus('idle');
     
+    // Autosave a cada 60 segundos (1 minuto)
     autosaveTimeout.current = setTimeout(() => {
       saveDocument(true);
-    }, 2000);
+    }, 60000);
   };
 
   const deleteBlock = async (blockId: string) => {
@@ -808,15 +813,15 @@ export function PautaReuniaoView() {
   };
 
   const renderSidebar = () => (
-    <Card className="w-80 h-fit">
-      <CardHeader className="pb-3">
+    <Card className="w-72 h-fit">
+      <CardHeader className="pb-2 px-3 pt-3">
         {/* Search Field */}
-        <div className="mb-4">
+        <div className="mb-3">
           <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
             <Input
               placeholder="Pesquisar pautas…"
-              className="pl-8"
+              className="pl-7 h-8 text-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -824,7 +829,7 @@ export function PautaReuniaoView() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute right-1 top-1 h-6 w-6 p-0"
+                className="absolute right-1 top-0.5 h-5 w-5 p-0"
                 onClick={() => setSearchQuery('')}
               >
                 <X className="h-3 w-3" />
@@ -835,23 +840,24 @@ export function PautaReuniaoView() {
 
         {/* Calendar Navigation */}
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+          <CardTitle className="text-base flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
             {MONTHS[selectedDate.mes - 1]} {selectedDate.ano}
           </CardTitle>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowSidebar(false)}
-            className="lg:hidden"
+            className="lg:hidden h-6 w-6 p-0"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3 w-3" />
           </Button>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Button
             variant="outline"
             size="sm"
+            className="h-7 px-2"
             onClick={() => {
               const newDate = selectedDate.mes === 1 
                 ? { ano: selectedDate.ano - 1, mes: 12 }
@@ -860,11 +866,12 @@ export function PautaReuniaoView() {
               updateURL(newDate.ano, newDate.mes);
             }}
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3 w-3" />
           </Button>
           <Button
             variant="outline"
             size="sm"
+            className="h-7 px-2"
             onClick={() => {
               const newDate = selectedDate.mes === 12 
                 ? { ano: selectedDate.ano + 1, mes: 1 }
@@ -873,25 +880,25 @@ export function PautaReuniaoView() {
               updateURL(newDate.ano, newDate.mes);
             }}
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3 w-3" />
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-96">
+      <CardContent className="px-3 pb-3">
+        <ScrollArea className="h-80">
           {/* Search Results */}
           {searchQuery && (
-            <div className="space-y-3 mb-4">
+            <div className="space-y-2 mb-3">
               {isSearching && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className="animate-spin h-3 w-3 border border-primary border-t-transparent rounded-full"></div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="animate-spin h-2 w-2 border border-primary border-t-transparent rounded-full"></div>
                   Buscando...
                 </div>
               )}
               
               {searchResults.length > 0 && !isSearching && (
-                <div className="space-y-3">
-                  <div className="text-sm font-medium text-muted-foreground">
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground">
                     {searchResults.length} resultado{searchResults.length > 1 ? 's' : ''} encontrado{searchResults.length > 1 ? 's' : ''}
                   </div>
                   
@@ -904,16 +911,16 @@ export function PautaReuniaoView() {
                       return groups;
                     }, {} as { [key: string]: SearchResult[] })
                   ).map(([dateKey, results]) => (
-                    <div key={dateKey} className="space-y-2">
-                      <div className="text-sm font-medium text-primary">
+                    <div key={dateKey} className="space-y-1">
+                      <div className="text-xs font-medium text-primary">
                         {dateKey}
                       </div>
-                      <div className="space-y-1 ml-3">
+                      <div className="space-y-1 ml-2">
                         {results.map((result) => (
                           <button
                             key={result.blockId}
                             onClick={() => navigateToSearchResult(result)}
-                            className="w-full text-left p-2 text-sm rounded hover:bg-accent hover:text-accent-foreground transition-colors"
+                            className="w-full text-left p-1.5 text-xs rounded hover:bg-accent hover:text-accent-foreground transition-colors"
                           >
                             <div className="font-medium">{result.blockTitle}</div>
                             <div className="text-xs text-muted-foreground truncate">
@@ -928,17 +935,17 @@ export function PautaReuniaoView() {
               )}
               
               {searchResults.length === 0 && !isSearching && (
-                <div className="text-sm text-muted-foreground text-center py-4">
+                <div className="text-xs text-muted-foreground text-center py-3">
                   Nenhuma pauta encontrada
                 </div>
               )}
               
-              <div className="border-t pt-3">
+              <div className="border-t pt-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setSearchQuery('')}
-                  className="w-full"
+                  className="w-full h-7 text-xs"
                 >
                   Limpar pesquisa
                 </Button>
@@ -948,19 +955,24 @@ export function PautaReuniaoView() {
           
           {/* Normal Calendar View */}
           {!searchQuery && (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {Array.from({ length: getDaysInMonth(selectedDate.ano, selectedDate.mes) }, (_, i) => {
               const day = i + 1;
               const dayKey = day.toString();
               const hasDocument = documents[dayKey];
               const isSelected = selectedDate.dia === day;
+              const today = new Date();
+              const currentDay = new Date(selectedDate.ano, selectedDate.mes - 1, day);
+              const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+              const currentDate = new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate());
+              const isToday = currentDate.getTime() === todayDate.getTime();
               
               return (
                 <div
                   key={day}
-                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-muted ${
+                  className={`flex items-center justify-between p-1.5 rounded-md cursor-pointer hover:bg-muted transition-colors text-sm ${
                     isSelected ? 'bg-primary text-primary-foreground' : ''
-                  }`}
+                  } ${isToday ? 'bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800' : ''}`}
                   onClick={async () => {
                     setSelectedDate(prev => ({ ...prev, dia: day }));
                     if (hasDocument) {
@@ -973,22 +985,24 @@ export function PautaReuniaoView() {
                     updateURL(selectedDate.ano, selectedDate.mes, day);
                   }}
                 >
-                  <span>{day.toString().padStart(2, '0')}/{selectedDate.mes.toString().padStart(2, '0')}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono">{day.toString().padStart(2, '0')}/{selectedDate.mes.toString().padStart(2, '0')}</span>
+                    {isToday && (
+                      <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                        Hoje
+                      </Badge>
+                    )}
+                  </div>
                   {(() => {
-                    const today = new Date();
-                    const currentDay = new Date(selectedDate.ano, selectedDate.mes - 1, day);
-                    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                    const currentDate = new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate());
-                    
                     if (currentDate < todayDate) {
                       // Past day
-                      return <Check className="h-4 w-4 text-green-600" />;
-                    } else if (currentDate.getTime() === todayDate.getTime()) {
+                      return <Check className="h-3 w-3 text-green-600" />;
+                    } else if (isToday) {
                       // Today
-                      return <Calendar className="h-4 w-4 text-blue-600" />;
+                      return <Calendar className="h-3 w-3 text-blue-600" />;
                     } else {
                       // Future day
-                      return <Hourglass className="h-4 w-4 text-orange-600" />;
+                      return <Hourglass className="h-3 w-3 text-orange-600" />;
                     }
                   })()}
                 </div>
@@ -1036,42 +1050,42 @@ export function PautaReuniaoView() {
     };
 
     return (
-      <Card className="w-64 h-fit">
-        <CardHeader className="pb-3">
+      <Card className="w-56 h-fit">
+        <CardHeader className="pb-2 px-3 pt-3">
           <CardTitle className="text-sm flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            Índice da Reunião
+            <BookOpen className="h-3 w-3" />
+            Índice
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             {selectedDate.dia}/{selectedDate.mes}/{selectedDate.ano}
           </p>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-80">
-            <div className="space-y-1 p-4">
+          <ScrollArea className="h-72">
+            <div className="space-y-0.5 px-3 pb-3">
               {allItems.map((item, index) => (
                 <button
                   key={item.id}
                   onClick={() => scrollToItem(item.id)}
-                  className="w-full text-left px-2 py-1 text-sm rounded hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2"
+                  className="w-full text-left px-2 py-1 text-xs rounded hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2"
                 >
-                  <span className="text-xs text-muted-foreground font-mono">
+                  <span className="text-xs text-muted-foreground font-mono w-4">
                     {index + 1}
                   </span>
-                  <span className="truncate">
+                  <span className="truncate text-xs">
                     {item.titulo || 'Sem título'}
                   </span>
                 </button>
               ))}
               
               {allItems.length === 0 && (
-                <p className="text-xs text-muted-foreground px-2 py-4 text-center">
+                <p className="text-xs text-muted-foreground px-2 py-3 text-center">
                   Nenhum item com título encontrado
                 </p>
               )}
               
-              <div className="mt-4 pt-2 border-t text-xs text-muted-foreground px-2">
-                <p>Atalhos: J/K para navegar</p>
+              <div className="mt-3 pt-2 border-t text-xs text-muted-foreground px-2">
+                <p className="text-xs">Atalhos: J/K para navegar</p>
               </div>
             </div>
           </ScrollArea>
@@ -1088,192 +1102,210 @@ export function PautaReuniaoView() {
     );
   }
 
-  return (
-    <div className="flex gap-6 h-full">
-      {/* Sidebar */}
-      {showSidebar && renderSidebar()}
-      
-      {/* Main Content */}
-      <div className="flex-1 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {!showSidebar && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSidebar(true)}
-                className="lg:hidden"
-              >
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            )}
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <BookOpen className="h-6 w-6" />
-                Pauta de Reunião
-              </h1>
-              <p className="text-muted-foreground">
-                {selectedDate.dia 
-                  ? `${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}`
-                  : `${MONTHS[selectedDate.mes - 1]} ${selectedDate.ano}`
-                }
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {/* Save Status */}
-            <div className="flex items-center gap-2 text-sm">
-              {saveStatus === 'saving' && (
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <div className="animate-spin h-3 w-3 border border-primary border-t-transparent rounded-full"></div>
-                  Salvando...
-                </span>
+    return (
+      <div className="flex gap-4 h-full max-w-screen-2xl mx-auto">
+        {/* Sidebar */}
+        {showSidebar && renderSidebar()}
+        
+        {/* Main Content */}
+        <div className="flex-1 space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-3">
+              {!showSidebar && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSidebar(true)}
+                  className="lg:hidden h-7"
+                >
+                  <ArrowRight className="h-3 w-3" />
+                </Button>
               )}
-              {saveStatus === 'saved' && lastSaved && (
-                <span className="text-green-600">
-                  ✅ Salvo às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
-              {saveStatus === 'error' && (
-                <span className="text-red-600">❌ Erro ao salvar{lastError ? ` — ${lastError}` : ''}</span>
-              )}
+              <div>
+                <h1 className="text-xl font-bold flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Pauta de Reunião
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {selectedDate.dia 
+                    ? `${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}`
+                    : `${MONTHS[selectedDate.mes - 1]} ${selectedDate.ano}`
+                  }
+                </p>
+              </div>
             </div>
             
-            {currentDocument && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAddPautaModal(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Pauta
-              </Button>
-            )}
-            
-            
-            {currentDocument && (
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => saveDocument(false)} disabled={saving}>
-                  <Save className="h-4 w-4 mr-2" />
+            <div className="flex items-center gap-2">
+              {/* Save Status */}
+              <div className="flex items-center gap-2 text-sm">
+                {saveStatus === 'saving' && (
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <div className="animate-spin h-3 w-3 border border-primary border-t-transparent rounded-full"></div>
+                    Salvando...
+                  </span>
+                )}
+                {saveStatus === 'saved' && lastSaved && (
+                  <span className="text-green-600 text-xs">
+                    ✅ Salvo às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+                {saveStatus === 'error' && (
+                  <span className="text-red-600 text-xs">❌ Erro ao salvar{lastError ? ` — ${lastError}` : ''}</span>
+                )}
+              </div>
+              
+              {currentDocument && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddPautaModal(true)}
+                  className="h-7 text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Nova Pauta
+                </Button>
+              )}
+              
+              {currentDocument && (
+                <Button size="sm" onClick={() => saveDocument(false)} disabled={saving} className="h-7 text-xs">
+                  <Save className="h-3 w-3 mr-1" />
                   Salvar
                 </Button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex gap-6">
-          <div className="flex-1">
-            {currentDocument ? (
-              <div className="space-y-6">
-                {/* Document Header */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <Input
-                        value={currentDocument.titulo_reuniao}
-                        onChange={(e) => {
-                          setCurrentDocument(prev => prev ? { ...prev, titulo_reuniao: e.target.value } : null);
-                          scheduleAutosave();
-                        }}
-                        className="text-xl font-bold border-none p-0 h-auto bg-transparent"
-                        placeholder="Título da reunião"
-                      />
-                      <Badge variant={currentDocument.status === 'ata_concluida' ? 'default' : 'secondary'}>
-                        {currentDocument.status === 'ata_concluida' ? 'Ata Concluída' : 'Em Andamento'}
-                      </Badge>
-                    </div>
-                    <RichTextEditor
-                      content={currentDocument.descricao || ''}
-                      onChange={(content) => {
-                        setCurrentDocument(prev => prev ? { ...prev, descricao: content } : null);
-                        scheduleAutosave();
-                      }}
-                      placeholder="Descrição e objetivo da reunião"
-                      className="mt-2"
-                    />
-                  </CardHeader>
-                </Card>
-
-                {/* Blocks */}
-                {blocks.map((block, index) => (
-                  <Card key={block.id} id={`block-${block.id}`}>
-                    <CardHeader>
-                       <CardTitle className="flex items-center gap-2">
-                         {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
-                           className: "h-5 w-5"
-                         })}
-                         <Input
-                           value={block.titulo || ''}
-                           onChange={(e) => updateBlock(block.id, { titulo: e.target.value })}
-                           className="border-none p-0 h-auto bg-transparent font-semibold flex-1"
-                           placeholder="Título do bloco"
-                         />
-                         <Badge variant="outline" className="ml-2">
-                           {index + 1}
-                         </Badge>
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => handleDeleteBlock(block.id, block.titulo || '')}
-                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                         >
-                           <Trash2 className="h-4 w-4" />
-                         </Button>
-                       </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {renderBlockContent(block)}
-                    </CardContent>
-                  </Card>
-                ))}
-
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Selecione um dia para visualizar ou criar uma pauta
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Use o calendário lateral para navegar pelos dias do mês
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-          
-          {/* Table of Contents */}
-          {currentDocument && renderTableOfContents()}
-        </div>
-        
-        {/* Save Status Footer */}
-        {currentDocument && (
-          <div className="fixed bottom-4 right-4 z-50">
-            <div className="bg-background border rounded-lg shadow-lg px-3 py-2 text-sm">
-              {saveStatus === 'saving' && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="animate-spin h-3 w-3 border border-primary border-t-transparent rounded-full"></div>
-                  Salvando...
-                </div>
-              )}
-              {saveStatus === 'saved' && lastSaved && (
-                <div className="text-green-600">
-                  ✅ Alterações salvas automaticamente às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              )}
-              {saveStatus === 'error' && (
-                <div className="text-red-600">
-                  ❌ Erro ao salvar - verifique sua conexão
-                </div>
               )}
             </div>
           </div>
-        )}
+
+          {/* Content */}
+          <div className="flex gap-4">
+            <div className="flex-1">
+              {currentDocument ? (
+                <div className="space-y-4">
+                  {/* Document Header */}
+                  <Card className="border-l-4 border-l-primary">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <Input
+                          id="document-header"
+                          value={currentDocument.titulo_reuniao}
+                          onChange={(e) => {
+                            setCurrentDocument(prev => prev ? { ...prev, titulo_reuniao: e.target.value } : null);
+                            scheduleAutosave();
+                          }}
+                          className="text-lg font-bold border-none p-0 h-auto bg-transparent text-foreground"
+                          placeholder="Título da reunião"
+                        />
+                        <Badge variant={currentDocument.status === 'ata_concluida' ? 'default' : 'secondary'} className="text-xs">
+                          {currentDocument.status === 'ata_concluida' ? 'Ata Concluída' : 'Em Andamento'}
+                        </Badge>
+                      </div>
+                      <Textarea
+                        value={currentDocument.descricao || ''}
+                        onChange={(e) => {
+                          setCurrentDocument(prev => prev ? { ...prev, descricao: e.target.value } : null);
+                          scheduleAutosave();
+                        }}
+                        placeholder="Descrição e objetivo da reunião"
+                        className="mt-2 min-h-[60px] text-sm"
+                      />
+                    </CardHeader>
+                  </Card>
+
+                  {/* Blocks */}
+                  {blocks.map((block, index) => (
+                    <Card key={block.id} id={`block-${block.id}`} className="border-l-2 border-l-muted">
+                      <CardHeader className="pb-2">
+                         <CardTitle className="flex items-center gap-2 text-base">
+                           {React.createElement(BLOCK_TYPES[block.tipo as keyof typeof BLOCK_TYPES]?.icon || FileText, {
+                             className: "h-4 w-4"
+                           })}
+                           <Input
+                             value={block.titulo || ''}
+                             onChange={(e) => updateBlock(block.id, { titulo: e.target.value })}
+                             className="border-none p-0 h-auto bg-transparent font-semibold flex-1 text-foreground"
+                             placeholder="Título do bloco"
+                           />
+                           <Badge variant="outline" className="ml-2 text-xs h-5">
+                             {index + 1}
+                           </Badge>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => handleDeleteBlock(block.id, block.titulo || '')}
+                             className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
+                           >
+                             <Trash2 className="h-3 w-3" />
+                           </Button>
+                         </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-2">
+                        {renderBlockContent(block)}
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {/* Botão Nova Pauta no final */}
+                  {currentDocument && (
+                    <Card className="border-dashed border-2 border-muted-foreground/30">
+                      <CardContent className="text-center py-6">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowAddPautaModal(true)}
+                          className="text-sm"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Nova Pauta
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Adicione um novo tópico à reunião
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">
+                      Selecione um dia para visualizar ou criar uma pauta
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Use o calendário lateral para navegar pelos dias do mês
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+            
+            {/* Table of Contents */}
+            {currentDocument && renderTableOfContents()}
+          </div>
+        
+          {/* Save Status Footer */}
+          {currentDocument && (
+            <div className="fixed bottom-4 right-4 z-50">
+              <div className="bg-background border rounded-lg shadow-lg px-2 py-1.5 text-xs">
+                {saveStatus === 'saving' && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="animate-spin h-2 w-2 border border-primary border-t-transparent rounded-full"></div>
+                    Salvando...
+                  </div>
+                )}
+                {saveStatus === 'saved' && lastSaved && (
+                  <div className="text-green-600">
+                    ✅ Salvo às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+                {saveStatus === 'error' && (
+                  <div className="text-red-600">
+                    ❌ Erro ao salvar - verifique sua conexão
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
       </div>
       
       {/* Modal para Adicionar Pauta */}
@@ -1551,21 +1583,19 @@ export function PautaReuniaoView() {
 
       default:
         return (
-          <RichTextEditor
-            content={block.conteudo.texto || ''}
-            onChange={(content) => updateBlock(block.id, { 
-              conteudo: { ...block.conteudo, texto: content }
-            })}
-            onTitleExtracted={(titles) => {
-              // Update the block's extracted titles for index
-              setExtractedTitles(prev => {
-                const filtered = prev.filter(t => !titles.includes(t));
-                return [...filtered, ...titles];
-              });
-            }}
-            placeholder="Digite o conteúdo..."
-            className="min-h-24"
-          />
+          <div className="space-y-2">
+            <Textarea
+              value={block.conteudo.texto || ''}
+              onChange={(e) => updateBlock(block.id, { 
+                conteudo: { ...block.conteudo, texto: e.target.value }
+              })}
+              placeholder="Digite o conteúdo..."
+              className="min-h-[120px] text-sm"
+            />
+            <div className="text-xs text-muted-foreground">
+              Dica: Use **negrito**, *itálico*, [links](url) e ## Títulos
+            </div>
+          </div>
         );
     }
   }
