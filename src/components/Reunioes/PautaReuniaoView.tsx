@@ -860,10 +860,10 @@ export function PautaReuniaoView() {
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month, 0).getDate();
   };
-  const renderSidebar = () => <Card className="w-72 h-fit">
-      <CardHeader className="pb-2 px-3 pt-3">
+  const renderSidebar = () => <Card className="w-64 h-fit">{/* Reduced from w-72 to w-64 */}
+      <CardHeader className="pb-1 px-2 pt-2">{/* Reduced padding */}
         {/* Search Field */}
-        <div className="mb-3">
+        <div className="mb-2">{/* Reduced margin */}
           <div className="relative">
             <Search className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
             <Input placeholder="Pesquisar pautas…" className="pl-7 h-8 text-sm" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
@@ -976,7 +976,7 @@ export function PautaReuniaoView() {
             const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const currentDate = new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate());
             const isToday = currentDate.getTime() === todayDate.getTime();
-            return <div key={day} className={`flex items-center justify-between p-1.5 rounded-md cursor-pointer hover:bg-muted transition-colors text-sm ${isSelected ? 'bg-primary text-primary-foreground' : ''} ${isToday ? 'bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800' : ''}`} onClick={async () => {
+            return <div key={day} className={`flex items-center justify-between p-1 rounded-md cursor-pointer hover:bg-muted transition-colors text-sm ${isSelected ? 'bg-primary text-primary-foreground' : ''} ${isToday ? 'bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800' : ''}`} onClick={async () => {
               setSelectedDate(prev => ({
                 ...prev,
                 dia: day
@@ -990,8 +990,8 @@ export function PautaReuniaoView() {
               }
               updateURL(selectedDate.ano, selectedDate.mes, day);
             }}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono">{day.toString().padStart(2, '0')}/{selectedDate.mes.toString().padStart(2, '0')}</span>
+                  <div className="flex items-center gap-1">{/* Reduced gap */}
+                    <span className="text-xs font-mono">{day}/{selectedDate.mes}</span>{/* Simplified date format */}
                     {isToday && <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
                         Hoje
                       </Badge>}
