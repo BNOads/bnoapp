@@ -640,12 +640,10 @@ export function PautaReuniaoView() {
 
     // Combine main content and blocks
     let fullContent = currentDocument.descricao || '';
-    
     blocks.forEach(block => {
       if (block.titulo) {
         fullContent += `\n\n**${block.titulo}**\n`;
       }
-      
       switch (block.tipo) {
         case 'participantes':
           if (block.conteudo.lista?.length > 0) {
@@ -658,9 +656,7 @@ export function PautaReuniaoView() {
           if (items.length > 0) {
             fullContent += items.map((item: any) => {
               const text = typeof item === 'object' ? item.texto : item;
-              const checkbox = block.tipo === 'acoes' && typeof item === 'object' 
-                ? (item.concluido ? '☑️' : '☐') 
-                : '•';
+              const checkbox = block.tipo === 'acoes' && typeof item === 'object' ? item.concluido ? '☑️' : '☐' : '•';
               return `${checkbox} ${text}`;
             }).join('\n');
           }
@@ -671,12 +667,11 @@ export function PautaReuniaoView() {
           }
       }
     });
-
     return {
       title: currentDocument.titulo_reuniao,
       date: `${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}`,
       content: fullContent,
-      attachments: [], // TODO: Extract attachment URLs if needed
+      attachments: [] // TODO: Extract attachment URLs if needed
     };
   };
   const getDefaultContent = (tipo: string) => {
@@ -1126,17 +1121,7 @@ export function PautaReuniaoView() {
                 {saveStatus === 'error' && <span className="text-red-600 text-xs">❌ Erro ao salvar{lastError ? ` — ${lastError}` : ''}</span>}
               </div>
               
-              {currentDocument && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowSlackModal(true)}
-                  className="h-7 text-xs"
-                >
-                  <MessageSquare className="h-3 w-3 mr-1" />
-                  Enviar no Slack
-                </Button>
-              )}
+              {currentDocument}
               
               {currentDocument && <Button variant="outline" size="sm" onClick={addNewPautaInline} className="h-7 text-xs">
                   <Plus className="h-3 w-3 mr-1" />
@@ -1167,39 +1152,29 @@ export function PautaReuniaoView() {
                   }} className="text-lg font-bold border-none p-0 h-auto bg-transparent text-foreground flex-1" placeholder="Título da reunião" />
                         
                         {/* Botão Minimizar/Expandir para pauta padrão */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleBlockMinimized('default-agenda')}
-                          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground ml-2"
-                          title={minimizedBlocks.has('default-agenda') ? 'Expandir pauta' : 'Minimizar pauta'}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => toggleBlockMinimized('default-agenda')} className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground ml-2" title={minimizedBlocks.has('default-agenda') ? 'Expandir pauta' : 'Minimizar pauta'}>
                           {minimizedBlocks.has('default-agenda') ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
                         </Button>
                       </div>
                       
                       {/* Conteúdo - só mostra se não estiver minimizado */}
-                      {!minimizedBlocks.has('default-agenda') && (
-                        <WYSIWYGEditor content={currentDocument.descricao || ''} onChange={content => {
-                          setCurrentDocument(prev => prev ? {
-                            ...prev,
-                            descricao: content
-                          } : null);
-                          scheduleAutosave();
-                        }} placeholder="Descrição e objetivo da reunião" className="mt-2" showToolbar={true} onTitleExtracted={titles => {
-                          setExtractedTitles(prev => {
-                            const filtered = prev.filter(t => !titles.includes(t));
-                            return [...filtered, ...titles];
-                          });
-                        }} />
-                      )}
+                      {!minimizedBlocks.has('default-agenda') && <WYSIWYGEditor content={currentDocument.descricao || ''} onChange={content => {
+                  setCurrentDocument(prev => prev ? {
+                    ...prev,
+                    descricao: content
+                  } : null);
+                  scheduleAutosave();
+                }} placeholder="Descrição e objetivo da reunião" className="mt-2" showToolbar={true} onTitleExtracted={titles => {
+                  setExtractedTitles(prev => {
+                    const filtered = prev.filter(t => !titles.includes(t));
+                    return [...filtered, ...titles];
+                  });
+                }} />}
                       
                       {/* Indicador visual quando minimizado */}
-                      {minimizedBlocks.has('default-agenda') && (
-                        <div className="text-xs text-muted-foreground italic mt-2">
+                      {minimizedBlocks.has('default-agenda') && <div className="text-xs text-muted-foreground italic mt-2">
                           Conteúdo minimizado - clique em ▼ para expandir
-                        </div>
-                      )}
+                        </div>}
                     </CardHeader>
                   </Card>
 
@@ -1332,18 +1307,12 @@ export function PautaReuniaoView() {
       </Dialog>
       
       {/* Modal Enviar no Slack */}
-      {currentDocument && (
-        <EnviarSlackModal
-          isOpen={showSlackModal}
-          onClose={() => setShowSlackModal(false)}
-          agenda={prepareAgendaForSlack() || {
-            title: '',
-            date: '',
-            content: '',
-            attachments: []
-          }}
-        />
-      )}
+      {currentDocument && <EnviarSlackModal isOpen={showSlackModal} onClose={() => setShowSlackModal(false)} agenda={prepareAgendaForSlack() || {
+      title: '',
+      date: '',
+      content: '',
+      attachments: []
+    }} />}
     </div>;
   function renderBlockContent(block: MeetingBlock) {
     switch (block.tipo) {
