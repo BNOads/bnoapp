@@ -11,11 +11,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WYSIWYGEditor } from "@/components/ui/WYSIWYGEditor";
-import { Calendar, Plus, Save, FileText, Users, List, CheckSquare, Search, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight, Settings, BookOpen, X, Check, Clock, Hourglass, Trash2, Image, Video, Link, Upload, Expand, ChevronDown, ChevronUp, Minus, PlusIcon } from "lucide-react";
+import { Calendar, Plus, Save, FileText, Users, List, CheckSquare, Search, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight, Settings, BookOpen, X, Check, Clock, Hourglass, Trash2, Image, Video, Link, Upload, Expand, ChevronDown, ChevronUp, Minus, PlusIcon, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/components/Auth/AuthContext";
+import { EnviarSlackModal } from "./EnviarSlackModal";
 interface MeetingDocument {
   id: string;
   ano: number;
@@ -108,6 +109,7 @@ export function PautaReuniaoView() {
   const [lastError, setLastError] = useState<string | null>(null);
   const [newBlockInCreation, setNewBlockInCreation] = useState<string | null>(null);
   const [minimizedBlocks, setMinimizedBlocks] = useState<Set<string>>(new Set());
+  const [showSlackModal, setShowSlackModal] = useState(false);
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -631,6 +633,52 @@ export function PautaReuniaoView() {
       return newSet;
     });
   };
+
+  // Function to prepare agenda data for Slack
+  const prepareAgendaForSlack = () => {
+    if (!currentDocument) return null;
+
+    // Combine main content and blocks
+    let fullContent = currentDocument.descricao || '';
+    
+    blocks.forEach(block => {
+      if (block.titulo) {
+        fullContent += `\n\n**${block.titulo}**\n`;
+      }
+      
+      switch (block.tipo) {
+        case 'participantes':
+          if (block.conteudo.lista?.length > 0) {
+            fullContent += block.conteudo.lista.map((p: string) => `• ${p}`).join('\n');
+          }
+          break;
+        case 'pauta':
+        case 'acoes':
+          const items = block.conteudo.itens || block.conteudo.checklist || [];
+          if (items.length > 0) {
+            fullContent += items.map((item: any) => {
+              const text = typeof item === 'object' ? item.texto : item;
+              const checkbox = block.tipo === 'acoes' && typeof item === 'object' 
+                ? (item.concluido ? '☑️' : '☐') 
+                : '•';
+              return `${checkbox} ${text}`;
+            }).join('\n');
+          }
+          break;
+        default:
+          if (block.conteudo.texto) {
+            fullContent += block.conteudo.texto;
+          }
+      }
+    });
+
+    return {
+      title: currentDocument.titulo_reuniao,
+      date: `${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}`,
+      content: fullContent,
+      attachments: [], // TODO: Extract attachment URLs if needed
+    };
+  };
   const getDefaultContent = (tipo: string) => {
     switch (tipo) {
       case 'participantes':
@@ -1078,6 +1126,18 @@ export function PautaReuniaoView() {
                 {saveStatus === 'error' && <span className="text-red-600 text-xs">❌ Erro ao salvar{lastError ? ` — ${lastError}` : ''}</span>}
               </div>
               
+              {currentDocument && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowSlackModal(true)}
+                  className="h-7 text-xs"
+                >
+                  <MessageSquare className="h-3 w-3 mr-1" />
+                  Enviar no Slack
+                </Button>
+              )}
+              
               {currentDocument && <Button variant="outline" size="sm" onClick={addNewPautaInline} className="h-7 text-xs">
                   <Plus className="h-3 w-3 mr-1" />
                   Nova Pauta
@@ -1270,6 +1330,20 @@ export function PautaReuniaoView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Modal Enviar no Slack */}
+      {currentDocument && (
+        <EnviarSlackModal
+          isOpen={showSlackModal}
+          onClose={() => setShowSlackModal(false)}
+          agenda={prepareAgendaForSlack() || {
+            title: '',
+            date: '',
+            content: '',
+            attachments: []
+          }}
+        />
+      )}
     </div>;
   function renderBlockContent(block: MeetingBlock) {
     switch (block.tipo) {

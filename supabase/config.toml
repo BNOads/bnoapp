@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.clickup-integration]
 verify_jwt = false
+
+[functions.slack-agenda]
+verify_jwt = false
