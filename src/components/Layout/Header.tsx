@@ -22,7 +22,7 @@ export const Header = ({}: HeaderProps) => {
   const tabs = [
     {
       id: 'dashboard',
-      label: 'Dashboard', 
+      label: '🏠 Inicio', 
       icon: LayoutDashboard,
       path: '/'
     },
