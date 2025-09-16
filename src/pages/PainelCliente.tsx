@@ -267,7 +267,7 @@ const PainelCliente = () => {
                 <MensagemSemanal 
                   clienteId={clienteId!} 
                   gestorId={cliente.primary_gestor_user_id}
-                  csId={cliente.primary_cs_user_id}
+                  csId={cliente.cs_id}
                 />
               </div>
             </section>
