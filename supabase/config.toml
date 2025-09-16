@@ -1,16 +1,106 @@
 project_id = "tbdooscfrrkwfutkdjha"
 
-[functions.criar-gravacao-automatica]
+[auth]
+enabled = true
+external_email_redirect_urls = []
+external_phone_redirect_urls = []
+external_providers_enabled = true
+sms_provider = "twilio"
+
+[auth.external.google]
+enabled = true
+redirect_urls = []
+
+[db]
+pooler_enabled = false
+major_version = 15
+
+[realtime]
+enabled = true
+
+[functions.alterar-senha-colaborador]
 verify_jwt = true
 
-[functions.sync-pops-drive]
-verify_jwt = false
-
 [functions.analisar-transcricao]
+verify_jwt = true
+
+[functions.assignments-summary]
+verify_jwt = true
+
+[functions.assistente-chat]
+verify_jwt = true
+
+[functions.capturar-anotacoes-gemini]
 verify_jwt = true
 
 [functions.clickup-integration]
 verify_jwt = false
 
+[functions.clients-assignments]
+verify_jwt = true
+
+[functions.confirm-password-reset]
+verify_jwt = false
+
+[functions.create-colaborador]
+verify_jwt = true
+
+[functions.criar-gravacao-automatica]
+verify_jwt = true
+
+[functions.drive-creatives]
+verify_jwt = true
+
+[functions.drive-sync]
+verify_jwt = true
+
+[functions.drive-sync-job]
+verify_jwt = true
+
+[functions.gamification-engine]
+verify_jwt = true
+
+[functions.gerar-pdf-debriefing]
+verify_jwt = true
+
+[functions.google-calendar]
+verify_jwt = true
+
+[functions.importar-pops-drive]
+verify_jwt = true
+
+[functions.looker-studio-search]
+verify_jwt = true
+
+[functions.meeting-management]
+verify_jwt = true
+
+[functions.processar-debriefing]
+verify_jwt = true
+
+[functions.processar-transcricao]
+verify_jwt = true
+
+[functions.reset-password]
+verify_jwt = false
+
+[functions.sincronizar-docs-gemini]
+verify_jwt = true
+
 [functions.slack-agenda]
+verify_jwt = false
+
+[functions.slack-notifications]
+verify_jwt = true
+
+[functions.sync-meeting-recordings]
+verify_jwt = true
+
+[functions.sync-pops-drive]
+verify_jwt = false
+
+[functions.upload-pauta-media]
+verify_jwt = true
+
+[functions.webhook-novo-cliente]
 verify_jwt = false
