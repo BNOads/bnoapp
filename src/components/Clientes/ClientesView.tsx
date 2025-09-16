@@ -27,7 +27,7 @@ interface Cliente {
   id: string;
   nome: string;
   categoria?: string;
-  nicho?: string;
+  serie?: string;
   status_cliente?: string;
   etapa_atual?: string;
   funis_trabalhando?: string[];
@@ -79,7 +79,7 @@ export const ClientesView = () => {
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoriaFilter, setCategoriaFilter] = useState<string>('all');
-  const [nichoFilter, setNichoFilter] = useState<string>('all');
+  const [serieFilter, setSerieFilter] = useState<string>('all');
   const [clientesSelecionados, setClientesSelecionados] = useState<string[]>([]);
   const [sortField, setSortField] = useState<string>('nome');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -217,10 +217,10 @@ export const ClientesView = () => {
 
   // Filtrar clientes baseado nos filtros ativos
   const filteredClientes = clientes.filter(cliente => {
-    const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.nicho?.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.categoria?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.serie?.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.categoria?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategoria = categoriaFilter === 'all' || !categoriaFilter || cliente.categoria === categoriaFilter;
-    const matchesNicho = nichoFilter === 'all' || !nichoFilter || cliente.nicho === nichoFilter;
-    return matchesSearch && matchesCategoria && matchesNicho;
+    const matchesSerie = serieFilter === 'all' || !serieFilter || cliente.serie === serieFilter;
+    return matchesSearch && matchesCategoria && matchesSerie;
   });
 
   // Funções de seleção múltipla
@@ -279,12 +279,28 @@ export const ClientesView = () => {
 
   // Obter listas únicas para os filtros
   const categorias = [...new Set(clientes.map(c => c.categoria).filter(Boolean))];
-  const nichos = [...new Set(clientes.map(c => c.nicho).filter(Boolean))];
+  const series = ['Serie A', 'Serie B', 'Serie C', 'Serie D'];
   const limparFiltros = () => {
     setCategoriaFilter('all');
-    setNichoFilter('all');
+    setSerieFilter('all');
     setSearchTerm('');
     setClientesSelecionados([]);
+  };
+
+  // Função para obter cor da série
+  const getSerieColor = (serie: string) => {
+    switch (serie) {
+      case 'Serie A':
+        return 'bg-green-500/10 text-green-600 border-green-500/20';
+      case 'Serie B':
+        return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+      case 'Serie C':
+        return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
+      case 'Serie D':
+        return 'bg-red-500/10 text-red-600 border-red-500/20';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
   };
   return (
     <div className="space-y-8">
@@ -298,10 +314,15 @@ export const ClientesView = () => {
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:space-x-2">
           {canCreateContent && <>
-              <Button variant="outline" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => setImportModalOpen(true)}>
-                <Upload className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                <span className="hidden sm:inline">Importar em Massa</span>
-                <span className="sm:hidden">Importar</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="sm:size-default lg:size-lg w-full sm:w-auto" 
+                onClick={() => window.open('https://forms.clickup.com/36694061/f/12zu1d-44913/5SA3APCY8WF3WVCL8N', '_blank')}
+              >
+                <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                <span className="hidden sm:inline">Criar Novo Cliente</span>
+                <span className="sm:hidden">Novo Cliente</span>
               </Button>
               <Button variant="hero" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => setModalOpen(true)}>
                 <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
@@ -322,7 +343,7 @@ export const ClientesView = () => {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar clientes por nome, nicho ou categoria..." className="pl-10 bg-background border-border" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              <Input placeholder="Buscar clientes por nome, série ou categoria..." className="pl-10 bg-background border-border" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
             
             <div className="flex flex-col sm:flex-row gap-2">
@@ -338,14 +359,14 @@ export const ClientesView = () => {
                 </SelectContent>
               </Select>
 
-              <Select value={nichoFilter} onValueChange={setNichoFilter}>
+              <Select value={serieFilter} onValueChange={setSerieFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Nicho" />
+                  <SelectValue placeholder="Série" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos nichos</SelectItem>
-                  {nichos.map(nicho => <SelectItem key={nicho} value={nicho}>
-                      {nicho}
+                  <SelectItem value="all">Todas séries</SelectItem>
+                  {series.map(serie => <SelectItem key={serie} value={serie}>
+                      {serie}
                     </SelectItem>)}
                 </SelectContent>
               </Select>
@@ -401,9 +422,9 @@ export const ClientesView = () => {
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('nicho')}>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('serie')}>
                     <div className="flex items-center">
-                      Nicho
+                      Série
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
                   </TableHead>
@@ -457,9 +478,14 @@ export const ClientesView = () => {
                         {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      {cliente.nicho ? <span className="text-sm text-muted-foreground">{cliente.nicho}</span> : <span className="text-xs text-muted-foreground">-</span>}
-                    </TableCell>
+                     <TableCell>
+                       {cliente.serie ? 
+                         <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
+                           {cliente.serie}
+                         </Badge> 
+                         : <span className="text-xs text-muted-foreground">-</span>
+                       }
+                     </TableCell>
                     <TableCell>
                       <Badge className={`${getStatusColor(cliente.status_cliente || cliente.etapa_atual)} text-xs`}>
                         {getStatusLabel(cliente.status_cliente || cliente.etapa_atual)}
