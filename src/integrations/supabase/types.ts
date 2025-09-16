@@ -1775,7 +1775,15 @@ export type Database = {
           valor_gasto?: number | null
           valor_investimento?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_funil_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       password_reset_tokens: {
         Row: {
@@ -2164,7 +2172,15 @@ export type Database = {
           updated_at?: string
           versao_editor?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "referencias_criativos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reunioes: {
         Row: {
