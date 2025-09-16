@@ -7,12 +7,13 @@ import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
 import { PautaReuniaoView } from "@/components/Reunioes/PautaReuniaoView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle } from "lucide-react";
+import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
 import { UTMBuilderView } from "./UTMBuilderView";
 import { AcessosLoginsView } from "./AcessosLoginsView";
+import { MensagensSemanaisView } from "./MensagensSemanaisView";
 
 
 interface Tool {
@@ -109,6 +110,14 @@ export const FerramentasView = () => {
       icon: Key,
       component: <AcessosLoginsView />,
       color: "text-red-600"
+    },
+    {
+      id: "mensagens-semanais",
+      title: "Mensagens Semanais",
+      description: "Gerencie mensagens semanais dos clientes e controle de envio",
+      icon: MessageSquare,
+      component: <MensagensSemanaisView />,
+      color: "text-indigo-600"
     },
   ];
 

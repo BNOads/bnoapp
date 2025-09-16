@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface UserPermissions {
   isAdmin: boolean;
   isMaster: boolean;
+  isCS: boolean;
   canCreateContent: boolean;
   canManageBudgets: boolean;
   canManageReferences: boolean;
@@ -16,6 +17,7 @@ export const useUserPermissions = (): UserPermissions => {
   const [permissions, setPermissions] = useState<UserPermissions>({
     isAdmin: false,
     isMaster: false,
+    isCS: false,
     canCreateContent: false,
     canManageBudgets: false,
     canManageReferences: false,
@@ -27,6 +29,7 @@ export const useUserPermissions = (): UserPermissions => {
       setPermissions({
         isAdmin: false,
         isMaster: false,
+        isCS: false,
         canCreateContent: false,
         canManageBudgets: false,
         canManageReferences: false,
@@ -52,6 +55,7 @@ export const useUserPermissions = (): UserPermissions => {
       // Definir permissões baseadas no nível de acesso
       const isAdmin = ['admin', 'dono'].includes(profile?.nivel_acesso);
       const isMaster = isAdmin; // Simplificado: se é admin ou dono, é master
+      const isCS = ['cs', 'admin', 'dono'].includes(profile?.nivel_acesso);
       
       // Níveis que podem criar conteúdo: admin, dono, gestor_trafego, gestor_projetos, cs, webdesigner, editor_video
       const canCreateContent = ['admin', 'dono', 'gestor_trafego', 'gestor_projetos', 'cs', 'webdesigner', 'editor_video'].includes(profile?.nivel_acesso);
@@ -70,6 +74,7 @@ export const useUserPermissions = (): UserPermissions => {
       setPermissions({
         isAdmin,
         isMaster,
+        isCS,
         canCreateContent,
         canManageBudgets,
         canManageReferences,
@@ -80,6 +85,7 @@ export const useUserPermissions = (): UserPermissions => {
         setPermissions({
           isAdmin: false,
           isMaster: false,
+          isCS: false,
           canCreateContent: false,
           canManageBudgets: false,
           canManageReferences: false,

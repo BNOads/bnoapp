@@ -13,6 +13,7 @@ import { TarefasListEnhanced } from "@/components/Clientes/TarefasListEnhanced";
 import { LinksImportantesEnhanced } from "@/components/Clientes/LinksImportantesEnhanced";
 import { OrcamentoPorFunil } from "@/components/Clientes/OrcamentoPorFunil";
 import { EditarClienteModal } from "@/components/Clientes/EditarClienteModal";
+import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import type { User } from "@supabase/supabase-js";
 const PainelCliente = () => {
@@ -258,6 +259,19 @@ const PainelCliente = () => {
               <GravacoesReunioes clienteId={clienteId} isPublicView={!isAuthenticated} />
             </div>
           </section>
+
+          {/* Mensagem Semanal - Apenas para Usuários Autenticados */}
+          {isAuthenticated && (
+            <section className="space-y-3 sm:space-y-4">
+              <div className="w-full overflow-hidden">
+                <MensagemSemanal 
+                  clienteId={clienteId!} 
+                  gestorId={cliente.primary_gestor_user_id}
+                  csId={cliente.primary_cs_user_id}
+                />
+              </div>
+            </section>
+          )}
 
           {/* Orçamento por Funil - Adaptativo */}
           <section className="space-y-3 sm:space-y-4">

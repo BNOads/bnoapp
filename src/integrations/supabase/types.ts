@@ -1696,6 +1696,51 @@ export type Database = {
         }
         Relationships: []
       }
+      mensagens_semanais: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          created_by: string
+          cs_id: string | null
+          enviado: boolean
+          enviado_em: string | null
+          enviado_por: string | null
+          gestor_id: string
+          id: string
+          mensagem: string
+          semana_referencia: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          created_by: string
+          cs_id?: string | null
+          enviado?: boolean
+          enviado_em?: string | null
+          enviado_por?: string | null
+          gestor_id: string
+          id?: string
+          mensagem: string
+          semana_referencia: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          created_by?: string
+          cs_id?: string | null
+          enviado?: boolean
+          enviado_em?: string | null
+          enviado_por?: string | null
+          gestor_id?: string
+          id?: string
+          mensagem?: string
+          semana_referencia?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notas: {
         Row: {
           conteudo: string | null
