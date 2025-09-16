@@ -13,7 +13,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
 import { UTMBuilderView } from "./UTMBuilderView";
 import { AcessosLoginsView } from "./AcessosLoginsView";
-import ClickUpTasksView from "./ClickUpTasksView";
+
 
 interface Tool {
   id: string;
@@ -110,14 +110,6 @@ export const FerramentasView = () => {
       component: <AcessosLoginsView />,
       color: "text-red-600"
     },
-    {
-      id: "clickup-tasks",
-      title: "Tarefas (ClickUp)",
-      description: "Gerencie suas tarefas do ClickUp diretamente no sistema",
-      icon: CheckCircle,
-      component: <ClickUpTasksView />,
-      color: "text-purple-600"
-    }
   ];
 
   // Handle URL parameter for direct tool access

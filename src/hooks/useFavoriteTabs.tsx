@@ -47,7 +47,7 @@ export function useFavoriteTabs() {
         'lancamentos': 'Gestão de Lançamentos',
         'utm-builder': 'Criador de UTM',
         'acessos-logins': 'Acessos & Logins',
-        'clickup-tasks': 'Tarefas (ClickUp)'
+        
       };
       
       if (toolMap[toolName]) {

@@ -12,7 +12,7 @@ import { useRecentTabs } from "@/hooks/useRecentTabs";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import ClickUpTasksSection from "./ClickUpTasksSection";
+
 export function DashboardView() {
   const navigate = useNavigate();
   const { canCreateContent, isAdmin } = useUserPermissions();
@@ -310,8 +310,6 @@ export function DashboardView() {
         </Card>
       </div>
 
-      {/* ClickUp Tasks Section */}
-      <ClickUpTasksSection />
 
       {/* PDI Section */}
       <section className="space-y-6">
