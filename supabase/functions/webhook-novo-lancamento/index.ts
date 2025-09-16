@@ -8,7 +8,7 @@ const corsHeaders = {
 
 interface WebhookPayload {
   nome_lancamento: string;
-  status_lancamento: string;
+  status_lancamento?: string;
   data_inicio_captacao: string;
   data_cpls?: string;
   investimento: number;
@@ -36,10 +36,10 @@ serve(async (req) => {
     console.log('Payload recebido:', payload);
 
     // Validate required fields
-    if (!payload.nome_lancamento || !payload.status_lancamento || !payload.data_inicio_captacao || !payload.investimento) {
+    if (!payload.nome_lancamento || !payload.data_inicio_captacao || !payload.investimento) {
       console.error('Campos obrigatórios ausentes');
       return new Response(
-        JSON.stringify({ error: 'Campos obrigatórios: nome_lancamento, status_lancamento, data_inicio_captacao, investimento' }),
+        JSON.stringify({ error: 'Campos obrigatórios: nome_lancamento, data_inicio_captacao, investimento' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -106,8 +106,8 @@ serve(async (req) => {
       'remarketing': 'remarketing'
     };
 
-    const mappedStatus = statusMapping[payload.status_lancamento.toLowerCase()] || 'em_captacao';
-    console.log(`Status mapeado: ${payload.status_lancamento} -> ${mappedStatus}`);
+    const mappedStatus = statusMapping[(payload.status_lancamento || 'ativo').toLowerCase()] || 'em_captacao';
+    console.log(`Status mapeado: ${payload.status_lancamento || 'ativo'} -> ${mappedStatus}`);
 
     // Prepare launch data
     const lancamentoData = {
