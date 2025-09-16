@@ -32,7 +32,6 @@ interface MensagemSemanal {
   updated_at: string;
   cliente_nome: string;
   gestor_nome: string;
-  cs_nome: string;
 }
 
 export function MensagensSemanaisView() {
@@ -49,13 +48,13 @@ export function MensagensSemanaisView() {
   );
   const [filtroGestor, setFiltroGestor] = useState("all");
   const [filtroCliente, setFiltroCliente] = useState("all");
-  const [filtroCS, setFiltroCS] = useState("all");
+  
   const [filtroEnviado, setFiltroEnviado] = useState("all");
 
   // Ordenação
   const [ordenarPor, setOrdenarPor] = useState<string>("semana_referencia");
   const [ordenarDirecao, setOrdenarDirecao] = useState<"asc" | "desc">("desc");
-  const [sincronizandoCS, setSincronizandoCS] = useState(false);
+  
 
   // Estados para nova mensagem
   const [novoClienteId, setNovoClienteId] = useState("");
@@ -71,29 +70,14 @@ export function MensagensSemanaisView() {
   useEffect(() => {
     const inicializar = async () => {
       await carregarDados();
-      // Sincronizar CS automaticamente e silenciosamente na primeira carga
-      setTimeout(() => {
-        sincronizarCSMensagens(true);
-      }, 500);
     };
     inicializar();
   }, []);
 
   useEffect(() => {
     carregarMensagens();
-  }, [filtroSemana, filtroGestor, filtroCliente, filtroCS, filtroEnviado, ordenarPor, ordenarDirecao]);
+  }, [filtroSemana, filtroGestor, filtroCliente, filtroEnviado, ordenarPor, ordenarDirecao]);
 
-  // Auto-selecionar CS quando cliente for selecionado
-  useEffect(() => {
-    if (filtroCliente && filtroCliente !== "all") {
-      const clienteSelecionado = clientes.find(c => c.id === filtroCliente);
-      if (clienteSelecionado?.cs_id) {
-        setFiltroCS(clienteSelecionado.cs_id);
-      }
-    } else if (filtroCliente === "all") {
-      setFiltroCS("all");
-    }
-  }, [filtroCliente, clientes]);
 
   const carregarDados = async () => {
     try {
@@ -125,9 +109,8 @@ export function MensagensSemanaisView() {
         .from("mensagens_semanais")
         .select(`
           *,
-          clientes!inner(nome, cs_id),
-          gestor:colaboradores!mensagens_semanais_gestor_id_fkey(nome),
-          cs:colaboradores!mensagens_semanais_cs_id_fkey(nome)
+          clientes!inner(nome),
+          gestor:colaboradores!mensagens_semanais_gestor_id_fkey(nome)
         `)
         .order(ordenarPor, { ascending: ordenarDirecao === "asc" });
 
@@ -141,9 +124,6 @@ export function MensagensSemanaisView() {
       if (filtroCliente && filtroCliente !== "all") {
         query = query.eq("cliente_id", filtroCliente);
       }
-      if (filtroCS && filtroCS !== "all") {
-        query = query.eq("cs_id", filtroCS);
-      }
       if (filtroEnviado && filtroEnviado !== "all") {
         query = query.eq("enviado", filtroEnviado === "true");
       }
@@ -153,25 +133,6 @@ export function MensagensSemanaisView() {
       if (error) {
         throw error;
       }
-
-      // Buscar informações de CS dos clientes para complementar
-      const clienteIds = [...new Set(data?.map(item => item.cliente_id))];
-      const { data: clientesCS } = await supabase
-        .from("clientes")
-        .select(`
-          id,
-          cs_id,
-          cs_colaborador:colaboradores!clientes_cs_id_fkey(nome)
-        `)
-        .in("id", clienteIds);
-
-      // Criar mapa de CS por cliente
-      const csMap = new Map();
-      clientesCS?.forEach(cliente => {
-        if (cliente.cs_colaborador?.nome) {
-          csMap.set(cliente.id, cliente.cs_colaborador.nome);
-        }
-      });
 
       // Transformar dados para o formato esperado
       const mensagensFormatadas = data?.map((item: any) => ({
@@ -191,7 +152,6 @@ export function MensagensSemanaisView() {
         updated_at: item.updated_at,
         cliente_nome: item.clientes?.nome || "Cliente não encontrado",
         gestor_nome: item.gestor?.nome || "Gestor não encontrado",
-        cs_nome: item.cs?.nome || csMap.get(item.cliente_id) || "CS não definido",
       })) || [];
 
       // Aplicar ordenação no frontend para campos derivados (nome dos colaboradores)
@@ -206,10 +166,6 @@ export function MensagensSemanaisView() {
           case "gestor_nome":
             valorA = a.gestor_nome.toLowerCase();
             valorB = b.gestor_nome.toLowerCase();
-            break;
-          case "cs_nome":
-            valorA = a.cs_nome.toLowerCase();
-            valorB = b.cs_nome.toLowerCase();
             break;
           case "enviado":
             valorA = a.enviado ? 1 : 0;
@@ -306,68 +262,6 @@ export function MensagensSemanaisView() {
     }
   };
 
-  const sincronizarCSMensagens = async (silencioso = false) => {
-    if (!silencioso) setSincronizandoCS(true);
-    try {
-      // Buscar todas as mensagens com seus clientes
-      const { data: mensagensParaSync } = await supabase
-        .from("mensagens_semanais")
-        .select(`
-          id,
-          cliente_id,
-          cs_id,
-          clientes!inner(cs_id)
-        `);
-
-      if (mensagensParaSync && mensagensParaSync.length > 0) {
-        const atualizacoes = mensagensParaSync
-          .filter((msg: any) => {
-            const clienteCSId = msg.clientes?.cs_id;
-            return clienteCSId && msg.cs_id !== clienteCSId;
-          })
-          .map((msg: any) => ({
-            id: msg.id,
-            cs_id: msg.clientes.cs_id
-          }));
-
-        if (atualizacoes.length > 0) {
-          // Atualizar mensagens em lote
-          for (const atualizacao of atualizacoes) {
-            await supabase
-              .from("mensagens_semanais")
-              .update({ cs_id: atualizacao.cs_id })
-              .eq("id", atualizacao.id);
-          }
-
-          if (!silencioso) {
-            toast({
-              title: "Sucesso",
-              description: `${atualizacoes.length} mensagens sincronizadas com CS dos clientes`,
-            });
-          }
-
-          // Recarregar mensagens
-          carregarMensagens();
-        } else if (!silencioso) {
-          toast({
-            title: "Info",
-            description: "Todas as mensagens já estão sincronizadas",
-          });
-        }
-      }
-    } catch (error: any) {
-      console.error("Erro ao sincronizar CS:", error);
-      if (!silencioso) {
-        toast({
-          title: "Erro",
-          description: "Erro ao sincronizar CS das mensagens",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      if (!silencioso) setSincronizandoCS(false);
-    }
-  };
 
   const handleOrdenar = (coluna: string) => {
     if (ordenarPor === coluna) {
@@ -498,15 +392,6 @@ export function MensagensSemanaisView() {
             <Plus className="h-4 w-4" />
             Nova Mensagem
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => sincronizarCSMensagens(false)}
-            disabled={sincronizandoCS}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${sincronizandoCS ? "animate-spin" : ""}`} />
-            {sincronizandoCS ? "Sincronizando..." : "Sincronizar CS"}
-          </Button>
         </div>
       </div>
 
@@ -564,22 +449,6 @@ export function MensagensSemanaisView() {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="filtro-cs">CS</Label>
-              <Select value={filtroCS} onValueChange={setFiltroCS}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os CS" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os CS</SelectItem>
-                  {colaboradores.map((colaborador) => (
-                    <SelectItem key={colaborador.id} value={colaborador.id}>
-                      {colaborador.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
             <div>
               <Label htmlFor="filtro-enviado">Status de Envio</Label>
@@ -648,15 +517,6 @@ export function MensagensSemanaisView() {
                     <TableHead>Mensagem</TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleOrdenar("cs_nome")}
-                    >
-                      <div className="flex items-center gap-2">
-                        CS
-                        <IconeOrdenacao coluna="cs_nome" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleOrdenar("created_at")}
                     >
                       <div className="flex items-center gap-2">
@@ -691,7 +551,7 @@ export function MensagensSemanaisView() {
                           {previewMensagem(mensagem.mensagem)}
                         </div>
                       </TableCell>
-                      <TableCell>{mensagem.cs_nome}</TableCell>
+                      
                       <TableCell>
                         <div className="text-xs text-muted-foreground">
                           {mensagem.enviado_gestor_em && (
@@ -765,9 +625,6 @@ export function MensagensSemanaisView() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="font-medium">Gestor:</span> {mensagemSelecionada.gestor_nome}
-                </div>
-                <div>
-                  <span className="font-medium">CS:</span> {mensagemSelecionada.cs_nome}
                 </div>
                 <div>
                   <span className="font-medium">Semana:</span> {format(new Date(mensagemSelecionada.semana_referencia), "dd/MM/yyyy", { locale: ptBR })}
