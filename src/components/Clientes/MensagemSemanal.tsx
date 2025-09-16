@@ -77,9 +77,14 @@ export function MensagemSemanal({ clienteId, gestorId, csId }: MensagemSemanalPr
         .from("colaboradores")
         .select("id")
         .eq("user_id", user.data.user.id)
-        .single();
+        .maybeSingle();
 
-      if (colaboradorError || !colaborador) {
+      if (colaboradorError) {
+        console.error("Erro ao buscar colaborador:", colaboradorError);
+        throw new Error("Erro ao buscar dados do colaborador");
+      }
+
+      if (!colaborador) {
         throw new Error("Colaborador não encontrado para o usuário atual");
       }
 
@@ -126,7 +131,7 @@ export function MensagemSemanal({ clienteId, gestorId, csId }: MensagemSemanalPr
         .select("*")
         .eq("cliente_id", clienteId)
         .eq("semana_referencia", semanaReferencia)
-        .single();
+        .maybeSingle();
 
       if (data) {
         setMensagemExistente(data);
