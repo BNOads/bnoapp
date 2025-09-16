@@ -67,13 +67,29 @@ export function MensagemSemanal({ clienteId, gestorId, csId }: MensagemSemanalPr
     setLoading(true);
 
     try {
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      // Buscar o colaborador associado ao usuário atual
+      const { data: colaborador, error: colaboradorError } = await supabase
+        .from("colaboradores")
+        .select("id")
+        .eq("user_id", user.data.user.id)
+        .single();
+
+      if (colaboradorError || !colaborador) {
+        throw new Error("Colaborador não encontrado para o usuário atual");
+      }
+
       const dadosMensagem = {
         cliente_id: clienteId,
-        gestor_id: gestorId,
+        gestor_id: colaborador.id, // Usar o ID do colaborador
         cs_id: csId,
         semana_referencia: semanaReferencia,
         mensagem: mensagem.trim(),
-        created_by: (await supabase.auth.getUser()).data.user?.id,
+        created_by: user.data.user.id,
       };
 
       let result;
