@@ -48,7 +48,6 @@ export function MensagensSemanaisView() {
   );
   const [filtroGestor, setFiltroGestor] = useState("all");
   const [filtroCliente, setFiltroCliente] = useState("all");
-  
   const [filtroEnviado, setFiltroEnviado] = useState("all");
 
   // Ordenação
@@ -404,7 +403,7 @@ export function MensagensSemanaisView() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="filtro-semana">Semana</Label>
               <Input
