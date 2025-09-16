@@ -8,7 +8,7 @@ const corsHeaders = {
 
 interface WebhookPayload {
   nome_lancamento: string;
-  status_lancamento: 'ativo' | 'iniciado' | 'finalizado';
+  status_lancamento: string;
   data_inicio_captacao: string;
   data_cpls?: string;
   investimento: number;
@@ -96,10 +96,23 @@ serve(async (req) => {
       console.warn('Nenhum cliente detectado no nome do lançamento');
     }
 
+    // Map incoming status to database enum values
+    const statusMapping: Record<string, string> = {
+      'ativo': 'em_captacao',
+      'iniciado': 'cpl', 
+      'finalizado': 'finalizado',
+      'pausado': 'pausado',
+      'cancelado': 'cancelado',
+      'remarketing': 'remarketing'
+    };
+
+    const mappedStatus = statusMapping[payload.status_lancamento.toLowerCase()] || 'em_captacao';
+    console.log(`Status mapeado: ${payload.status_lancamento} -> ${mappedStatus}`);
+
     // Prepare launch data
     const lancamentoData = {
       nome_lancamento: payload.nome_lancamento.trim(),
-      status_lancamento: payload.status_lancamento,
+      status_lancamento: mappedStatus,
       tipo_lancamento: payload.tipo_lancamento || 'pago',
       data_inicio_captacao: payload.data_inicio_captacao,
       datas_cpls: payload.data_cpls ? [payload.data_cpls] : null,
