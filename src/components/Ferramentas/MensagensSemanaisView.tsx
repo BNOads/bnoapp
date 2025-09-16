@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MessageSquare, Eye, Filter, Check, X } from "lucide-react";
+import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek } from "date-fns";
@@ -50,6 +50,11 @@ export function MensagensSemanaisView() {
   const [filtroCS, setFiltroCS] = useState("all");
   const [filtroEnviado, setFiltroEnviado] = useState("all");
 
+  // Ordenação
+  const [ordenarPor, setOrdenarPor] = useState<string>("semana_referencia");
+  const [ordenarDirecao, setOrdenarDirecao] = useState<"asc" | "desc">("desc");
+  const [sincronizandoCS, setSincronizandoCS] = useState(false);
+
   const { toast } = useToast();
   const { isCS, isAdmin } = useUserPermissions();
 
@@ -59,15 +64,17 @@ export function MensagensSemanaisView() {
 
   useEffect(() => {
     carregarMensagens();
-  }, [filtroSemana, filtroGestor, filtroCliente, filtroCS, filtroEnviado]);
+  }, [filtroSemana, filtroGestor, filtroCliente, filtroCS, filtroEnviado, ordenarPor, ordenarDirecao]);
 
   // Auto-selecionar CS quando cliente for selecionado
   useEffect(() => {
     if (filtroCliente && filtroCliente !== "all") {
       const clienteSelecionado = clientes.find(c => c.id === filtroCliente);
-      if (clienteSelecionado?.cs_id && filtroCS === "all") {
+      if (clienteSelecionado?.cs_id) {
         setFiltroCS(clienteSelecionado.cs_id);
       }
+    } else if (filtroCliente === "all") {
+      setFiltroCS("all");
     }
   }, [filtroCliente, clientes]);
 
@@ -105,8 +112,7 @@ export function MensagensSemanaisView() {
           gestor:colaboradores!mensagens_semanais_gestor_id_fkey(nome),
           cs:colaboradores!mensagens_semanais_cs_id_fkey(nome)
         `)
-        .order("semana_referencia", { ascending: false })
-        .order("created_at", { ascending: false });
+        .order(ordenarPor, { ascending: ordenarDirecao === "asc" });
 
       // Aplicar filtros
       if (filtroSemana) {
@@ -152,7 +158,45 @@ export function MensagensSemanaisView() {
         cs_nome: item.cs?.nome || "CS não definido",
       })) || [];
 
-      setMensagens(mensagensFormatadas);
+      // Aplicar ordenação no frontend para campos derivados (nome dos colaboradores)
+      const mensagensOrdenadas = mensagensFormatadas.sort((a, b) => {
+        let valorA, valorB;
+        
+        switch (ordenarPor) {
+          case "cliente_nome":
+            valorA = a.cliente_nome.toLowerCase();
+            valorB = b.cliente_nome.toLowerCase();
+            break;
+          case "gestor_nome":
+            valorA = a.gestor_nome.toLowerCase();
+            valorB = b.gestor_nome.toLowerCase();
+            break;
+          case "cs_nome":
+            valorA = a.cs_nome.toLowerCase();
+            valorB = b.cs_nome.toLowerCase();
+            break;
+          case "enviado":
+            valorA = a.enviado ? 1 : 0;
+            valorB = b.enviado ? 1 : 0;
+            break;
+          case "semana_referencia":
+            valorA = new Date(a.semana_referencia);
+            valorB = new Date(b.semana_referencia);
+            break;
+          case "created_at":
+            valorA = new Date(a.created_at);
+            valorB = new Date(b.created_at);
+            break;
+          default:
+            return 0;
+        }
+        
+        if (valorA < valorB) return ordenarDirecao === "asc" ? -1 : 1;
+        if (valorA > valorB) return ordenarDirecao === "asc" ? 1 : -1;
+        return 0;
+      });
+
+      setMensagens(mensagensOrdenadas);
     } catch (error: any) {
       console.error("Erro ao carregar mensagens:", error);
       toast({
@@ -226,6 +270,85 @@ export function MensagensSemanaisView() {
     }
   };
 
+  const sincronizarCSMensagens = async () => {
+    setSincronizandoCS(true);
+    try {
+      // Buscar todas as mensagens que não têm CS definido ou têm CS diferente do cliente
+      const { data: mensagensSemCS } = await supabase
+        .from("mensagens_semanais")
+        .select(`
+          id,
+          cliente_id,
+          cs_id,
+          clientes!inner(cs_id)
+        `);
+
+      if (mensagensSemCS && mensagensSemCS.length > 0) {
+        const atualizacoes = mensagensSemCS
+          .filter((msg: any) => {
+            const clienteCSId = msg.clientes?.cs_id;
+            return clienteCSId && msg.cs_id !== clienteCSId;
+          })
+          .map((msg: any) => ({
+            id: msg.id,
+            cs_id: msg.clientes.cs_id
+          }));
+
+        if (atualizacoes.length > 0) {
+          // Atualizar mensagens em lote
+          for (const atualizacao of atualizacoes) {
+            await supabase
+              .from("mensagens_semanais")
+              .update({ cs_id: atualizacao.cs_id })
+              .eq("id", atualizacao.id);
+          }
+
+          toast({
+            title: "Sucesso",
+            description: `${atualizacoes.length} mensagens sincronizadas com CS dos clientes`,
+          });
+
+          // Recarregar mensagens
+          carregarMensagens();
+        } else {
+          toast({
+            title: "Info",
+            description: "Todas as mensagens já estão sincronizadas",
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Erro ao sincronizar CS:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao sincronizar CS das mensagens",
+        variant: "destructive",
+      });
+    } finally {
+      setSincronizandoCS(false);
+    }
+  };
+
+  const handleOrdenar = (coluna: string) => {
+    if (ordenarPor === coluna) {
+      setOrdenarDirecao(ordenarDirecao === "asc" ? "desc" : "asc");
+    } else {
+      setOrdenarPor(coluna);
+      setOrdenarDirecao("asc");
+    }
+  };
+
+  const IconeOrdenacao = ({ coluna }: { coluna: string }) => {
+    if (ordenarPor !== coluna) {
+      return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />;
+    }
+    return (
+      <ArrowUpDown 
+        className={`h-4 w-4 ${ordenarDirecao === "asc" ? "rotate-180" : ""} text-primary`} 
+      />
+    );
+  };
+
   const previewMensagem = (mensagem: string) => {
     if (mensagem.length <= 100) return mensagem;
     return mensagem.substring(0, 100) + "...";
@@ -240,6 +363,15 @@ export function MensagensSemanaisView() {
             Gerencie e acompanhe as mensagens semanais dos clientes
           </p>
         </div>
+        <Button
+          variant="outline"
+          onClick={sincronizarCSMensagens}
+          disabled={sincronizandoCS}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${sincronizandoCS ? "animate-spin" : ""}`} />
+          {sincronizandoCS ? "Sincronizando..." : "Sincronizar CS"}
+        </Button>
       </div>
 
       {/* Filtros */}
@@ -350,13 +482,61 @@ export function MensagensSemanaisView() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Gestor</TableHead>
-                    <TableHead>Semana</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleOrdenar("cliente_nome")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Cliente
+                        <IconeOrdenacao coluna="cliente_nome" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleOrdenar("gestor_nome")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Gestor
+                        <IconeOrdenacao coluna="gestor_nome" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleOrdenar("semana_referencia")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Semana
+                        <IconeOrdenacao coluna="semana_referencia" />
+                      </div>
+                    </TableHead>
                     <TableHead>Mensagem</TableHead>
-                    <TableHead>CS</TableHead>
-                    <TableHead>Histórico</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleOrdenar("cs_nome")}
+                    >
+                      <div className="flex items-center gap-2">
+                        CS
+                        <IconeOrdenacao coluna="cs_nome" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleOrdenar("created_at")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Histórico
+                        <IconeOrdenacao coluna="created_at" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleOrdenar("enviado")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Status
+                        <IconeOrdenacao coluna="enviado" />
+                      </div>
+                    </TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
