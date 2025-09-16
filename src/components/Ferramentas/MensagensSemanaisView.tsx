@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw } from "lucide-react";
+import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek } from "date-fns";
@@ -40,6 +41,7 @@ export function MensagensSemanaisView() {
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [mensagemSelecionada, setMensagemSelecionada] = useState<MensagemSemanal | null>(null);
+  const [modalNovaMensagem, setModalNovaMensagem] = useState(false);
   
   // Filtros
   const [filtroSemana, setFiltroSemana] = useState(
@@ -54,6 +56,14 @@ export function MensagensSemanaisView() {
   const [ordenarPor, setOrdenarPor] = useState<string>("semana_referencia");
   const [ordenarDirecao, setOrdenarDirecao] = useState<"asc" | "desc">("desc");
   const [sincronizandoCS, setSincronizandoCS] = useState(false);
+
+  // Estados para nova mensagem
+  const [novoClienteId, setNovoClienteId] = useState("");
+  const [novaSemana, setNovaSemana] = useState(
+    format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd")
+  );
+  const [novoTexto, setNovoTexto] = useState("");
+  const [salvandoNova, setSalvandoNova] = useState(false);
 
   const { toast } = useToast();
   const { isCS, isAdmin } = useUserPermissions();
@@ -379,6 +389,92 @@ export function MensagensSemanaisView() {
     );
   };
 
+  const criarNovaMensagem = async () => {
+    if (!novoClienteId || !novoTexto.trim()) {
+      toast({
+        title: "Erro",
+        description: "Selecione um cliente e digite a mensagem",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSalvandoNova(true);
+    try {
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      // Buscar o colaborador atual
+      const { data: colaborador, error: colaboradorError } = await supabase
+        .from("colaboradores")
+        .select("id")
+        .eq("user_id", user.data.user.id)
+        .maybeSingle();
+
+      if (colaboradorError || !colaborador) {
+        throw new Error("Colaborador não encontrado");
+      }
+
+      // Buscar CS do cliente
+      const { data: cliente } = await supabase
+        .from("clientes")
+        .select("cs_id")
+        .eq("id", novoClienteId)
+        .maybeSingle();
+
+      const agora = new Date().toISOString();
+      const novoHistorico = {
+        tipo: 'gestor_salvo',
+        data: agora,
+        user_id: user.data.user.id,
+        colaborador_id: colaborador.id,
+        detalhes: 'Mensagem criada pela ferramenta'
+      };
+
+      const { error } = await supabase
+        .from("mensagens_semanais")
+        .insert({
+          cliente_id: novoClienteId,
+          gestor_id: colaborador.id,
+          cs_id: cliente?.cs_id || null,
+          semana_referencia: novaSemana,
+          mensagem: novoTexto.trim(),
+          created_by: user.data.user.id,
+          enviado_gestor_em: agora,
+          historico_envios: [novoHistorico],
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Mensagem criada com sucesso!",
+      });
+
+      // Limpar formulário e fechar modal
+      setNovoClienteId("");
+      setNovoTexto("");
+      setNovaSemana(format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd"));
+      setModalNovaMensagem(false);
+
+      // Recarregar mensagens
+      carregarMensagens();
+    } catch (error: any) {
+      console.error("Erro ao criar mensagem:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao criar mensagem",
+        variant: "destructive",
+      });
+    } finally {
+      setSalvandoNova(false);
+    }
+  };
+
   const previewMensagem = (mensagem: string) => {
     if (mensagem.length <= 100) return mensagem;
     return mensagem.substring(0, 100) + "...";
@@ -393,15 +489,25 @@ export function MensagensSemanaisView() {
             Gerencie e acompanhe as mensagens semanais dos clientes
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => sincronizarCSMensagens(false)}
-          disabled={sincronizandoCS}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${sincronizandoCS ? "animate-spin" : ""}`} />
-          {sincronizandoCS ? "Sincronizando..." : "Sincronizar CS"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            onClick={() => setModalNovaMensagem(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nova Mensagem
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => sincronizarCSMensagens(false)}
+            disabled={sincronizandoCS}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${sincronizandoCS ? "animate-spin" : ""}`} />
+            {sincronizandoCS ? "Sincronizando..." : "Sincronizar CS"}
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -719,6 +825,82 @@ export function MensagensSemanaisView() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Nova Mensagem */}
+      <Dialog open={modalNovaMensagem} onOpenChange={setModalNovaMensagem}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nova Mensagem Semanal</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="novo-cliente">Cliente</Label>
+              <Select value={novoClienteId} onValueChange={setNovoClienteId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="nova-semana">Semana de Referência</Label>
+              <Input
+                id="nova-semana"
+                type="date"
+                value={novaSemana}
+                onChange={(e) => setNovaSemana(e.target.value)}
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                {novaSemana && format(new Date(novaSemana), "PPP", { locale: ptBR })}
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="novo-texto">Mensagem</Label>
+              <Textarea
+                id="novo-texto"
+                placeholder="Digite a mensagem semanal para o cliente..."
+                value={novoTexto}
+                onChange={(e) => setNovoTexto(e.target.value)}
+                rows={6}
+                className="mt-1"
+              />
+            </div>
+
+            {novoClienteId && (
+              <div className="text-sm text-muted-foreground bg-muted p-3 rounded">
+                <strong>Cliente selecionado:</strong> {clientes.find(c => c.id === novoClienteId)?.nome}
+                <br />
+                <strong>CS:</strong> {colaboradores.find(c => c.id === clientes.find(cl => cl.id === novoClienteId)?.cs_id)?.nome || "CS não definido"}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setModalNovaMensagem(false)}
+                disabled={salvandoNova}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={criarNovaMensagem}
+                disabled={salvandoNova}
+              >
+                {salvandoNova ? "Salvando..." : "Criar Mensagem"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
