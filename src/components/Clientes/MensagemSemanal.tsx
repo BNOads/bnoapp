@@ -88,13 +88,26 @@ export function MensagemSemanal({ clienteId, gestorId, csId }: MensagemSemanalPr
         throw new Error("Colaborador não encontrado para o usuário atual");
       }
 
+      const agora = new Date().toISOString();
+      const novoHistorico = {
+        tipo: 'gestor_salvo',
+        data: agora,
+        user_id: user.data.user.id,
+        colaborador_id: colaborador.id,
+        detalhes: mensagemExistente ? 'Mensagem atualizada pelo gestor' : 'Mensagem criada pelo gestor'
+      };
+
       const dadosMensagem = {
         cliente_id: clienteId,
-        gestor_id: colaborador.id, // Usar o ID do colaborador
+        gestor_id: colaborador.id,
         cs_id: csId,
         semana_referencia: semanaReferencia,
         mensagem: mensagem.trim(),
         created_by: user.data.user.id,
+        enviado_gestor_em: agora,
+        historico_envios: mensagemExistente 
+          ? [...(mensagemExistente.historico_envios || []), novoHistorico]
+          : [novoHistorico]
       };
 
       let result;
@@ -104,7 +117,9 @@ export function MensagemSemanal({ clienteId, gestorId, csId }: MensagemSemanalPr
           .from("mensagens_semanais")
           .update({
             mensagem: mensagem.trim(),
-            updated_at: new Date().toISOString(),
+            updated_at: agora,
+            enviado_gestor_em: agora,
+            historico_envios: dadosMensagem.historico_envios,
           })
           .eq("id", mensagemExistente.id);
       } else {

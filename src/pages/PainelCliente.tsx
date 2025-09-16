@@ -14,6 +14,7 @@ import { LinksImportantesEnhanced } from "@/components/Clientes/LinksImportantes
 import { OrcamentoPorFunil } from "@/components/Clientes/OrcamentoPorFunil";
 import { EditarClienteModal } from "@/components/Clientes/EditarClienteModal";
 import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
+import { HistoricoMensagensCliente } from "@/components/Clientes/HistoricoMensagensCliente";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import type { User } from "@supabase/supabase-js";
 const PainelCliente = () => {
@@ -263,12 +264,13 @@ const PainelCliente = () => {
           {/* Mensagem Semanal - Apenas para Usuários Autenticados */}
           {isAuthenticated && (
             <section className="space-y-3 sm:space-y-4">
-              <div className="w-full overflow-hidden">
+              <div className="w-full overflow-hidden space-y-4">
                 <MensagemSemanal 
                   clienteId={clienteId!} 
                   gestorId={cliente.primary_gestor_user_id}
                   csId={cliente.cs_id}
                 />
+                <HistoricoMensagensCliente clienteId={clienteId!} />
               </div>
             </section>
           )}

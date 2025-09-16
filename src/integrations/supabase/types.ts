@@ -1703,9 +1703,12 @@ export type Database = {
           created_by: string
           cs_id: string | null
           enviado: boolean
+          enviado_cs_em: string | null
           enviado_em: string | null
+          enviado_gestor_em: string | null
           enviado_por: string | null
           gestor_id: string
+          historico_envios: Json | null
           id: string
           mensagem: string
           semana_referencia: string
@@ -1717,9 +1720,12 @@ export type Database = {
           created_by: string
           cs_id?: string | null
           enviado?: boolean
+          enviado_cs_em?: string | null
           enviado_em?: string | null
+          enviado_gestor_em?: string | null
           enviado_por?: string | null
           gestor_id: string
+          historico_envios?: Json | null
           id?: string
           mensagem: string
           semana_referencia: string
@@ -1731,9 +1737,12 @@ export type Database = {
           created_by?: string
           cs_id?: string | null
           enviado?: boolean
+          enviado_cs_em?: string | null
           enviado_em?: string | null
+          enviado_gestor_em?: string | null
           enviado_por?: string | null
           gestor_id?: string
+          historico_envios?: Json | null
           id?: string
           mensagem?: string
           semana_referencia?: string

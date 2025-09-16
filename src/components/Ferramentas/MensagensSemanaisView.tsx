@@ -24,6 +24,9 @@ interface MensagemSemanal {
   enviado: boolean;
   enviado_por: string;
   enviado_em: string;
+  enviado_gestor_em: string;
+  enviado_cs_em: string;
+  historico_envios: any[];
   created_at: string;
   updated_at: string;
   cliente_nome: string;
@@ -44,6 +47,7 @@ export function MensagensSemanaisView() {
   );
   const [filtroGestor, setFiltroGestor] = useState("all");
   const [filtroCliente, setFiltroCliente] = useState("all");
+  const [filtroCS, setFiltroCS] = useState("all");
   const [filtroEnviado, setFiltroEnviado] = useState("all");
 
   const { toast } = useToast();
@@ -55,14 +59,24 @@ export function MensagensSemanaisView() {
 
   useEffect(() => {
     carregarMensagens();
-  }, [filtroSemana, filtroGestor, filtroCliente, filtroEnviado]);
+  }, [filtroSemana, filtroGestor, filtroCliente, filtroCS, filtroEnviado]);
+
+  // Auto-selecionar CS quando cliente for selecionado
+  useEffect(() => {
+    if (filtroCliente && filtroCliente !== "all") {
+      const clienteSelecionado = clientes.find(c => c.id === filtroCliente);
+      if (clienteSelecionado?.cs_id && filtroCS === "all") {
+        setFiltroCS(clienteSelecionado.cs_id);
+      }
+    }
+  }, [filtroCliente, clientes]);
 
   const carregarDados = async () => {
     try {
       // Carregar clientes
       const { data: clientesData } = await supabase
         .from("clientes")
-        .select("id, nome")
+        .select("id, nome, cs_id")
         .eq("ativo", true)
         .order("nome");
 
@@ -87,7 +101,7 @@ export function MensagensSemanaisView() {
         .from("mensagens_semanais")
         .select(`
           *,
-          clientes!inner(nome),
+          clientes!inner(nome, cs_id),
           gestor:colaboradores!mensagens_semanais_gestor_id_fkey(nome),
           cs:colaboradores!mensagens_semanais_cs_id_fkey(nome)
         `)
@@ -103,6 +117,9 @@ export function MensagensSemanaisView() {
       }
       if (filtroCliente && filtroCliente !== "all") {
         query = query.eq("cliente_id", filtroCliente);
+      }
+      if (filtroCS && filtroCS !== "all") {
+        query = query.eq("cs_id", filtroCS);
       }
       if (filtroEnviado && filtroEnviado !== "all") {
         query = query.eq("enviado", filtroEnviado === "true");
@@ -125,6 +142,9 @@ export function MensagensSemanaisView() {
         enviado: item.enviado,
         enviado_por: item.enviado_por,
         enviado_em: item.enviado_em,
+        enviado_gestor_em: item.enviado_gestor_em,
+        enviado_cs_em: item.enviado_cs_em,
+        historico_envios: item.historico_envios || [],
         created_at: item.created_at,
         updated_at: item.updated_at,
         cliente_nome: item.clientes?.nome || "Cliente não encontrado",
@@ -147,17 +167,37 @@ export function MensagensSemanaisView() {
 
   const marcarEnvio = async (mensagemId: string, enviado: boolean) => {
     try {
+      const user = await supabase.auth.getUser();
+      const agora = new Date().toISOString();
+
+      // Buscar mensagem atual para adicionar ao histórico
+      const { data: mensagemAtual } = await supabase
+        .from("mensagens_semanais")
+        .select("historico_envios")
+        .eq("id", mensagemId)
+        .single();
+
+      const novoHistorico = {
+        tipo: enviado ? 'cs_enviado' : 'cs_marcado_pendente',
+        data: agora,
+        user_id: user.data.user?.id,
+        detalhes: enviado ? 'Mensagem enviada para o cliente pela CS' : 'Mensagem marcada como pendente pela CS'
+      };
+
       const dadosAtualizacao: any = {
         enviado,
-        updated_at: new Date().toISOString(),
+        updated_at: agora,
+        historico_envios: JSON.stringify([...(Array.isArray(mensagemAtual?.historico_envios) ? mensagemAtual?.historico_envios : []), novoHistorico]),
       };
 
       if (enviado) {
-        dadosAtualizacao.enviado_por = (await supabase.auth.getUser()).data.user?.id;
-        dadosAtualizacao.enviado_em = new Date().toISOString();
+        dadosAtualizacao.enviado_por = user.data.user?.id;
+        dadosAtualizacao.enviado_em = agora;
+        dadosAtualizacao.enviado_cs_em = agora;
       } else {
         dadosAtualizacao.enviado_por = null;
         dadosAtualizacao.enviado_em = null;
+        dadosAtualizacao.enviado_cs_em = null;
       }
 
       const { error } = await supabase
@@ -211,7 +251,7 @@ export function MensagensSemanaisView() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <Label htmlFor="filtro-semana">Semana</Label>
               <Input
@@ -250,6 +290,23 @@ export function MensagensSemanaisView() {
                   {clientes.map((cliente) => (
                     <SelectItem key={cliente.id} value={cliente.id}>
                       {cliente.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="filtro-cs">CS</Label>
+              <Select value={filtroCS} onValueChange={setFiltroCS}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os CS" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os CS</SelectItem>
+                  {colaboradores.map((colaborador) => (
+                    <SelectItem key={colaborador.id} value={colaborador.id}>
+                      {colaborador.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -298,6 +355,7 @@ export function MensagensSemanaisView() {
                     <TableHead>Semana</TableHead>
                     <TableHead>Mensagem</TableHead>
                     <TableHead>CS</TableHead>
+                    <TableHead>Histórico</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
@@ -318,6 +376,16 @@ export function MensagensSemanaisView() {
                         </div>
                       </TableCell>
                       <TableCell>{mensagem.cs_nome}</TableCell>
+                      <TableCell>
+                        <div className="text-xs text-muted-foreground">
+                          {mensagem.enviado_gestor_em && (
+                            <div>✅ Gestor: {format(new Date(mensagem.enviado_gestor_em), "dd/MM HH:mm", { locale: ptBR })}</div>
+                          )}
+                          {mensagem.enviado_cs_em && (
+                            <div>📤 CS: {format(new Date(mensagem.enviado_cs_em), "dd/MM HH:mm", { locale: ptBR })}</div>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge 
                           variant={mensagem.enviado ? "default" : "destructive"}
@@ -406,11 +474,39 @@ export function MensagensSemanaisView() {
                 </div>
               </div>
 
-              {mensagemSelecionada.enviado && mensagemSelecionada.enviado_em && (
-                <div className="text-sm text-muted-foreground">
-                  Enviado em {format(new Date(mensagemSelecionada.enviado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {/* Histórico de Envios */}
+              <div>
+                <h4 className="font-medium mb-2">Histórico de Envios:</h4>
+                <div className="space-y-2">
+                  {mensagemSelecionada.enviado_gestor_em && (
+                    <div className="text-sm bg-blue-50 p-2 rounded border-l-4 border-blue-500">
+                      <div className="font-medium text-blue-800">✅ Salva pelo Gestor</div>
+                      <div className="text-blue-600">
+                        {format(new Date(mensagemSelecionada.enviado_gestor_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </div>
+                    </div>
+                  )}
+                  {mensagemSelecionada.enviado_cs_em && (
+                    <div className="text-sm bg-green-50 p-2 rounded border-l-4 border-green-500">
+                      <div className="font-medium text-green-800">📤 Enviada pela CS</div>
+                      <div className="text-green-600">
+                        {format(new Date(mensagemSelecionada.enviado_cs_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </div>
+                    </div>
+                  )}
+                  {mensagemSelecionada.historico_envios?.length > 0 && (
+                    <div className="mt-3">
+                      <h5 className="text-xs font-medium text-muted-foreground mb-1">Histórico Completo:</h5>
+                      {mensagemSelecionada.historico_envios.map((evento, index) => (
+                        <div key={index} className="text-xs text-muted-foreground p-1 bg-muted rounded mb-1">
+                          <div className="font-medium">{evento.detalhes}</div>
+                          <div>{format(new Date(evento.data), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           )}
         </DialogContent>
