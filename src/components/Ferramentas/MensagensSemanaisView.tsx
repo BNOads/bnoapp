@@ -42,9 +42,9 @@ export function MensagensSemanaisView() {
   const [filtroSemana, setFiltroSemana] = useState(
     format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd")
   );
-  const [filtroGestor, setFiltroGestor] = useState("");
-  const [filtroCliente, setFiltroCliente] = useState("");
-  const [filtroEnviado, setFiltroEnviado] = useState("");
+  const [filtroGestor, setFiltroGestor] = useState("all");
+  const [filtroCliente, setFiltroCliente] = useState("all");
+  const [filtroEnviado, setFiltroEnviado] = useState("all");
 
   const { toast } = useToast();
   const { isCS, isAdmin } = useUserPermissions();
@@ -98,13 +98,13 @@ export function MensagensSemanaisView() {
       if (filtroSemana) {
         query = query.eq("semana_referencia", filtroSemana);
       }
-      if (filtroGestor) {
+      if (filtroGestor && filtroGestor !== "all") {
         query = query.eq("gestor_id", filtroGestor);
       }
-      if (filtroCliente) {
+      if (filtroCliente && filtroCliente !== "all") {
         query = query.eq("cliente_id", filtroCliente);
       }
-      if (filtroEnviado !== "") {
+      if (filtroEnviado && filtroEnviado !== "all") {
         query = query.eq("enviado", filtroEnviado === "true");
       }
 
@@ -229,7 +229,7 @@ export function MensagensSemanaisView() {
                   <SelectValue placeholder="Todos os gestores" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os gestores</SelectItem>
+                  <SelectItem value="all">Todos os gestores</SelectItem>
                   {colaboradores.map((colaborador) => (
                     <SelectItem key={colaborador.id} value={colaborador.id}>
                       {colaborador.nome}
@@ -246,7 +246,7 @@ export function MensagensSemanaisView() {
                   <SelectValue placeholder="Todos os clientes" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os clientes</SelectItem>
+                  <SelectItem value="all">Todos os clientes</SelectItem>
                   {clientes.map((cliente) => (
                     <SelectItem key={cliente.id} value={cliente.id}>
                       {cliente.nome}
@@ -263,7 +263,7 @@ export function MensagensSemanaisView() {
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os status</SelectItem>
+                  <SelectItem value="all">Todos os status</SelectItem>
                   <SelectItem value="true">Enviado</SelectItem>
                   <SelectItem value="false">Pendente</SelectItem>
                 </SelectContent>
