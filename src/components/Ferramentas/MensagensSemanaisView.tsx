@@ -59,7 +59,14 @@ export function MensagensSemanaisView() {
   const { isCS, isAdmin } = useUserPermissions();
 
   useEffect(() => {
-    carregarDados();
+    const inicializar = async () => {
+      await carregarDados();
+      // Sincronizar CS automaticamente e silenciosamente na primeira carga
+      setTimeout(() => {
+        sincronizarCSMensagens(true);
+      }, 500);
+    };
+    inicializar();
   }, []);
 
   useEffect(() => {
@@ -137,6 +144,25 @@ export function MensagensSemanaisView() {
         throw error;
       }
 
+      // Buscar informações de CS dos clientes para complementar
+      const clienteIds = [...new Set(data?.map(item => item.cliente_id))];
+      const { data: clientesCS } = await supabase
+        .from("clientes")
+        .select(`
+          id,
+          cs_id,
+          cs_colaborador:colaboradores!clientes_cs_id_fkey(nome)
+        `)
+        .in("id", clienteIds);
+
+      // Criar mapa de CS por cliente
+      const csMap = new Map();
+      clientesCS?.forEach(cliente => {
+        if (cliente.cs_colaborador?.nome) {
+          csMap.set(cliente.id, cliente.cs_colaborador.nome);
+        }
+      });
+
       // Transformar dados para o formato esperado
       const mensagensFormatadas = data?.map((item: any) => ({
         id: item.id,
@@ -155,7 +181,7 @@ export function MensagensSemanaisView() {
         updated_at: item.updated_at,
         cliente_nome: item.clientes?.nome || "Cliente não encontrado",
         gestor_nome: item.gestor?.nome || "Gestor não encontrado",
-        cs_nome: item.cs?.nome || "CS não definido",
+        cs_nome: item.cs?.nome || csMap.get(item.cliente_id) || "CS não definido",
       })) || [];
 
       // Aplicar ordenação no frontend para campos derivados (nome dos colaboradores)
@@ -270,11 +296,11 @@ export function MensagensSemanaisView() {
     }
   };
 
-  const sincronizarCSMensagens = async () => {
-    setSincronizandoCS(true);
+  const sincronizarCSMensagens = async (silencioso = false) => {
+    if (!silencioso) setSincronizandoCS(true);
     try {
-      // Buscar todas as mensagens que não têm CS definido ou têm CS diferente do cliente
-      const { data: mensagensSemCS } = await supabase
+      // Buscar todas as mensagens com seus clientes
+      const { data: mensagensParaSync } = await supabase
         .from("mensagens_semanais")
         .select(`
           id,
@@ -283,8 +309,8 @@ export function MensagensSemanaisView() {
           clientes!inner(cs_id)
         `);
 
-      if (mensagensSemCS && mensagensSemCS.length > 0) {
-        const atualizacoes = mensagensSemCS
+      if (mensagensParaSync && mensagensParaSync.length > 0) {
+        const atualizacoes = mensagensParaSync
           .filter((msg: any) => {
             const clienteCSId = msg.clientes?.cs_id;
             return clienteCSId && msg.cs_id !== clienteCSId;
@@ -303,14 +329,16 @@ export function MensagensSemanaisView() {
               .eq("id", atualizacao.id);
           }
 
-          toast({
-            title: "Sucesso",
-            description: `${atualizacoes.length} mensagens sincronizadas com CS dos clientes`,
-          });
+          if (!silencioso) {
+            toast({
+              title: "Sucesso",
+              description: `${atualizacoes.length} mensagens sincronizadas com CS dos clientes`,
+            });
+          }
 
           // Recarregar mensagens
           carregarMensagens();
-        } else {
+        } else if (!silencioso) {
           toast({
             title: "Info",
             description: "Todas as mensagens já estão sincronizadas",
@@ -319,13 +347,15 @@ export function MensagensSemanaisView() {
       }
     } catch (error: any) {
       console.error("Erro ao sincronizar CS:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao sincronizar CS das mensagens",
-        variant: "destructive",
-      });
+      if (!silencioso) {
+        toast({
+          title: "Erro",
+          description: "Erro ao sincronizar CS das mensagens",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setSincronizandoCS(false);
+      if (!silencioso) setSincronizandoCS(false);
     }
   };
 
@@ -365,7 +395,7 @@ export function MensagensSemanaisView() {
         </div>
         <Button
           variant="outline"
-          onClick={sincronizarCSMensagens}
+          onClick={() => sincronizarCSMensagens(false)}
           disabled={sincronizandoCS}
           className="flex items-center gap-2"
         >
