@@ -1121,7 +1121,6 @@ export function PautaReuniaoView() {
                 {saveStatus === 'error' && <span className="text-red-600 text-xs">❌ Erro ao salvar{lastError ? ` — ${lastError}` : ''}</span>}
               </div>
               
-              {currentDocument}
               
               {currentDocument && <Button variant="outline" size="sm" onClick={addNewPautaInline} className="h-7 text-xs">
                   <Plus className="h-3 w-3 mr-1" />
