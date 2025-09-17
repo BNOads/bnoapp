@@ -456,21 +456,38 @@ export const ClientesView = () => {
                       </TableCell>}
                      <TableCell>
                       <div>
-                        <button onClick={() => navigate(`/painel/${cliente.id}`, {
-                        state: {
-                          from: '/?tab=clientes'
-                        }
-                      })} className="font-medium text-foreground hover:text-primary transition-colors text-left">
+                        <a 
+                          href={`/painel/${cliente.id}`}
+                          onClick={(e) => {
+                            // Se não for ctrl+click nem cmd+click, prevenir o comportamento padrão e navegar programaticamente
+                            if (!e.ctrlKey && !e.metaKey) {
+                              e.preventDefault();
+                              navigate(`/painel/${cliente.id}`, {
+                                state: {
+                                  from: '/?tab=clientes'
+                                }
+                              });
+                            }
+                            // Para ctrl+click ou cmd+click, deixar o comportamento padrão do navegador
+                          }} 
+                          className="font-medium text-foreground hover:text-primary transition-colors"
+                        >
                           {cliente.nome}
-                        </button>
-                        {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && <div className="flex flex-wrap gap-1 mt-1">
-                            {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => <Badge key={index} variant="outline" className="text-xs">
+                        </a>
+                        {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => (
+                              <Badge key={index} variant="outline" className="text-xs">
                                 {funil}
-                              </Badge>)}
-                            {cliente.funis_trabalhando.length > 2 && <Badge variant="outline" className="text-xs">
+                              </Badge>
+                            ))}
+                            {cliente.funis_trabalhando.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
                                 +{cliente.funis_trabalhando.length - 2}
-                              </Badge>}
-                          </div>}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
