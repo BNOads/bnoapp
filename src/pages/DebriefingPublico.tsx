@@ -48,7 +48,6 @@ export default function DebriefingPublico() {
         .from('debriefings')
         .select('*')
         .eq('id', id)
-        .eq('status', 'concluido')
         .maybeSingle();
 
       if (error) {
