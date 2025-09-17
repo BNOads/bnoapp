@@ -110,8 +110,13 @@ export function MensagensSemanaisView() {
           *,
           clientes!inner(nome),
           gestor:colaboradores!mensagens_semanais_gestor_id_fkey(nome)
-        `)
-        .order(ordenarPor, { ascending: ordenarDirecao === "asc" });
+        `);
+
+      // Ordenar no banco apenas por colunas reais da tabela
+      const colunasOrdenaveisDB = ["semana_referencia", "enviado", "created_at", "updated_at"] as const;
+      if (colunasOrdenaveisDB.includes(ordenarPor as any)) {
+        query = (query as any).order(ordenarPor, { ascending: ordenarDirecao === "asc" });
+      }
 
       // Aplicar filtros
       if (filtroSemana) {
