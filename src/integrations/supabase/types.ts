@@ -881,6 +881,7 @@ export type Database = {
           dados_outras_fontes: Json | null
           dados_pesquisa: Json | null
           dados_trafego: Json | null
+          faturamento_bruto: number | null
           faturamento_total: number | null
           id: string
           insights_automaticos: Json | null
@@ -892,6 +893,7 @@ export type Database = {
           nome_lancamento: string
           o_que_ajustar: string[] | null
           o_que_funcionou: string[] | null
+          paineis_excluidos: Json | null
           periodo_fim: string
           periodo_inicio: string
           proximos_passos: string[] | null
@@ -914,6 +916,7 @@ export type Database = {
           dados_outras_fontes?: Json | null
           dados_pesquisa?: Json | null
           dados_trafego?: Json | null
+          faturamento_bruto?: number | null
           faturamento_total?: number | null
           id?: string
           insights_automaticos?: Json | null
@@ -925,6 +928,7 @@ export type Database = {
           nome_lancamento: string
           o_que_ajustar?: string[] | null
           o_que_funcionou?: string[] | null
+          paineis_excluidos?: Json | null
           periodo_fim: string
           periodo_inicio: string
           proximos_passos?: string[] | null
@@ -947,6 +951,7 @@ export type Database = {
           dados_outras_fontes?: Json | null
           dados_pesquisa?: Json | null
           dados_trafego?: Json | null
+          faturamento_bruto?: number | null
           faturamento_total?: number | null
           id?: string
           insights_automaticos?: Json | null
@@ -958,6 +963,7 @@ export type Database = {
           nome_lancamento?: string
           o_que_ajustar?: string[] | null
           o_que_funcionou?: string[] | null
+          paineis_excluidos?: Json | null
           periodo_fim?: string
           periodo_inicio?: string
           proximos_passos?: string[] | null

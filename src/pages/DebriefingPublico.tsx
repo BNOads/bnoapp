@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import PanelManager from "@/components/Debriefings/PanelManager";
+import PDFExporter from "@/components/Debriefings/PDFExporter";
 
 interface DebriefingDetalhes {
   id: string;
@@ -19,6 +21,7 @@ interface DebriefingDetalhes {
   vendas_total?: number;
   investimento_total?: number;
   faturamento_total?: number;
+  faturamento_bruto?: number;
   roas?: number;
   cpl?: number;
   ticket_medio?: number;
@@ -29,18 +32,26 @@ interface DebriefingDetalhes {
   dados_trafego?: any[];
   dados_pesquisa?: any[];
   dados_outras_fontes?: any[];
+  paineis_excluidos?: string[];
 }
 
 export default function DebriefingPublico() {
   const { id } = useParams<{ id: string }>();
   const [debriefing, setDebriefing] = useState<DebriefingDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchDebriefing();
+      checkAuthStatus();
     }
   }, [id]);
+
+  const checkAuthStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setIsLoggedIn(!!user);
+  };
 
   const fetchDebriefing = async () => {
     try {
@@ -67,6 +78,7 @@ export default function DebriefingPublico() {
           vendas_total: debriefingData.vendas_total,
           investimento_total: debriefingData.investimento_total,
           faturamento_total: debriefingData.faturamento_total,
+          faturamento_bruto: debriefingData.faturamento_bruto,
           roas: debriefingData.roas,
           cpl: debriefingData.cpl,
           ticket_medio: debriefingData.ticket_medio,
@@ -75,7 +87,8 @@ export default function DebriefingPublico() {
           dados_compradores: Array.isArray(debriefingData.dados_compradores) ? debriefingData.dados_compradores : [],
           dados_trafego: Array.isArray(debriefingData.dados_trafego) ? debriefingData.dados_trafego : [],
           dados_pesquisa: Array.isArray(debriefingData.dados_pesquisa) ? debriefingData.dados_pesquisa : [],
-          dados_outras_fontes: Array.isArray(debriefingData.dados_outras_fontes) ? debriefingData.dados_outras_fontes : []
+          dados_outras_fontes: Array.isArray(debriefingData.dados_outras_fontes) ? debriefingData.dados_outras_fontes : [],
+          paineis_excluidos: Array.isArray(debriefingData.paineis_excluidos) ? debriefingData.paineis_excluidos as string[] : []
         });
       }
     } catch (error) {
@@ -118,6 +131,28 @@ export default function DebriefingPublico() {
   // Função para normalizar emails
   const normalizeEmail = (email: string) => {
     return email?.toLowerCase().trim() || '';
+  };
+
+  const isPanelExcluded = (panelId: string) => {
+    return Array.isArray(debriefing?.paineis_excluidos) 
+      ? debriefing.paineis_excluidos.includes(panelId)
+      : false;
+  };
+
+  const availablePanels = [
+    { id: 'header', title: 'Cabeçalho da Campanha', isExcluded: isPanelExcluded('header') },
+    { id: 'metrics', title: 'Métricas Principais', isExcluded: isPanelExcluded('metrics') },
+    { id: 'records', title: 'Total de Registros', isExcluded: isPanelExcluded('records') },
+    { id: 'conversion', title: 'Análise de Conversão', isExcluded: isPanelExcluded('conversion') },
+    { id: 'utm', title: 'Conversão por UTM Term', isExcluded: isPanelExcluded('utm') },
+    { id: 'summary', title: 'Resumo Orgânico vs Pago', isExcluded: isPanelExcluded('summary') }
+  ];
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
   };
 
   if (loading) {

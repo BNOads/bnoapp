@@ -24,6 +24,7 @@ export default function EditDataModal({ debriefingId, debriefingData, isOpen, on
     vendas_total: 0,
     investimento_total: 0,
     faturamento_total: 0,
+    faturamento_bruto: 0,
     roas: 0,
     cpl: 0,
     ticket_medio: 0,
@@ -45,6 +46,7 @@ export default function EditDataModal({ debriefingId, debriefingData, isOpen, on
         vendas_total: debriefingData.vendas_total || 0,
         investimento_total: debriefingData.investimento_total || 0,
         faturamento_total: debriefingData.faturamento_total || 0,
+        faturamento_bruto: debriefingData.faturamento_bruto || 0,
         roas: debriefingData.roas || 0,
         cpl: debriefingData.cpl || 0,
         ticket_medio: debriefingData.ticket_medio || 0,
@@ -89,7 +91,7 @@ export default function EditDataModal({ debriefingId, debriefingData, isOpen, on
   };
 
   const calculateDerivedMetrics = () => {
-    const { leads_total, vendas_total, investimento_total, faturamento_total } = metrics;
+    const { leads_total, vendas_total, investimento_total, faturamento_total, faturamento_bruto } = metrics;
     
     const newMetrics = { ...metrics };
     
@@ -98,14 +100,15 @@ export default function EditDataModal({ debriefingId, debriefingData, isOpen, on
       newMetrics.cpl = investimento_total / leads_total;
     }
     
-    // Calcular ROAS
-    if (investimento_total > 0 && faturamento_total > 0) {
-      newMetrics.roas = faturamento_total / investimento_total;
+    // Calcular ROAS (preferir faturamento_bruto se disponível)
+    const faturamentoParaCalculo = faturamento_bruto > 0 ? faturamento_bruto : faturamento_total;
+    if (investimento_total > 0 && faturamentoParaCalculo > 0) {
+      newMetrics.roas = faturamentoParaCalculo / investimento_total;
     }
     
-    // Calcular Ticket Médio
-    if (vendas_total > 0 && faturamento_total > 0) {
-      newMetrics.ticket_medio = faturamento_total / vendas_total;
+    // Calcular Ticket Médio (preferir faturamento_bruto se disponível)
+    if (vendas_total > 0 && faturamentoParaCalculo > 0) {
+      newMetrics.ticket_medio = faturamentoParaCalculo / vendas_total;
     }
     
     // Calcular Conversão Lead-Venda
@@ -213,7 +216,7 @@ export default function EditDataModal({ debriefingId, debriefingData, isOpen, on
                   </div>
                   
                   <div>
-                    <Label htmlFor="faturamento_total">Faturamento Total (R$)</Label>
+                    <Label htmlFor="faturamento_total">Faturamento Líquido (R$)</Label>
                     <Input
                       id="faturamento_total"
                       type="number"
@@ -221,6 +224,19 @@ export default function EditDataModal({ debriefingId, debriefingData, isOpen, on
                       value={metrics.faturamento_total}
                       onChange={(e) => handleMetricChange('faturamento_total', e.target.value)}
                       onBlur={calculateDerivedMetrics}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="faturamento_bruto">Faturamento Bruto (R$)</Label>
+                    <Input
+                      id="faturamento_bruto"
+                      type="number"
+                      step="0.01"
+                      value={metrics.faturamento_bruto}
+                      onChange={(e) => handleMetricChange('faturamento_bruto', e.target.value)}
+                      onBlur={calculateDerivedMetrics}
+                      placeholder="Campo opcional - usado prioritariamente nos cálculos"
                     />
                   </div>
                 </div>
