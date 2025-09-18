@@ -141,11 +141,11 @@ export default function DebriefingPublico() {
 
   const availablePanels = [
     { id: 'header', title: 'Cabeçalho da Campanha', isExcluded: isPanelExcluded('header') },
-    { id: 'metrics', title: 'Métricas Principais', isExcluded: isPanelExcluded('metrics') },
+    { id: 'main-metrics', title: 'Métricas Principais do Debriefing', isExcluded: isPanelExcluded('main-metrics') },
     { id: 'records', title: 'Total de Registros', isExcluded: isPanelExcluded('records') },
-    { id: 'conversion', title: 'Análise de Conversão', isExcluded: isPanelExcluded('conversion') },
+    { id: 'performance', title: 'Performance por Criativo', isExcluded: isPanelExcluded('performance') },
     { id: 'utm', title: 'Conversão por UTM Term', isExcluded: isPanelExcluded('utm') },
-    { id: 'summary', title: 'Resumo Orgânico vs Pago', isExcluded: isPanelExcluded('summary') }
+    { id: 'footer', title: 'Rodapé', isExcluded: isPanelExcluded('footer') }
   ];
 
   const formatCurrency = (value: number) => {
@@ -258,9 +258,10 @@ export default function DebriefingPublico() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="container mx-auto">
+      <div className="container mx-auto" id="debriefing-content">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        {!isPanelExcluded('header') && (
+        <div className="flex items-center justify-between mb-6" data-panel-id="header">
           <div>
             <div className="flex items-center space-x-3 mb-2">
               <h1 className="text-3xl font-bold tracking-tight">{debriefing.nome_lancamento}</h1>
@@ -273,14 +274,73 @@ export default function DebriefingPublico() {
             </p>
           </div>
           
-          <Button onClick={handleExportPDF}>
-            <Download className="mr-2 h-4 w-4" />
-            Baixar PDF
-          </Button>
+          <div className="flex gap-2">
+            <PDFExporter
+              debriefingId={id!}
+              debriefingName={debriefing.nome_lancamento}
+              availablePanels={availablePanels}
+            />
+            <Button onClick={handleExportPDF}>
+              <Download className="mr-2 h-4 w-4" />
+              Baixar PDF
+            </Button>
+          </div>
         </div>
+        )}
 
-        {/* Estatísticas Principais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Métricas Principais do Debriefing */}
+        {!isPanelExcluded('main-metrics') && debriefing.status === 'concluido' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6" data-panel-id="main-metrics">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Leads Total</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{debriefing.leads_total || 0}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Vendas Total</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{debriefing.vendas_total || 0}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Investimento</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{formatCurrency(debriefing.investimento_total || 0)}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Faturamento Líquido</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{formatCurrency(debriefing.faturamento_total || 0)}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Faturamento Bruto</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{formatCurrency(debriefing.faturamento_bruto || 0)}</p>
+            </CardContent>
+          </Card>
+        </div>
+        )}
+
+        {/* Estatísticas de Dados */}
+        {!isPanelExcluded('records') && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" data-panel-id="records">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">Total de Registros</CardTitle>
@@ -379,9 +439,11 @@ export default function DebriefingPublico() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Performance por Criativo */}
-        <Card className="mb-6">
+        {!isPanelExcluded('performance') && (
+        <Card className="mb-6" data-panel-id="performance">
           <CardHeader>
             <CardTitle>Performance por Criativo</CardTitle>
           </CardHeader>
@@ -410,9 +472,11 @@ export default function DebriefingPublico() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Análise por UTM Terms e Fontes */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {!isPanelExcluded('utm') && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-panel-id="utm">
           <Card>
             <CardHeader>
               <CardTitle>Conversão por UTM Term</CardTitle>
@@ -496,6 +560,7 @@ export default function DebriefingPublico() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Footer */}
         <div className="mt-8 text-center text-muted-foreground text-sm">

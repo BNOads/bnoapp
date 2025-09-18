@@ -12,6 +12,8 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { AdvancedCharts } from './AdvancedCharts';
 import { DadosBrutosAnalysis } from './DadosBrutosAnalysis';
 import EditDebriefingModal from './EditDebriefingModal';
+import PDFExporter from './PDFExporter';
+import PanelManager from './PanelManager';
 
 interface DebriefingDetalhes {
   id: string;
@@ -24,6 +26,7 @@ interface DebriefingDetalhes {
   vendas_total?: number;
   investimento_total?: number;
   faturamento_total?: number;
+  faturamento_bruto?: number;
   roas?: number;
   cpl?: number;
   ticket_medio?: number;
@@ -34,6 +37,7 @@ interface DebriefingDetalhes {
   dados_trafego?: any;
   dados_pesquisa?: any;
   dados_outras_fontes?: any;
+  paineis_excluidos?: string[];
 }
 
 export default function DebriefingDetalhes() {
@@ -74,6 +78,7 @@ export default function DebriefingDetalhes() {
           vendas_total: debriefingData.vendas_total,
           investimento_total: debriefingData.investimento_total,
           faturamento_total: debriefingData.faturamento_total,
+          faturamento_bruto: debriefingData.faturamento_bruto,
           roas: debriefingData.roas,
           cpl: debriefingData.cpl,
           ticket_medio: debriefingData.ticket_medio,
@@ -82,7 +87,8 @@ export default function DebriefingDetalhes() {
           dados_compradores: debriefingData.dados_compradores,
           dados_trafego: debriefingData.dados_trafego,
           dados_pesquisa: (debriefingData as any).dados_pesquisa || [],
-          dados_outras_fontes: (debriefingData as any).dados_outras_fontes || []
+          dados_outras_fontes: (debriefingData as any).dados_outras_fontes || [],
+          paineis_excluidos: Array.isArray(debriefingData.paineis_excluidos) ? debriefingData.paineis_excluidos as string[] : []
         });
       } else {
         console.log('Nenhum debriefing encontrado para o ID:', id);
@@ -238,8 +244,8 @@ export default function DebriefingDetalhes() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container mx-auto p-6" id="debriefing-content">
+      <div className="flex items-center justify-between mb-6" data-panel-id="header">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" onClick={() => navigate('/debriefings')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -269,9 +275,20 @@ export default function DebriefingDetalhes() {
             onUpdate={fetchDebriefing}
           />
           
+          <PDFExporter
+            debriefingId={debriefing.id}
+            debriefingName={debriefing.nome_lancamento}
+            availablePanels={[
+              { id: 'header', title: 'Cabeçalho', isExcluded: false },
+              { id: 'metrics', title: 'Métricas Principais', isExcluded: false },
+              { id: 'secondary-metrics', title: 'Métricas Secundárias', isExcluded: false },
+              { id: 'charts', title: 'Gráficos', isExcluded: false }
+            ]}
+          />
+          
           <Button variant="outline" onClick={handleExportPDF}>
             <Download className="mr-2 h-4 w-4" />
-            Baixar PDF
+            Baixar PDF (Básico)
           </Button>
           
           <AlertDialog>
@@ -300,7 +317,7 @@ export default function DebriefingDetalhes() {
       </div>
 
       {/* Cards de Métricas Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6" data-panel-id="metrics">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -341,17 +358,29 @@ export default function DebriefingDetalhes() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">ROAS</p>
-                <p className="text-2xl font-bold">{debriefing.roas?.toFixed(1) || '0,0'}x</p>
+                <p className="text-sm font-medium text-muted-foreground">Faturamento Líquido</p>
+                <p className="text-2xl font-bold">{formatCurrency(debriefing.faturamento_total || 0)}</p>
               </div>
-              <Target className="h-4 w-4 text-muted-foreground" />
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Faturamento Bruto</p>
+                <p className="text-2xl font-bold">{formatCurrency(debriefing.faturamento_bruto || 0)}</p>
+              </div>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Métricas Secundárias */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" data-panel-id="secondary-metrics">
         <Card>
           <CardContent className="p-6">
             <div className="text-center">
@@ -378,11 +407,20 @@ export default function DebriefingDetalhes() {
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <p className="text-sm font-medium text-muted-foreground">ROAS</p>
+              <p className="text-xl font-semibold">{debriefing.roas?.toFixed(1) || '0,0'}x</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Status específicos */}
       {debriefing.status === 'processando' && (
-        <Card className="mb-6">
+        <Card className="mb-6" data-panel-id="processing">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
             <h3 className="text-lg font-semibold mb-2">Processando Dados</h3>
@@ -394,7 +432,7 @@ export default function DebriefingDetalhes() {
       )}
 
       {/* Gráficos Avançados */}
-      <Tabs defaultValue="charts" className="space-y-4">
+      <Tabs defaultValue="charts" className="space-y-4" data-panel-id="charts">
         <TabsList>
           <TabsTrigger value="charts">Gráficos Avançados</TabsTrigger>
           <TabsTrigger value="data">Dados Brutos</TabsTrigger>
