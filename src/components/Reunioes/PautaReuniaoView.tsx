@@ -145,8 +145,10 @@ export function PautaReuniaoView() {
     .trim();
   };
   const autosaveTimeout = useRef<NodeJS.Timeout>();
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
   useEffect(() => {
-    // Parse URL parameters
+    // Parse URL parameters and auto-navigate to today
     const yearParam = searchParams.get('ano');
     const monthParam = searchParams.get('mes');
     const dayParam = searchParams.get('dia');
@@ -154,14 +156,16 @@ export function PautaReuniaoView() {
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth() + 1;
     const currentDay = today.getDate();
-    if (yearParam && monthParam) {
+
+    if (yearParam && monthParam && dayParam) {
+      // URL tem todos os parâmetros, usar eles
       setSelectedDate({
         ano: parseInt(yearParam),
         mes: parseInt(monthParam),
-        dia: dayParam ? parseInt(dayParam) : currentDay // Se não tem dia na URL, usar dia atual
+        dia: parseInt(dayParam)
       });
     } else {
-      // Auto-navigate to today's date
+      // Auto-navegar para o dia atual
       setSelectedDate({
         ano: currentYear,
         mes: currentMonth,
@@ -582,6 +586,7 @@ export function PautaReuniaoView() {
     updateBlock(blockId, {
       titulo: title
     });
+    setHasUnsavedChanges(true);
 
     // Se estiver criando um novo bloco e o título foi preenchido, não é mais "em criação"
     if (newBlockInCreation === blockId && title.trim()) {
@@ -595,6 +600,7 @@ export function PautaReuniaoView() {
         texto: content
       }
     });
+    setHasUnsavedChanges(true);
 
     // Se estiver criando um novo bloco e o conteúdo foi preenchido, não é mais "em criação"
     if (newBlockInCreation === blockId && content.trim()) {
@@ -705,12 +711,12 @@ export function PautaReuniaoView() {
     if (autosaveTimeout.current) {
       clearTimeout(autosaveTimeout.current);
     }
-    setSaveStatus('idle');
+    setSaveStatus('saving');
 
-    // Autosave a cada 60 segundos (1 minuto)
+    // Autosave em 2-3 segundos após parar de digitar
     autosaveTimeout.current = setTimeout(() => {
       saveDocument(true);
-    }, 60000);
+    }, 2500);
   };
   const deleteBlock = async (blockId: string) => {
     try {
@@ -816,10 +822,12 @@ export function PautaReuniaoView() {
       setLastSaved(now);
       setLastError(null);
       setSaveStatus('saved');
+      setHasUnsavedChanges(false);
       console.info('Save success at', now.toISOString());
+      
       if (isAutosave) {
         toast({
-          title: "✅ Alterações salvas automaticamente",
+          title: "✅ Salvo automaticamente",
           description: `às ${now.toLocaleTimeString('pt-BR', {
             hour: '2-digit',
             minute: '2-digit'
@@ -1112,11 +1120,14 @@ export function PautaReuniaoView() {
                     <div className="animate-spin h-3 w-3 border border-primary border-t-transparent rounded-full"></div>
                     Salvando...
                   </span>}
-                {saveStatus === 'saved' && lastSaved && <span className="text-green-600 text-xs">
+                {saveStatus === 'saved' && lastSaved && !hasUnsavedChanges && <span className="text-green-600 text-xs">
                     ✅ Salvo às {lastSaved.toLocaleTimeString('pt-BR', {
                 hour: '2-digit',
                 minute: '2-digit'
               })}
+                  </span>}
+                {hasUnsavedChanges && saveStatus !== 'saving' && <span className="text-orange-600 text-xs">
+                    🔄 Aguardando salvamento...
                   </span>}
                 {saveStatus === 'error' && <span className="text-red-600 text-xs">❌ Erro ao salvar{lastError ? ` — ${lastError}` : ''}</span>}
               </div>
@@ -1147,6 +1158,7 @@ export function PautaReuniaoView() {
                       ...prev,
                       titulo_reuniao: e.target.value
                     } : null);
+                    setHasUnsavedChanges(true);
                     scheduleAutosave();
                   }} className="text-lg font-bold border-none p-0 h-auto bg-transparent text-foreground flex-1" placeholder="Título da reunião" />
                         
@@ -1162,6 +1174,7 @@ export function PautaReuniaoView() {
                     ...prev,
                     descricao: content
                   } : null);
+                  setHasUnsavedChanges(true);
                   scheduleAutosave();
                 }} placeholder="Descrição e objetivo da reunião" className="mt-2" showToolbar={true} onTitleExtracted={titles => {
                   setExtractedTitles(prev => {
@@ -1261,11 +1274,14 @@ export function PautaReuniaoView() {
                     <div className="animate-spin h-2 w-2 border border-primary border-t-transparent rounded-full"></div>
                     Salvando...
                   </div>}
-                {saveStatus === 'saved' && lastSaved && <div className="text-green-600">
+                {saveStatus === 'saved' && lastSaved && !hasUnsavedChanges && <div className="text-green-600">
                     ✅ Salvo às {lastSaved.toLocaleTimeString('pt-BR', {
               hour: '2-digit',
               minute: '2-digit'
             })}
+                  </div>}
+                {hasUnsavedChanges && saveStatus !== 'saving' && <div className="text-orange-600">
+                    🔄 Aguardando salvamento...
                   </div>}
                 {saveStatus === 'error' && <div className="text-red-600">
                     ❌ Erro ao salvar - verifique sua conexão
