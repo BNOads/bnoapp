@@ -151,7 +151,10 @@ export function MensagensSemanaisView() {
         enviado_em: item.enviado_em,
         enviado_gestor_em: item.enviado_gestor_em,
         enviado_cs_em: item.enviado_cs_em,
-        historico_envios: item.historico_envios || [],
+        historico_envios: Array.isArray(item.historico_envios) ? item.historico_envios : 
+                        (typeof item.historico_envios === 'string' ? 
+                          (item.historico_envios ? JSON.parse(item.historico_envios) : []) : 
+                          (item.historico_envios || [])),
         created_at: item.created_at,
         updated_at: item.updated_at,
         cliente_nome: item.clientes?.nome || "Cliente não encontrado",
@@ -671,13 +674,13 @@ export function MensagensSemanaisView() {
                       </div>
                     </div>
                   )}
-                  {mensagemSelecionada.historico_envios?.length > 0 && (
+                  {Array.isArray(mensagemSelecionada.historico_envios) && mensagemSelecionada.historico_envios.length > 0 && (
                     <div className="mt-3">
                       <h5 className="text-xs font-medium text-muted-foreground mb-1">Histórico Completo:</h5>
                       {mensagemSelecionada.historico_envios.map((evento, index) => (
                         <div key={index} className="text-xs text-muted-foreground p-1 bg-muted rounded mb-1">
-                          <div className="font-medium">{evento.detalhes}</div>
-                          <div>{format(new Date(evento.data), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</div>
+                          <div className="font-medium">{evento.detalhes || 'Ação registrada'}</div>
+                          <div>{evento.data ? format(new Date(evento.data), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Data não disponível'}</div>
                         </div>
                       ))}
                     </div>
