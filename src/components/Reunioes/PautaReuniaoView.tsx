@@ -176,12 +176,12 @@ export function PautaReuniaoView() {
     loadInitialData();
   }, [searchParams]);
 
-  // Trigger autosave when changes occur
+  // Trigger autosave when blocks change
   useEffect(() => {
-    if (hasUnsavedChanges && currentDocument) {
+    if (blocks.length > 0 && hasUnsavedChanges) {
       triggerAutosave();
     }
-  }, [hasUnsavedChanges, currentDocument?.descricao]);
+  }, [blocks, hasUnsavedChanges]);
 
   // Search debouncing
   useEffect(() => {
@@ -805,7 +805,6 @@ export function PautaReuniaoView() {
       // Update document
       const updatePayload = {
         titulo_reuniao: currentDocument.titulo_reuniao || 'Reunião',
-        descricao: currentDocument.descricao || '',
         participantes: currentDocument.participantes ?? [],
         contribuidores: currentDocument.contribuidores ?? (user?.id ? [user.id] : []),
         ultima_atualizacao: new Date().toISOString()
@@ -1180,46 +1179,6 @@ export function PautaReuniaoView() {
           <div className="flex gap-4">
             <div className="flex-1">
               {currentDocument ? <div className="space-y-4">
-                  {/* Document Header */}
-                  <Card className="border-l-4 border-l-primary">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <Input id="document-header" value={currentDocument.titulo_reuniao} onChange={e => {
-                    setCurrentDocument(prev => prev ? {
-                      ...prev,
-                      titulo_reuniao: e.target.value
-                    } : null);
-                    setHasUnsavedChanges(true);
-                    scheduleAutosave();
-                  }} className="text-lg font-bold border-none p-0 h-auto bg-transparent text-foreground flex-1" placeholder="Título da reunião" />
-                        
-                        {/* Botão Minimizar/Expandir para pauta padrão */}
-                        <Button variant="ghost" size="sm" onClick={() => toggleBlockMinimized('default-agenda')} className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground ml-2" title={minimizedBlocks.has('default-agenda') ? 'Expandir pauta' : 'Minimizar pauta'}>
-                          {minimizedBlocks.has('default-agenda') ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
-                        </Button>
-                      </div>
-                      
-                      {/* Conteúdo - só mostra se não estiver minimizado */}
-                      {!minimizedBlocks.has('default-agenda') && <WYSIWYGEditor content={currentDocument.descricao || ''} onChange={content => {
-                  setCurrentDocument(prev => prev ? {
-                    ...prev,
-                    descricao: content
-                  } : null);
-                  setHasUnsavedChanges(true);
-                }} placeholder="Descrição e objetivo da reunião" className="mt-2" showToolbar={true} onTitleExtracted={titles => {
-                  setExtractedTitles(prev => {
-                    const filtered = prev.filter(t => !titles.includes(t));
-                    return [...filtered, ...titles];
-                  });
-                }} />}
-                      
-                      {/* Indicador visual quando minimizado */}
-                      {minimizedBlocks.has('default-agenda') && <div className="text-xs text-muted-foreground italic mt-2">
-                          Conteúdo minimizado - clique em ▼ para expandir
-                        </div>}
-                    </CardHeader>
-                  </Card>
-
                   {/* Blocks */}
                   {blocks.map((block, index) => {
               const isMinimized = minimizedBlocks.has(block.id);
