@@ -176,6 +176,27 @@ export function PautaReuniaoView() {
     loadInitialData();
   }, [searchParams]);
 
+  // Trigger autosave when blocks change
+  useEffect(() => {
+    if (blocks.length > 0 && hasUnsavedChanges) {
+      triggerAutosave();
+    }
+  }, [blocks, hasUnsavedChanges]);
+
+  // Search debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim()) {
+        searchAcrossDocuments(searchQuery);
+      } else {
+        setSearchResults([]);
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, selectedDate.ano]);
+
   // Add keyboard shortcuts and blur events for autosave
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
@@ -312,7 +333,10 @@ export function PautaReuniaoView() {
       const today = new Date();
       const selectedDateObj = new Date(selectedDate.ano, selectedDate.mes - 1, selectedDate.dia);
       const todayObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      if (selectedDateObj >= todayObj) {
+      
+      // Always create document for today to ensure it's accessible
+      const isToday = selectedDateObj.getTime() === todayObj.getTime();
+      if (isToday || selectedDateObj >= todayObj) {
         // Auto-create document for today or future dates
         createOrOpenDocument(selectedDate.dia);
       } else {
@@ -712,11 +736,18 @@ export function PautaReuniaoView() {
       clearTimeout(autosaveTimeout.current);
     }
     setSaveStatus('saving');
+    setHasUnsavedChanges(true);
 
     // Autosave em 2-3 segundos após parar de digitar
     autosaveTimeout.current = setTimeout(() => {
       saveDocument(true);
     }, 2500);
+  };
+
+  const triggerAutosave = () => {
+    if (currentDocument && blocks.length > 0) {
+      scheduleAutosave();
+    }
   };
   const deleteBlock = async (blockId: string) => {
     try {
@@ -1138,9 +1169,9 @@ export function PautaReuniaoView() {
                   Nova Pauta
                 </Button>}
               
-              {currentDocument && <Button size="sm" onClick={() => saveDocument(false)} disabled={saving} className="h-7 text-xs">
+              {currentDocument && <Button size="sm" onClick={() => saveDocument(false)} disabled={saving || saveStatus === 'saving'} variant={hasUnsavedChanges ? "default" : "outline"} className="h-7 text-xs">
                   <Save className="h-3 w-3 mr-1" />
-                  Salvar
+                  {hasUnsavedChanges ? 'Salvar Agora' : 'Salvo'}
                 </Button>}
             </div>
           </div>
@@ -1253,12 +1284,49 @@ export function PautaReuniaoView() {
                 </div> : <Card>
                   <CardContent className="text-center py-12">
                     <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">
-                      Selecione um dia para visualizar ou criar uma pauta
-                    </h3>
-                    <p className="text-muted-foreground">
-                      Use o calendário lateral para navegar pelos dias do mês
-                    </p>
+                    {selectedDate.dia ? (
+                      <>
+                        <h3 className="text-lg font-semibold mb-2">
+                          Nenhuma pauta registrada para {selectedDate.dia}/{selectedDate.mes}/{selectedDate.ano}
+                        </h3>
+                        <p className="text-muted-foreground mb-4">
+                          {(() => {
+                            const today = new Date();
+                            const selectedDateObj = new Date(selectedDate.ano, selectedDate.mes - 1, selectedDate.dia);
+                            const todayObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                            const isToday = selectedDateObj.getTime() === todayObj.getTime();
+                            
+                            if (isToday) {
+                              return "Clique em 'Nova Pauta' para começar a agenda de hoje.";
+                            } else if (selectedDateObj > todayObj) {
+                              return "Clique em 'Nova Pauta' para criar a agenda deste dia.";
+                            } else {
+                              return "Este dia não possui agenda registrada.";
+                            }
+                          })()}
+                        </p>
+                        {(() => {
+                          const today = new Date();
+                          const selectedDateObj = new Date(selectedDate.ano, selectedDate.mes - 1, selectedDate.dia);
+                          const todayObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                          return selectedDateObj >= todayObj && (
+                            <Button onClick={() => createOrOpenDocument(selectedDate.dia!)} className="mt-2">
+                              <Plus className="h-4 w-4 mr-2" />
+                              Nova Pauta
+                            </Button>
+                          );
+                        })()}
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="text-lg font-semibold mb-2">
+                          Selecione um dia para visualizar ou criar uma pauta
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Use o calendário lateral para navegar pelos dias do mês
+                        </p>
+                      </>
+                    )}
                   </CardContent>
                 </Card>}
             </div>
