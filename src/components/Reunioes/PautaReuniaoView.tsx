@@ -176,12 +176,12 @@ export function PautaReuniaoView() {
     loadInitialData();
   }, [searchParams]);
 
-  // Trigger autosave when blocks change
+  // Trigger autosave when changes occur
   useEffect(() => {
-    if (blocks.length > 0 && hasUnsavedChanges) {
+    if (hasUnsavedChanges && currentDocument) {
       triggerAutosave();
     }
-  }, [blocks, hasUnsavedChanges]);
+  }, [hasUnsavedChanges, currentDocument?.descricao]);
 
   // Search debouncing
   useEffect(() => {
@@ -1206,7 +1206,6 @@ export function PautaReuniaoView() {
                     descricao: content
                   } : null);
                   setHasUnsavedChanges(true);
-                  scheduleAutosave();
                 }} placeholder="Descrição e objetivo da reunião" className="mt-2" showToolbar={true} onTitleExtracted={titles => {
                   setExtractedTitles(prev => {
                     const filtered = prev.filter(t => !titles.includes(t));
