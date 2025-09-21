@@ -22,7 +22,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
 import { useNavigate } from "react-router-dom";
-
 interface Cliente {
   id: string;
   nome: string;
@@ -50,7 +49,6 @@ interface Cliente {
     is_primary: boolean;
   }>;
 }
-
 export const ClientesView = () => {
   const {
     canCreateContent
@@ -90,9 +88,10 @@ export const ClientesView = () => {
   const navigate = useNavigate();
   const carregarClientes = async () => {
     try {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select(`
+      const {
+        data,
+        error
+      } = await supabase.from('clientes').select(`
           *,
           primary_gestor:colaboradores!clientes_primary_gestor_user_id_fkey(user_id, nome, avatar_url),
           primary_cs:colaboradores!clientes_primary_cs_user_id_fkey(user_id, nome, avatar_url),
@@ -100,9 +99,9 @@ export const ClientesView = () => {
             user_id, role, is_primary,
             colaboradores(user_id, nome, avatar_url)
           )
-        `)
-        .eq('ativo', true)
-        .order('created_at', { ascending: false });
+        `).eq('ativo', true).order('created_at', {
+        ascending: false
+      });
       if (error) {
         throw error;
       }
@@ -118,14 +117,12 @@ export const ClientesView = () => {
       setLoading(false);
     }
   };
-
   const carregarColaboradores = async () => {
     try {
-      const { data, error } = await supabase
-        .from('colaboradores')
-        .select('user_id, nome, email, avatar_url, nivel_acesso')
-        .eq('ativo', true);
-
+      const {
+        data,
+        error
+      } = await supabase.from('colaboradores').select('user_id, nome, email, avatar_url, nivel_acesso').eq('ativo', true);
       if (error) throw error;
       setColaboradores(data || []);
     } catch (error) {
@@ -189,10 +186,9 @@ export const ClientesView = () => {
       description: "O link foi copiado para a área de transferência."
     });
   };
-
   const handleCatalogoClick = (cliente: Cliente, event: React.MouseEvent) => {
     const targetUrl = cliente.catalogo_criativos_url || `/criativos/${cliente.id}`;
-    
+
     // Se for Ctrl/Cmd + clique, abrir em nova aba
     if (event.ctrlKey || event.metaKey) {
       window.open(targetUrl, '_blank');
@@ -202,7 +198,9 @@ export const ClientesView = () => {
         window.location.href = cliente.catalogo_criativos_url;
       } else {
         navigate(targetUrl, {
-          state: { from: '/?tab=clientes' }
+          state: {
+            from: '/?tab=clientes'
+          }
         });
       }
     }
@@ -321,8 +319,7 @@ export const ClientesView = () => {
         return 'bg-muted text-muted-foreground';
     }
   };
-  return (
-    <div className="space-y-8">
+  return <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
         <div>
@@ -333,12 +330,7 @@ export const ClientesView = () => {
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:space-x-2">
           {canCreateContent && <>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="sm:size-default lg:size-lg w-full sm:w-auto" 
-                onClick={() => window.open('https://forms.clickup.com/36694061/f/12zu1d-44913/5SA3APCY8WF3WVCL8N', '_blank')}
-              >
+              <Button variant="outline" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => window.open('https://forms.clickup.com/36694061/f/12zu1d-44913/5SA3APCY8WF3WVCL8N', '_blank')}>
                 <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 <span className="hidden sm:inline">Criar Novo Cliente</span>
                 <span className="sm:hidden">Novo Cliente</span>
@@ -476,50 +468,32 @@ export const ClientesView = () => {
                      <TableCell>
                       <div>
                         <div className="flex items-center gap-2">
-                          <a 
-                            href={`/painel/${cliente.id}`}
-                            onClick={(e) => {
-                              // Se não for ctrl+click nem cmd+click, prevenir o comportamento padrão e navegar programaticamente
-                              if (!e.ctrlKey && !e.metaKey) {
-                                e.preventDefault();
-                                navigate(`/painel/${cliente.id}`, {
-                                  state: {
-                                    from: '/?tab=clientes'
-                                  }
-                                });
+                          <a href={`/painel/${cliente.id}`} onClick={e => {
+                          // Se não for ctrl+click nem cmd+click, prevenir o comportamento padrão e navegar programaticamente
+                          if (!e.ctrlKey && !e.metaKey) {
+                            e.preventDefault();
+                            navigate(`/painel/${cliente.id}`, {
+                              state: {
+                                from: '/?tab=clientes'
                               }
-                              // Para ctrl+click ou cmd+click, deixar o comportamento padrão do navegador
-                            }} 
-                            className="font-medium text-foreground hover:text-primary transition-colors"
-                          >
+                            });
+                          }
+                          // Para ctrl+click ou cmd+click, deixar o comportamento padrão do navegador
+                        }} className="font-medium text-foreground hover:text-primary transition-colors">
                             {cliente.nome}
                           </a>
                           
                           {/* Ícone de Catálogo de Criativos ao lado do nome */}
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={(e) => handleCatalogoClick(cliente, e)}
-                            className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" 
-                            title="Abrir Catálogo de Criativos"
-                          >
-                            <Sheet className="h-4 w-4" />
-                          </Button>
+                          
                         </div>
-                        {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => (
-                              <Badge key={index} variant="outline" className="text-xs">
+                        {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && <div className="flex flex-wrap gap-1 mt-1">
+                            {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => <Badge key={index} variant="outline" className="text-xs">
                                 {funil}
-                              </Badge>
-                            ))}
-                            {cliente.funis_trabalhando.length > 2 && (
-                              <Badge variant="outline" className="text-xs">
+                              </Badge>)}
+                            {cliente.funis_trabalhando.length > 2 && <Badge variant="outline" className="text-xs">
                                 +{cliente.funis_trabalhando.length - 2}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
+                              </Badge>}
+                          </div>}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -528,12 +502,9 @@ export const ClientesView = () => {
                       </Badge>
                     </TableCell>
                      <TableCell>
-                       {cliente.serie ? 
-                         <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
+                       {cliente.serie ? <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
                            {cliente.serie}
-                         </Badge> 
-                         : <span className="text-xs text-muted-foreground">-</span>
-                       }
+                         </Badge> : <span className="text-xs text-muted-foreground">-</span>}
                      </TableCell>
                     <TableCell>
                       <Badge className={`${getStatusColor(cliente.status_cliente || cliente.etapa_atual)} text-xs`}>
@@ -543,93 +514,72 @@ export const ClientesView = () => {
                      
                      {/* Gestor Column */}
                      <TableCell className="text-center">
-                       {cliente.primary_gestor ? (
-                         <div className="flex justify-center">
-                           <Avatar 
-                             className="h-8 w-8 cursor-pointer hover:opacity-80" 
-                             onClick={() => {
-                               setClienteTeam({ id: cliente.id, nome: cliente.nome });
-                               setTeamModalOpen(true);
-                             }}
-                           >
+                       {cliente.primary_gestor ? <div className="flex justify-center">
+                           <Avatar className="h-8 w-8 cursor-pointer hover:opacity-80" onClick={() => {
+                        setClienteTeam({
+                          id: cliente.id,
+                          nome: cliente.nome
+                        });
+                        setTeamModalOpen(true);
+                      }}>
                              <AvatarImage src={cliente.primary_gestor.avatar_url} />
                              <AvatarFallback className="text-xs">
                                {cliente.primary_gestor.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                              </AvatarFallback>
                            </Avatar>
-                         </div>
-                       ) : (
-                         <Button 
-                           variant="ghost" 
-                           size="sm" 
-                           className="h-8 w-8 p-0 text-muted-foreground"
-                           onClick={() => {
-                             setClienteTeam({ id: cliente.id, nome: cliente.nome });
-                             setTeamModalOpen(true);
-                           }}
-                         >
+                         </div> : <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" onClick={() => {
+                      setClienteTeam({
+                        id: cliente.id,
+                        nome: cliente.nome
+                      });
+                      setTeamModalOpen(true);
+                    }}>
                            <Users className="h-4 w-4" />
-                         </Button>
-                       )}
+                         </Button>}
                      </TableCell>
 
                      {/* CS Column */}
                      <TableCell className="text-center">
                        {(() => {
-                         const csTeam = cliente.client_roles?.filter(cr => cr.role === 'cs') || [];
-                         const primaryCs = cliente.primary_cs;
-                         
-                         if (primaryCs) {
-                           return (
-                             <div className="flex justify-center items-center gap-1">
-                               <Avatar 
-                                 className="h-8 w-8 cursor-pointer hover:opacity-80" 
-                                 onClick={() => {
-                                   setClienteTeam({ id: cliente.id, nome: cliente.nome });
-                                   setTeamModalOpen(true);
-                                 }}
-                               >
+                      const csTeam = cliente.client_roles?.filter(cr => cr.role === 'cs') || [];
+                      const primaryCs = cliente.primary_cs;
+                      if (primaryCs) {
+                        return <div className="flex justify-center items-center gap-1">
+                               <Avatar className="h-8 w-8 cursor-pointer hover:opacity-80" onClick={() => {
+                            setClienteTeam({
+                              id: cliente.id,
+                              nome: cliente.nome
+                            });
+                            setTeamModalOpen(true);
+                          }}>
                                  <AvatarImage src={primaryCs.avatar_url} />
                                  <AvatarFallback className="text-xs">
                                    {primaryCs.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                                  </AvatarFallback>
                                </Avatar>
-                               {csTeam.length > 1 && (
-                                 <Badge variant="secondary" className="text-xs px-1 h-5">
+                               {csTeam.length > 1 && <Badge variant="secondary" className="text-xs px-1 h-5">
                                    +{csTeam.length - 1}
-                                 </Badge>
-                               )}
-                             </div>
-                           );
-                         } else {
-                           return (
-                             <Button 
-                               variant="ghost" 
-                               size="sm" 
-                               className="h-8 w-8 p-0 text-muted-foreground"
-                               onClick={() => {
-                                 setClienteTeam({ id: cliente.id, nome: cliente.nome });
-                                 setTeamModalOpen(true);
-                               }}
-                             >
+                                 </Badge>}
+                             </div>;
+                      } else {
+                        return <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" onClick={() => {
+                          setClienteTeam({
+                            id: cliente.id,
+                            nome: cliente.nome
+                          });
+                          setTeamModalOpen(true);
+                        }}>
                                <Users className="h-4 w-4" />
-                             </Button>
-                           );
-                         }
-                       })()}
+                             </Button>;
+                      }
+                    })()}
                      </TableCell>
                      
                       <TableCell>
                        <div className="flex items-center justify-center space-x-1">
                           
                          {/* Ícone de Catálogo de Criativos */}
-                         <Button 
-                           variant="ghost" 
-                           size="sm" 
-                           onClick={(e) => handleCatalogoClick(cliente, e)}
-                           className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" 
-                           title="Abrir Catálogo de Criativos"
-                         >
+                         <Button variant="ghost" size="sm" onClick={e => handleCatalogoClick(cliente, e)} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Abrir Catálogo de Criativos">
                            <Sheet className="h-4 w-4" />
                          </Button>
  
@@ -701,20 +651,11 @@ export const ClientesView = () => {
       setClienteKickoff(null);
     }} clienteId={clienteKickoff.id} clienteNome={clienteKickoff.nome} />}
 
-      {clienteTeam && (
-        <TeamAssignmentModal 
-          isOpen={teamModalOpen} 
-          onClose={() => {
-            setTeamModalOpen(false);
-            setClienteTeam(null);
-          }} 
-          clienteId={clienteTeam.id} 
-          clienteNome={clienteTeam.nome}
-          onSuccess={() => {
-            carregarClientes();
-          }}
-        />
-      )}
-    </div>
-  );
+      {clienteTeam && <TeamAssignmentModal isOpen={teamModalOpen} onClose={() => {
+      setTeamModalOpen(false);
+      setClienteTeam(null);
+    }} clienteId={clienteTeam.id} clienteNome={clienteTeam.nome} onSuccess={() => {
+      carregarClientes();
+    }} />}
+    </div>;
 };
