@@ -7,7 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
@@ -33,6 +33,7 @@ interface Cliente {
   funis_trabalhando?: string[];
   primary_gestor_user_id?: string;
   primary_cs_user_id?: string;
+  catalogo_criativos_url?: string;
   primary_gestor?: {
     id: string;
     nome: string;
@@ -187,6 +188,24 @@ export const ClientesView = () => {
       title: "Link copiado!",
       description: "O link foi copiado para a área de transferência."
     });
+  };
+
+  const handleCatalogoClick = (cliente: Cliente, event: React.MouseEvent) => {
+    const targetUrl = cliente.catalogo_criativos_url || `/criativos/${cliente.id}`;
+    
+    // Se for Ctrl/Cmd + clique, abrir em nova aba
+    if (event.ctrlKey || event.metaKey) {
+      window.open(targetUrl, '_blank');
+    } else {
+      // Clique simples, navegar na mesma aba
+      if (cliente.catalogo_criativos_url) {
+        window.location.href = cliente.catalogo_criativos_url;
+      } else {
+        navigate(targetUrl, {
+          state: { from: '/?tab=clientes' }
+        });
+      }
+    }
   };
   const handleDeleteClick = (cliente: any) => {
     setClienteToDelete({
@@ -456,24 +475,37 @@ export const ClientesView = () => {
                       </TableCell>}
                      <TableCell>
                       <div>
-                        <a 
-                          href={`/painel/${cliente.id}`}
-                          onClick={(e) => {
-                            // Se não for ctrl+click nem cmd+click, prevenir o comportamento padrão e navegar programaticamente
-                            if (!e.ctrlKey && !e.metaKey) {
-                              e.preventDefault();
-                              navigate(`/painel/${cliente.id}`, {
-                                state: {
-                                  from: '/?tab=clientes'
-                                }
-                              });
-                            }
-                            // Para ctrl+click ou cmd+click, deixar o comportamento padrão do navegador
-                          }} 
-                          className="font-medium text-foreground hover:text-primary transition-colors"
-                        >
-                          {cliente.nome}
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <a 
+                            href={`/painel/${cliente.id}`}
+                            onClick={(e) => {
+                              // Se não for ctrl+click nem cmd+click, prevenir o comportamento padrão e navegar programaticamente
+                              if (!e.ctrlKey && !e.metaKey) {
+                                e.preventDefault();
+                                navigate(`/painel/${cliente.id}`, {
+                                  state: {
+                                    from: '/?tab=clientes'
+                                  }
+                                });
+                              }
+                              // Para ctrl+click ou cmd+click, deixar o comportamento padrão do navegador
+                            }} 
+                            className="font-medium text-foreground hover:text-primary transition-colors"
+                          >
+                            {cliente.nome}
+                          </a>
+                          
+                          {/* Ícone de Catálogo de Criativos ao lado do nome */}
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={(e) => handleCatalogoClick(cliente, e)}
+                            className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" 
+                            title="Abrir Catálogo de Criativos"
+                          >
+                            <Sheet className="h-4 w-4" />
+                          </Button>
+                        </div>
                         {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => (
@@ -587,11 +619,21 @@ export const ClientesView = () => {
                        })()}
                      </TableCell>
                      
-                     <TableCell>
-                      <div className="flex items-center justify-center space-x-1">
-                         
-
-                        {canCreateContent && <Button variant="ghost" size="sm" onClick={() => {
+                      <TableCell>
+                       <div className="flex items-center justify-center space-x-1">
+                          
+                         {/* Ícone de Catálogo de Criativos */}
+                         <Button 
+                           variant="ghost" 
+                           size="sm" 
+                           onClick={(e) => handleCatalogoClick(cliente, e)}
+                           className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" 
+                           title="Abrir Catálogo de Criativos"
+                         >
+                           <Sheet className="h-4 w-4" />
+                         </Button>
+ 
+                         {canCreateContent && <Button variant="ghost" size="sm" onClick={() => {
                         setClienteKickoff({
                           id: cliente.id,
                           nome: cliente.nome

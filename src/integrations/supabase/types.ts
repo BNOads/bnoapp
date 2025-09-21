@@ -408,6 +408,7 @@ export type Database = {
           aliases: string[] | null
           ativo: boolean
           auto_permission: boolean | null
+          catalogo_criativos_url: string | null
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at: string
           created_by: string | null
@@ -439,6 +440,7 @@ export type Database = {
           aliases?: string[] | null
           ativo?: boolean
           auto_permission?: boolean | null
+          catalogo_criativos_url?: string | null
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
           created_by?: string | null
@@ -470,6 +472,7 @@ export type Database = {
           aliases?: string[] | null
           ativo?: boolean
           auto_permission?: boolean | null
+          catalogo_criativos_url?: string | null
           categoria?: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
           created_by?: string | null
