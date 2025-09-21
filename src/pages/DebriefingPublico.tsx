@@ -142,6 +142,7 @@ export default function DebriefingPublico() {
   const availablePanels = [
     { id: 'header', title: 'Cabeçalho da Campanha', isExcluded: isPanelExcluded('header') },
     { id: 'main-metrics', title: 'Métricas Principais do Debriefing', isExcluded: isPanelExcluded('main-metrics') },
+    { id: 'secondary-metrics', title: 'Métricas Secundárias (CPL, ROAS, etc.)', isExcluded: isPanelExcluded('secondary-metrics') },
     { id: 'records', title: 'Total de Registros', isExcluded: isPanelExcluded('records') },
     { id: 'performance', title: 'Performance por Criativo', isExcluded: isPanelExcluded('performance') },
     { id: 'utm', title: 'Conversão por UTM Term', isExcluded: isPanelExcluded('utm') },
@@ -333,6 +334,47 @@ export default function DebriefingPublico() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{formatCurrency(debriefing.faturamento_bruto || 0)}</p>
+            </CardContent>
+          </Card>
+        </div>
+        )}
+
+        {/* Métricas Secundárias */}
+        {!isPanelExcluded('secondary-metrics') && debriefing.status === 'concluido' && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" data-panel-id="secondary-metrics">
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">CPL</p>
+                <p className="text-xl font-semibold">{formatCurrency(debriefing.cpl || 0)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">Ticket Médio</p>
+                <p className="text-xl font-semibold">{formatCurrency(debriefing.ticket_medio || 0)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">Conversão Lead → Venda</p>
+                <p className="text-xl font-semibold">{((debriefing.conversao_lead_venda || 0) * 100).toFixed(1)}%</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">ROAS</p>
+                <p className="text-xl font-semibold">{debriefing.roas?.toFixed(1) || '0,0'}x</p>
+              </div>
             </CardContent>
           </Card>
         </div>
