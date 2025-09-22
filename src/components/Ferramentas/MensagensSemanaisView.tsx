@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, getWeek, getYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { toZonedTime } from "date-fns-tz";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 interface MensagemSemanal {
@@ -153,9 +153,27 @@ export function MensagensSemanaisView() {
 
       // Aplicar filtros
       if (filtroWeekStart) {
-        const weekEnd = format(endOfWeek(new Date(filtroWeekStart), { weekStartsOn: 1 }), "yyyy-MM-dd");
-        query = query.gte("created_at", `${filtroWeekStart}T00:00:00+00:00`)
-                    .lte("created_at", `${weekEnd}T23:59:59+00:00`);
+        // Calcular intervalo da semana em America/Sao_Paulo
+        const TIMEZONE = "America/Sao_Paulo";
+        
+        // Parse da data como início da semana em SP
+        const weekStartLocal = toZonedTime(new Date(filtroWeekStart + "T00:00:00"), TIMEZONE);
+        const weekEndLocal = toZonedTime(endOfWeek(weekStartLocal, { weekStartsOn: 1 }), TIMEZONE);
+        
+        // Definir horários exatos em timezone local
+        const weekStartWithTime = new Date(weekStartLocal);
+        weekStartWithTime.setHours(0, 0, 0, 0);
+        
+        const weekEndWithTime = new Date(weekEndLocal); 
+        weekEndWithTime.setHours(23, 59, 59, 999);
+        
+        // Converter para UTC para a query
+        const weekStartUTC = fromZonedTime(weekStartWithTime, TIMEZONE);
+        const weekEndUTC = fromZonedTime(weekEndWithTime, TIMEZONE);
+        
+        // Aplicar filtro inclusivo
+        query = query.gte("created_at", weekStartUTC.toISOString())
+                    .lte("created_at", weekEndUTC.toISOString());
       }
       if (filtroGestor && filtroGestor !== "all") {
         query = query.eq("gestor_id", filtroGestor);
