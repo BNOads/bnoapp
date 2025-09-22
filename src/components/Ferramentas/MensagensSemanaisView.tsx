@@ -8,11 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { WeekPicker } from "@/components/ui/WeekPicker";
 import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format, startOfWeek } from "date-fns";
+import { format, startOfWeek, endOfWeek, getWeek, getYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toZonedTime } from "date-fns-tz";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 interface MensagemSemanal {
@@ -43,9 +45,15 @@ export function MensagensSemanaisView() {
   const [modalNovaMensagem, setModalNovaMensagem] = useState(false);
   
   // Filtros
-  const [filtroSemana, setFiltroSemana] = useState(
-    format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd")
-  );
+  const TIMEZONE = "America/Sao_Paulo";
+  const getCurrentWeekStart = () => {
+    const now = toZonedTime(new Date(), TIMEZONE);
+    return startOfWeek(now, { weekStartsOn: 1 });
+  };
+  
+  const [filtroWeekStart, setFiltroWeekStart] = useState<string>("");
+  const [filtroWeekYear, setFiltroWeekYear] = useState<number>(0);
+  const [filtroWeekNumber, setFiltroWeekNumber] = useState<number>(0);
   const [filtroGestor, setFiltroGestor] = useState("all");
   const [filtroCliente, setFiltroCliente] = useState("all");
   const [filtroEnviado, setFiltroEnviado] = useState("all");
@@ -57,9 +65,7 @@ export function MensagensSemanaisView() {
 
   // Estados para nova mensagem
   const [novoClienteId, setNovoClienteId] = useState("");
-  const [novaSemana, setNovaSemana] = useState(
-    format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd")
-  );
+  const [novaWeekStart, setNovaWeekStart] = useState<string>("");
   const [novoTexto, setNovoTexto] = useState("");
   const [salvandoNova, setSalvandoNova] = useState(false);
 
@@ -69,13 +75,40 @@ export function MensagensSemanaisView() {
   useEffect(() => {
     const inicializar = async () => {
       await carregarDados();
+      
+      // Initialize week from URL params or current week
+      const urlParams = new URLSearchParams(window.location.search);
+      const weekStartParam = urlParams.get('week_start');
+      
+      if (weekStartParam) {
+        const weekYear = getYear(new Date(weekStartParam));
+        const weekNumber = getWeek(new Date(weekStartParam), { weekStartsOn: 1 });
+        setFiltroWeekStart(weekStartParam);
+        setFiltroWeekYear(weekYear);
+        setFiltroWeekNumber(weekNumber);
+      } else {
+        // Auto-select current week
+        const currentWeekStart = getCurrentWeekStart();
+        const weekStart = format(currentWeekStart, "yyyy-MM-dd");
+        const weekYear = getYear(currentWeekStart);
+        const weekNumber = getWeek(currentWeekStart, { weekStartsOn: 1 });
+        
+        setFiltroWeekStart(weekStart);
+        setFiltroWeekYear(weekYear);
+        setFiltroWeekNumber(weekNumber);
+        
+        // Update URL
+        const url = new URL(window.location.href);
+        url.searchParams.set('week_start', weekStart);
+        window.history.replaceState({}, '', url.toString());
+      }
     };
     inicializar();
   }, []);
 
   useEffect(() => {
     carregarMensagens();
-  }, [filtroSemana, filtroGestor, filtroCliente, filtroEnviado, ordenarPor, ordenarDirecao]);
+  }, [filtroWeekStart, filtroGestor, filtroCliente, filtroEnviado, ordenarPor, ordenarDirecao]);
 
 
   const carregarDados = async () => {
@@ -119,8 +152,10 @@ export function MensagensSemanaisView() {
       }
 
       // Aplicar filtros
-      if (filtroSemana) {
-        query = query.eq("semana_referencia", filtroSemana);
+      if (filtroWeekStart) {
+        const weekEnd = format(endOfWeek(new Date(filtroWeekStart), { weekStartsOn: 1 }), "yyyy-MM-dd");
+        query = query.gte("created_at", `${filtroWeekStart}T00:00:00+00:00`)
+                    .lte("created_at", `${weekEnd}T23:59:59+00:00`);
       }
       if (filtroGestor && filtroGestor !== "all") {
         query = query.eq("gestor_id", filtroGestor);
@@ -291,10 +326,10 @@ export function MensagensSemanaisView() {
   };
 
   const criarNovaMensagem = async () => {
-    if (!novoClienteId || !novoTexto.trim()) {
+    if (!novoClienteId || !novoTexto.trim() || !novaWeekStart) {
       toast({
         title: "Erro",
-        description: "Selecione um cliente e digite a mensagem",
+        description: "Selecione um cliente, semana e digite a mensagem",
         variant: "destructive",
       });
       return;
@@ -340,7 +375,7 @@ export function MensagensSemanaisView() {
           cliente_id: novoClienteId,
           gestor_id: colaborador.id,
           cs_id: cliente?.cs_id || null,
-          semana_referencia: novaSemana,
+          semana_referencia: novaWeekStart,
           mensagem: novoTexto.trim(),
           created_by: user.data.user.id,
           enviado_gestor_em: agora,
@@ -359,7 +394,7 @@ export function MensagensSemanaisView() {
       // Limpar formulário e fechar modal
       setNovoClienteId("");
       setNovoTexto("");
-      setNovaSemana(format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd"));
+      setNovaWeekStart("");
       setModalNovaMensagem(false);
 
       // Recarregar mensagens
@@ -414,11 +449,28 @@ export function MensagensSemanaisView() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="filtro-semana">Semana</Label>
-              <Input
-                id="filtro-semana"
-                type="date"
-                value={filtroSemana}
-                onChange={(e) => setFiltroSemana(e.target.value)}
+              <WeekPicker
+                value={filtroWeekStart}
+                onChange={(weekStart, weekYear, weekNumber) => {
+                  setFiltroWeekStart(weekStart);
+                  setFiltroWeekYear(weekYear);
+                  setFiltroWeekNumber(weekNumber);
+                  
+                  // Update URL params
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('week_start', weekStart);
+                  window.history.replaceState({}, '', url.toString());
+                }}
+                onClear={() => {
+                  setFiltroWeekStart("");
+                  setFiltroWeekYear(0);
+                  setFiltroWeekNumber(0);
+                  
+                  // Clear URL params
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('week_start');
+                  window.history.replaceState({}, '', url.toString());
+                }}
               />
             </div>
 
@@ -718,15 +770,13 @@ export function MensagensSemanaisView() {
 
             <div>
               <Label htmlFor="nova-semana">Semana de Referência</Label>
-              <Input
-                id="nova-semana"
-                type="date"
-                value={novaSemana}
-                onChange={(e) => setNovaSemana(e.target.value)}
+              <WeekPicker
+                value={novaWeekStart}
+                onChange={(weekStart) => {
+                  setNovaWeekStart(weekStart);
+                }}
+                placeholder="Selecionar semana"
               />
-              <p className="text-sm text-muted-foreground mt-1">
-                {novaSemana && format(new Date(novaSemana), "PPP", { locale: ptBR })}
-              </p>
             </div>
 
             <div>
