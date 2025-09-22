@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { WeekPicker } from "@/components/ui/WeekPicker";
-import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus } from "lucide-react";
+import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, getWeek, getYear } from "date-fns";
@@ -32,6 +33,7 @@ interface MensagemSemanal {
   historico_envios: any[];
   created_at: string;
   updated_at: string;
+  created_by: string;
   cliente_nome: string;
   gestor_nome: string;
 }
@@ -40,9 +42,13 @@ export function MensagensSemanaisView() {
   const [mensagens, setMensagens] = useState<MensagemSemanal[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
   const [colaboradores, setColaboradores] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mensagemSelecionada, setMensagemSelecionada] = useState<MensagemSemanal | null>(null);
   const [modalNovaMensagem, setModalNovaMensagem] = useState(false);
+  const [modalEditarMensagem, setModalEditarMensagem] = useState(false);
+  const [mensagemEditando, setMensagemEditando] = useState<MensagemSemanal | null>(null);
+  const [mensagemExcluindo, setMensagemExcluindo] = useState<MensagemSemanal | null>(null);
   
   // Filtros
   const TIMEZONE = "America/Sao_Paulo";
@@ -69,12 +75,23 @@ export function MensagensSemanaisView() {
   const [novoTexto, setNovoTexto] = useState("");
   const [salvandoNova, setSalvandoNova] = useState(false);
 
+  // Estados para edição
+  const [editarClienteId, setEditarClienteId] = useState("");
+  const [editarWeekStart, setEditarWeekStart] = useState<string>("");
+  const [editarTexto, setEditarTexto] = useState("");
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [excluindoMensagem, setExcluindoMensagem] = useState(false);
+
   const { toast } = useToast();
   const { isCS, isAdmin } = useUserPermissions();
 
   useEffect(() => {
     const inicializar = async () => {
       await carregarDados();
+      
+      // Get current user
+      const user = await supabase.auth.getUser();
+      setCurrentUser(user);
       
       // Initialize week from URL params or current week
       const urlParams = new URLSearchParams(window.location.search);
@@ -210,6 +227,7 @@ export function MensagensSemanaisView() {
                           (item.historico_envios || [])),
         created_at: item.created_at,
         updated_at: item.updated_at,
+        created_by: item.created_by,
         cliente_nome: item.clientes?.nome || "Cliente não encontrado",
         gestor_nome: item.gestor?.nome || "Gestor não encontrado",
       })) || [];
@@ -434,6 +452,122 @@ export function MensagensSemanaisView() {
     return mensagem.substring(0, 100) + "...";
   };
 
+  const iniciarEdicao = (mensagem: MensagemSemanal) => {
+    setMensagemEditando(mensagem);
+    setEditarClienteId(mensagem.cliente_id);
+    setEditarWeekStart(mensagem.semana_referencia);
+    setEditarTexto(mensagem.mensagem);
+    setModalEditarMensagem(true);
+  };
+
+  const editarMensagem = async () => {
+    if (!mensagemEditando || !editarClienteId || !editarTexto.trim() || !editarWeekStart) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos obrigatórios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSalvandoEdicao(true);
+    try {
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const agora = new Date().toISOString();
+      
+      // Buscar histórico atual para adicionar a edição
+      const { data: mensagemAtual } = await supabase
+        .from("mensagens_semanais")
+        .select("historico_envios")
+        .eq("id", mensagemEditando.id)
+        .single();
+
+      const novoHistorico = {
+        tipo: 'editado',
+        data: agora,
+        user_id: user.data.user.id,
+        detalhes: 'Mensagem editada'
+      };
+
+      const { error } = await supabase
+        .from("mensagens_semanais")
+        .update({
+          cliente_id: editarClienteId,
+          semana_referencia: editarWeekStart,
+          mensagem: editarTexto.trim(),
+          updated_at: agora,
+          historico_envios: JSON.stringify([...(Array.isArray(mensagemAtual?.historico_envios) ? mensagemAtual.historico_envios : []), novoHistorico]),
+        })
+        .eq("id", mensagemEditando.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Mensagem atualizada com sucesso!",
+      });
+
+      // Limpar formulário e fechar modal
+      setMensagemEditando(null);
+      setEditarClienteId("");
+      setEditarWeekStart("");
+      setEditarTexto("");
+      setModalEditarMensagem(false);
+
+      // Recarregar mensagens
+      carregarMensagens();
+    } catch (error: any) {
+      console.error("Erro ao editar mensagem:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao editar mensagem",
+        variant: "destructive",
+      });
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  };
+
+  const excluirMensagem = async () => {
+    if (!mensagemExcluindo) return;
+
+    setExcluindoMensagem(true);
+    try {
+      const { error } = await supabase
+        .from("mensagens_semanais")
+        .delete()
+        .eq("id", mensagemExcluindo.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Mensagem excluída com sucesso!",
+      });
+
+      // Fechar modal e recarregar
+      setMensagemExcluindo(null);
+      carregarMensagens();
+    } catch (error: any) {
+      console.error("Erro ao excluir mensagem:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao excluir mensagem",
+        variant: "destructive",
+      });
+    } finally {
+      setExcluindoMensagem(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -647,40 +781,66 @@ export function MensagensSemanaisView() {
                           {mensagem.enviado ? "✅ Enviado" : "❌ Pendente"}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setMensagemSelecionada(mensagem)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          
-                          {(isCS || isAdmin) && (
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => marcarEnvio(mensagem.id, true)}
-                                disabled={mensagem.enviado}
-                                className="text-green-600 hover:text-green-700"
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => marcarEnvio(mensagem.id, false)}
-                                disabled={!mensagem.enviado}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
+                       <TableCell>
+                         <div className="flex items-center gap-2">
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => setMensagemSelecionada(mensagem)}
+                             title="Visualizar mensagem"
+                           >
+                             <Eye className="h-4 w-4" />
+                           </Button>
+                           
+                           {(isAdmin || mensagem.created_by === currentUser?.data?.user?.id) && (
+                             <>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={() => iniciarEdicao(mensagem)}
+                                 title="Editar mensagem"
+                                 className="text-blue-600 hover:text-blue-700"
+                               >
+                                 <Pencil className="h-4 w-4" />
+                               </Button>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={() => setMensagemExcluindo(mensagem)}
+                                 title="Excluir mensagem"
+                                 className="text-red-600 hover:text-red-700"
+                               >
+                                 <Trash2 className="h-4 w-4" />
+                               </Button>
+                             </>
+                           )}
+                           
+                           {(isCS || isAdmin) && (
+                             <div className="flex items-center gap-1">
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={() => marcarEnvio(mensagem.id, true)}
+                                 disabled={mensagem.enviado}
+                                 className="text-green-600 hover:text-green-700"
+                                 title="Marcar como enviado"
+                               >
+                                 <Check className="h-4 w-4" />
+                               </Button>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={() => marcarEnvio(mensagem.id, false)}
+                                 disabled={!mensagem.enviado}
+                                 className="text-red-600 hover:text-red-700"
+                                 title="Marcar como pendente"
+                               >
+                                 <X className="h-4 w-4" />
+                               </Button>
+                             </div>
+                           )}
+                         </div>
+                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -835,6 +995,100 @@ export function MensagensSemanaisView() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Edição */}
+      <Dialog open={modalEditarMensagem} onOpenChange={setModalEditarMensagem}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar Mensagem Semanal</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="editar-cliente">Cliente</Label>
+              <Select value={editarClienteId} onValueChange={setEditarClienteId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="editar-semana">Semana de Referência</Label>
+              <WeekPicker
+                value={editarWeekStart}
+                onChange={(weekStart) => {
+                  setEditarWeekStart(weekStart);
+                }}
+                placeholder="Selecionar semana"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="editar-texto">Mensagem</Label>
+              <Textarea
+                id="editar-texto"
+                placeholder="Digite a mensagem semanal..."
+                value={editarTexto}
+                onChange={(e) => setEditarTexto(e.target.value)}
+                rows={6}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setModalEditarMensagem(false);
+                  setMensagemEditando(null);
+                  setEditarClienteId("");
+                  setEditarWeekStart("");
+                  setEditarTexto("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={editarMensagem}
+                disabled={salvandoEdicao}
+              >
+                {salvandoEdicao ? "Salvando..." : "Salvar Alterações"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <AlertDialog open={!!mensagemExcluindo} onOpenChange={() => setMensagemExcluindo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta mensagem semanal para <strong>{mensagemExcluindo?.cliente_nome}</strong>?
+              <br /><br />
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={excluirMensagem}
+              disabled={excluindoMensagem}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {excluindoMensagem ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
