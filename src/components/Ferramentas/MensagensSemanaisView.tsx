@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { WeekPicker } from "@/components/ui/WeekPicker";
-import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus, Pencil, Trash2 } from "lucide-react";
+import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus, Pencil, Trash2, Copy, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, getWeek, getYear } from "date-fns";
@@ -81,6 +82,7 @@ export function MensagensSemanaisView() {
   const [editarTexto, setEditarTexto] = useState("");
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const [excluindoMensagem, setExcluindoMensagem] = useState(false);
+  const [modalTextoCompleto, setModalTextoCompleto] = useState<{ mostrar: boolean; conteudo: string }>({ mostrar: false, conteudo: "" });
 
   const { toast } = useToast();
   const { isCS, isAdmin } = useUserPermissions();
@@ -568,6 +570,42 @@ export function MensagensSemanaisView() {
     }
   };
 
+  const copiarMensagem = async (mensagem: MensagemSemanal) => {
+    const conteudoCompleto = `Cliente: ${mensagem.cliente_nome}
+Semana: ${format(new Date(mensagem.semana_referencia), "dd/MM/yyyy", { locale: ptBR })}
+Gestor: ${mensagem.gestor_nome}
+Status: ${mensagem.enviado ? "Enviado" : "Pendente"}
+
+Mensagem:
+${mensagem.mensagem}`;
+
+    try {
+      await navigator.clipboard.writeText(conteudoCompleto);
+      toast({
+        title: "Copiado!",
+        description: "Conteúdo copiado para a área de transferência",
+      });
+    } catch (error) {
+      // Fallback: abrir modal com texto selecionável
+      setModalTextoCompleto({ mostrar: true, conteudo: conteudoCompleto });
+    }
+  };
+
+  const selecionarTudo = () => {
+    const elemento = document.getElementById('texto-completo');
+    if (elemento) {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(elemento);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+  };
+
+  const podeEditar = (mensagem: MensagemSemanal) => {
+    return isAdmin || mensagem.created_by === currentUser?.data?.user?.id;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -781,66 +819,127 @@ export function MensagensSemanaisView() {
                           {mensagem.enviado ? "✅ Enviado" : "❌ Pendente"}
                         </Badge>
                       </TableCell>
-                       <TableCell>
-                         <div className="flex items-center gap-2">
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={() => setMensagemSelecionada(mensagem)}
-                             title="Visualizar mensagem"
-                           >
-                             <Eye className="h-4 w-4" />
-                           </Button>
-                           
-                           {(isAdmin || mensagem.created_by === currentUser?.data?.user?.id) && (
-                             <>
-                               <Button
-                                 variant="outline"
-                                 size="sm"
-                                 onClick={() => iniciarEdicao(mensagem)}
-                                 title="Editar mensagem"
-                                 className="text-blue-600 hover:text-blue-700"
-                               >
-                                 <Pencil className="h-4 w-4" />
-                               </Button>
-                               <Button
-                                 variant="outline"
-                                 size="sm"
-                                 onClick={() => setMensagemExcluindo(mensagem)}
-                                 title="Excluir mensagem"
-                                 className="text-red-600 hover:text-red-700"
-                               >
-                                 <Trash2 className="h-4 w-4" />
-                               </Button>
-                             </>
-                           )}
-                           
-                           {(isCS || isAdmin) && (
-                             <div className="flex items-center gap-1">
-                               <Button
-                                 variant="outline"
-                                 size="sm"
-                                 onClick={() => marcarEnvio(mensagem.id, true)}
-                                 disabled={mensagem.enviado}
-                                 className="text-green-600 hover:text-green-700"
-                                 title="Marcar como enviado"
-                               >
-                                 <Check className="h-4 w-4" />
-                               </Button>
-                               <Button
-                                 variant="outline"
-                                 size="sm"
-                                 onClick={() => marcarEnvio(mensagem.id, false)}
-                                 disabled={!mensagem.enviado}
-                                 className="text-red-600 hover:text-red-700"
-                                 title="Marcar como pendente"
-                               >
-                                 <X className="h-4 w-4" />
-                               </Button>
-                             </div>
-                           )}
-                         </div>
-                       </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setMensagemSelecionada(mensagem)}
+                              title="Visualizar mensagem"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            
+                            {/* Desktop: Botões lado a lado */}
+                            <div className="hidden md:flex items-center gap-2">
+                              {podeEditar(mensagem) && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => iniciarEdicao(mensagem)}
+                                    title="Editar mensagem"
+                                    className="text-blue-600 hover:text-blue-700"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => copiarMensagem(mensagem)}
+                                    title="Copiar mensagem"
+                                    className="text-gray-600 hover:text-gray-700"
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setMensagemExcluindo(mensagem)}
+                                    title="Excluir mensagem"
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                              {!podeEditar(mensagem) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => copiarMensagem(mensagem)}
+                                  title="Copiar mensagem"
+                                  className="text-gray-600 hover:text-gray-700"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Mobile: Menu dropdown */}
+                            <div className="md:hidden">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm" title="Mais ações">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {podeEditar(mensagem) && (
+                                    <>
+                                      <DropdownMenuItem onClick={() => iniciarEdicao(mensagem)}>
+                                        <Pencil className="h-4 w-4 mr-2" />
+                                        Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => copiarMensagem(mensagem)}>
+                                        <Copy className="h-4 w-4 mr-2" />
+                                        Copiar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem 
+                                        onClick={() => setMensagemExcluindo(mensagem)}
+                                        className="text-red-600"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Excluir
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                  {!podeEditar(mensagem) && (
+                                    <DropdownMenuItem onClick={() => copiarMensagem(mensagem)}>
+                                      <Copy className="h-4 w-4 mr-2" />
+                                      Copiar
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            
+                            {(isCS || isAdmin) && (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => marcarEnvio(mensagem.id, true)}
+                                  disabled={mensagem.enviado}
+                                  className="text-green-600 hover:text-green-700"
+                                  title="Marcar como enviado"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => marcarEnvio(mensagem.id, false)}
+                                  disabled={!mensagem.enviado}
+                                  className="text-red-600 hover:text-red-700"
+                                  title="Marcar como pendente"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1089,6 +1188,38 @@ export function MensagensSemanaisView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de Texto Completo (Fallback para cópia) */}
+      <Dialog open={modalTextoCompleto.mostrar} onOpenChange={(open) => setModalTextoCompleto({ mostrar: open, conteudo: "" })}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Copiar Mensagem Completa</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Não foi possível copiar automaticamente. Selecione todo o texto abaixo e copie manualmente:
+            </p>
+            
+            <div 
+              id="texto-completo"
+              className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm select-all"
+              style={{ userSelect: 'all' }}
+            >
+              {modalTextoCompleto.conteudo}
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setModalTextoCompleto({ mostrar: false, conteudo: "" })}>
+                Fechar
+              </Button>
+              <Button onClick={selecionarTudo}>
+                Selecionar Tudo
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
