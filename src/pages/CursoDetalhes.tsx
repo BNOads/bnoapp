@@ -3,12 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Play, Plus, CheckCircle, Edit } from "lucide-react";
+import { ArrowLeft, Play, Plus, CheckCircle, Edit, MoreVertical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NovaAulaModal } from "@/components/Treinamentos/NovaAulaModal";
+import { EditarAulaModal } from "@/components/Treinamentos/EditarAulaModal";
 import { EditarTreinamentoModal } from "@/components/Treinamentos/EditarTreinamentoModal";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Treinamento {
   id: string;
@@ -44,6 +46,8 @@ export default function CursoDetalhes() {
   const [progressoAulas, setProgressoAulas] = useState<ProgressoAula[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNovaAula, setShowNovaAula] = useState(false);
+  const [showEditarAula, setShowEditarAula] = useState(false);
+  const [aulaEditandoId, setAulaEditandoId] = useState<string | null>(null);
   const [showEditarTreinamento, setShowEditarTreinamento] = useState(false);
 
   useEffect(() => {
@@ -107,6 +111,11 @@ export default function CursoDetalhes() {
 
   const isAulaConcluida = (aulaId: string) => {
     return progressoAulas.find(p => p.aula_id === aulaId)?.concluido || false;
+  };
+
+  const handleEditarAula = (aulaId: string) => {
+    setAulaEditandoId(aulaId);
+    setShowEditarAula(true);
   };
 
   if (loading) {
@@ -184,16 +193,15 @@ export default function CursoDetalhes() {
           </Card>
         ) : (
           aulas.map((aula, index) => (
-            <Card 
-               key={aula.id}
-               className="cursor-pointer hover:shadow-lg transition-shadow"
-               onClick={() => navigate(`/curso/${cursoId}/aula/${aula.id}`, { 
-                 state: { from: `/curso/${cursoId}` } 
-               })}
-             >
+            <Card key={aula.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                  <div 
+                    className="flex items-center gap-4 cursor-pointer flex-1"
+                    onClick={() => navigate(`/curso/${cursoId}/aula/${aula.id}`, { 
+                      state: { from: `/curso/${cursoId}` } 
+                    })}
+                  >
                     <div className="flex items-center justify-center w-12 h-12 bg-primary/10 rounded-lg">
                       <span className="text-lg font-bold text-primary">
                         {index + 1}
@@ -212,6 +220,21 @@ export default function CursoDetalhes() {
                   </div>
                   
                   <div className="flex items-center gap-2">
+                    {isAdmin && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditarAula(aula.id)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar Aula
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                     <Play className="w-5 h-5 text-primary" />
                   </div>
                 </div>
@@ -232,6 +255,16 @@ export default function CursoDetalhes() {
           }}
         />
       )}
+
+      <EditarAulaModal
+        isOpen={showEditarAula}
+        onClose={() => setShowEditarAula(false)}
+        aulaId={aulaEditandoId}
+        onSuccess={() => {
+          setShowEditarAula(false);
+          carregarDados();
+        }}
+      />
 
       <EditarTreinamentoModal
         open={showEditarTreinamento}
