@@ -83,6 +83,7 @@ export function MensagensSemanaisView() {
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const [excluindoMensagem, setExcluindoMensagem] = useState(false);
   const [modalTextoCompleto, setModalTextoCompleto] = useState<{ mostrar: boolean; conteudo: string }>({ mostrar: false, conteudo: "" });
+  const [mensagemExpandida, setMensagemExpandida] = useState(false);
 
   const { toast } = useToast();
   const { isCS, isAdmin } = useUserPermissions();
@@ -606,6 +607,15 @@ ${mensagem.mensagem}`;
     return isAdmin || mensagem.created_by === currentUser?.data?.user?.id;
   };
 
+  const precisaCompactar = (texto: string) => {
+    return texto.length > 600;
+  };
+
+  const obterTextoCompactado = (texto: string) => {
+    if (!precisaCompactar(texto)) return texto;
+    return texto.substring(0, 600);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -950,10 +960,115 @@ ${mensagem.mensagem}`;
       </Card>
 
       {/* Modal de Visualização */}
-      <Dialog open={!!mensagemSelecionada} onOpenChange={() => setMensagemSelecionada(null)}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={!!mensagemSelecionada} onOpenChange={() => {
+        setMensagemSelecionada(null);
+        setMensagemExpandida(false);
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Mensagem Semanal - {mensagemSelecionada?.cliente_nome}</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Mensagem Semanal - {mensagemSelecionada?.cliente_nome}</DialogTitle>
+              
+              {mensagemSelecionada && (
+                <div className="flex items-center gap-2">
+                  {/* Desktop: Botões lado a lado */}
+                  <div className="hidden md:flex items-center gap-2">
+                    {podeEditar(mensagemSelecionada) && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            iniciarEdicao(mensagemSelecionada);
+                            setMensagemSelecionada(null);
+                          }}
+                          title="Editar mensagem"
+                          className="text-blue-600 hover:text-blue-700"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copiarMensagem(mensagemSelecionada)}
+                          title="Copiar mensagem"
+                          className="text-gray-600 hover:text-gray-700"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setMensagemExcluindo(mensagemSelecionada);
+                            setMensagemSelecionada(null);
+                          }}
+                          title="Excluir mensagem"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    {!podeEditar(mensagemSelecionada) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copiarMensagem(mensagemSelecionada)}
+                        title="Copiar mensagem"
+                        className="text-gray-600 hover:text-gray-700"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Mobile: Menu dropdown */}
+                  <div className="md:hidden">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" title="Mais ações">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {podeEditar(mensagemSelecionada) && (
+                          <>
+                            <DropdownMenuItem onClick={() => {
+                              iniciarEdicao(mensagemSelecionada);
+                              setMensagemSelecionada(null);
+                            }}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => copiarMensagem(mensagemSelecionada)}>
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copiar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setMensagemExcluindo(mensagemSelecionada);
+                                setMensagemSelecionada(null);
+                              }}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {!podeEditar(mensagemSelecionada) && (
+                          <DropdownMenuItem onClick={() => copiarMensagem(mensagemSelecionada)}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copiar
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              )}
+            </div>
           </DialogHeader>
           
           {mensagemSelecionada && (
@@ -978,8 +1093,48 @@ ${mensagem.mensagem}`;
               
               <div>
                 <h4 className="font-medium mb-2">Mensagem:</h4>
-                <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap">
-                  {mensagemSelecionada.mensagem}
+                <div 
+                  className="bg-muted p-4 rounded-lg whitespace-pre-wrap break-words overflow-wrap-anywhere"
+                  style={{ 
+                    wordBreak: 'break-word',
+                    overflowWrap: 'anywhere'
+                  }}
+                >
+                  {precisaCompactar(mensagemSelecionada.mensagem) ? (
+                    <>
+                      {mensagemExpandida ? (
+                        <>
+                          {mensagemSelecionada.mensagem}
+                          <div className="mt-3">
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={() => setMensagemExpandida(false)}
+                              className="p-0 h-auto text-primary"
+                            >
+                              Ler menos
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {obterTextoCompactado(mensagemSelecionada.mensagem)}...
+                          <div className="mt-3">
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={() => setMensagemExpandida(true)}
+                              className="p-0 h-auto text-primary"
+                            >
+                              Ler mais
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    mensagemSelecionada.mensagem
+                  )}
                 </div>
               </div>
 
