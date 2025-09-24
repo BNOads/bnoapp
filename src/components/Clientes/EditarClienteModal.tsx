@@ -16,8 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Users, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { TeamAssignmentModal } from "./TeamAssignmentModal";
 
 interface EditarClienteModalProps {
   open: boolean;
@@ -28,6 +32,8 @@ interface EditarClienteModalProps {
 
 export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: EditarClienteModalProps) => {
   const [loading, setLoading] = useState(false);
+  const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     nome: '',
@@ -54,8 +60,33 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
         progresso_etapa: cliente.progresso_etapa || 0,
         status_cliente: cliente.status_cliente || 'ativo'
       });
+      loadTeamMembers();
     }
   }, [cliente, open]);
+
+  const loadTeamMembers = async () => {
+    if (!cliente?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('client_roles')
+        .select(`
+          role,
+          is_primary,
+          colaboradores (
+            user_id,
+            nome,
+            avatar_url
+          )
+        `)
+        .eq('client_id', cliente.id);
+
+      if (error) throw error;
+      setTeamMembers(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar equipe:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,6 +261,64 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
             />
           </div>
 
+          {/* Seção de Equipe */}
+          <div className="space-y-2">
+            <Label>Equipe Atribuída</Label>
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Gestores e CS</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTeamModalOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Gerenciar Equipe
+                </Button>
+              </div>
+              
+              {teamMembers.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {teamMembers
+                    .filter(member => member.role === 'gestor')
+                    .map((member, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={member.colaboradores.avatar_url} />
+                          <AvatarFallback>{member.colaboradores.nome.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm">{member.colaboradores.nome}</span>
+                        <Badge variant="secondary" className="text-xs">Gestor</Badge>
+                        {member.is_primary && (
+                          <Badge variant="default" className="text-xs">Principal</Badge>
+                        )}
+                      </div>
+                    ))}
+                  
+                  {teamMembers
+                    .filter(member => member.role === 'cs')
+                    .map((member, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={member.colaboradores.avatar_url} />
+                          <AvatarFallback>{member.colaboradores.nome.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm">{member.colaboradores.nome}</span>
+                        <Badge variant="outline" className="text-xs">CS</Badge>
+                        {member.is_primary && (
+                          <Badge variant="default" className="text-xs">Principal</Badge>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Nenhuma equipe atribuída</p>
+              )}
+            </div>
+          </div>
+
           <div className="flex justify-end space-x-2 pt-4">
             <Button 
               type="button" 
@@ -248,6 +337,17 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
           </div>
         </form>
       </DialogContent>
+
+      <TeamAssignmentModal
+        isOpen={teamModalOpen}
+        onClose={() => setTeamModalOpen(false)}
+        clienteId={cliente?.id || ''}
+        clienteNome={cliente?.nome || ''}
+        onSuccess={() => {
+          loadTeamMembers();
+          onSuccess?.();
+        }}
+      />
     </Dialog>
   );
 };

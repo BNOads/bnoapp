@@ -182,22 +182,42 @@ export const GravacoesReunioes = ({ clienteId, isPublicView = false }: Gravacoes
         description: "Buscando gravações do Google Drive...",
       });
 
-      const { data, error } = await supabase.functions.invoke('sync-meeting-recordings');
+      // Verificar se há configuração de Drive para o cliente
+      const { data: clienteData, error: clienteError } = await supabase
+        .from('clientes')
+        .select('pasta_drive_url, nome')
+        .eq('id', clienteId)
+        .single();
+
+      if (clienteError) {
+        throw new Error('Erro ao buscar dados do cliente');
+      }
+
+      if (!clienteData?.pasta_drive_url) {
+        throw new Error('Cliente não possui pasta do Google Drive configurada');
+      }
+
+      const { data, error } = await supabase.functions.invoke('sync-meeting-recordings', {
+        body: {
+          clienteId,
+          clienteName: clienteData.nome
+        }
+      });
 
       if (error) {
         throw error;
       }
 
-      if (data.success) {
+      if (data?.success) {
         toast({
           title: "Sincronização concluída",
-          description: data.message,
+          description: data.message || `${data.processedCount || 0} gravações processadas`,
         });
         
         // Recarregar gravações após sincronização
         loadGravacoes();
       } else {
-        throw new Error(data.error || 'Erro desconhecido na sincronização');
+        throw new Error(data?.error || 'Erro desconhecido na sincronização');
       }
     } catch (error: any) {
       console.error('Erro na sincronização:', error);

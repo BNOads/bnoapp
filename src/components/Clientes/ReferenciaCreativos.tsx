@@ -141,7 +141,7 @@ export const ReferenciaCreativos = ({
   };
   const salvarReferencia = async () => {
     try {
-      if (!formData.titulo) {
+      if (!formData.titulo.trim()) {
         toast({
           title: "Erro",
           description: "Título é obrigatório",
@@ -149,48 +149,68 @@ export const ReferenciaCreativos = ({
         });
         return;
       }
+
+      // Verificar se o usuário está autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Erro",
+          description: "Usuário não autenticado",
+          variant: "destructive"
+        });
+        return;
+      }
+
       if (editingId) {
         // Editar existente
-        const {
-          error
-        } = await supabase.from('referencias_criativos').update({
-          titulo: formData.titulo,
-          categoria: formData.categoria,
-          conteudo: JSON.stringify(blocos),
-          is_template: formData.is_template,
-          links_externos: linksExternos
-        }).eq('id', editingId);
+        const { error } = await supabase
+          .from('referencias_criativos')
+          .update({
+            titulo: formData.titulo.trim(),
+            categoria: formData.categoria,
+            conteudo: blocos.length > 0 ? JSON.stringify(blocos) : '[]',
+            is_template: formData.is_template,
+            links_externos: linksExternos || []
+          })
+          .eq('id', editingId);
+
         if (error) throw error;
+
         toast({
           title: "Sucesso",
           description: "Referência atualizada com sucesso!"
         });
       } else {
         // Criar nova
-        const {
-          error
-        } = await supabase.from('referencias_criativos').insert({
-          cliente_id: clienteId === "geral" ? null : clienteId,
-          titulo: formData.titulo,
-          categoria: formData.categoria,
-          conteudo: JSON.stringify(blocos),
-          is_template: formData.is_template,
-          links_externos: linksExternos,
-          created_by: (await supabase.auth.getUser()).data.user?.id
-        });
+        const { error } = await supabase
+          .from('referencias_criativos')
+          .insert({
+            cliente_id: clienteId === "geral" ? null : clienteId,
+            titulo: formData.titulo.trim(),
+            categoria: formData.categoria,
+            conteudo: blocos.length > 0 ? JSON.stringify(blocos) : '[]',
+            is_template: formData.is_template,
+            links_externos: linksExternos || [],
+            created_by: user.id,
+            ativo: true
+          });
+
         if (error) throw error;
+
         toast({
           title: "Sucesso",
           description: "Referência criada com sucesso!"
         });
       }
+
       resetarForm();
       setShowModal(false);
       carregarReferencias();
     } catch (error: any) {
+      console.error('Erro ao salvar referência:', error);
       toast({
         title: "Erro",
-        description: "Erro ao salvar referência: " + error.message,
+        description: `Erro ao salvar referência: ${error.message || 'Erro desconhecido'}`,
         variant: "destructive"
       });
     }
