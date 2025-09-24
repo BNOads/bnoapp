@@ -128,7 +128,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Email de reset enviado:', emailResult);
 
-    console.log('Email de reset enviado:', emailResponse);
+    console.log('Email de reset enviado:', emailResult);
 
     return new Response(JSON.stringify({ 
       success: true, 

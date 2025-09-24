@@ -246,11 +246,24 @@ serve(async (req) => {
     // Fazer upsert dos arquivos
     const upsertedCount = await upsertCreatives(supabase, clientId, allFiles);
     
-    // Se for sincronização, marcar arquivos ausentes como arquivados
+    // Se for sincronização, marcar arquivos ausentes como arquivados (mas NUNCA criativos externos)
     let archivedCount = 0;
     if (isSync) {
       const currentFileIds = allFiles.map(file => file.id);
       archivedCount = await archiveMissingFiles(supabase, clientId, currentFileIds);
+      
+      // PROTEÇÃO EXTRA: Desarquivar qualquer criativo externo que possa ter sido arquivado por engano
+      const { error: unarchiveError } = await supabase
+        .from('creatives')
+        .update({ archived: false })
+        .eq('client_id', clientId)
+        .like('file_id', 'external_%');
+      
+      if (unarchiveError) {
+        console.error('Erro ao desarquivar criativos externos:', unarchiveError);
+      } else {
+        console.log('Criativos externos protegidos contra arquivamento');
+      }
     }
     
     // Atualizar timestamp da última sincronização
@@ -287,8 +300,9 @@ serve(async (req) => {
     console.error('Erro na sincronização do Drive:', error);
     
     // Tentar atualizar o erro no cliente se possível
-    if (req.json && req.json.clientId) {
-      try {
+    try {
+      const requestData = await req.clone().json();
+      if (requestData?.clientId) {
         const supabase = createClient(
           Deno.env.get('SUPABASE_URL')!,
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -297,10 +311,10 @@ serve(async (req) => {
         await supabase
           .from('clientes')
           .update({ drive_sync_error: error.message })
-          .eq('id', req.json.clientId);
-      } catch (updateError) {
-        console.error('Erro ao atualizar erro no cliente:', updateError);
+          .eq('id', requestData.clientId);
       }
+    } catch (updateError) {
+      console.error('Erro ao atualizar erro no cliente:', updateError);
     }
     
     return new Response(

@@ -223,13 +223,13 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('Email enviado com sucesso:', emailResult);
       emailSent = !!emailResult?.ok;
 
-      console.log('Email enviado com sucesso:', emailResponse);
+      console.log('Email enviado com sucesso:', emailResult);
+      emailSent = !!emailResult?.ok;
       
-      if (emailResponse.error) {
-        console.error('Erro do Resend:', emailResponse.error);
-        throw new Error(`Erro ao enviar email: ${emailResponse.error.message}`);
+      if (!emailResult.ok && !emailResult.skipped) {
+        console.error('Erro do Resend:', emailResult);
+        throw new Error('Erro ao enviar email');
       }
-      emailSent = true;
     } catch (emailError: any) {
       console.error('Erro ao enviar email:', emailError);
       console.log('Colaborador criado mas email não foi enviado devido ao erro:', emailError.message);

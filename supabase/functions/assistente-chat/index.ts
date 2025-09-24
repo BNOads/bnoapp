@@ -181,10 +181,10 @@ FORMATO DE RESPOSTA:
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no assistente chat:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error?.message || 'Erro interno',
       success: false 
     }), {
       status: 500,
@@ -268,12 +268,12 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     const { data: orcamentos } = await orcamentosQuery.limit(20);
 
     if (orcamentos && orcamentos.length > 0) {
-      const totalInvestimento = orcamentos.reduce((sum, orc) => sum + (parseFloat(orc.valor_investimento) || 0), 0);
+      const totalInvestimento = orcamentos.reduce((sum: number, orc: any) => sum + (parseFloat(orc.valor_investimento) || 0), 0);
       context += `💰 ORÇAMENTOS POR FUNIL (${orcamentos.length} ativos)\n`;
       context += `💎 **Total investimento: R$ ${totalInvestimento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}**\n\n`;
       
       orcamentos.forEach((orc: any) => {
-        const clienteNome = clientes?.find(c => c.id === orc.cliente_id)?.nome || 'Cliente não encontrado';
+        const clienteNome = clientes?.find((c: any) => c.id === orc.cliente_id)?.nome || 'Cliente não encontrado';
         context += `🎯 **${orc.nome_funil}** (${clienteNome})\n`;
         context += `   💵 Valor: R$ ${parseFloat(orc.valor_investimento).toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
         context += `   📅 Atualizado: ${new Date(orc.data_atualizacao).toLocaleDateString('pt-BR')}\n`;
@@ -302,7 +302,7 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     if (treinamentos && treinamentos.length > 0) {
       context += `🎓 CATÁLOGO DE TREINAMENTOS (${treinamentos.length} disponíveis)\n\n`;
       treinamentos.forEach((treino: any) => {
-        const aulasDoTreino = aulas?.filter(a => a.treinamento_id === treino.id) || [];
+        const aulasDoTreino = aulas?.filter((a: any) => a.treinamento_id === treino.id) || [];
         context += `📚 **${treino.titulo}** [${treino.categoria}]\n`;
         context += `   🎯 Tipo: ${treino.tipo} | Nível: ${treino.nivel}\n`;
         context += `   ⏱️ Duração: ${treino.duracao || 'N/A'} min | 👁️ Views: ${treino.visualizacoes || 0}\n`;
@@ -351,7 +351,7 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
           context += `   📁 Arquivos: ${ref.conteudo.length} itens\n`;
         }
         if (ref.cliente_id) {
-          const clienteRef = clientes?.find(c => c.id === ref.cliente_id);
+          const clienteRef = clientes?.find((c: any) => c.id === ref.cliente_id);
           if (clienteRef) context += `   👤 Cliente: ${clienteRef.nome}\n`;
         }
         context += `\n`;
@@ -372,7 +372,7 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     if (gravacoes && gravacoes.length > 0) {
       context += `🎥 GRAVAÇÕES DE REUNIÕES (${gravacoes.length} recentes)\n\n`;
       gravacoes.forEach((grav: any) => {
-        const clienteGrav = clientes?.find(c => c.id === grav.cliente_id);
+        const clienteGrav = clientes?.find((c: any) => c.id === grav.cliente_id);
         context += `📹 **${grav.titulo}**\n`;
         if (clienteGrav) context += `   👤 Cliente: ${clienteGrav.nome}\n`;
         context += `   ⏱️ Duração: ${grav.duracao || 'N/A'} min\n`;
@@ -404,15 +404,15 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
       context += `✅ TAREFAS ATIVAS (${tarefas.length})\n\n`;
       // Ordenar por prioridade
       const tarefasOrdenadas = tarefas.sort((a: any, b: any) => {
-        const prioridades = { 'alta': 3, 'media': 2, 'baixa': 1 };
-        return prioridades[b.prioridade] - prioridades[a.prioridade];
+        const prioridades: Record<string, number> = { 'alta': 3, 'media': 2, 'baixa': 1 };
+        return (prioridades[b.prioridade] || 0) - (prioridades[a.prioridade] || 0);
       });
 
       tarefasOrdenadas.forEach((tarefa: any) => {
-        const clienteTarefa = clientes?.find(c => c.id === tarefa.cliente_id);
-        const prioEmoji = { 'alta': '🔴', 'media': '🟡', 'baixa': '🟢' };
+        const clienteTarefa = clientes?.find((c: any) => c.id === tarefa.cliente_id);
+        const prioEmoji: Record<string, string> = { 'alta': '🔴', 'media': '🟡', 'baixa': '🟢' };
         
-        context += `${prioEmoji[tarefa.prioridade]} **${tarefa.titulo}** [${tarefa.status}]\n`;
+        context += `${prioEmoji[tarefa.prioridade] || '⚪'} **${tarefa.titulo}** [${tarefa.status}]\n`;
         context += `   📋 Prioridade: ${tarefa.prioridade} | Tipo: ${tarefa.tipo}\n`;
         if (clienteTarefa) context += `   👤 Cliente: ${clienteTarefa.nome}\n`;
         if (tarefa.data_vencimento) {
@@ -446,8 +446,8 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     if (kickoffs && kickoffs.length > 0) {
       context += `🚀 KICKOFFS - DOCUMENTOS DE INÍCIO (${kickoffs.length})\n\n`;
       kickoffs.forEach((kickoff: any) => {
-        const clienteKickoff = clientes?.find(c => c.id === kickoff.client_id);
-        const statusEmoji = { 'draft': '📝', 'published': '✅', 'archived': '📁' };
+        const clienteKickoff = clientes?.find((c: any) => c.id === kickoff.client_id);
+        const statusEmoji: Record<string, string> = { 'draft': '📝', 'published': '✅', 'archived': '📁' };
         
         context += `${statusEmoji[kickoff.status] || '📄'} **Kickoff ${clienteKickoff?.nome || 'Cliente não encontrado'}** [${kickoff.status}]\n`;
         context += `   📅 Criado: ${new Date(kickoff.created_at).toLocaleDateString('pt-BR')}\n`;
