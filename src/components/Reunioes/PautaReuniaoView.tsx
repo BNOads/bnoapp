@@ -226,6 +226,16 @@ export function PautaReuniaoView() {
   useEffect(() => {
     const handleKeyboard = (e: KeyboardEvent) => {
       if (!currentDocument || blocks.length === 0) return;
+      
+      // Don't intercept keys when user is typing in input fields
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || 
+                      target.tagName === 'TEXTAREA' || 
+                      target.contentEditable === 'true' ||
+                      target.closest('[contenteditable="true"]');
+      
+      if (isTyping) return;
+      
       if (e.key === 'j' || e.key === 'J') {
         e.preventDefault();
         navigateToNextBlock();
