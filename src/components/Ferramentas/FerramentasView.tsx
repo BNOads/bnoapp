@@ -14,6 +14,7 @@ import LancamentosView from "@/components/Lancamentos/LancamentosView";
 import { UTMBuilderView } from "./UTMBuilderView";
 import { AcessosLoginsView } from "./AcessosLoginsView";
 import { MensagensSemanaisView } from "./MensagensSemanaisView";
+import { LinksView } from "./LinksView";
 
 
 interface Tool {
@@ -118,6 +119,14 @@ export const FerramentasView = () => {
       icon: MessageSquare,
       component: <MensagensSemanaisView />,
       color: "text-indigo-600"
+    },
+    {
+      id: "links",
+      title: "Links Importantes",
+      description: "Central de links importantes organizados por cliente",
+      icon: Link,
+      component: <LinksView />,
+      color: "text-emerald-600"
     },
   ];
 
