@@ -30,10 +30,13 @@ interface ReferenciaCreativo {
   conteudo: any;
   link_publico: string;
   categoria: 'infoproduto' | 'negocio_local' | 'pagina';
-  created_at: string;
+  created_at: string;  
   updated_at: string;
   is_template: boolean;
   links_externos: any;
+  is_public?: boolean;
+  public_slug?: string;
+  public_token?: string;
 }
 interface ReferenciaCriativosProps {
   clienteId: string;
@@ -94,9 +97,10 @@ export const ReferenciaCreativos = ({
   };
   const carregarReferencias = async () => {
     try {
-      let query = supabase.from('referencias_criativos').select('*').eq('ativo', true).order('created_at', {
-        ascending: false
-      });
+      let query = supabase.from('referencias_criativos')
+        .select('*, is_public, public_slug, public_token')
+        .eq('ativo', true)
+        .order('created_at', { ascending: false });
 
       // Se clienteId for "geral", buscar referências gerais (cliente_id null)
       // Senão, filtrar por cliente específico
@@ -105,10 +109,8 @@ export const ReferenciaCreativos = ({
       } else {
         query = query.eq('cliente_id', clienteId);
       }
-      const {
-        data,
-        error
-      } = await query;
+      
+      const { data, error } = await query;
       if (error) throw error;
       setReferencias((data || []) as ReferenciaCreativo[]);
       setReferenciasFiltradas((data || []) as ReferenciaCreativo[]);
@@ -300,6 +302,10 @@ export const ReferenciaCreativos = ({
     setLinksExternos(novosLinks);
   };
   const excluirReferencia = async (referencia: ReferenciaCreativo) => {
+    if (!confirm('Tem certeza que deseja excluir esta referência? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+    
     try {
       const {
         error
@@ -553,12 +559,24 @@ export const ReferenciaCreativos = ({
                                  <Eye className="h-4 w-4" />
                                </Button>;
                    })()}
-                         <Button variant="ghost" size="sm" onClick={() => {
-                    const fullLink = referencia.link_publico?.startsWith('http') ? referencia.link_publico : `${window.location.origin}${referencia.link_publico}`;
-                    copiarLink(fullLink);
-                  }}>
-                           <Copy className="h-4 w-4" />
-                         </Button>
+                          <Button variant="ghost" size="sm" onClick={() => {
+                     // Generate the correct public link based on public_slug or link_publico
+                     let fullLink = '';
+                     
+                     if (referencia.public_slug) {
+                       fullLink = `${window.location.origin}/referencia/publica/${referencia.public_slug}`;
+                     } else if (referencia.link_publico) {
+                       fullLink = referencia.link_publico.startsWith('http') 
+                         ? referencia.link_publico 
+                         : `${window.location.origin}${referencia.link_publico}`;
+                     } else {
+                       fullLink = `${window.location.origin}/referencia/${referencia.id}`;
+                     }
+                     
+                     copiarLink(fullLink);
+                   }} title="Copiar link público">
+                            <Copy className="h-4 w-4" />
+                          </Button>
                         {canCreateContent && <>
                              <Button variant="ghost" size="sm" onClick={() => {
                       setEditingId(referencia.id);
@@ -569,9 +587,9 @@ export const ReferenciaCreativos = ({
                             {referencia.is_template && <Button variant="ghost" size="sm" onClick={() => duplicarTemplate(referencia)}>
                                 <FileCode className="h-4 w-4" />
                               </Button>}
-                            <Button variant="ghost" size="sm" onClick={() => excluirReferencia(referencia)} className="text-destructive hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                             <Button variant="ghost" size="sm" onClick={() => excluirReferencia(referencia)} className="text-destructive hover:text-destructive" title="Excluir referência">
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
                           </>}
                       </div>
                     </TableCell>
