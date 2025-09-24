@@ -66,6 +66,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [bulkEditModalOpen, setBulkEditModalOpen] = useState(false);
   const [novoExternoModalOpen, setNovoExternoModalOpen] = useState(false);
   const [editingNomenclatura, setEditingNomenclatura] = useState<{ id: string; value: string } | null>(null);
+  const [saveController, setSaveController] = useState<AbortController | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -384,8 +385,18 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     setEditModalOpen(true);
   };
 
-  const handleEditSuccess = async () => {
-    await carregarCreatives();
+  const handleEditSuccess = async (updatedCreative?: Creative) => {
+    if (updatedCreative) {  
+      // Atualização otimística com dados retornados
+      setCreatives(prev => prev.map(creative => 
+        creative.id === updatedCreative.id 
+          ? { ...creative, ...updatedCreative }
+          : creative
+      ));
+    } else {
+      // Fallback: recarregar apenas se não tiver dados atualizados
+      await carregarCreatives();
+    }
     setEditingCreative(null);
     setEditModalOpen(false);
   };
@@ -399,23 +410,30 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
 
   const saveNomenclatura = async (creativeId: string, value: string) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('creatives')
         .update({
-          nomenclatura_trafego: value || null,
+          nomenclatura_trafego: value?.trim() || null,
           updated_at: new Date().toISOString()
         })
-        .eq('id', creativeId);
+        .eq('id', creativeId)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Atualização otimística do estado local
+      setCreatives(prev => prev.map(creative => 
+        creative.id === creativeId 
+          ? { ...creative, nomenclatura_trafego: value?.trim() || null }
+          : creative
+      ));
 
       toast({
         title: "✔️ Alteração salva",
         description: "Nomenclatura atualizada com sucesso!",
       });
 
-      // Atualizar a lista para refletir as mudanças
-      await carregarCreatives();
     } catch (error: any) {
       console.error('Erro ao salvar nomenclatura:', error);
       toast({
@@ -423,20 +441,52 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         description: "Tente novamente.",
         variant: "destructive",
       });
+      
+      // Em caso de erro, recarregar para garantir consistência
+      await carregarCreatives();
     }
   };
 
   const handleNomenclaturaBlur = async () => {
     if (!editingNomenclatura) return;
     
-    await saveNomenclatura(editingNomenclatura.id, editingNomenclatura.value);
-    setEditingNomenclatura(null);
+    // Cancelar request anterior se existir
+    if (saveController) {
+      saveController.abort();
+    }
+
+    // Debounce - aguardar um pouco antes de salvar
+    const controller = new AbortController();
+    setSaveController(controller);
+    
+    setTimeout(async () => {
+      if (controller.signal.aborted) return;
+      
+      try {
+        await saveNomenclatura(editingNomenclatura.id, editingNomenclatura.value);
+        if (!controller.signal.aborted) {
+          setEditingNomenclatura(null);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error('Erro no save:', error);
+        }
+      } finally {
+        setSaveController(null);
+      }
+    }, 300);
   };
 
   const handleNomenclaturaKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       await handleNomenclaturaBlur();
     } else if (e.key === 'Escape') {
+      // Cancelar qualquer save pendente
+      if (saveController) {
+        saveController.abort();
+        setSaveController(null);
+      }
       setEditingNomenclatura(null);
     }
   };
@@ -1003,8 +1053,16 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         onOpenChange={setBulkEditModalOpen}
         selectedIds={selectedCreatives}
         selectedCount={selectedCreatives.length}
-        onSuccess={() => {
-          carregarCreatives();
+        onSuccess={(updatedCreatives) => {
+          if (updatedCreatives) {
+            // Atualização otimística para edição em massa
+            setCreatives(prev => prev.map(creative => {
+              const updated = updatedCreatives.find(u => u.id === creative.id);
+              return updated ? { ...creative, ...updated } : creative;
+            }));
+          } else {
+            carregarCreatives();
+          }
           setSelectedCreatives([]);
           setBulkEditModalOpen(false);
         }}

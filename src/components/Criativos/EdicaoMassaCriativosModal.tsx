@@ -12,7 +12,7 @@ interface EdicaoMassaCriativosModalProps {
   onOpenChange: (open: boolean) => void;
   selectedIds: string[];
   selectedCount: number;
-  onSuccess: () => void;
+  onSuccess: (updatedCreatives?: any[]) => void;
 }
 
 export const EdicaoMassaCriativosModal = ({ 
@@ -49,28 +49,31 @@ export const EdicaoMassaCriativosModal = ({
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('creatives')
         .update({
-          pagina_destino: paginaDestino || null
+          pagina_destino: paginaDestino?.trim() || null,
+          updated_at: new Date().toISOString()
         })
-        .in('id', selectedIds);
+        .in('id', selectedIds)
+        .select();
 
       if (error) throw error;
 
       toast({
-        title: "Sucesso",
+        title: "✔️ Alteração salva",
         description: `Página de destino atualizada para ${selectedCount} criativos`,
       });
 
-      onSuccess();
+      // Passar os dados atualizados para o callback
+      onSuccess(data);
       onOpenChange(false);
       setPaginaDestino('');
     } catch (error: any) {
       console.error('Erro ao atualizar criativos:', error);
       toast({
-        title: "Erro",
-        description: error.message || "Erro ao atualizar criativos",
+        title: "Falha ao salvar",
+        description: error.message || "Tente novamente.",
         variant: "destructive",
       });
     } finally {

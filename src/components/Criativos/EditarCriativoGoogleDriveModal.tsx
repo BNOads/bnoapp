@@ -22,7 +22,7 @@ interface EditarCriativoGoogleDriveModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   creative: Creative | null;
-  onSuccess: () => void;
+  onSuccess: (updatedCreative?: any) => void;
 }
 
 export const EditarCriativoGoogleDriveModal = ({ 
@@ -72,29 +72,33 @@ export const EditarCriativoGoogleDriveModal = ({
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('creatives')
         .update({
-          nomenclatura_trafego: formData.nomenclatura || null,
-          observacao_personalizada: formData.observacao || null,
-          pagina_destino: formData.pagina_destino || null
+          nomenclatura_trafego: formData.nomenclatura?.trim() || null,
+          observacao_personalizada: formData.observacao?.trim() || null,
+          pagina_destino: formData.pagina_destino?.trim() || null,
+          updated_at: new Date().toISOString()
         })
-        .eq('id', creative.id);
+        .eq('id', creative.id)
+        .select()
+        .single();
 
       if (error) throw error;
 
       toast({
-        title: "Sucesso",
+        title: "✔️ Alteração salva",
         description: "Informações do criativo atualizadas com sucesso!",
       });
 
-      onSuccess();
+      // Passar os dados atualizados para o callback
+      onSuccess(data);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Erro ao atualizar criativo:', error);
       toast({
-        title: "Erro",
-        description: error.message || "Erro ao atualizar informações do criativo",
+        title: "Falha ao salvar",
+        description: error.message || "Tente novamente.",
         variant: "destructive",
       });
     } finally {
