@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -8,7 +8,10 @@ import {
   ExternalLink,
   Calendar,
   Copy,
-  Globe
+  Globe,
+  Eye,
+  Shield,
+  Clock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -22,20 +25,31 @@ interface ReferenciaCreativo {
   titulo: string;
   categoria: string;
   conteudo: any;
+  conteudo_markdown?: string;
   link_publico: string;
   created_at: string;
   updated_at: string;
+  published_at?: string;
   is_template: boolean;
+  is_public: boolean;
+  public_slug?: string;
+  public_token?: string;
+  view_count?: number;
   links_externos: any;
   versao_editor?: number;
 }
 
 export const ReferenciaPublica = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const [referencia, setReferencia] = useState<ReferenciaCreativo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [editorBlocks, setEditorBlocks] = useState<EditorBlock[]>([]);
   const { toast } = useToast();
+
+  // Get token from URL if present
+  const token = searchParams.get('token');
 
   useEffect(() => {
     if (id) {
@@ -46,15 +60,68 @@ export const ReferenciaPublica = () => {
   const carregarReferencia = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      console.log('Carregando referência pública:', id);
+      console.log('Carregando referência pública:', id, 'token:', token);
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('referencias_criativos')
         .select('*')
-        .eq('id', id)
-        .eq('ativo', true)
-        .maybeSingle();
+        .eq('ativo', true);
+
+      // Try to find by slug first (more user-friendly URLs)
+      if (id && !token) {
+        // First try by public_slug, then fallback to ID
+        const { data: slugData } = await query.eq('public_slug', id).maybeSingle();
+        
+        if (slugData) {
+          // Found by slug, check if it's public
+          if (!slugData.is_public) {
+            setError('access_denied');
+            return;
+          }
+        } else {
+          // Try by ID if slug fails
+          const { data: idData } = await query.eq('id', id).maybeSingle();
+          
+          if (idData) {
+            // Found by ID, check if it's public or has valid token
+            if (!idData.is_public) {
+              setError('access_denied');
+              return;
+            }
+          } else {
+            setError('not_found');
+            return;
+          }
+        }
+      } else if (id && token) {
+        // Access via token - check both public_token and public access
+        const { data: tokenData } = await query
+          .eq('id', id)
+          .eq('public_token', token)
+          .maybeSingle();
+
+        if (!tokenData) {
+          setError('invalid_token');
+          return;
+        }
+
+        if (!tokenData.is_public) {
+          setError('access_denied');
+          return;
+        }
+      } else {
+        setError('not_found');
+        return;
+      }
+
+      // Get the reference again with the correct identifier
+      const finalQuery = id && !token 
+        ? query.or(`public_slug.eq.${id},id.eq.${id}`)
+        : query.eq('id', id).eq('public_token', token);
+
+      const { data, error } = await finalQuery.maybeSingle();
 
       if (error) {
         console.error('Erro ao carregar referência:', error);
@@ -62,41 +129,64 @@ export const ReferenciaPublica = () => {
       }
 
       if (!data) {
-        console.log('Referência não encontrada');
+        setError('not_found');
+        return;
+      }
+
+      // Final security check
+      if (!data.is_public || (token && data.public_token !== token)) {
+        setError('access_denied');
         return;
       }
 
       console.log('Referência carregada:', data);
       setReferencia(data as ReferenciaCreativo);
 
-      // Converter conteúdo para blocos do editor se for versão 2+
+      // Increment view count
+      try {
+        await supabase
+          .from('referencias_criativos')
+          .update({ view_count: (data.view_count || 0) + 1 })
+          .eq('id', data.id);
+      } catch (viewError) {
+        console.warn('Erro ao incrementar visualizações:', viewError);
+      }
+
+      // Convert content to editor blocks if version 2+
       if ((data.versao_editor || 1) >= 2 && data.conteudo && Array.isArray(data.conteudo)) {
-        const convertedBlocks: EditorBlock[] = data.conteudo.map((item: any, index: number) => ({
-          id: item.id || `block-${index}`,
-          type: item.tipo || 'text',
-          content: {
-            text: item.conteudo,
-            url: item.url,
-            caption: item.descricao,
-            title: item.titulo,
-            level: item.level,
-            checked: item.checked
-          },
-          order: index,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }));
+        const convertedBlocks: EditorBlock[] = data.conteudo
+          .map((item: any, index: number) => ({
+            id: item.id || `block-${index}`,
+            type: item.tipo || 'text',
+            content: {
+              text: item.conteudo || item.text,
+              url: item.url,
+              caption: item.descricao || item.caption,
+              title: item.titulo || item.title,
+              level: item.level || 1,
+              checked: item.checked || false
+            },
+            order: index,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }))
+          .filter(block => {
+            // Filter out completely empty blocks
+            const content = block.content;
+            return content.text?.trim() || 
+                   content.url?.trim() || 
+                   content.title?.trim() || 
+                   content.caption?.trim() ||
+                   block.type === 'divider';
+          });
+        
         setEditorBlocks(convertedBlocks);
         console.log('Blocos convertidos:', convertedBlocks);
       }
       
     } catch (error) {
       console.error('Erro ao carregar referência:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar a referência.",
-        variant: "destructive"
-      });
+      setError('load_error');
     } finally {
       setLoading(false);
     }
@@ -199,17 +289,48 @@ export const ReferenciaPublica = () => {
     );
   }
 
-  if (!referencia) {
+  if (error || !referencia) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4 max-w-md">
+        <div className="text-center space-y-4 max-w-md px-6">
           <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
-            <Globe className="w-8 h-8 text-muted-foreground" />
+            {error === 'access_denied' ? (
+              <Shield className="w-8 h-8 text-yellow-500" />
+            ) : error === 'invalid_token' ? (
+              <Shield className="w-8 h-8 text-red-500" />
+            ) : (
+              <Globe className="w-8 h-8 text-muted-foreground" />
+            )}
           </div>
-          <h1 className="text-2xl font-bold">Referência não encontrada</h1>
-          <p className="text-muted-foreground">
-            Esta referência pode ter sido removida ou você não tem permissão para visualizá-la.
-          </p>
+          
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">
+              {error === 'access_denied' ? 'Acesso Negado' :
+               error === 'invalid_token' ? 'Token Inválido' :
+               error === 'load_error' ? 'Erro de Carregamento' :
+               'Referência não encontrada'}
+            </h1>
+            <p className="text-muted-foreground">
+              {error === 'access_denied' 
+                ? 'Esta referência não está disponível publicamente. Entre em contato com o autor para solicitar acesso.' 
+                : error === 'invalid_token'
+                ? 'O link utilizado é inválido ou expirou. Verifique o link ou solicite um novo.'
+                : error === 'load_error'
+                ? 'Ocorreu um erro ao carregar a referência. Tente novamente em alguns instantes.'
+                : 'Esta referência pode ter sido removida ou o link está incorreto.'
+              }
+            </p>
+          </div>
+
+          <div className="pt-4">
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              size="sm"
+            >
+              Tentar Novamente
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -251,18 +372,37 @@ export const ReferenciaPublica = () => {
           <div>
             <h1 className="text-4xl font-bold mb-4">{referencia.titulo}</h1>
             
-            <div className="flex items-center gap-6 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 <span>
                   Criado em {format(new Date(referencia.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                 </span>
               </div>
+              
+              {referencia.published_at && (
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  <span>
+                    Publicado em {format(new Date(referencia.published_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  </span>
+                </div>
+              )}
+              
               {referencia.updated_at !== referencia.created_at && (
                 <div className="flex items-center gap-2">
-                  <span>•</span>
+                  <Clock className="w-4 h-4" />
                   <span>
                     Atualizado em {format(new Date(referencia.updated_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  </span>
+                </div>
+              )}
+
+              {referencia.view_count && referencia.view_count > 0 && (
+                <div className="flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  <span>
+                    {referencia.view_count} visualiza{referencia.view_count !== 1 ? 'ções' : 'ção'}
                   </span>
                 </div>
               )}
@@ -298,23 +438,48 @@ export const ReferenciaPublica = () => {
         {/* Content */}
         <div className="space-y-8">
           {(referencia.versao_editor || 1) >= 2 ? (
-            <NotionEditor
-              blocks={editorBlocks}
-              onChange={() => {}} // Read-only
-              readOnly={true}
-              className="max-w-none"
-            />
+            // Modern editor content
+            editorBlocks.length > 0 ? (
+              <NotionEditor
+                blocks={editorBlocks}
+                onChange={() => {}} // Read-only
+                readOnly={true}
+                className="max-w-none"
+              />
+            ) : referencia.conteudo_markdown ? (
+              // Fallback to markdown content if available
+              <div 
+                className="prose prose-lg max-w-none dark:prose-invert"
+                dangerouslySetInnerHTML={{ 
+                  __html: referencia.conteudo_markdown.replace(/\n/g, '<br>') 
+                }}
+              />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Esta referência não possui conteúdo disponível para visualização pública.</p>
+              </div>
+            )
           ) : (
-            Array.isArray(referencia.conteudo) 
-              ? referencia.conteudo.map((bloco, index) => (
-                <div key={index} className="space-y-6">
-                  {renderizarBlocoClassico(bloco)}
-                  {index < (referencia.conteudo?.length || 0) - 1 && (
-                    <Separator className="my-8" />
-                  )}
+            // Legacy editor content
+            Array.isArray(referencia.conteudo) && referencia.conteudo.length > 0
+              ? referencia.conteudo
+                  .filter((bloco: any) => {
+                    // Filter out empty blocks
+                    return bloco.conteudo?.trim() || bloco.url?.trim() || bloco.titulo?.trim();
+                  })
+                  .map((bloco: any, index: number) => (
+                    <div key={index} className="space-y-6">
+                      {renderizarBlocoClassico(bloco)}
+                      {index < (referencia.conteudo?.filter((b: any) => b.conteudo?.trim() || b.url?.trim() || b.titulo?.trim())?.length || 0) - 1 && (
+                        <Separator className="my-8" />
+                      )}
+                    </div>
+                  ))
+              : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Esta referência não possui conteúdo disponível para visualização pública.</p>
                 </div>
-              ))
-              : <p className="text-muted-foreground">Conteúdo não disponível</p>
+              )
           )}
         </div>
 

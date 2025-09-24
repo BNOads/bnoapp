@@ -107,7 +107,7 @@ export const BlockRenderer = ({
     switch (block.type) {
       case 'text':
         if (readOnly && !block.content.text?.trim()) {
-          return null; // Não renderizar blocos de texto vazios no modo de visualização
+          return <div className="min-h-[20px]" />; // Show minimal space instead of hiding completely
         }
         return (
           <Textarea
@@ -124,13 +124,26 @@ export const BlockRenderer = ({
 
       case 'heading':
         if (readOnly && !block.content.text?.trim()) {
-          return null; // Não renderizar títulos vazios no modo de visualização
+          return <div className="min-h-[30px]" />; // Show minimal space for empty headings
         }
         
         const HeadingComponent = block.content.level === 1 ? 'h1' : 
                                 block.content.level === 2 ? 'h2' : 'h3';
         const HeadingIcon = block.content.level === 1 ? Heading1 : 
                            block.content.level === 2 ? Heading2 : Heading3;
+        
+        if (readOnly && block.content.text?.trim()) {
+          // In read-only mode with content, render as actual heading
+          const Component = HeadingComponent as any;
+          return (
+            <Component className={`font-bold ${
+              block.content.level === 1 ? 'text-3xl' :
+              block.content.level === 2 ? 'text-2xl' : 'text-xl'
+            }`}>
+              {block.content.text}
+            </Component>
+          );
+        }
         
         return (
           <div className="flex items-center gap-2">
@@ -297,31 +310,35 @@ export const BlockRenderer = ({
 
       case 'link':
         if (readOnly && !block.content.url?.trim()) {
-          return null; // Não renderizar links vazios no modo de visualização
+          return <div className="min-h-[20px]" />; // Show space for empty links
         }
         
         return (
           <div className="space-y-2">
-            <Input
-              value={block.content.url || ''}
-              onChange={(e) => onChange({
-                ...block,
-                content: { ...block.content, url: e.target.value }
-              })}
-              placeholder={readOnly ? "" : "Cole ou digite um link..."}
-              className="border-none p-0 focus:ring-0"
-              readOnly={readOnly}
-            />
-            <Input
-              value={block.content.title || ''}
-              onChange={(e) => onChange({
-                ...block,
-                content: { ...block.content, title: e.target.value }
-              })}
-              placeholder={readOnly ? "" : "Título do link (opcional)"}
-              className="border-none p-0 text-sm focus:ring-0"
-              readOnly={readOnly}
-            />
+            {!readOnly && (
+              <>
+                <Input
+                  value={block.content.url || ''}
+                  onChange={(e) => onChange({
+                    ...block,
+                    content: { ...block.content, url: e.target.value }
+                  })}
+                  placeholder="Cole ou digite um link..."
+                  className="border-none p-0 focus:ring-0"
+                  readOnly={readOnly}
+                />
+                <Input
+                  value={block.content.title || ''}
+                  onChange={(e) => onChange({
+                    ...block,
+                    content: { ...block.content, title: e.target.value }
+                  })}
+                  placeholder="Título do link (opcional)"
+                  className="border-none p-0 text-sm focus:ring-0"
+                  readOnly={readOnly}
+                />
+              </>
+            )}
             {block.content.url && (
               <a 
                 href={block.content.url} 
@@ -338,7 +355,7 @@ export const BlockRenderer = ({
 
       case 'checklist':
         if (readOnly && !block.content.text?.trim()) {
-          return null; // Não renderizar checklists vazios no modo de visualização
+          return <div className="min-h-[20px]" />; // Show space for empty checklists
         }
         
         return (
@@ -351,18 +368,26 @@ export const BlockRenderer = ({
               })}
               disabled={readOnly}
             />
-            <Input
-              value={block.content.text || ''}
-              onChange={(e) => onChange({
-                ...block,
-                content: { ...block.content, text: e.target.value }
-              })}
-              placeholder={readOnly ? "" : "Lista de tarefas"}
-              className={`border-none p-0 focus:ring-0 ${
+            {readOnly && block.content.text?.trim() ? (
+              <span className={`text-sm ${
                 block.content.checked ? 'line-through text-muted-foreground' : ''
-              }`}
-              readOnly={readOnly}
-            />
+              }`}>
+                {block.content.text}
+              </span>
+            ) : !readOnly && (
+              <Input
+                value={block.content.text || ''}
+                onChange={(e) => onChange({
+                  ...block,
+                  content: { ...block.content, text: e.target.value }
+                })}
+                placeholder="Lista de tarefas"
+                className={`border-none p-0 focus:ring-0 ${
+                  block.content.checked ? 'line-through text-muted-foreground' : ''
+                }`}
+                readOnly={readOnly}
+              />
+            )}
           </div>
         );
 

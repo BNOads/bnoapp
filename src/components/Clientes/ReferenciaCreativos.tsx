@@ -57,7 +57,9 @@ export const ReferenciaCreativos = ({
   const [formData, setFormData] = useState({
     titulo: "",
     categoria: "infoproduto" as "infoproduto" | "negocio_local" | "pagina",
-    is_template: false
+    is_template: false,
+    is_public: false,
+    public_slug: ""
   });
   const [blocos, setBlocos] = useState<ConteudoBloco[]>([]);
   const [linksExternos, setLinksExternos] = useState<{
@@ -219,7 +221,9 @@ export const ReferenciaCreativos = ({
     setFormData({
       titulo: "",
       categoria: "infoproduto",
-      is_template: false
+      is_template: false,
+      is_public: false,
+      public_slug: ""
     });
     setBlocos([]);
     setLinksExternos([]);
@@ -230,7 +234,9 @@ export const ReferenciaCreativos = ({
     setFormData({
       titulo: referencia.titulo,
       categoria: referencia.categoria || "infoproduto",
-      is_template: referencia.is_template
+      is_template: referencia.is_template,
+      is_public: (referencia as any).is_public || false,
+      public_slug: (referencia as any).public_slug || ""
     });
     setBlocos(typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || []);
     setLinksExternos(referencia.links_externos || []);
@@ -635,6 +641,147 @@ export const ReferenciaCreativos = ({
               is_template: e.target.checked
             })} className="rounded" />
               <Label htmlFor="is_template">Salvar como template</Label>
+            </div>
+
+            {/* Controles de Publicação */}
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">Compartilhamento Público</h3>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    id="is_public" 
+                    checked={formData.is_public || false} 
+                    onChange={e => setFormData({
+                      ...formData,
+                      is_public: e.target.checked
+                    })} 
+                    className="rounded" 
+                  />
+                  <Label htmlFor="is_public">Tornar público</Label>
+                </div>
+              </div>
+              
+              {formData.is_public && (
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="public_slug">URL Pública (Slug)</Label>
+                    <div className="flex gap-2">
+                      <div className="flex-1 flex">
+                        <span className="px-3 py-2 bg-muted border border-r-0 rounded-l-md text-sm text-muted-foreground">
+                          /referencia/publica/
+                        </span>
+                        <Input 
+                          id="public_slug"
+                          value={formData.public_slug || ''}
+                          onChange={e => setFormData({
+                            ...formData,
+                            public_slug: e.target.value
+                          })}
+                          placeholder="slug-da-referencia"
+                          className="rounded-l-none"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const slug = formData.titulo
+                            ? formData.titulo.toLowerCase()
+                                .normalize('NFD')
+                                .replace(/[\u0300-\u036f]/g, '')
+                                .replace(/[^a-z0-9\s-]/g, '')
+                                .replace(/\s+/g, '-')
+                                .trim()
+                            : '';
+                          setFormData({
+                            ...formData,
+                            public_slug: slug
+                          });
+                        }}
+                      >
+                        Gerar
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      URL amigável para compartilhamento público
+                    </p>
+                  </div>
+
+                  {editingId && (
+                    <div className="flex items-center justify-between p-3 bg-background rounded border">
+                      <div>
+                        <p className="text-sm font-medium">Link Público</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formData.public_slug 
+                            ? `${window.location.origin}/referencia/publica/${formData.public_slug}`
+                            : 'Salve para gerar o link público'
+                          }
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (formData.public_slug) {
+                              const link = `${window.location.origin}/referencia/publica/${formData.public_slug}`;
+                              navigator.clipboard.writeText(link);
+                              toast({
+                                title: "Link copiado!",
+                                description: "Link público copiado para a área de transferência."
+                              });
+                            }
+                          }}
+                          disabled={!formData.public_slug}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            if (editingId) {
+                              try {
+                                const { data, error } = await supabase
+                                  .from('referencias_criativos')
+                                  .update({ public_token: null }) // Trigger will generate new token
+                                  .eq('id', editingId)
+                                  .select('public_token')
+                                  .single();
+
+                                if (error) throw error;
+
+                                toast({
+                                  title: "Token regenerado!",
+                                  description: "Novo token de acesso gerado com sucesso."
+                                });
+                                carregarReferencias(); // Refresh the list
+                              } catch (error) {
+                                console.error('Erro ao regenerar token:', error);
+                                toast({
+                                  title: "Erro",
+                                  description: "Não foi possível regenerar o token.",
+                                  variant: "destructive"
+                                });
+                              }
+                            }
+                          }}
+                        >
+                          Regenerar Token
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-muted-foreground p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                    <p><strong>💡 Dica:</strong> Referências públicas podem ser acessadas por qualquer pessoa com o link, mesmo sem login.</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <Separator />
