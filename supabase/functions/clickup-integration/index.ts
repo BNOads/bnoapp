@@ -703,7 +703,7 @@ async function userLookup(apiKey: string, teamId: string, userEmail: string) {
             similarity: maxSimilarity,
             teamId: tid
           };
-        }).sort((a, b) => b.similarity - a.similarity);
+        }).sort((a: any, b: any) => b.similarity - a.similarity);
 
         // Se há uma correspondência com similaridade > 0.7, usar
         const bestMatch = similarities[0];
@@ -758,7 +758,7 @@ async function userLookup(apiKey: string, teamId: string, userEmail: string) {
       found: false,
       message: 'not_found',
       searchedAliases: userAliases,
-      searchedTeams: allTeams.map(t => ({ id: t.id, name: t.name })),
+      searchedTeams: allTeams.map((t: any) => ({ id: t.id, name: t.name })),
       alternative: {
         title: 'Usuário não encontrado automaticamente',
         description: `Não foi possível encontrar ${userEmail} automaticamente. Aqui estão as opções disponíveis:`,

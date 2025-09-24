@@ -150,7 +150,7 @@ FORMATO DE RESPOSTA (JSON):
   } catch (error) {
     console.error('Erro ao processar transcrição:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: (error as Error).message,
       success: false 
     }), {
       status: 500,

@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'Erro desconhecido'
+        error: (error as Error).message || 'Erro desconhecido'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

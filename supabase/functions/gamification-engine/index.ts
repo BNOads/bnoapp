@@ -58,7 +58,7 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error('Erro no gamification engine:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -334,7 +334,7 @@ async function calculateRanking(supabase: any, periodo: string, dataInicio: stri
 
   // Ordenar por pontos totais e atribuir posições
   rankings.sort((a, b) => b.pontos_totais - a.pontos_totais);
-  rankings.forEach((ranking, index) => {
+  rankings.forEach((ranking: any, index: number) => {
     ranking.posicao = index + 1;
   });
 

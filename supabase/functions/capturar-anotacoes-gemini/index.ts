@@ -184,7 +184,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Erro ao capturar anotações do Gemini:', error);
     return new Response(JSON.stringify({
-      error: error.message,
+      error: (error as Error).message,
       success: false
     }), {
       status: 500,

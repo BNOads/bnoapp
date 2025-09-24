@@ -80,7 +80,7 @@ serve(async (req) => {
     console.error('Error in meeting-management function:', error);
     return new Response(JSON.stringify({
       error: 'Erro interno do servidor',
-      details: error.message
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -127,7 +127,7 @@ async function getDailyMeetings(supabase: any, date: string) {
     let reunioesComPresencas = reunioes || [];
     
     if (reunioes && reunioes.length > 0) {
-      const reuniaoIds = reunioes.map(r => r.id);
+      const reuniaoIds = reunioes.map((r: any) => r.id);
       
       const { data: presencas, error: presencasError } = await supabase
         .from('presencas_reunioes')
@@ -143,7 +143,7 @@ async function getDailyMeetings(supabase: any, date: string) {
 
       if (!presencasError && presencas) {
         // Agrupar presenças por reunião
-        const presencasPorReuniao = presencas.reduce((acc, presenca) => {
+        const presencasPorReuniao = presencas.reduce((acc: any, presenca: any) => {
           if (!acc[presenca.reuniao_id]) {
             acc[presenca.reuniao_id] = [];
           }
@@ -152,14 +152,14 @@ async function getDailyMeetings(supabase: any, date: string) {
         }, {});
 
         // Adicionar presenças às reuniões
-        reunioesComPresencas = reunioes.map(reuniao => ({
+        reunioesComPresencas = reunioes.map((reuniao: any) => ({
           ...reuniao,
           presencas_reunioes: presencasPorReuniao[reuniao.id] || []
         }));
       }
 
       // Buscar nomes dos clientes se houver cliente_id
-      const clienteIds = reunioes.map(r => r.cliente_id).filter(Boolean);
+      const clienteIds = reunioes.map((r: any) => r.cliente_id).filter(Boolean);
       if (clienteIds.length > 0) {
         const { data: clientes, error: clientesError } = await supabase
           .from('clientes')
@@ -167,12 +167,12 @@ async function getDailyMeetings(supabase: any, date: string) {
           .in('id', clienteIds);
 
         if (!clientesError && clientes) {
-          const clientesPorId = clientes.reduce((acc, cliente) => {
+          const clientesPorId = clientes.reduce((acc: any, cliente: any) => {
             acc[cliente.id] = cliente;
             return acc;
           }, {});
 
-          reunioesComPresencas = reunioesComPresencas.map(reuniao => ({
+          reunioesComPresencas = reunioesComPresencas.map((reuniao: any) => ({
             ...reuniao,
             clientes: reuniao.cliente_id ? clientesPorId[reuniao.cliente_id] : null
           }));
@@ -193,7 +193,7 @@ async function getDailyMeetings(supabase: any, date: string) {
     return new Response(JSON.stringify({
       success: false,
       error: 'Failed to get meetings',
-      details: error.message
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -304,7 +304,7 @@ async function syncGoogleCalendar(supabase: any, date: string) {
     return new Response(JSON.stringify({
       success: false,
       error: 'Failed to sync Google Calendar',
-      details: error.message
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -347,7 +347,7 @@ async function createMeeting(supabase: any, meetingData: any) {
     return new Response(JSON.stringify({
       success: false,
       error: 'Failed to create meeting',
-      details: error.message
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -384,7 +384,7 @@ async function markAttendance(supabase: any, reuniaoId: string, userId: string, 
     return new Response(JSON.stringify({
       success: false,
       error: 'Failed to mark attendance',
-      details: error.message
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -415,7 +415,7 @@ async function startMeeting(supabase: any, reuniaoId: string) {
     return new Response(JSON.stringify({
       success: false,
       error: 'Failed to start meeting',
-      details: error.message
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -446,7 +446,7 @@ async function endMeeting(supabase: any, reuniaoId: string) {
     return new Response(JSON.stringify({
       success: false,
       error: 'Failed to end meeting',
-      details: error.message
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -490,7 +490,7 @@ async function addParticipants(supabase: any, reuniaoId: string, participantes: 
     return new Response(JSON.stringify({
       success: false,
       error: 'Failed to add participants',
-      details: error.message
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -544,7 +544,7 @@ async function markIndividualAttendance(supabase: any, reuniaoId: string, userId
     return new Response(JSON.stringify({
       success: false,
       error: 'Failed to mark individual attendance',
-      details: error.message
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

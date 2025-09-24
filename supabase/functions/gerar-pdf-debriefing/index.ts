@@ -86,7 +86,7 @@ serve(async (req) => {
 
     const uploadRes = await supabase.storage
       .from(bucket)
-      .upload(path, new Blob([pdfBytes], { type: 'application/pdf' }), { upsert: true, contentType: 'application/pdf' });
+      .upload(path, pdfBytes, { upsert: true, contentType: 'application/pdf' });
 
     if (uploadRes.error) {
       throw uploadRes.error;
@@ -116,7 +116,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Erro interno do servidor',
-        details: error.message 
+        details: (error as Error).message 
       }),
       { 
         status: 500, 

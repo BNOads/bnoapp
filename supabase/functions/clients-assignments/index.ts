@@ -173,7 +173,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.error('Error in PATCH processing:', patchError);
         return new Response(JSON.stringify({ 
           error: 'Error processing PATCH request',
-          details: patchError.message
+          details: (patchError as Error).message
         }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -197,10 +197,10 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error) {
     console.error('Error in clients-assignments function:', error);
-    console.error('Error stack:', error.stack);
+    console.error('Error stack:', (error as Error).stack);
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      details: error.message
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
