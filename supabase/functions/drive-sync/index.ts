@@ -155,13 +155,14 @@ async function upsertCreatives(supabase: any, clientId: string, files: any[]) {
   return creativesToUpsert.length;
 }
 
-// Função para marcar arquivos ausentes como arquivados
+// Função para marcar arquivos ausentes como arquivados (excluindo criativos externos)
 async function archiveMissingFiles(supabase: any, clientId: string, currentFileIds: string[]) {
   const { data: existingFiles, error } = await supabase
     .from('creatives')
     .select('file_id')
     .eq('client_id', clientId)
-    .eq('archived', false);
+    .eq('archived', false)
+    .not('file_id', 'ilike', 'external_%'); // Excluir criativos externos
   
   if (error) throw error;
   
