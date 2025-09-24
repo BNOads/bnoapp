@@ -111,8 +111,9 @@ export const ReferenciaPublica = () => {
         return;
       }
 
-      // If we already found the reference in the previous step, skip the second query
-      if (!referencia) {
+      // If we already found the reference in the previous step, get it again if needed
+      let finalData = referencia;
+      if (!finalData) {
         const finalQuery = id && !token 
           ? query.or(`public_slug.eq.${id},id.eq.${id}`)
           : query.eq('id', id).eq('public_token', token);
@@ -136,22 +137,23 @@ export const ReferenciaPublica = () => {
         }
 
         console.log('Referência carregada:', data);
-        setReferencia(data as ReferenciaCreativo);
+        finalData = data as ReferenciaCreativo;
+        setReferencia(finalData);
       }
 
       // Increment view count
       try {
         await supabase
           .from('referencias_criativos')
-          .update({ view_count: (data.view_count || 0) + 1 })
-          .eq('id', data.id);
+          .update({ view_count: (finalData.view_count || 0) + 1 })
+          .eq('id', finalData.id);
       } catch (viewError) {
         console.warn('Erro ao incrementar visualizações:', viewError);
       }
 
       // Convert content to editor blocks if version 2+
-      if ((data.versao_editor || 1) >= 2 && data.conteudo && Array.isArray(data.conteudo)) {
-        const convertedBlocks: EditorBlock[] = data.conteudo
+      if ((finalData.versao_editor || 1) >= 2 && finalData.conteudo && Array.isArray(finalData.conteudo)) {
+        const convertedBlocks: EditorBlock[] = finalData.conteudo
           .map((item: any, index: number) => ({
             id: item.id || `block-${index}`,
             type: item.tipo || 'text',
