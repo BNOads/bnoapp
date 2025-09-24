@@ -473,14 +473,14 @@ export const LinksView = () => {
             <div>
               <Label>Clientes</Label>
               <Select
-                value={selectedClientes.length === 1 ? selectedClientes[0] : ""}
-                onValueChange={(value) => setSelectedClientes(value ? [value] : [])}
+                value={selectedClientes.length === 1 ? selectedClientes[0] : "todos"}
+                onValueChange={(value) => setSelectedClientes(value === "todos" ? [] : [value])}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os clientes" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os clientes</SelectItem>
+                  <SelectItem value="todos">Todos os clientes</SelectItem>
                   {clientes.map((cliente) => (
                     <SelectItem key={cliente.id} value={cliente.id}>
                       {cliente.nome}
@@ -494,14 +494,14 @@ export const LinksView = () => {
             <div>
               <Label>Categorias</Label>
               <Select
-                value={selectedCategorias.length === 1 ? selectedCategorias[0] : ""}
-                onValueChange={(value) => setSelectedCategorias(value ? [value] : [])}
+                value={selectedCategorias.length === 1 ? selectedCategorias[0] : "todas"}
+                onValueChange={(value) => setSelectedCategorias(value === "todas" ? [] : [value])}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Todas as categorias" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as categorias</SelectItem>
+                  <SelectItem value="todas">Todas as categorias</SelectItem>
                   {categorias.map((categoria) => (
                     <SelectItem key={categoria} value={categoria}>
                       {categoria}
