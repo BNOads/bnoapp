@@ -1,11 +1,42 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.56.0";
-import { Resend } from "npm:resend@2.0.0";
+// Resend client removed - using fetch helper
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Helper to send emails via Resend API without npm dependency
+async function sendResendEmail(to: string, subject: string, html: string) {
+  const apiKey = Deno.env.get('RESEND_API_KEY');
+  if (!apiKey) {
+    console.log('RESEND_API_KEY não configurada, pulando envio de email');
+    return { ok: false, skipped: true } as const;
+  }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'BNOads <noreply@resend.dev>',
+      to: [to],
+      subject,
+      html,
+    }),
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    console.error('Erro ao enviar email via Resend:', json);
+    throw new Error(typeof json?.message === 'string' ? json.message : `Resend error ${res.status}`);
+  }
+
+  return { ok: true, result: json } as const;
+}
 
 interface CreateColaboradorRequest {
   nome: string;
@@ -36,8 +67,8 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-    
+// Using fetch-based Resend helper instead of SDK
+
     const { nome, email, nivel_acesso, data_nascimento, estado_civil, tamanho_camisa }: CreateColaboradorRequest = await req.json();
 
     console.log('Criando colaborador:', { nome, email, nivel_acesso });
@@ -161,11 +192,10 @@ const handler = async (req: Request): Promise<Response> => {
     let emailSent = false;
     try {
       console.log('Enviando email para:', email);
-      const emailResponse = await resend.emails.send({
-        from: "BNOads <noreply@resend.dev>",
-        to: [email],
-        subject: "Bem-vindo ao Sistema BNOads - Acesso Criado",
-        html: `
+      const emailResult = await sendResendEmail(
+        email,
+        "Bem-vindo ao Sistema BNOads - Acesso Criado",
+        `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h1 style="color: #2563eb;">Bem-vindo ao Sistema BNOads!</h1>
             <p>Olá <strong>${nome}</strong>,</p>
@@ -187,8 +217,11 @@ const handler = async (req: Request): Promise<Response> => {
             <p>Bem-vindo à equipe!<br>
             <strong>Equipe BNOads</strong></p>
           </div>
-        `,
-      });
+        `
+      );
+
+      console.log('Email enviado com sucesso:', emailResult);
+      emailSent = !!emailResult?.ok;
 
       console.log('Email enviado com sucesso:', emailResponse);
       

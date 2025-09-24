@@ -1,11 +1,34 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.56.0";
-import { Resend } from "npm:resend@2.0.0";
+// Resend SDK removed - using fetch helper
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Helper to send email via Resend REST API
+async function sendResendEmail(to: string, subject: string, html: string) {
+  const apiKey = Deno.env.get('RESEND_API_KEY');
+  if (!apiKey) {
+    console.log('RESEND_API_KEY não configurada, pulando envio de email');
+    return { ok: false, skipped: true } as const;
+  }
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ from: 'BNOads <noreply@resend.dev>', to: [to], subject, html }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    console.error('Erro ao enviar email via Resend:', json);
+    throw new Error(typeof json?.message === 'string' ? json.message : `Resend error ${res.status}`);
+  }
+  return { ok: true, result: json } as const;
+}
 
 interface ResetPasswordRequest {
   email: string;
@@ -30,8 +53,8 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-    
+// Using fetch-based helper for Resend emails
+
     const { email }: ResetPasswordRequest = await req.json();
 
     console.log('Solicitação de reset de senha para:', email);
@@ -78,11 +101,10 @@ const handler = async (req: Request): Promise<Response> => {
     // Enviar email com link de reset
     const resetUrl = `https://app.bnoads.com.br/auth/reset-password?token=${token}`;
     
-    const emailResponse = await resend.emails.send({
-      from: "BNOads <noreply@resend.dev>",
-      to: [email],
-      subject: "Redefinição de Senha - Sistema BNOads",
-      html: `
+    const emailResult = await sendResendEmail(
+      email,
+      "Redefinição de Senha - Sistema BNOads",
+      `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #2563eb;">Redefinição de Senha</h1>
           <p>Você solicitou a redefinição de sua senha no Sistema BNOads.</p>
@@ -101,8 +123,10 @@ const handler = async (req: Request): Promise<Response> => {
           <p>Atenciosamente,<br>
           <strong>Equipe BNOads</strong></p>
         </div>
-      `,
-    });
+      `
+    );
+
+    console.log('Email de reset enviado:', emailResult);
 
     console.log('Email de reset enviado:', emailResponse);
 
