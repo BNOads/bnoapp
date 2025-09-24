@@ -2225,13 +2225,18 @@ export type Database = {
           created_by: string
           data_expiracao: string | null
           id: string
+          is_public: boolean | null
           is_template: boolean
           link_publico: string | null
           links_externos: Json | null
           permissoes_edicao: Json | null
+          public_slug: string | null
+          public_token: string | null
+          published_at: string | null
           titulo: string
           updated_at: string
           versao_editor: number | null
+          view_count: number | null
         }
         Insert: {
           ativo?: boolean
@@ -2244,13 +2249,18 @@ export type Database = {
           created_by: string
           data_expiracao?: string | null
           id?: string
+          is_public?: boolean | null
           is_template?: boolean
           link_publico?: string | null
           links_externos?: Json | null
           permissoes_edicao?: Json | null
+          public_slug?: string | null
+          public_token?: string | null
+          published_at?: string | null
           titulo: string
           updated_at?: string
           versao_editor?: number | null
+          view_count?: number | null
         }
         Update: {
           ativo?: boolean
@@ -2263,13 +2273,18 @@ export type Database = {
           created_by?: string
           data_expiracao?: string | null
           id?: string
+          is_public?: boolean | null
           is_template?: boolean
           link_publico?: string | null
           links_externos?: Json | null
           permissoes_edicao?: Json | null
+          public_slug?: string | null
+          public_token?: string | null
+          published_at?: string | null
           titulo?: string
           updated_at?: string
           versao_editor?: number | null
+          view_count?: number | null
         }
         Relationships: [
           {
@@ -2887,6 +2902,14 @@ export type Database = {
       }
       generate_initial_password: {
         Args: { email_input: string }
+        Returns: string
+      }
+      generate_public_token: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_reference_slug: {
+        Args: { titulo: string }
         Returns: string
       }
       get_colaborador_dados_sensíveis: {
