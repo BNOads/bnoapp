@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X, Filter } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X, Filter, Settings } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
@@ -26,7 +26,29 @@ export function DashboardView() {
   const [editingFavorite, setEditingFavorite] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [pdiFilter, setPdiFilter] = useState<'todos' | 'ativos' | 'finalizados'>('todos');
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [selectedBgColor, setSelectedBgColor] = useState(() => {
+    return localStorage.getItem('dashboard-header-color') || 'gradient-primary';
+  });
   const { toast } = useToast();
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+
+  // Close color picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target as Node)) {
+        setShowColorPicker(false);
+      }
+    };
+
+    if (showColorPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showColorPicker]);
   const getTabIcon = (iconName: string) => {
     const icons = {
       Users,
@@ -133,6 +155,30 @@ export function DashboardView() {
     navigate(path);
   };
 
+  const colorOptions = [
+    { id: 'gradient-primary', name: 'Azul (Padrão)', class: 'bg-gradient-primary', preview: 'bg-gradient-to-r from-blue-500 to-blue-600' },
+    { id: 'gradient-purple', name: 'Roxo', class: 'bg-gradient-to-r from-purple-500 to-purple-600', preview: 'bg-gradient-to-r from-purple-500 to-purple-600' },
+    { id: 'gradient-green', name: 'Verde', class: 'bg-gradient-to-r from-emerald-500 to-emerald-600', preview: 'bg-gradient-to-r from-emerald-500 to-emerald-600' },
+    { id: 'gradient-orange', name: 'Laranja', class: 'bg-gradient-to-r from-orange-500 to-orange-600', preview: 'bg-gradient-to-r from-orange-500 to-orange-600' },
+    { id: 'gradient-pink', name: 'Rosa', class: 'bg-gradient-to-r from-pink-500 to-pink-600', preview: 'bg-gradient-to-r from-pink-500 to-pink-600' },
+    { id: 'gradient-teal', name: 'Azul-verde', class: 'bg-gradient-to-r from-teal-500 to-teal-600', preview: 'bg-gradient-to-r from-teal-500 to-teal-600' },
+  ];
+
+  const handleColorChange = (colorId: string) => {
+    setSelectedBgColor(colorId);
+    localStorage.setItem('dashboard-header-color', colorId);
+    setShowColorPicker(false);
+    toast({
+      title: "Cor alterada!",
+      description: "A cor do cabeçalho foi atualizada.",
+    });
+  };
+
+  const getCurrentColorClass = () => {
+    const selectedColor = colorOptions.find(color => color.id === selectedBgColor);
+    return selectedColor ? selectedColor.class : 'bg-gradient-primary';
+  };
+
   // Se estiver mostrando orçamentos, renderizar a view de orçamentos
   if (showOrcamentos) {
     return (
@@ -149,13 +195,44 @@ export function DashboardView() {
 
     return <div className="space-y-6">
       {/* Header Section */}
-      <div className="bg-gradient-primary rounded-xl p-6 text-primary-foreground shadow-glow">
+      <div className={`${getCurrentColorClass()} rounded-xl p-6 text-white shadow-glow relative`}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h2 className="text-2xl lg:text-3xl font-bold mb-2 leading-tight">Bem-vindo à BNOads!</h2>
-            <p className="text-primary-foreground/80 text-base lg:text-lg leading-relaxed">
+            <p className="text-white/80 text-base lg:text-lg leading-relaxed">
               Sua central de navegação e atalhos rápidos
             </p>
+          </div>
+          <div className="relative" ref={colorPickerRef}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="text-white hover:bg-white/20 border border-white/20"
+            >
+              <Palette className="h-4 w-4 mr-2" />
+              Personalizar
+            </Button>
+            
+            {showColorPicker && (
+              <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border p-4 z-10 min-w-[280px]">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">Escolha uma cor:</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color.id}
+                      onClick={() => handleColorChange(color.id)}
+                      className={`flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors ${
+                        selectedBgColor === color.id ? 'ring-2 ring-blue-500' : ''
+                      }`}
+                    >
+                      <div className={`w-6 h-6 rounded-full ${color.preview}`}></div>
+                      <span className="text-sm text-gray-700">{color.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         
