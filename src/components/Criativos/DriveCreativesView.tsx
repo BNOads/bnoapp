@@ -65,6 +65,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [bulkEditModalOpen, setBulkEditModalOpen] = useState(false);
   const [novoExternoModalOpen, setNovoExternoModalOpen] = useState(false);
+  const [editingNomenclatura, setEditingNomenclatura] = useState<{ id: string; value: string } | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -389,6 +390,57 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     setEditModalOpen(false);
   };
 
+  const handleNomenclaturaEdit = (creative: Creative) => {
+    setEditingNomenclatura({
+      id: creative.id,
+      value: creative.nomenclatura_trafego || ''
+    });
+  };
+
+  const saveNomenclatura = async (creativeId: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('creatives')
+        .update({
+          nomenclatura_trafego: value || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', creativeId);
+
+      if (error) throw error;
+
+      toast({
+        title: "✔️ Alteração salva",
+        description: "Nomenclatura atualizada com sucesso!",
+      });
+
+      // Atualizar a lista para refletir as mudanças
+      await carregarCreatives();
+    } catch (error: any) {
+      console.error('Erro ao salvar nomenclatura:', error);
+      toast({
+        title: "Falha ao salvar",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleNomenclaturaBlur = async () => {
+    if (!editingNomenclatura) return;
+    
+    await saveNomenclatura(editingNomenclatura.id, editingNomenclatura.value);
+    setEditingNomenclatura(null);
+  };
+
+  const handleNomenclaturaKeyDown = async (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      await handleNomenclaturaBlur();
+    } else if (e.key === 'Escape') {
+      setEditingNomenclatura(null);
+    }
+  };
+
   const getSortIcon = (field: string) => {
     if (sortBy !== field) return <ArrowUpDown className="h-4 w-4 opacity-50" />;
     return sortOrder === 'asc' ? 
@@ -478,43 +530,45 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
 
       {/* Filtros e Busca */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <div className="flex flex-col lg:flex-row gap-3 lg:gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por nome do arquivo..."
-              className="pl-10 bg-background border-border text-sm sm:text-base"
+              className="pl-10 bg-background border-border text-sm lg:text-base"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           
-          <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Filtrar por tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os tipos</SelectItem>
-              <SelectItem value="imagem">Imagens</SelectItem>
-              <SelectItem value="video">Vídeos</SelectItem>
-              <SelectItem value="pdf">PDF</SelectItem>
-              <SelectItem value="documento">Documentos</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Select value={selectedFolder} onValueChange={setSelectedFolder}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Filtrar por funil" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todos os funis</SelectItem>
-              {getUniqueSubfolders().map((folder) => (
-                <SelectItem key={folder} value={folder}>
-                  {folder}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Select value={selectedType} onValueChange={setSelectedType}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filtrar por tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os tipos</SelectItem>
+                <SelectItem value="imagem">Imagens</SelectItem>
+                <SelectItem value="video">Vídeos</SelectItem>
+                <SelectItem value="pdf">PDF</SelectItem>
+                <SelectItem value="documento">Documentos</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filtrar por funil" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todos os funis</SelectItem>
+                {getUniqueSubfolders().map((folder) => (
+                  <SelectItem key={folder} value={folder}>
+                    {folder}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Filtros de Data e Ordenação */}
@@ -645,34 +699,43 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           </p>
         </Card>
       ) : (
-        <div className="border rounded-lg overflow-auto">
-          <Table className="w-full min-w-[1200px]">
+        <div className="border rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table 
+              className="w-full"
+              style={{ 
+                tableLayout: 'auto',
+                whiteSpace: 'normal',
+                wordWrap: 'break-word',
+                overflowWrap: 'break-word'
+              }}
+            >
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
+                <TableHead className="w-10 sm:w-12">
                   <Checkbox
                     checked={selectedCreatives.length === filteredCreatives.length && filteredCreatives.length > 0}
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
-                <TableHead className="w-32">Status</TableHead>
-                <TableHead className="w-32">Ativado em</TableHead>
+                <TableHead className="w-24 sm:w-32">Status</TableHead>
+                <TableHead className="hidden lg:table-cell w-32">Ativado em</TableHead>
                 <TableHead className="w-12">Tipo</TableHead>
-                <SortableHeader field="name" className="min-w-[200px]">
+                <SortableHeader field="name" className="min-w-[150px] lg:min-w-[200px]">
                   Nome do Arquivo
                 </SortableHeader>
-                <TableHead className="w-32">Pasta</TableHead>
-                <SortableHeader field="date" className="w-32">
+                <TableHead className="hidden md:table-cell w-32">Pasta</TableHead>
+                <SortableHeader field="date" className="hidden lg:table-cell w-32">
                   Data Upload
                 </SortableHeader>
-                <SortableHeader field="nomenclatura" className="min-w-[180px]">
+                <SortableHeader field="nomenclatura" className="min-w-[150px]">
                   Nomenclatura
                 </SortableHeader>
-                <TableHead className="min-w-[180px]">Observação</TableHead>
-                <SortableHeader field="pagina_destino" className="min-w-[200px]">
+                <TableHead className="hidden xl:table-cell min-w-[150px]">Observação</TableHead>
+                <SortableHeader field="pagina_destino" className="hidden lg:table-cell min-w-[200px]">
                   Página de Destino
                 </SortableHeader>
-                <TableHead className="w-48">Ações</TableHead>
+                <TableHead className="w-32 sm:w-48">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -691,38 +754,42 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                         updateCreativeStatus(creative.id, value)
                       }
                     >
-                      <SelectTrigger className="w-28">
+                      <SelectTrigger className="w-20 sm:w-28">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="subir">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                            Subir
+                            <span className="hidden sm:inline">Subir</span>
+                            <span className="sm:hidden">S</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="ativo">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                            Ativo
+                            <span className="hidden sm:inline">Ativo</span>
+                            <span className="sm:hidden">A</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="inativo">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                            Inativo
+                            <span className="hidden sm:inline">Inativo</span>
+                            <span className="sm:hidden">I</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="erro">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-black"></div>
-                            Erro
+                            <span className="hidden sm:inline">Erro</span>
+                            <span className="sm:hidden">E</span>
                           </div>
                         </SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                     {creative.activated_at ? (
                       <div>
                         <div>{new Date(creative.activated_at).toLocaleDateString('pt-BR')}</div>
@@ -748,30 +815,42 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 lg:gap-3">
                       {creative.thumbnail_link && (
                         <img 
                           src={creative.thumbnail_link} 
                           alt={creative.name}
-                          className="w-8 h-8 object-cover rounded"
+                          className="w-6 h-6 lg:w-8 lg:h-8 object-cover rounded"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                           }}
                         />
                       )}
-                      <span className="truncate max-w-xs" title={creative.name}>
+                      <span 
+                        className="text-xs lg:text-sm font-medium" 
+                        title={creative.name}
+                        style={{ 
+                          wordWrap: 'break-word', 
+                          wordBreak: 'break-word',
+                          lineHeight: '1.2'
+                        }}
+                      >
                         {creative.name}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    <span className="truncate" title={creative.folder_path || creative.folder_name}>
+                  <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                    <span 
+                      className="truncate" 
+                      title={creative.folder_path || creative.folder_name}
+                      style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
+                    >
                       {creative.folder_name || 'Raiz'}
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                     <div>
-                      <div>{new Date(creative.modified_time).toLocaleDateString('pt-BR')}</div>
+                      <div className="text-xs">{new Date(creative.modified_time).toLocaleDateString('pt-BR')}</div>
                       <div className="text-xs opacity-70">
                         {new Date(creative.modified_time).toLocaleTimeString('pt-BR', { 
                           hour: '2-digit', 
@@ -782,27 +861,48 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                   </TableCell>
                    <TableCell>
                      <div className="flex items-center gap-2">
-                       <span className="text-sm truncate" title={creative.nomenclatura_trafego || ''}>
-                         {creative.nomenclatura_trafego || '-'}
-                       </span>
+                       {editingNomenclatura?.id === creative.id ? (
+                         <Input
+                           value={editingNomenclatura.value}
+                           onChange={(e) => setEditingNomenclatura({ ...editingNomenclatura, value: e.target.value })}
+                           onBlur={handleNomenclaturaBlur}
+                           onKeyDown={handleNomenclaturaKeyDown}
+                           className="h-8 text-xs"
+                           placeholder="Digite a nomenclatura..."
+                           autoFocus
+                         />
+                       ) : (
+                         <span 
+                           className="text-sm cursor-pointer hover:bg-muted/50 px-2 py-1 rounded min-h-[2rem] flex items-center word-break-words" 
+                           title={creative.nomenclatura_trafego || 'Clique para editar'}
+                           onClick={() => handleNomenclaturaEdit(creative)}
+                           style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
+                         >
+                           {creative.nomenclatura_trafego || 'Clique para editar'}
+                         </span>
+                       )}
                      </div>
                    </TableCell>
-                   <TableCell>
+                   <TableCell className="hidden xl:table-cell">
                      <div className="flex items-start gap-2">
-                       <span className="text-sm text-muted-foreground truncate" title={creative.observacao_personalizada || ''}>
+                       <span 
+                         className="text-sm text-muted-foreground" 
+                         title={creative.observacao_personalizada || ''}
+                         style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
+                       >
                          {creative.observacao_personalizada || '-'}
                        </span>
                      </div>
                    </TableCell>
-                   <TableCell>
+                   <TableCell className="hidden lg:table-cell">
                      <div className="flex items-center gap-2">
                        {creative.pagina_destino ? (
-                         <div className="flex items-center gap-2">
+                         <div className="flex items-center gap-1">
                            <Button
                              variant="outline"
                              size="sm"
                              onClick={() => window.open(creative.pagina_destino!, '_blank')}
-                             className="h-8 px-3 text-xs"
+                             className="h-7 px-2 text-xs"
                              title="Abrir página de destino"
                            >
                              <ExternalLink className="h-3 w-3 mr-1" />
@@ -824,22 +924,22 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                      </div>
                    </TableCell>
                    <TableCell>
-                     <div className="flex gap-2">
+                     <div className="flex gap-1 flex-wrap">
                        <Button 
                          variant="outline" 
                          size="sm"
                          onClick={() => handleEditCreative(creative)}
-                         className="h-8 px-3 text-xs"
+                         className="h-7 px-2 text-xs"
                          title="Editar informações"
                        >
-                         <Edit2 className="h-3 w-3 mr-1" />
-                         Editar
+                         <Edit2 className="h-3 w-3 sm:mr-1" />
+                         <span className="hidden sm:inline">Editar</span>
                        </Button>
                         <Button 
                           variant="outline" 
                           size="sm"
                           onClick={() => copyToClipboard(creative.link_direct, "Link direto")}
-                          className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0"
                           title="Copiar link direto"
                         >
                           <Copy className="h-3 w-3" />
@@ -848,17 +948,18 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                           variant="default" 
                           size="sm"
                           onClick={() => window.open(creative.link_web_view, '_blank')}
-                          className="h-8 px-3"
+                          className="h-7 px-2 text-xs"
                         >
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          Abrir
+                          <ExternalLink className="h-3 w-3 sm:mr-1" />
+                          <span className="hidden sm:inline">Abrir</span>
                         </Button>
                      </div>
                    </TableCell>
                  </TableRow>
               ))}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         </div>
       )}
 
