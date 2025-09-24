@@ -790,7 +790,7 @@ async function userLookup(apiKey: string, teamId: string, userEmail: string) {
     return new Response(JSON.stringify({
       found: false,
       message: 'api_error',
-      error: error.message,
+      error: (error as Error).message,
       alternative: {
         title: 'Erro na conexão com ClickUp',
         description: 'Ocorreu um erro ao buscar o usuário. Verifique:',
@@ -853,7 +853,7 @@ async function linkUser(supabaseClient: any, userData: any, linkData: any) {
     console.error('Error linking user:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: (error as Error).message
     }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 }
@@ -990,7 +990,7 @@ async function listAllUsers(apiKey: string, teamId?: string) {
     console.error('Error in listAllUsers:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: (error as Error).message,
       totalUsers: 0
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
@@ -1068,7 +1068,7 @@ async function listUsersPRD(apiKey: string, teamId: string) {
       counts: { users: 0, guests: 0 },
       users: [],
       raw: { uStatus: 500, gStatus: 500 },
-      error: error.message
+      error: (error as Error).message
     }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

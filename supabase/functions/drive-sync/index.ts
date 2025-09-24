@@ -310,7 +310,7 @@ serve(async (req) => {
         
         await supabase
           .from('clientes')
-          .update({ drive_sync_error: error.message })
+          .update({ drive_sync_error: (error as Error).message })
           .eq('id', requestData.clientId);
       }
     } catch (updateError) {
@@ -320,7 +320,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error.message 
+        error: (error as Error).message 
       }),
       { 
         status: 500,

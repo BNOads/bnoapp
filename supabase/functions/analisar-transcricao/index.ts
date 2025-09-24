@@ -221,7 +221,7 @@ Retorne APENAS um JSON válido no seguinte formato:
     console.error('Erro na função analisar-transcricao:', error);
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message 
+      error: (error as Error).message 
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },

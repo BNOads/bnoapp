@@ -229,7 +229,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error('Erro na função importar-pops-drive:', error);
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message 
+      error: (error as Error).message 
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },

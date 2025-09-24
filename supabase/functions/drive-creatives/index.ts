@@ -119,7 +119,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: (error as Error).message,
         creatives: [],
         pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
       }),

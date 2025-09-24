@@ -418,9 +418,10 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         })
         .eq('id', creativeId)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error('Criativo não encontrado');
 
       // Atualização otimística do estado local
       setCreatives(prev => prev.map(creative => 

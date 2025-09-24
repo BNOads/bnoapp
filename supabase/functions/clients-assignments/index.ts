@@ -57,7 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (error) {
         console.error('Error fetching clients:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({ error: (error as Error).message }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -143,7 +143,7 @@ const handler = async (req: Request): Promise<Response> => {
           console.error('Error details:', JSON.stringify(error, null, 2));
           console.error('Update data that caused error:', updateData);
           return new Response(JSON.stringify({ 
-            error: error.message,
+            error: (error as any).message,
             details: error.details || error.hint || 'Unknown error',
             code: error.code
           }), {
