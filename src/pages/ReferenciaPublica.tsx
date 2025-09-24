@@ -91,7 +91,7 @@ export const ReferenciaPublica = () => {
           }
         }
       } else if (id && token) {
-        // Access via token - check both public_token and public access
+        // Access via token - valid token grants access regardless of is_public
         const { data: tokenData } = await query
           .eq('id', id)
           .eq('public_token', token)
@@ -101,11 +101,9 @@ export const ReferenciaPublica = () => {
           setError('invalid_token');
           return;
         }
-
-        if (!tokenData.is_public) {
-          setError('access_denied');
-          return;
-        }
+        
+        // Preload when token is valid
+        setReferencia(tokenData as ReferenciaCreativo);
       } else {
         setError('not_found');
         return;
