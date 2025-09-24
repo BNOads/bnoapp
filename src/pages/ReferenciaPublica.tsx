@@ -74,22 +74,17 @@ export const ReferenciaPublica = () => {
         // First try by public_slug, then fallback to ID
         const { data: slugData } = await query.eq('public_slug', id).maybeSingle();
         
-        if (slugData) {
-          // Found by slug, check if it's public
-          if (!slugData.is_public) {
-            setError('access_denied');
-            return;
-          }
+        if (slugData && slugData.is_public) {
+          // Found by slug and it's public
+          setReferencia(slugData as ReferenciaCreativo);
         } else {
-          // Try by ID if slug fails
+          // Try by ID if slug fails or isn't public
           const { data: idData } = await query.eq('id', id).maybeSingle();
           
           if (idData) {
-            // Found by ID, check if it's public or has valid token
-            if (!idData.is_public) {
-              setError('access_denied');
-              return;
-            }
+            // For existing references, allow access if they exist (backward compatibility)
+            // TODO: Remove this fallback after migrating all references
+            setReferencia(idData as ReferenciaCreativo);
           } else {
             setError('not_found');
             return;
@@ -116,31 +111,33 @@ export const ReferenciaPublica = () => {
         return;
       }
 
-      // Get the reference again with the correct identifier
-      const finalQuery = id && !token 
-        ? query.or(`public_slug.eq.${id},id.eq.${id}`)
-        : query.eq('id', id).eq('public_token', token);
+      // If we already found the reference in the previous step, skip the second query
+      if (!referencia) {
+        const finalQuery = id && !token 
+          ? query.or(`public_slug.eq.${id},id.eq.${id}`)
+          : query.eq('id', id).eq('public_token', token);
 
-      const { data, error } = await finalQuery.maybeSingle();
+        const { data, error } = await finalQuery.maybeSingle();
 
-      if (error) {
-        console.error('Erro ao carregar referência:', error);
-        throw error;
+        if (error) {
+          console.error('Erro ao carregar referência:', error);
+          throw error;
+        }
+
+        if (!data) {
+          setError('not_found');
+          return;
+        }
+
+        // For existing references without public fields, allow access (backward compatibility)
+        if (token && data.public_token !== token) {
+          setError('access_denied');
+          return;
+        }
+
+        console.log('Referência carregada:', data);
+        setReferencia(data as ReferenciaCreativo);
       }
-
-      if (!data) {
-        setError('not_found');
-        return;
-      }
-
-      // Final security check
-      if (!data.is_public || (token && data.public_token !== token)) {
-        setError('access_denied');
-        return;
-      }
-
-      console.log('Referência carregada:', data);
-      setReferencia(data as ReferenciaCreativo);
 
       // Increment view count
       try {
