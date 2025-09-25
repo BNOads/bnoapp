@@ -873,6 +873,84 @@ export type Database = {
         }
         Relationships: []
       }
+      debrief_metrics: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          debriefing_id: string | null
+          fonte: string
+          id: string
+          janela_atribuicao: string
+          metrics: Json
+          periodo_fim: string
+          periodo_hash: string
+          periodo_inicio: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          debriefing_id?: string | null
+          fonte?: string
+          id?: string
+          janela_atribuicao?: string
+          metrics?: Json
+          periodo_fim: string
+          periodo_hash: string
+          periodo_inicio: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          debriefing_id?: string | null
+          fonte?: string
+          id?: string
+          janela_atribuicao?: string
+          metrics?: Json
+          periodo_fim?: string
+          periodo_hash?: string
+          periodo_inicio?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      debrief_overrides: {
+        Row: {
+          autor_id: string
+          card_key: string
+          cliente_id: string | null
+          created_at: string
+          debriefing_id: string
+          fonte: string
+          id: string
+          periodo_hash: string
+          valor: number | null
+        }
+        Insert: {
+          autor_id: string
+          card_key: string
+          cliente_id?: string | null
+          created_at?: string
+          debriefing_id: string
+          fonte?: string
+          id?: string
+          periodo_hash: string
+          valor?: number | null
+        }
+        Update: {
+          autor_id?: string
+          card_key?: string
+          cliente_id?: string | null
+          created_at?: string
+          debriefing_id?: string
+          fonte?: string
+          id?: string
+          periodo_hash?: string
+          valor?: number | null
+        }
+        Relationships: []
+      }
       debriefings: {
         Row: {
           anexos: Json | null

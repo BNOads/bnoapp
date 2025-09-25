@@ -14,9 +14,11 @@ import { DadosBrutosAnalysis } from './DadosBrutosAnalysis';
 import EditDebriefingModal from './EditDebriefingModal';
 import PDFExporter from './PDFExporter';
 import PanelManager from './PanelManager';
+import TrafficMetrics from './TrafficMetrics';
 
 interface DebriefingDetalhes {
   id: string;
+  cliente_id?: string;
   cliente_nome: string;
   nome_lancamento: string;
   periodo_inicio: string;
@@ -68,6 +70,7 @@ export default function DebriefingDetalhes() {
         console.log('Dados do debriefing carregados:', debriefingData);
         setDebriefing({
           id: debriefingData.id,
+          cliente_id: debriefingData.cliente_id,
           cliente_nome: debriefingData.cliente_nome,
           nome_lancamento: debriefingData.nome_lancamento,
           periodo_inicio: debriefingData.periodo_inicio,
@@ -280,6 +283,7 @@ export default function DebriefingDetalhes() {
             debriefingName={debriefing.nome_lancamento}
             availablePanels={[
               { id: 'header', title: 'Cabeçalho', isExcluded: false },
+              { id: 'traffic-metrics', title: 'Tráfego (Resumo)', isExcluded: false },
               { id: 'metrics', title: 'Métricas Principais', isExcluded: false },
               { id: 'secondary-metrics', title: 'Métricas Secundárias', isExcluded: false },
               { id: 'charts', title: 'Gráficos', isExcluded: false }
@@ -314,6 +318,14 @@ export default function DebriefingDetalhes() {
             </AlertDialogContent>
           </AlertDialog>
         </div>
+      </div>
+
+      {/* Seção de Tráfego (Resumo) */}
+      <div className="mb-6" data-panel-id="traffic-metrics">
+        <TrafficMetrics 
+          debriefingId={debriefing.id}
+          clienteId={debriefing.cliente_id}
+        />
       </div>
 
       {/* Cards de Métricas Principais */}
