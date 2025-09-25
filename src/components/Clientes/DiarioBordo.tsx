@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, Plus, ChevronDown, ChevronUp, Edit2, Trash2, Reply } from "lucide-react";
+import { MessageSquare, Plus, ChevronDown, ChevronUp, Edit2, Trash2, Reply, Maximize2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -64,6 +64,7 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);
+  const [showMaximizeModal, setShowMaximizeModal] = useState(false);
 
   const canWrite = isAdmin || canCreateContent;
 
@@ -362,15 +363,26 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
     setEditText("");
   };
 
-  const displayedEntries = expanded ? entries : entries.slice(0, 5);
+  const displayedEntries = entries.slice(0, 3);
 
   if (loading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Diário de Bordo
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Diário de Bordo
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMaximizeModal(true)}
+              className="h-8 w-8 p-0"
+              title="Maximizar histórico"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -428,7 +440,8 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
                 )}
               </div>
             ) : (
-              displayedEntries.map((entry) => (
+              <div className={`space-y-4 ${entries.length > 3 ? 'max-h-96 overflow-y-auto pr-2' : ''}`}>
+                {displayedEntries.map((entry) => (
                 <div key={entry.id} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
@@ -641,31 +654,111 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
                     </div>
                   )}
                 </div>
-              ))
+              ))}
+              </div>
             )}
           </div>
-
-          {entries.length > 5 && (
-            <Button
-              variant="outline"
-              onClick={() => setExpanded(!expanded)}
-              className="w-full"
-            >
-              {expanded ? (
-                <>
-                  <ChevronUp className="h-4 w-4 mr-2" />
-                  Mostrar menos
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-4 w-4 mr-2" />
-                  Expandir histórico ({entries.length - 5} mais)
-                </>
-              )}
-            </Button>
-          )}
         </CardContent>
       </Card>
+
+      {/* Modal de Histórico Completo */}
+      <Dialog open={showMaximizeModal} onOpenChange={setShowMaximizeModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Histórico Completo - Diário de Bordo</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+            {entries.map((entry) => (
+              <div key={entry.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={entry.author_avatar} />
+                      <AvatarFallback>
+                        {entry.author_nome?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium text-sm">{entry.author_nome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(entry.created_at), {
+                          addSuffix: true,
+                          locale: ptBR,
+                        })}
+                        {entry.updated_at !== entry.created_at && (
+                          <span className="ml-1">(editado)</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                  {entry.texto}
+                </p>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-2">
+                    {EMOJIS.map(({ emoji, label }) => {
+                      const reactions = entry.reacoes?.[emoji] || [];
+                      const hasReacted = user?.id ? reactions.includes(user.id) : false;
+                      
+                      return (
+                        <Button
+                          key={emoji}
+                          variant={hasReacted ? "secondary" : "ghost"}
+                          size="sm"
+                          onClick={() => handleReaction(entry.id, emoji)}
+                          className="h-8 px-2 text-xs"
+                          title={label}
+                        >
+                          <span className="mr-1">{emoji}</span>
+                          {reactions.length > 0 && (
+                            <span>{reactions.length}</span>
+                          )}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Display Replies in Modal */}
+                {entry.replies && entry.replies.length > 0 && (
+                  <div className="mt-3 pl-8 space-y-3 border-l-2 border-muted">
+                    {entry.replies.map((reply) => (
+                      <div key={reply.id} className="bg-muted/30 rounded-lg p-3 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={reply.author_avatar} />
+                              <AvatarFallback className="text-xs">
+                                {reply.author_nome?.charAt(0) || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-xs">{reply.author_nome}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(reply.created_at), {
+                                  addSuffix: true,
+                                  locale: ptBR,
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                          {reply.texto}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <DialogContent>
