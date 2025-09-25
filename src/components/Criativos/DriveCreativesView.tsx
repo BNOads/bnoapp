@@ -327,29 +327,13 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           : creative
       ));
 
-      // Se o status não for 'ativo', precisamos limpar os dados de ativação
-      if (newStatus !== 'ativo') {
-        // Atualizar diretamente na tabela para limpar activated_at e activated_by
-        const { error: updateError } = await supabase
-          .from('creatives')
-          .update({
-            is_active: false,
-            activated_at: null,
-            activated_by: null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', creativeId);
+      // Atualizar status via RPC (bypassa RLS com SECURITY DEFINER)
+      const { data, error } = await supabase.rpc('update_creative_status', {
+        creative_id: creativeId,
+        new_status: newStatus === 'ativo'
+      });
 
-        if (updateError) throw updateError;
-      } else {
-        // Se for ativo, usar a função RPC
-        const { data, error } = await supabase.rpc('update_creative_status', {
-          creative_id: creativeId,
-          new_status: true
-        });
-
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Status atualizado",
@@ -425,27 +409,14 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           : creative
       ));
 
-      // Executar atualizações no backend
+      // Executar atualizações no backend via RPC (bypassa RLS)
       await Promise.all(
         selectedCreatives.map(async (creativeId) => {
-          if (action !== 'ativo') {
-            const { error } = await supabase
-              .from('creatives')
-              .update({
-                is_active: false,
-                activated_at: null,
-                activated_by: null,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', creativeId);
-            if (error) throw error;
-          } else {
-            const { data, error } = await supabase.rpc('update_creative_status', {
-              creative_id: creativeId,
-              new_status: true
-            });
-            if (error) throw error;
-          }
+          const { error } = await supabase.rpc('update_creative_status', {
+            creative_id: creativeId,
+            new_status: action === 'ativo'
+          });
+          if (error) throw error;
         })
       );
 
@@ -505,23 +476,19 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     if (!creativeToDelete) return;
 
     try {
-      // Verificar se é um criativo externo (sem file_id) ou do Google Drive
-      if (!creativeToDelete.file_id) {
-        // Para criativos externos, usar a tabela criativos
-        const { error } = await supabase
-          .from('criativos')
-          .update({ ativo: false })
-          .eq('id', creativeToDelete.id);
+      // Usar Edge Function para evitar RLS
+      const response = await fetch(`https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/delete-creative`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiZG9vc2NmcnJrd2Z1dGtkamhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTQwODIsImV4cCI6MjA3MTUzMDA4Mn0.yd988Fotgc9LIZi83NlGDTaeB4f8BNgr9TYJgye0Cqw`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: creativeToDelete.id, isExternal: !creativeToDelete.file_id })
+      });
 
-        if (error) throw error;
-      } else {
-        // Para criativos do Google Drive, usar a tabela creatives
-        const { error } = await supabase
-          .from('creatives')
-          .update({ archived: true })
-          .eq('id', creativeToDelete.id);
-
-        if (error) throw error;
+      if (!response.ok) {
+        const { error } = await response.json();
+        throw new Error(error || 'Erro ao excluir criativo');
       }
 
       // Remover o criativo da lista local
