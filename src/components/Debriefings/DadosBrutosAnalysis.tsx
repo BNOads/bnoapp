@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import TrafficMetrics from './TrafficMetrics';
+import { DebriefingChartWithTable } from './DebriefingChartWithTable';
 
 interface DadosBrutosAnalysisProps {
   debriefingId: string;
@@ -333,75 +334,102 @@ export function DadosBrutosAnalysis({
 
       {/* Análise por Criativo */}
       {creativosAnalise.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Performance por Criativo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {creativosAnalise.map(([criativo, stats], index) => (
-                <div key={index} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-medium text-sm">{criativo}</h4>
-                    <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "secondary"}>
-                      {stats.conversao.toFixed(1)}% conv.
-                    </Badge>
+        <DebriefingChartWithTable
+          chartId="creativos_performance"
+          title="Performance por Criativo"
+          data={creativosAnalise.map(([criativo, stats]) => ({
+            criativo,
+            leads: stats.leads,
+            vendas: stats.vendas,
+            conversao: stats.conversao,
+            investimento: stats.investimento
+          }))}
+          columns={[
+            { key: 'criativo', label: 'Criativo', type: 'text' },
+            { key: 'leads', label: 'Leads', type: 'number' },
+            { key: 'vendas', label: 'Vendas', type: 'number' },
+            { key: 'conversao', label: 'Conversão (%)', type: 'percentage' },
+            { key: 'investimento', label: 'Investimento', type: 'currency' }
+          ]}
+        >
+          <div className="space-y-4">
+            {creativosAnalise.map(([criativo, stats], index) => (
+              <div key={index} className="border rounded-lg p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-medium text-sm">{criativo}</h4>
+                  <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "secondary"}>
+                    {stats.conversao.toFixed(1)}% conv.
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Leads:</span>
+                    <p className="font-medium">{stats.leads}</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Leads:</span>
-                      <p className="font-medium">{stats.leads}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Vendas:</span>
-                      <p className="font-medium">{stats.vendas}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Investimento:</span>
-                      <p className="font-medium">R$ {stats.investimento.toFixed(2)}</p>
-                    </div>
+                  <div>
+                    <span className="text-muted-foreground">Vendas:</span>
+                    <p className="font-medium">{stats.vendas}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Investimento:</span>
+                    <p className="font-medium">R$ {stats.investimento.toFixed(2)}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            ))}
+          </div>
+        </DebriefingChartWithTable>
       )}
 
       {/* Análise de UTM Terms */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Conversão por UTM Term</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {Object.entries(utmAnalise)
-                .sort((a, b) => b[1].conversao - a[1].conversao)
-                .slice(0, 10)
-                .map(([term, stats]) => (
-                  <div key={term} className="border rounded p-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{term}</span>
-                        <Badge variant={stats.tipo === 'organico' ? 'default' : 'secondary'}>
-                          {stats.tipo}
-                        </Badge>
-                      </div>
-                      <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "outline"}>
-                        {stats.conversao.toFixed(1)}%
+        <DebriefingChartWithTable
+          chartId="utm_terms_conversao"
+          title="Conversão por UTM Term"
+          data={Object.entries(utmAnalise)
+            .sort((a, b) => b[1].conversao - a[1].conversao)
+            .slice(0, 10)
+            .map(([term, stats]) => ({
+              utm_term: term,
+              tipo: stats.tipo,
+              leads: stats.leads,
+              vendas: stats.vendas,
+              conversao: stats.conversao
+            }))}
+          columns={[
+            { key: 'utm_term', label: 'UTM Term', type: 'text' },
+            { key: 'tipo', label: 'Tipo', type: 'text' },
+            { key: 'leads', label: 'Leads', type: 'number' },
+            { key: 'vendas', label: 'Vendas', type: 'number' },
+            { key: 'conversao', label: 'Conversão (%)', type: 'percentage' }
+          ]}
+        >
+          <div className="space-y-3">
+            {Object.entries(utmAnalise)
+              .sort((a, b) => b[1].conversao - a[1].conversao)
+              .slice(0, 10)
+              .map(([term, stats]) => (
+                <div key={term} className="border rounded p-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{term}</span>
+                      <Badge variant={stats.tipo === 'organico' ? 'default' : 'secondary'}>
+                        {stats.tipo}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
-                      <span>Leads: {stats.leads}</span>
-                      <span>Vendas: {stats.vendas}</span>
-                    </div>
-                    <Progress value={stats.conversao} className="h-1 mt-2" />
+                    <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "outline"}>
+                      {stats.conversao.toFixed(1)}%
+                    </Badge>
                   </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                    <span>Leads: {stats.leads}</span>
+                    <span>Vendas: {stats.vendas}</span>
+                  </div>
+                  <Progress value={stats.conversao} className="h-1 mt-2" />
+                </div>
+              ))}
+          </div>
+        </DebriefingChartWithTable>
 
         <Card>
           <CardHeader>
