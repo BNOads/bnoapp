@@ -15,7 +15,6 @@ import EditDebriefingModal from './EditDebriefingModal';
 import PDFExporter from './PDFExporter';
 import PanelManager from './PanelManager';
 import TrafficMetrics from './TrafficMetrics';
-
 interface DebriefingDetalhes {
   id: string;
   cliente_id?: string;
@@ -41,31 +40,29 @@ interface DebriefingDetalhes {
   dados_outras_fontes?: any;
   paineis_excluidos?: string[];
 }
-
 export default function DebriefingDetalhes() {
-  const { id } = useParams<{ id: string }>();
+  const {
+    id
+  } = useParams<{
+    id: string;
+  }>();
   const navigate = useNavigate();
   const [debriefing, setDebriefing] = useState<DebriefingDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     if (id) {
       fetchDebriefing();
     }
   }, [id]);
-
   const fetchDebriefing = async () => {
     try {
-      const { data: debriefingData, error } = await supabase
-        .from('debriefings')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-
+      const {
+        data: debriefingData,
+        error
+      } = await supabase.from('debriefings').select('*').eq('id', id).maybeSingle();
       if (error) {
         throw error;
       }
-
       if (debriefingData) {
         console.log('Dados do debriefing carregados:', debriefingData);
         setDebriefing({
@@ -106,42 +103,47 @@ export default function DebriefingDetalhes() {
       setLoading(false);
     }
   };
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'rascunho': return 'bg-yellow-100 text-yellow-800';
-      case 'processando': return 'bg-blue-100 text-blue-800';
-      case 'concluido': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'rascunho':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'processando':
+        return 'bg-blue-100 text-blue-800';
+      case 'concluido':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
-
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'rascunho': return 'Rascunho';
-      case 'processando': return 'Processando';
-      case 'concluido': return 'Concluído';
-      default: return status;
+      case 'rascunho':
+        return 'Rascunho';
+      case 'processando':
+        return 'Processando';
+      case 'concluido':
+        return 'Concluído';
+      default:
+        return status;
     }
   };
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
   };
-
   const handleShare = async () => {
     try {
       // Corrigir a URL para a rota pública correta
       const shareUrl = `${window.location.origin}/debriefing/publico/${id}`;
-      
-      if (navigator.share && navigator.canShare && navigator.canShare({ url: shareUrl })) {
+      if (navigator.share && navigator.canShare && navigator.canShare({
+        url: shareUrl
+      })) {
         await navigator.share({
           title: `Debriefing - ${debriefing?.nome_lancamento}`,
           text: `Confira o debriefing do lançamento ${debriefing?.nome_lancamento}`,
-          url: shareUrl,
+          url: shareUrl
         });
         toast.success('Debriefing compartilhado com sucesso!');
       } else {
@@ -166,22 +168,22 @@ export default function DebriefingDetalhes() {
       }
     }
   };
-
   const handleExportPDF = async () => {
     try {
       toast.info('Gerando PDF...');
-      
-      const { data, error } = await supabase.functions.invoke('gerar-pdf-debriefing', {
-        body: { debriefing_id: id }
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('gerar-pdf-debriefing', {
+        body: {
+          debriefing_id: id
+        }
       });
-
       if (error) {
         console.error('Erro na função PDF:', error);
         throw error;
       }
-
       console.log('Resposta da função PDF:', data);
-
       if (data?.data?.url && data.data.url !== 'https://example.com/pdf/' + id + '.pdf') {
         // Create a temporary link to download the PDF
         const link = document.createElement('a');
@@ -190,7 +192,6 @@ export default function DebriefingDetalhes() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
         toast.success('PDF baixado com sucesso!');
       } else {
         toast.error('PDF ainda não foi implementado completamente. A funcionalidade está em desenvolvimento.');
@@ -200,16 +201,12 @@ export default function DebriefingDetalhes() {
       toast.error('Erro ao gerar PDF. A funcionalidade está em desenvolvimento.');
     }
   };
-
   const handleDelete = async () => {
     try {
-      const { error } = await supabase
-        .from('debriefings')
-        .delete()
-        .eq('id', id);
-
+      const {
+        error
+      } = await supabase.from('debriefings').delete().eq('id', id);
       if (error) throw error;
-
       toast.success('Debriefing excluído com sucesso!');
       navigate('/debriefings');
     } catch (error) {
@@ -217,37 +214,27 @@ export default function DebriefingDetalhes() {
       toast.error('Erro ao excluir debriefing');
     }
   };
-
   if (loading) {
-    return (
-      <div className="container mx-auto p-6">
+    return <div className="container mx-auto p-6">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-gray-200 rounded"></div>)}
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
   if (!debriefing) {
-    return (
-      <div className="container mx-auto p-6">
+    return <div className="container mx-auto p-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Debriefing não encontrado</h1>
           <Button onClick={() => navigate('/debriefings')}>
             Voltar para Debriefings
           </Button>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="container mx-auto p-6" id="debriefing-content">
+  return <div className="container mx-auto p-6" id="debriefing-content">
       <div className="flex items-center justify-between mb-6" data-panel-id="header">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" onClick={() => navigate('/debriefings')}>
@@ -273,26 +260,27 @@ export default function DebriefingDetalhes() {
             Compartilhar
           </Button>
           
-          <EditDebriefingModal 
-            debriefing={debriefing} 
-            onUpdate={fetchDebriefing}
-          />
+          <EditDebriefingModal debriefing={debriefing} onUpdate={fetchDebriefing} />
           
-          <PDFExporter
-            debriefingId={debriefing.id}
-            debriefingName={debriefing.nome_lancamento}
-            availablePanels={[
-              { id: 'header', title: 'Cabeçalho', isExcluded: false },
-              { id: 'metrics', title: 'Métricas Principais', isExcluded: false },
-              { id: 'secondary-metrics', title: 'Métricas Secundárias', isExcluded: false },
-              { id: 'charts', title: 'Gráficos', isExcluded: false }
-            ]}
-          />
+          <PDFExporter debriefingId={debriefing.id} debriefingName={debriefing.nome_lancamento} availablePanels={[{
+          id: 'header',
+          title: 'Cabeçalho',
+          isExcluded: false
+        }, {
+          id: 'metrics',
+          title: 'Métricas Principais',
+          isExcluded: false
+        }, {
+          id: 'secondary-metrics',
+          title: 'Métricas Secundárias',
+          isExcluded: false
+        }, {
+          id: 'charts',
+          title: 'Gráficos',
+          isExcluded: false
+        }]} />
           
-          <Button variant="outline" onClick={handleExportPDF}>
-            <Download className="mr-2 h-4 w-4" />
-            Baixar PDF (Básico)
-          </Button>
+          
           
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -422,8 +410,7 @@ export default function DebriefingDetalhes() {
       </div>
 
       {/* Status específicos */}
-      {debriefing.status === 'processando' && (
-        <Card className="mb-6" data-panel-id="processing">
+      {debriefing.status === 'processando' && <Card className="mb-6" data-panel-id="processing">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
             <h3 className="text-lg font-semibold mb-2">Processando Dados</h3>
@@ -431,8 +418,7 @@ export default function DebriefingDetalhes() {
               Estamos analisando os dados enviados. Isso pode levar alguns minutos.
             </p>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Gráficos Avançados */}
       <Tabs defaultValue="charts" className="space-y-4" data-panel-id="charts">
@@ -442,27 +428,12 @@ export default function DebriefingDetalhes() {
         </TabsList>
 
         <TabsContent value="charts">
-          <AdvancedCharts
-            dados_leads={debriefing.dados_leads || []}
-            dados_compradores={debriefing.dados_compradores || []}
-            dados_trafego={debriefing.dados_trafego || []}
-            dados_pesquisa={debriefing.dados_pesquisa || []}
-            dados_outras_fontes={debriefing.dados_outras_fontes || []}
-            debriefing={debriefing}
-          />
+          <AdvancedCharts dados_leads={debriefing.dados_leads || []} dados_compradores={debriefing.dados_compradores || []} dados_trafego={debriefing.dados_trafego || []} dados_pesquisa={debriefing.dados_pesquisa || []} dados_outras_fontes={debriefing.dados_outras_fontes || []} debriefing={debriefing} />
         </TabsContent>
 
         <TabsContent value="data">
-          <DadosBrutosAnalysis
-            debriefingId={debriefing.id}
-            dados_leads={debriefing.dados_leads || []}
-            dados_compradores={debriefing.dados_compradores || []}
-            dados_trafego={debriefing.dados_trafego || []}
-            dados_pesquisa={debriefing.dados_pesquisa || []}
-            dados_outras_fontes={debriefing.dados_outras_fontes || []}
-          />
+          <DadosBrutosAnalysis debriefingId={debriefing.id} dados_leads={debriefing.dados_leads || []} dados_compradores={debriefing.dados_compradores || []} dados_trafego={debriefing.dados_trafego || []} dados_pesquisa={debriefing.dados_pesquisa || []} dados_outras_fontes={debriefing.dados_outras_fontes || []} />
         </TabsContent>
       </Tabs>
-    </div>
-  );
+    </div>;
 }
