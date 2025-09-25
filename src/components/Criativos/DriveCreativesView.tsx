@@ -310,6 +310,19 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
 
   const updateCreativeStatus = async (creativeId: string, newStatus: 'subir' | 'ativo' | 'inativo' | 'erro') => {
     try {
+      // Atualização otimística - atualizar estado local imediatamente
+      setCreatives(prev => prev.map(creative => 
+        creative.id === creativeId 
+          ? { 
+              ...creative, 
+              status: newStatus,
+              is_active: newStatus === 'ativo',
+              activated_at: newStatus === 'ativo' ? new Date().toISOString() : null,
+              activated_by: newStatus === 'ativo' ? 'current_user' : null
+            }
+          : creative
+      ));
+
       // Se o status não for 'ativo', precisamos limpar os dados de ativação
       if (newStatus !== 'ativo') {
         // Atualizar diretamente na tabela para limpar activated_at e activated_by
@@ -339,11 +352,12 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         description: `Status alterado para ${newStatus}`,
       });
 
-      // Recarregar a lista para refletir as alterações
-      await carregarCreatives();
-
     } catch (error: any) {
       console.error('Erro ao atualizar status:', error);
+      
+      // Em caso de erro, reverter a atualização otimística recarregando os dados
+      await carregarCreatives();
+      
       toast({
         title: "Erro",
         description: error.message || "Erro ao atualizar status do criativo",
@@ -394,10 +408,41 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     if (selectedCreatives.length === 0) return;
 
     try {
+      // Atualização otimística - atualizar estado local imediatamente
+      setCreatives(prev => prev.map(creative => 
+        selectedCreatives.includes(creative.id)
+          ? { 
+              ...creative, 
+              status: action,
+              is_active: action === 'ativo',
+              activated_at: action === 'ativo' ? new Date().toISOString() : null,
+              activated_by: action === 'ativo' ? 'current_user' : null
+            }
+          : creative
+      ));
+
+      // Executar atualizações no backend
       await Promise.all(
-        selectedCreatives.map(creativeId => 
-          updateCreativeStatus(creativeId, action)
-        )
+        selectedCreatives.map(async (creativeId) => {
+          if (action !== 'ativo') {
+            const { error } = await supabase
+              .from('creatives')
+              .update({
+                is_active: false,
+                activated_at: null,
+                activated_by: null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', creativeId);
+            if (error) throw error;
+          } else {
+            const { data, error } = await supabase.rpc('update_creative_status', {
+              creative_id: creativeId,
+              new_status: true
+            });
+            if (error) throw error;
+          }
+        })
       );
 
       setSelectedCreatives([]);
@@ -406,6 +451,12 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         description: `${selectedCreatives.length} criativos atualizados para "${action}"`,
       });
     } catch (error) {
+      console.error('Erro na ação em massa:', error);
+      
+      // Em caso de erro, recarregar dados para restaurar estado correto
+      await carregarCreatives();
+      setSelectedCreatives([]);
+      
       toast({
         title: "Erro",
         description: "Erro ao executar ação em massa",
