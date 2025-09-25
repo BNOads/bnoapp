@@ -242,21 +242,40 @@ serve(async (req) => {
     const API_KEY = Deno.env.get('GOOGLE_DRIVE_API_KEY');
     console.log('API Key configurada:', API_KEY ? 'Sim' : 'Não');
     
-    // Testar se conseguimos acessar a pasta
+    // Remover o teste duplicado, pois já fazemos a verificação antes
+    
+    // Testar se conseguimos acessar a pasta ANTES de atualizar o cliente
     try {
       const testResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?key=${API_KEY}&fields=id,name,parents`);
-      if (testResponse.ok) {
-        const folderInfo = await testResponse.json();
-        console.log('Informações da pasta:', folderInfo);
-      } else {
+      if (!testResponse.ok) {
         const errorText = await testResponse.text();
-        console.log('Erro ao acessar pasta:', testResponse.status, errorText);
+        const errorMsg = `Não foi possível acessar a pasta do Google Drive. Verifique se a pasta existe e se está compartilhada publicamente ou com a conta de serviço. Erro: ${testResponse.status}`;
+        
+        // Salvar o erro no cliente
+        await supabase
+          .from('clientes')
+          .update({ drive_sync_error: errorMsg })
+          .eq('id', clientId);
+        
+        throw new Error(errorMsg);
       }
+      
+      const folderInfo = await testResponse.json();
+      console.log('Pasta verificada com sucesso:', folderInfo);
     } catch (testError) {
-      console.log('Erro no teste de acesso à pasta:', testError);
+      const errorMsg = `Erro ao verificar acesso à pasta do Google Drive: ${testError.message}`;
+      console.error(errorMsg);
+      
+      // Salvar o erro no cliente
+      await supabase
+        .from('clientes')
+        .update({ drive_sync_error: errorMsg })
+        .eq('id', clientId);
+      
+      throw new Error(errorMsg);
     }
-    
-    // Atualizar cliente com drive_folder_id
+
+    // Atualizar cliente com drive_folder_id (só se chegou até aqui)
     const { error: updateError } = await supabase
       .from('clientes')
       .update({ 
