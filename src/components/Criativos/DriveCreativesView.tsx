@@ -476,22 +476,15 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     if (!creativeToDelete) return;
 
     try {
-      // Usar Edge Function para evitar RLS
-      const response = await fetch(`https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/delete-creative`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiZG9vc2NmcnJrd2Z1dGtkamhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTQwODIsImV4cCI6MjA3MTUzMDA4Mn0.yd988Fotgc9LIZi83NlGDTaeB4f8BNgr9TYJgye0Cqw`,
-          'Content-Type': 'application/json'
+      const { error } = await supabase.functions.invoke('delete-creative', {
+        body: {
+          id: creativeToDelete.id,
+          isExternal: !creativeToDelete.file_id,
         },
-        body: JSON.stringify({ id: creativeToDelete.id, isExternal: !creativeToDelete.file_id })
       });
 
-      if (!response.ok) {
-        const { error } = await response.json();
-        throw new Error(error || 'Erro ao excluir criativo');
-      }
+      if (error) throw error;
 
-      // Remover o criativo da lista local
       setCreatives(prev => prev.filter(creative => creative.id !== creativeToDelete.id));
 
       toast({
