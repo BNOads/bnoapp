@@ -70,6 +70,8 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [editingNomenclatura, setEditingNomenclatura] = useState<{ id: string; value: string } | null>(null);
   const [saveController, setSaveController] = useState<AbortController | null>(null);
   const [bulkLinksModalOpen, setBulkLinksModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [creativeToDelete, setCreativeToDelete] = useState<Creative | null>(null);
   const [columns, setColumns] = useState<ColumnConfig[]>([
     { id: 'select', label: 'Seleção', visible: true, width: 'w-10 sm:w-12' },
     { id: 'status', label: 'Status', visible: true, width: 'w-24 sm:w-32' },
@@ -492,6 +494,41 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     setBulkLinksModalOpen(true);
   };
 
+  const handleDeleteCreative = (creative: Creative) => {
+    setCreativeToDelete(creative);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeleteCreative = async () => {
+    if (!creativeToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('creatives')
+        .update({ archived: true })
+        .eq('id', creativeToDelete.id);
+
+      if (error) throw error;
+
+      // Remover o criativo da lista local
+      setCreatives(prev => prev.filter(creative => creative.id !== creativeToDelete.id));
+
+      toast({
+        title: "Criativo excluído",
+        description: "O criativo foi excluído com sucesso.",
+      });
+
+      setDeleteModalOpen(false);
+      setCreativeToDelete(null);
+    } catch (error: any) {
+      console.error('Erro ao excluir criativo:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao excluir criativo",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleEditCreative = (creative: Creative) => {
     setEditingCreative(creative);
@@ -1137,8 +1174,17 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                             >
                               <FolderOpen className="h-3 w-3" />
                             </Button>
-                          )}
-                        </div>
+                           )}
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => handleDeleteCreative(creative)}
+                             className="h-5 w-5 p-0 action-icon text-red-600 hover:text-red-700"
+                             title="Excluir criativo"
+                           >
+                             <Trash2 className="h-3 w-3" />
+                           </Button>
+                         </div>
                       </div>
                     </TableCell>
                   )}
@@ -1318,8 +1364,37 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
          onOpenLinks={() => {
            setSelectedCreatives([]);
            setBulkLinksModalOpen(false);
-         }}
-       />
+          }}
+        />
+
+        {/* Modal de Confirmação de Exclusão */}
+        <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Exclusão</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p>Tem certeza que deseja excluir o criativo "{creativeToDelete?.name}"?</p>
+              <p className="text-sm text-muted-foreground">
+                Esta ação não pode ser desfeita. O criativo será removido permanentemente do catálogo.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDeleteCreative}
+              >
+                Excluir
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   };
