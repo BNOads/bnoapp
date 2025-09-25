@@ -48,6 +48,10 @@ All colors MUST be HSL.
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --radius: 0.75rem;
+    
+    /* Creative catalog specific */
+    --creative-row-selected: 210 40% 98%;
+    --creative-row-hover: 220 14.3% 95.9%;
 
     --sidebar-background: 0 0% 98%;
 
@@ -103,6 +107,11 @@ All colors MUST be HSL.
     --shadow-elegant: 0 10px 30px -10px hsl(214 100% 60% / 0.3);
     --shadow-glow: 0 0 40px hsl(214 100% 70% / 0.2);
     --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
+    
+    /* Dark mode creative catalog */
+    --creative-row-selected: 217.2 32.6% 17.5%;
+    --creative-row-hover: 217.2 32.6% 15%;
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;

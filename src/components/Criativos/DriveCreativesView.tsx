@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2, ChevronUp, ChevronDown, Plus } from "lucide-react";
+import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2, ChevronUp, ChevronDown, Plus, Trash2, FolderOpen } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { EditarCriativoGoogleDriveModal } from "./EditarCriativoGoogleDriveModal";
 import { EdicaoMassaCriativosModal } from "./EdicaoMassaCriativosModal";
 import { NovoCriativoExternoModal } from "./NovoCriativoExternoModal";
+import { CreativeTableSettings, type ColumnConfig } from "./CreativeTableSettings";
+import { BulkLinksModal } from "./BulkLinksModal";
 
 interface Creative {
   id: string;
@@ -58,7 +60,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [selectedCreatives, setSelectedCreatives] = useState<string[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [editingCreative, setEditingCreative] = useState<Creative | null>(null);
@@ -67,6 +69,20 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [novoExternoModalOpen, setNovoExternoModalOpen] = useState(false);
   const [editingNomenclatura, setEditingNomenclatura] = useState<{ id: string; value: string } | null>(null);
   const [saveController, setSaveController] = useState<AbortController | null>(null);
+  const [bulkLinksModalOpen, setBulkLinksModalOpen] = useState(false);
+  const [columns, setColumns] = useState<ColumnConfig[]>([
+    { id: 'select', label: 'Seleção', visible: true, width: 'w-10 sm:w-12' },
+    { id: 'status', label: 'Status', visible: true, width: 'w-24 sm:w-32' },
+    { id: 'activated_at', label: 'Ativado em', visible: true, width: 'w-32' },
+    { id: 'type', label: 'Tipo', visible: true, width: 'w-12' },
+    { id: 'name', label: 'Nome do Arquivo', visible: true, width: 'min-w-[150px] lg:min-w-[200px]' },
+    { id: 'pasta', label: 'Pasta', visible: true, width: 'w-32' },
+    { id: 'date', label: 'Data Upload', visible: true, width: 'w-32' },
+    { id: 'nomenclatura', label: 'Nomenclatura', visible: true, width: 'min-w-[150px]' },
+    { id: 'observacao', label: 'Observação', visible: false, width: 'min-w-[150px]' },
+    { id: 'pagina_destino', label: 'Página de Destino', visible: true, width: 'min-w-[200px]' },
+    { id: 'actions', label: 'Ações', visible: true, width: 'w-32 sm:w-48' }
+  ]);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -74,6 +90,20 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     totalPages: 0
   });
   const { toast } = useToast();
+
+  // Load column preferences on mount
+  useEffect(() => {
+    const storageKey = `catalogo_colunas_${clienteId}`;
+    try {
+      const savedColumns = localStorage.getItem(storageKey);
+      if (savedColumns) {
+        const parsed = JSON.parse(savedColumns);
+        setColumns(parsed);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar preferências:', error);
+    }
+  }, [clienteId]);
 
   const carregarCreatives = async () => {
     try {
@@ -218,6 +248,15 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           break;
         case 'pagina_destino':
           comparison = (a.pagina_destino || '').localeCompare(b.pagina_destino || '');
+          break;
+        case 'pasta':
+          const folderA = a.folder_name || 'Raiz';
+          const folderB = b.folder_name || 'Raiz';
+          comparison = folderA.localeCompare(folderB);
+          if (comparison === 0) {
+            // Se as pastas são iguais, ordenar por nome
+            comparison = a.name.localeCompare(b.name);
+          }
           break;
       }
       
@@ -371,12 +410,50 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     }
   };
 
-  const handleToggleSort = (field: 'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino') => {
+  const handleToggleSort = (field: 'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta') => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(field);
       setSortOrder('asc');
+    }
+  };
+
+  // Handle bulk link opening
+  const handleBulkOpenLinks = () => {
+    const selectedCreativesData = filteredCreatives.filter(c => 
+      selectedCreatives.includes(c.id) && c.link_web_view
+    );
+    
+    if (selectedCreativesData.length === 0) {
+      toast({
+        title: "Nenhum link disponível",
+        description: "Os criativos selecionados não possuem links para abrir.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setBulkLinksModalOpen(true);
+  };
+
+  // Handle row click (open creative link)
+  const handleRowClick = (creative: Creative, event: React.MouseEvent) => {
+    // Ignore clicks on interactive elements
+    const target = event.target as HTMLElement;
+    if (
+      target.closest('input[type="checkbox"]') ||
+      target.closest('button') ||
+      target.closest('select') ||
+      target.closest('.action-icon') ||
+      target.closest('[role="button"]')
+    ) {
+      return;
+    }
+
+    // Open creative link
+    if (creative.link_web_view) {
+      window.open(creative.link_web_view, '_blank');
     }
   };
 
@@ -500,7 +577,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   };
 
   const SortableHeader = ({ field, children, className = "" }: { 
-    field: 'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino', 
+    field: 'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta', 
     children: React.ReactNode,
     className?: string 
   }) => (
@@ -515,6 +592,11 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     </TableHead>
   );
 
+  const isColumnVisible = (columnId: string) => {
+    const column = columns.find(col => col.id === columnId);
+    return column?.visible ?? true;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header com Status de Sincronização */}
@@ -528,6 +610,12 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           </div>
           
           <div className="flex items-center gap-2">
+            <CreativeTableSettings
+              columns={columns}
+              onColumnsChange={setColumns}
+              clienteId={clienteId}
+            />
+            
             <Button 
               variant="outline" 
               onClick={() => setNovoExternoModalOpen(true)}
@@ -665,6 +753,8 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                 <SelectItem value="date-asc">Data (Mais antigo)</SelectItem>
                 <SelectItem value="size-desc">Tamanho (Maior)</SelectItem>
                 <SelectItem value="size-asc">Tamanho (Menor)</SelectItem>
+                <SelectItem value="pasta-asc">Pasta (A-Z)</SelectItem>
+                <SelectItem value="pasta-desc">Pasta (Z-A)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -688,6 +778,15 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           <span className="text-sm font-medium">
             {selectedCreatives.length} selecionado(s):
           </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleBulkOpenLinks}
+            className="bg-purple-500/10 text-purple-700 border-purple-500/20 hover:bg-purple-500/20"
+          >
+            <ExternalLink className="h-3 w-3 mr-1" />
+            Abrir Links ({selectedCreatives.length})
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -763,249 +862,345 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
             >
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10 sm:w-12">
-                  <Checkbox
-                    checked={selectedCreatives.length === filteredCreatives.length && filteredCreatives.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
-                <TableHead className="w-24 sm:w-32">Status</TableHead>
-                <TableHead className="hidden lg:table-cell w-32">Ativado em</TableHead>
-                <TableHead className="w-12">Tipo</TableHead>
-                <SortableHeader field="name" className="min-w-[150px] lg:min-w-[200px]">
-                  Nome do Arquivo
-                </SortableHeader>
-                <TableHead className="hidden md:table-cell w-32">Pasta</TableHead>
-                <SortableHeader field="date" className="hidden lg:table-cell w-32">
-                  Data Upload
-                </SortableHeader>
-                <SortableHeader field="nomenclatura" className="min-w-[150px]">
-                  Nomenclatura
-                </SortableHeader>
-                <TableHead className="hidden xl:table-cell min-w-[150px]">Observação</TableHead>
-                <SortableHeader field="pagina_destino" className="hidden lg:table-cell min-w-[200px]">
-                  Página de Destino
-                </SortableHeader>
-                <TableHead className="w-32 sm:w-48">Ações</TableHead>
+                {isColumnVisible('select') && (
+                  <TableHead className="w-10 sm:w-12">
+                    <Checkbox
+                      checked={selectedCreatives.length === filteredCreatives.length && filteredCreatives.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
+                )}
+                {isColumnVisible('status') && (
+                  <TableHead className="w-24 sm:w-32">Status</TableHead>
+                )}
+                {isColumnVisible('activated_at') && (
+                  <TableHead className="hidden lg:table-cell w-32">Ativado em</TableHead>
+                )}
+                {isColumnVisible('type') && (
+                  <TableHead className="w-12">Tipo</TableHead>
+                )}
+                {isColumnVisible('name') && (
+                  <SortableHeader field="name" className="min-w-[150px] lg:min-w-[200px]">
+                    Nome do Arquivo
+                  </SortableHeader>
+                )}
+                {isColumnVisible('pasta') && (
+                  <SortableHeader field="pasta" className="hidden md:table-cell w-32">
+                    Pasta
+                  </SortableHeader>
+                )}
+                {isColumnVisible('date') && (
+                  <SortableHeader field="date" className="hidden lg:table-cell w-32">
+                    Data Upload
+                  </SortableHeader>
+                )}
+                {isColumnVisible('nomenclatura') && (
+                  <SortableHeader field="nomenclatura" className="min-w-[150px]">
+                    Nomenclatura
+                  </SortableHeader>
+                )}
+                {isColumnVisible('observacao') && (
+                  <TableHead className="hidden xl:table-cell min-w-[150px]">Observação</TableHead>
+                )}
+                {isColumnVisible('pagina_destino') && (
+                  <SortableHeader field="pagina_destino" className="hidden lg:table-cell min-w-[200px]">
+                    Página de Destino
+                  </SortableHeader>
+                )}
+                {isColumnVisible('actions') && (
+                  <TableHead className="w-32 sm:w-48">Ações</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredCreatives.map((creative) => (
-                <TableRow key={creative.id} className="hover:bg-muted/50 group">
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedCreatives.includes(creative.id)}
-                      onCheckedChange={(checked) => handleSelectCreative(creative.id, checked as boolean)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={getCurrentStatus(creative)}
-                      onValueChange={(value: 'subir' | 'ativo' | 'inativo' | 'erro') => 
-                        updateCreativeStatus(creative.id, value)
-                      }
-                    >
-                      <SelectTrigger className="w-20 sm:w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="subir">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                            <span className="hidden sm:inline">Subir</span>
-                            <span className="sm:hidden">S</span>
+                <TableRow 
+                  key={creative.id} 
+                  className={`hover:bg-muted/50 group cursor-pointer transition-colors ${
+                    selectedCreatives.includes(creative.id) ? 'bg-primary/5 hover:bg-primary/10' : ''
+                  }`}
+                  onClick={(e) => handleRowClick(creative, e)}
+                >
+                  {isColumnVisible('select') && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedCreatives.includes(creative.id)}
+                        onCheckedChange={(checked) => handleSelectCreative(creative.id, checked as boolean)}
+                      />
+                    </TableCell>
+                  )}
+                  {isColumnVisible('status') && (
+                    <TableCell>
+                      <Select
+                        value={getCurrentStatus(creative)}
+                        onValueChange={(value: 'subir' | 'ativo' | 'inativo' | 'erro') => 
+                          updateCreativeStatus(creative.id, value)
+                        }
+                      >
+                        <SelectTrigger className="w-20 sm:w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="subir">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                              <span className="hidden sm:inline">Subir</span>
+                              <span className="sm:hidden">S</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="ativo">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                              <span className="hidden sm:inline">Ativo</span>
+                              <span className="sm:hidden">A</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="inativo">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                              <span className="hidden sm:inline">Inativo</span>
+                              <span className="sm:hidden">I</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="erro">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-black"></div>
+                              <span className="hidden sm:inline">Erro</span>
+                              <span className="sm:hidden">E</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('activated_at') && (
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                      {creative.activated_at ? (
+                        <div>
+                          <div>{new Date(creative.activated_at).toLocaleDateString('pt-BR')}</div>
+                          <div className="text-xs opacity-70">
+                            {new Date(creative.activated_at).toLocaleTimeString('pt-BR', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
                           </div>
-                        </SelectItem>
-                        <SelectItem value="ativo">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                            <span className="hidden sm:inline">Ativo</span>
-                            <span className="sm:hidden">A</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="inativo">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                            <span className="hidden sm:inline">Inativo</span>
-                            <span className="sm:hidden">I</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="erro">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-black"></div>
-                            <span className="hidden sm:inline">Erro</span>
-                            <span className="sm:hidden">E</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                    {creative.activated_at ? (
+                          {creative.activated_user?.nome && (
+                            <div className="text-xs opacity-60 mt-1">
+                              por {creative.activated_user.nome}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('type') && (
+                    <TableCell>
+                      <div className="flex items-center justify-center">
+                        {getTipoIcon(creative.mime_type)}
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('name') && (
+                    <TableCell className="font-medium">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 lg:gap-3">
+                          {creative.thumbnail_link && (
+                            <img 
+                              src={creative.thumbnail_link} 
+                              alt={creative.name}
+                              className="w-6 h-6 lg:w-8 lg:h-8 object-cover rounded"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <span 
+                            className="text-xs lg:text-sm font-medium" 
+                            title={creative.name}
+                            style={{ 
+                              wordWrap: 'break-word', 
+                              wordBreak: 'break-word',
+                              lineHeight: '1.2'
+                            }}
+                          >
+                            {creative.name}
+                          </span>
+                        </div>
+                        
+                        {/* Actions under the name */}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(creative.link_web_view, '_blank')}
+                            className="h-5 w-5 p-0 action-icon"
+                            title="Abrir criativo"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditCreative(creative)}
+                            className="h-5 w-5 p-0 action-icon"
+                            title="Editar criativo"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => copyToClipboard(creative.link_direct, "Link direto")}
+                            className="h-5 w-5 p-0 action-icon"
+                            title="Copiar link"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          {creative.folder_name && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedFolder(creative.folder_name)}
+                              className="h-5 w-5 p-0 action-icon"
+                              title="Ver pasta"
+                            >
+                              <FolderOpen className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('pasta') && (
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                      <span 
+                        className="truncate" 
+                        title={creative.folder_path || creative.folder_name}
+                        style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
+                      >
+                        {creative.folder_name || 'Raiz'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('date') && (
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                       <div>
-                        <div>{new Date(creative.activated_at).toLocaleDateString('pt-BR')}</div>
+                        <div className="text-xs">{new Date(creative.modified_time).toLocaleDateString('pt-BR')}</div>
                         <div className="text-xs opacity-70">
-                          {new Date(creative.activated_at).toLocaleTimeString('pt-BR', { 
+                          {new Date(creative.modified_time).toLocaleTimeString('pt-BR', { 
                             hour: '2-digit', 
                             minute: '2-digit' 
                           })}
                         </div>
-                        {creative.activated_user?.nome && (
-                          <div className="text-xs opacity-60 mt-1">
-                            por {creative.activated_user.nome}
-                          </div>
-                        )}
                       </div>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center">
-                      {getTipoIcon(creative.mime_type)}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2 lg:gap-3">
-                      {creative.thumbnail_link && (
-                        <img 
-                          src={creative.thumbnail_link} 
-                          alt={creative.name}
-                          className="w-6 h-6 lg:w-8 lg:h-8 object-cover rounded"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                      )}
-                      <span 
-                        className="text-xs lg:text-sm font-medium" 
-                        title={creative.name}
-                        style={{ 
-                          wordWrap: 'break-word', 
-                          wordBreak: 'break-word',
-                          lineHeight: '1.2'
-                        }}
-                      >
-                        {creative.name}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                    <span 
-                      className="truncate" 
-                      title={creative.folder_path || creative.folder_name}
-                      style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
-                    >
-                      {creative.folder_name || 'Raiz'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                    <div>
-                      <div className="text-xs">{new Date(creative.modified_time).toLocaleDateString('pt-BR')}</div>
-                      <div className="text-xs opacity-70">
-                        {new Date(creative.modified_time).toLocaleTimeString('pt-BR', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </div>
-                    </div>
-                  </TableCell>
-                   <TableCell>
-                     <div className="flex items-center gap-2">
-                       {editingNomenclatura?.id === creative.id ? (
-                         <Input
-                           value={editingNomenclatura.value}
-                           onChange={(e) => setEditingNomenclatura({ ...editingNomenclatura, value: e.target.value })}
-                           onBlur={handleNomenclaturaBlur}
-                           onKeyDown={handleNomenclaturaKeyDown}
-                           className="h-8 text-xs"
-                           placeholder="Digite a nomenclatura..."
-                           autoFocus
-                         />
-                       ) : (
+                    </TableCell>
+                  )}
+                   {isColumnVisible('nomenclatura') && (
+                     <TableCell>
+                       <div className="flex items-center gap-2">
+                         {editingNomenclatura?.id === creative.id ? (
+                           <Input
+                             value={editingNomenclatura.value}
+                             onChange={(e) => setEditingNomenclatura({ ...editingNomenclatura, value: e.target.value })}
+                             onBlur={handleNomenclaturaBlur}
+                             onKeyDown={handleNomenclaturaKeyDown}
+                             className="h-8 text-xs"
+                             placeholder="Digite a nomenclatura..."
+                             autoFocus
+                           />
+                         ) : (
+                           <span 
+                             className="text-sm cursor-pointer hover:bg-muted/50 px-2 py-1 rounded min-h-[2rem] flex items-center word-break-words" 
+                             title={creative.nomenclatura_trafego || 'Clique para editar'}
+                             onClick={() => handleNomenclaturaEdit(creative)}
+                             style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
+                           >
+                             {creative.nomenclatura_trafego || 'Clique para editar'}
+                           </span>
+                         )}
+                       </div>
+                     </TableCell>
+                   )}
+                   {isColumnVisible('observacao') && (
+                     <TableCell className="hidden xl:table-cell">
+                       <div className="flex items-start gap-2">
                          <span 
-                           className="text-sm cursor-pointer hover:bg-muted/50 px-2 py-1 rounded min-h-[2rem] flex items-center word-break-words" 
-                           title={creative.nomenclatura_trafego || 'Clique para editar'}
-                           onClick={() => handleNomenclaturaEdit(creative)}
+                           className="text-sm text-muted-foreground" 
+                           title={creative.observacao_personalizada || ''}
                            style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
                          >
-                           {creative.nomenclatura_trafego || 'Clique para editar'}
+                           {creative.observacao_personalizada || '-'}
                          </span>
-                       )}
-                     </div>
-                   </TableCell>
-                   <TableCell className="hidden xl:table-cell">
-                     <div className="flex items-start gap-2">
-                       <span 
-                         className="text-sm text-muted-foreground" 
-                         title={creative.observacao_personalizada || ''}
-                         style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
-                       >
-                         {creative.observacao_personalizada || '-'}
-                       </span>
-                     </div>
-                   </TableCell>
-                   <TableCell className="hidden lg:table-cell">
-                     <div className="flex items-center gap-2">
-                       {creative.pagina_destino ? (
-                         <div className="flex items-center gap-1">
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={() => window.open(creative.pagina_destino!, '_blank')}
-                             className="h-7 px-2 text-xs"
-                             title="Abrir página de destino"
-                           >
-                             <ExternalLink className="h-3 w-3 mr-1" />
-                             Abrir
-                           </Button>
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             onClick={() => copyToClipboard(creative.pagina_destino!, "Página de destino")}
-                             className="h-6 w-6 p-0"
-                             title="Copiar URL"
-                           >
-                             <Copy className="h-3 w-3" />
-                           </Button>
-                         </div>
-                       ) : (
-                         <span className="text-sm text-muted-foreground">-</span>
-                       )}
-                     </div>
-                   </TableCell>
-                   <TableCell>
-                     <div className="flex gap-1 flex-wrap">
-                       <Button 
-                         variant="outline" 
-                         size="sm"
-                         onClick={() => handleEditCreative(creative)}
-                         className="h-7 px-2 text-xs"
-                         title="Editar informações"
-                       >
-                         <Edit2 className="h-3 w-3 sm:mr-1" />
-                         <span className="hidden sm:inline">Editar</span>
-                       </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => copyToClipboard(creative.link_direct, "Link direto")}
-                          className="h-7 w-7 p-0"
-                          title="Copiar link direto"
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          onClick={() => window.open(creative.link_web_view, '_blank')}
-                          className="h-7 px-2 text-xs"
-                        >
-                          <ExternalLink className="h-3 w-3 sm:mr-1" />
-                          <span className="hidden sm:inline">Abrir</span>
-                        </Button>
-                     </div>
-                   </TableCell>
+                       </div>
+                     </TableCell>
+                   )}
+                   {isColumnVisible('pagina_destino') && (
+                     <TableCell className="hidden lg:table-cell">
+                       <div className="flex items-center gap-2">
+                         {creative.pagina_destino ? (
+                           <div className="flex items-center gap-1">
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={() => window.open(creative.pagina_destino!, '_blank')}
+                               className="h-7 px-2 text-xs"
+                               title="Abrir página de destino"
+                             >
+                               <ExternalLink className="h-3 w-3 mr-1" />
+                               Abrir
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => copyToClipboard(creative.pagina_destino!, "Página de destino")}
+                               className="h-6 w-6 p-0"
+                               title="Copiar URL"
+                             >
+                               <Copy className="h-3 w-3" />
+                             </Button>
+                           </div>
+                         ) : (
+                           <span className="text-sm text-muted-foreground">-</span>
+                         )}
+                       </div>
+                     </TableCell>
+                   )}
+                   {isColumnVisible('actions') && (
+                     <TableCell>
+                       <div className="flex gap-1 flex-wrap lg:hidden">
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => handleEditCreative(creative)}
+                           className="h-7 px-2 text-xs"
+                           title="Editar informações"
+                         >
+                           <Edit2 className="h-3 w-3 sm:mr-1" />
+                           <span className="hidden sm:inline">Editar</span>
+                         </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => copyToClipboard(creative.link_direct, "Link direto")}
+                            className="h-7 w-7 p-0"
+                            title="Copiar link direto"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="default" 
+                            size="sm"
+                            onClick={() => window.open(creative.link_web_view, '_blank')}
+                            className="h-7 px-2 text-xs"
+                          >
+                            <ExternalLink className="h-3 w-3 sm:mr-1" />
+                            <span className="hidden sm:inline">Abrir</span>
+                          </Button>
+                       </div>
+                     </TableCell>
+                   )}
                  </TableRow>
               ))}
             </TableBody>
@@ -1069,15 +1264,27 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         }}
       />
 
-      <NovoCriativoExternoModal
-        open={novoExternoModalOpen}
-        onOpenChange={setNovoExternoModalOpen}
-        clienteId={clienteId}
-        onSuccess={() => {
-          carregarCreatives();
-          setNovoExternoModalOpen(false);
-        }}
-      />
-     </div>
-   );
- };
+       <NovoCriativoExternoModal
+         open={novoExternoModalOpen}
+         onOpenChange={setNovoExternoModalOpen}
+         clienteId={clienteId}
+         onSuccess={() => {
+           carregarCreatives();
+           setNovoExternoModalOpen(false);
+         }}
+       />
+       
+       <BulkLinksModal
+         open={bulkLinksModalOpen}
+         onOpenChange={setBulkLinksModalOpen}
+         creatives={filteredCreatives.filter(c => 
+           selectedCreatives.includes(c.id) && c.link_web_view
+         )}
+         onOpenLinks={() => {
+           setSelectedCreatives([]);
+           setBulkLinksModalOpen(false);
+         }}
+       />
+      </div>
+    );
+  };
