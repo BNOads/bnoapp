@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Info, Settings, Download } from "lucide-react";
+import { Info, Settings } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -222,15 +222,6 @@ export default function TrafficMetrics({ debriefingId, dadosTrafego = [] }: Traf
     }
   };
 
-  const handleExportPNG = async () => {
-    try {
-      // Implementar captura de tela da seção
-      toast.info('Exportação PNG em desenvolvimento');
-    } catch (error) {
-      toast.error('Erro ao exportar PNG');
-    }
-  };
-
   const handleSaveOverrides = async (newOverrides: Record<string, number>) => {
     try {
       // Salvar overrides no banco
@@ -286,14 +277,6 @@ export default function TrafficMetrics({ debriefingId, dadosTrafego = [] }: Traf
               >
                 <Settings className="mr-2 h-4 w-4" />
                 Editar valores
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportPNG}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Exportar PNG
               </Button>
             </div>
           </div>

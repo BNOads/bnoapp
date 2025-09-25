@@ -2,8 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import TrafficMetrics from './TrafficMetrics';
 
 interface DadosBrutosAnalysisProps {
+  debriefingId: string;
   dados_leads: any[];
   dados_compradores: any[];
   dados_trafego: any[];
@@ -12,6 +14,7 @@ interface DadosBrutosAnalysisProps {
 }
 
 export function DadosBrutosAnalysis({
+  debriefingId,
   dados_leads,
   dados_compradores,
   dados_trafego,
@@ -221,6 +224,12 @@ export function DadosBrutosAnalysis({
 
   return (
     <div className="space-y-6">
+      {/* Resumo de Tráfego */}
+      <TrafficMetrics 
+        debriefingId={debriefingId}
+        dadosTrafego={dados_trafego}
+      />
+      
       {/* Estatísticas Gerais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>

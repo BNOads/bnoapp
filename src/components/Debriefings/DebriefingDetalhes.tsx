@@ -283,7 +283,6 @@ export default function DebriefingDetalhes() {
             debriefingName={debriefing.nome_lancamento}
             availablePanels={[
               { id: 'header', title: 'Cabeçalho', isExcluded: false },
-              { id: 'traffic-metrics', title: 'Tráfego (Resumo)', isExcluded: false },
               { id: 'metrics', title: 'Métricas Principais', isExcluded: false },
               { id: 'secondary-metrics', title: 'Métricas Secundárias', isExcluded: false },
               { id: 'charts', title: 'Gráficos', isExcluded: false }
@@ -318,15 +317,6 @@ export default function DebriefingDetalhes() {
             </AlertDialogContent>
           </AlertDialog>
         </div>
-      </div>
-
-      {/* Seção de Tráfego (Resumo) */}
-      <div className="mb-6" data-panel-id="traffic-metrics">
-        <TrafficMetrics 
-          debriefingId={debriefing.id}
-          clienteId={debriefing.cliente_id}
-          dadosTrafego={debriefing.dados_trafego}
-        />
       </div>
 
       {/* Cards de Métricas Principais */}
@@ -464,6 +454,7 @@ export default function DebriefingDetalhes() {
 
         <TabsContent value="data">
           <DadosBrutosAnalysis
+            debriefingId={debriefing.id}
             dados_leads={debriefing.dados_leads || []}
             dados_compradores={debriefing.dados_compradores || []}
             dados_trafego={debriefing.dados_trafego || []}
