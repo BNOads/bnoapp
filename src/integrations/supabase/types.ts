@@ -765,6 +765,7 @@ export type Database = {
           observacao_personalizada: string | null
           pagina_destino: string | null
           parent_folder_id: string | null
+          status: string | null
           thumbnail_link: string | null
           updated_at: string
         }
@@ -790,6 +791,7 @@ export type Database = {
           observacao_personalizada?: string | null
           pagina_destino?: string | null
           parent_folder_id?: string | null
+          status?: string | null
           thumbnail_link?: string | null
           updated_at?: string
         }
@@ -815,6 +817,7 @@ export type Database = {
           observacao_personalizada?: string | null
           pagina_destino?: string | null
           parent_folder_id?: string | null
+          status?: string | null
           thumbnail_link?: string | null
           updated_at?: string
         }
@@ -3056,6 +3059,10 @@ export type Database = {
       }
       update_creative_status: {
         Args: { creative_id: string; new_status: boolean }
+        Returns: Json
+      }
+      update_creative_status_v2: {
+        Args: { creative_id: string; new_status_text: string }
         Returns: Json
       }
       vector_avg: {

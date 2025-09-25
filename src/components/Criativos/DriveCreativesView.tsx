@@ -327,10 +327,10 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           : creative
       ));
 
-      // Atualizar status via RPC (bypassa RLS com SECURITY DEFINER)
-      const { data, error } = await supabase.rpc('update_creative_status', {
+      // Atualizar status via RPC v2 (com todos os status: ativo, inativo, erro)
+      const { data, error } = await supabase.rpc('update_creative_status_v2', {
         creative_id: creativeId,
-        new_status: newStatus === 'ativo'
+        new_status_text: newStatus
       });
 
       if (error) throw error;
@@ -409,12 +409,12 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           : creative
       ));
 
-      // Executar atualizações no backend via RPC (bypassa RLS)
+      // Executar atualizações no backend via RPC v2 (bypassa RLS)
       await Promise.all(
         selectedCreatives.map(async (creativeId) => {
-          const { error } = await supabase.rpc('update_creative_status', {
+          const { error } = await supabase.rpc('update_creative_status_v2', {
             creative_id: creativeId,
-            new_status: action === 'ativo'
+            new_status_text: action
           });
           if (error) throw error;
         })

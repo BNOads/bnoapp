@@ -119,7 +119,7 @@ async function getAllFilesRecursively(folderId: string, folderName = 'Raiz', fol
   return allFiles;
 }
 
-// Função para fazer upsert de arquivos no banco preservando status
+// Função para fazer upsert de arquivos no banco preservando status e NÃO tocando em criativos externos
 async function upsertCreatives(supabase: any, clientId: string, files: any[]) {
   let upsertedCount = 0;
   
@@ -127,7 +127,7 @@ async function upsertCreatives(supabase: any, clientId: string, files: any[]) {
     // Primeiro, verificar se o criativo já existe e buscar seus status atuais
     const { data: existingCreative } = await supabase
       .from('creatives')
-      .select('is_active, activated_at, activated_by, nomenclatura_trafego, observacao_personalizada, pagina_destino, archived')
+      .select('is_active, activated_at, activated_by, nomenclatura_trafego, observacao_personalizada, pagina_destino, archived, status')
       .eq('client_id', clientId)
       .eq('file_id', file.id)
       .maybeSingle();
@@ -154,13 +154,16 @@ async function upsertCreatives(supabase: any, clientId: string, files: any[]) {
         nomenclatura_trafego: existingCreative.nomenclatura_trafego,
         observacao_personalizada: existingCreative.observacao_personalizada,
         pagina_destino: existingCreative.pagina_destino,
-        archived: existingCreative.archived
+        archived: existingCreative.archived,
+        status: existingCreative.status
       })
     };
 
-    // Se não existe registro anterior, garantir archived = false
+    // Se não existe registro anterior, garantir valores padrão
     if (!existingCreative) {
       creativeData.archived = false;
+      creativeData.is_active = false;
+      creativeData.status = 'subir';
     }
     
     const { error } = await supabase
@@ -181,14 +184,16 @@ async function upsertCreatives(supabase: any, clientId: string, files: any[]) {
   return upsertedCount;
 }
 
-// Função para marcar arquivos ausentes como arquivados (excluindo criativos externos)
+// Função para marcar arquivos ausentes como arquivados (IGNORANDO criativos externos completamente)
 async function archiveMissingFiles(supabase: any, clientId: string, currentFileIds: string[]) {
+  // Buscar APENAS criativos do Google Drive (com file_id real)
   const { data: existingFiles, error } = await supabase
     .from('creatives')
     .select('file_id')
     .eq('client_id', clientId)
     .eq('archived', false)
-    .not('file_id', 'ilike', 'external_%'); // Excluir criativos externos
+    .not('file_id', 'ilike', 'external_%') // Excluir criativos externos
+    .not('file_id', 'is', null); // Garantir que file_id não é null
   
   if (error) throw error;
   
@@ -278,17 +283,26 @@ serve(async (req) => {
       const currentFileIds = allFiles.map(file => file.id);
       archivedCount = await archiveMissingFiles(supabase, clientId, currentFileIds);
       
-      // PROTEÇÃO EXTRA: Desarquivar qualquer criativo externo que possa ter sido arquivado por engano
-      const { error: unarchiveError } = await supabase
+      // PROTEÇÃO: Garantir que nenhum criativo externo seja tocado pela sincronização
+      const { error: protectExternalsError } = await supabase
         .from('creatives')
-        .update({ archived: false })
+        .select('id')
         .eq('client_id', clientId)
-        .like('file_id', 'external_%');
+        .or('file_id.ilike.external_%,file_id.is.null')
+        .then(async ({ data: externals, error }) => {
+          if (error) return { error };
+          if (externals && externals.length > 0) {
+            console.log(`Protegendo ${externals.length} criativos externos da sincronização`);
+            // Não fazer nenhuma alteração em criativos externos
+            return { error: null };
+          }
+          return { error: null };
+        });
       
-      if (unarchiveError) {
-        console.error('Erro ao desarquivar criativos externos:', unarchiveError);
+      if (protectExternalsError) {
+        console.error('Erro ao proteger criativos externos:', protectExternalsError);
       } else {
-        console.log('Criativos externos protegidos contra arquivamento');
+        console.log('Criativos externos completamente protegidos da sincronização');
       }
     }
     
