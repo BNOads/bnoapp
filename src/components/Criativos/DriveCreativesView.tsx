@@ -16,6 +16,7 @@ import { EdicaoMassaCriativosModal } from "./EdicaoMassaCriativosModal";
 import { NovoCriativoExternoModal } from "./NovoCriativoExternoModal";
 import { CreativeTableSettings, type ColumnConfig } from "./CreativeTableSettings";
 import { BulkLinksModal } from "./BulkLinksModal";
+import { BulkExternalModal } from "./BulkExternalModal";
 
 interface Creative {
   id: string;
@@ -72,6 +73,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [bulkLinksModalOpen, setBulkLinksModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [creativeToDelete, setCreativeToDelete] = useState<Creative | null>(null);
+  const [bulkExternalModalOpen, setBulkExternalModalOpen] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>([
     { id: 'select', label: 'Seleção', visible: true, width: 'w-10 sm:w-12' },
     { id: 'status', label: 'Status', visible: true, width: 'w-24 sm:w-32' },
@@ -737,6 +739,15 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
             
             <Button 
               variant="outline" 
+              onClick={() => setBulkExternalModalOpen(true)}
+              className="flex items-center gap-2 border-blue-600 text-blue-600 hover:bg-blue-50"
+            >
+              <Plus className="h-4 w-4" />
+              Adicionar em Massa
+            </Button>
+            
+            <Button 
+              variant="outline" 
               onClick={sincronizarDrive}
               disabled={syncing}
               className="flex items-center gap-2"
@@ -1365,9 +1376,19 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
            setSelectedCreatives([]);
            setBulkLinksModalOpen(false);
           }}
+         />
+
+        <BulkExternalModal
+          open={bulkExternalModalOpen}
+          onOpenChange={setBulkExternalModalOpen}
+          clienteId={clienteId}
+          onSuccess={() => {
+            carregarCreatives();
+            setBulkExternalModalOpen(false);
+          }}
         />
 
-        {/* Modal de Confirmação de Exclusão */}
+         {/* Modal de Confirmação de Exclusão */}
         <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
           <DialogContent>
             <DialogHeader>

@@ -119,29 +119,48 @@ async function getAllFilesRecursively(folderId: string, folderName = 'Raiz', fol
   return allFiles;
 }
 
-// Função para fazer upsert de arquivos no banco
+// Função para fazer upsert de arquivos no banco preservando status
 async function upsertCreatives(supabase: any, clientId: string, files: any[]) {
-  const creativesToUpsert = files.map(file => ({
-    client_id: clientId,
-    file_id: file.id,
-    name: file.name,
-    mime_type: file.mimeType,
-    link_web_view: file.webViewLink,
-    link_direct: `https://drive.google.com/uc?id=${file.id}`,
-    icon_link: file.iconLink,
-    thumbnail_link: file.thumbnailLink,
-    file_size: file.size ? parseInt(file.size) : null,
-    modified_time: file.modifiedTime,
-    folder_name: file.folderName || 'Raiz',
-    folder_path: file.folderPath || '',
-    parent_folder_id: file.parentFolderId,
-    archived: false
-  }));
+  let upsertedCount = 0;
   
-  for (const creative of creativesToUpsert) {
+  for (const file of files) {
+    // Primeiro, verificar se o criativo já existe e buscar seus status atuais
+    const { data: existingCreative } = await supabase
+      .from('creatives')
+      .select('is_active, activated_at, activated_by, nomenclatura_trafego, observacao_personalizada, pagina_destino')
+      .eq('client_id', clientId)
+      .eq('file_id', file.id)
+      .maybeSingle();
+
+    const creativeData = {
+      client_id: clientId,
+      file_id: file.id,
+      name: file.name,
+      mime_type: file.mimeType,
+      link_web_view: file.webViewLink,
+      link_direct: `https://drive.google.com/uc?id=${file.id}`,
+      icon_link: file.iconLink,
+      thumbnail_link: file.thumbnailLink,
+      file_size: file.size ? parseInt(file.size) : null,
+      modified_time: file.modifiedTime,
+      folder_name: file.folderName || 'Raiz',
+      folder_path: file.folderPath || '',
+      parent_folder_id: file.parentFolderId,
+      archived: false,
+      // Preservar campos manuais se existirem
+      ...(existingCreative && {
+        is_active: existingCreative.is_active,
+        activated_at: existingCreative.activated_at,
+        activated_by: existingCreative.activated_by,
+        nomenclatura_trafego: existingCreative.nomenclatura_trafego,
+        observacao_personalizada: existingCreative.observacao_personalizada,
+        pagina_destino: existingCreative.pagina_destino
+      })
+    };
+    
     const { error } = await supabase
       .from('creatives')
-      .upsert(creative, { 
+      .upsert(creativeData, { 
         onConflict: 'client_id,file_id',
         ignoreDuplicates: false 
       });
@@ -150,9 +169,11 @@ async function upsertCreatives(supabase: any, clientId: string, files: any[]) {
       console.error('Erro ao fazer upsert do criativo:', error);
       throw error;
     }
+    
+    upsertedCount++;
   }
   
-  return creativesToUpsert.length;
+  return upsertedCount;
 }
 
 // Função para marcar arquivos ausentes como arquivados (excluindo criativos externos)
