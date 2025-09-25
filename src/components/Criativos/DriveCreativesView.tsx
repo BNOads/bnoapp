@@ -505,12 +505,24 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     if (!creativeToDelete) return;
 
     try {
-      const { error } = await supabase
-        .from('creatives')
-        .update({ archived: true })
-        .eq('id', creativeToDelete.id);
+      // Verificar se é um criativo externo (sem file_id) ou do Google Drive
+      if (!creativeToDelete.file_id) {
+        // Para criativos externos, usar a tabela criativos
+        const { error } = await supabase
+          .from('criativos')
+          .update({ ativo: false })
+          .eq('id', creativeToDelete.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Para criativos do Google Drive, usar a tabela creatives
+        const { error } = await supabase
+          .from('creatives')
+          .update({ archived: true })
+          .eq('id', creativeToDelete.id);
+
+        if (error) throw error;
+      }
 
       // Remover o criativo da lista local
       setCreatives(prev => prev.filter(creative => creative.id !== creativeToDelete.id));
