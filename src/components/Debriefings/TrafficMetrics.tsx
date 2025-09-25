@@ -1,4 +1,4 @@
-// Traffic metrics component - updated to fix cache issue
+// Traffic metrics component with alias support
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import EditMetricsModal from "./EditMetricsModal";
+import { normalizeMetricData, getUnmatchedAliases } from "@/lib/metricAliasResolver";
+import { UnmatchedAliasesDebug } from "./UnmatchedAliasesDebug";
 
 interface TrafficMetric {
   key: string;
@@ -31,6 +33,7 @@ export default function TrafficMetrics({ debriefingId, dadosTrafego = [] }: Traf
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, number>>({});
+  const [showUnmatchedAliases, setShowUnmatchedAliases] = useState(false);
 
   useEffect(() => {
     loadMetrics();
@@ -50,14 +53,18 @@ export default function TrafficMetrics({ debriefingId, dadosTrafego = [] }: Traf
     }
 
     return data.reduce((acc, item) => {
-      // Somar valores de tráfego dos dados importados
-      acc.investimento += parseFloat(item.spend || item.investimento || 0);
-      acc.leads += parseInt(item.leads || 0);
-      acc.impressoes += parseInt(item.impressions || item.impressoes || 0);
-      acc.cliques += parseInt(item.link_clicks || item.cliques || 0);
-      acc.vendas += parseInt(item.purchases || item.vendas || 0);
-      acc.conversoes_pagina += parseInt(item.conversions || item.conversoes || 0);
-      acc.visitas_pagina += parseInt(item.page_views || item.visitas || 0);
+      // Normalize the item data using alias resolver
+      const normalizedItem = normalizeMetricData(item);
+      
+      // Sum normalized traffic data values
+      acc.investimento += parseFloat(normalizedItem.investimento || 0);
+      acc.leads += parseInt(normalizedItem.leads || 0);
+      acc.impressoes += parseInt(normalizedItem.impressoes || 0);
+      acc.cliques += parseInt(normalizedItem.cliques || 0);
+      acc.vendas += parseInt(normalizedItem.vendas || 0);
+      acc.conversoes_pagina += parseInt(normalizedItem.conversoes_pagina || 0);
+      acc.visitas_pagina += parseInt(normalizedItem.visitas_pagina || 0);
+      
       return acc;
     }, {
       investimento: 0,
@@ -197,6 +204,13 @@ export default function TrafficMetrics({ debriefingId, dadosTrafego = [] }: Traf
       ];
 
       setMetrics(metricsData);
+      
+      // Check for unmatched aliases and show debug info if any
+      const unmatched = getUnmatchedAliases();
+      if (unmatched.length > 0) {
+        console.log('Unmatched metric aliases found:', unmatched);
+        setShowUnmatchedAliases(true);
+      }
     } catch (error) {
       console.error('Erro ao carregar métricas:', error);
       toast.error('Erro ao carregar métricas de tráfego');
@@ -266,24 +280,27 @@ export default function TrafficMetrics({ debriefingId, dadosTrafego = [] }: Traf
 
   return (
     <TooltipProvider>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Tráfego (Resumo)</CardTitle>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowEditModal(true)}
-              >
-                <Settings className="mr-2 h-4 w-4" />
-                Editar valores
-              </Button>
+      <div className="space-y-4">
+        <UnmatchedAliasesDebug show={showUnmatchedAliases} />
+        
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Tráfego (Resumo)</CardTitle>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowEditModal(true)}
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Editar valores
+                </Button>
+              </div>
             </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
 
-        <CardContent>
+          <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {metrics.map((metric) => (
               <Card key={metric.key} className="relative">
@@ -326,15 +343,16 @@ export default function TrafficMetrics({ debriefingId, dadosTrafego = [] }: Traf
               </Card>
             ))}
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <EditMetricsModal
-        open={showEditModal}
-        onOpenChange={setShowEditModal}
-        metrics={metrics}
-        onSave={handleSaveOverrides}
-      />
+        <EditMetricsModal
+          open={showEditModal}
+          onOpenChange={setShowEditModal}
+          metrics={metrics}
+          onSave={handleSaveOverrides}
+        />
+      </div>
     </TooltipProvider>
   );
 }
