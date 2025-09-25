@@ -93,7 +93,13 @@ export function DadosBrutosAnalysis({
     
     dados_pesquisa.forEach(resposta => {
       Object.keys(resposta).forEach(campo => {
-        if (campo === 'email') return;
+        // Filtrar campos que não devem aparecer na análise
+        if (campo === 'email' || 
+            campo === 'nome' || 
+            campo === 'telefone' || 
+            campo.toLowerCase().includes('nome') || 
+            campo.toLowerCase().includes('telefone') ||
+            campo.toLowerCase().includes('email')) return;
         
         const valor = resposta[campo];
         if (!valor) return;
