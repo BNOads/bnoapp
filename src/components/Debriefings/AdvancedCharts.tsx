@@ -7,6 +7,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { Edit, Save, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { DebriefingChartWithTable } from './DebriefingChartWithTable';
 
 interface AdvancedChartsProps {
   dados_leads?: any[];
@@ -270,30 +271,38 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
   return (
     <div className="space-y-6">
       {/* Distribuição de Verba por Etapa */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Distribuição de Verba por Etapa</CardTitle>
-            {!isEditingDistribution ? (
+      <DebriefingChartWithTable
+        chartId="budget-distribution"
+        title="Distribuição de Verba por Etapa"
+        data={verbaPorEtapa}
+        columns={[
+          { key: 'name', label: 'Etapa', type: 'text' },
+          { key: 'value', label: 'Valor', type: 'currency' },
+          { key: 'percentage', label: 'Percentual', type: 'percentage' },
+          { key: 'count', label: 'Campanhas', type: 'number' },
+        ]}
+      >
+        <div className="space-y-4">
+          {!isEditingDistribution ? (
+            <div className="flex justify-end">
               <Button variant="outline" size="sm" onClick={handleEditDistribution}>
                 <Edit className="h-4 w-4 mr-2" />
                 Editar
               </Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleSaveDistribution}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Salvar
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
-                  <X className="h-4 w-4 mr-2" />
-                  Cancelar
-                </Button>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={handleSaveDistribution}>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                <X className="h-4 w-4 mr-2" />
+                Cancelar
+              </Button>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -347,120 +356,113 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
               ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </DebriefingChartWithTable>
 
       {/* Desempenho por Plataforma */}
       {plataformas.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Desempenho por Plataforma</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={plataformas}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="plataforma" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value: number, name: string) => {
-                    if (name === 'investimento') return formatCurrency(value);
-                    if (name === 'cpl') return formatCurrency(value);
-                    if (name === 'ctr') return value.toFixed(2) + '%';
-                    return formatNumber(value);
-                  }}
-                />
-                <Bar dataKey="investimento" fill="#0088FE" name="Investimento" />
-                <Bar dataKey="leads" fill="#00C49F" name="Leads" />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Plataforma</th>
-                    <th className="text-right p-2">Investimento</th>
-                    <th className="text-right p-2">Leads</th>
-                    <th className="text-right p-2">CPL</th>
-                    <th className="text-right p-2">CTR</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {plataformas.map((plataforma, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="p-2 font-medium">{plataforma.plataforma}</td>
-                      <td className="text-right p-2">{formatCurrency(plataforma.investimento)}</td>
-                      <td className="text-right p-2">{plataforma.leads}</td>
-                      <td className="text-right p-2">{formatCurrency(plataforma.cpl)}</td>
-                      <td className="text-right p-2">{plataforma.ctr.toFixed(2)}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+        <DebriefingChartWithTable
+          chartId="platform-performance"
+          title="Desempenho por Plataforma"
+          data={plataformas}
+          columns={[
+            { key: 'plataforma', label: 'Plataforma', type: 'text' },
+            { key: 'investimento', label: 'Investimento', type: 'currency' },
+            { key: 'impressoes', label: 'Impressões', type: 'number' },
+            { key: 'cliques', label: 'Cliques', type: 'number' },
+            { key: 'leads', label: 'Leads', type: 'number' },
+            { key: 'cpl', label: 'CPL', type: 'currency' },
+            { key: 'ctr', label: 'CTR', type: 'percentage' },
+          ]}
+        >
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={plataformas}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="plataforma" />
+              <YAxis />
+              <Tooltip 
+                formatter={(value: number, name: string) => {
+                  if (name === 'investimento') return formatCurrency(value);
+                  if (name === 'cpl') return formatCurrency(value);
+                  if (name === 'ctr') return value.toFixed(2) + '%';
+                  return formatNumber(value);
+                }}
+              />
+              <Bar dataKey="investimento" fill="#0088FE" name="Investimento" />
+              <Bar dataKey="leads" fill="#00C49F" name="Leads" />
+            </BarChart>
+          </ResponsiveContainer>
+        </DebriefingChartWithTable>
       )}
 
       {/* Vendas por Dia */}
       {vendasPorDia.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Vendas por Dia</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={vendasPorDia}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="data" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="vendas" stroke="#0088FE" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <DebriefingChartWithTable
+          chartId="daily-sales"
+          title="Vendas por Dia"
+          data={vendasPorDia}
+          columns={[
+            { key: 'data', label: 'Data', type: 'text' },
+            { key: 'vendas', label: 'Vendas', type: 'number' },
+          ]}
+        >
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={vendasPorDia}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="data" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="vendas" stroke="#0088FE" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </DebriefingChartWithTable>
       )}
 
       {/* Melhores Fontes de Tráfego */}
       {melhoresFontes.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Melhores Fontes de Tráfego</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Fonte</th>
-                    <th className="text-left p-2">Tipo</th>
-                    <th className="text-right p-2">Leads</th>
-                    <th className="text-right p-2">Vendas</th>
-                    <th className="text-right p-2">Conversão</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {melhoresFontes.slice(0, 10).map((fonte, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="p-2 font-medium">{fonte.fonte}</td>
-                      <td className="p-2">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          fonte.tipo === 'Orgânico' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {fonte.tipo}
-                        </span>
-                      </td>
+        <DebriefingChartWithTable
+          chartId="traffic-sources"
+          title="Melhores Fontes de Tráfego"
+          data={melhoresFontes}
+          columns={[
+            { key: 'fonte', label: 'Fonte', type: 'text' },
+            { key: 'tipo', label: 'Tipo', type: 'text' },
+            { key: 'leads', label: 'Leads', type: 'number' },
+            { key: 'vendas', label: 'Vendas', type: 'number' },
+            { key: 'conversao', label: 'Conversão', type: 'percentage' },
+          ]}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">Fonte</th>
+                  <th className="text-left p-2">Tipo</th>
+                  <th className="text-right p-2">Leads</th>
+                  <th className="text-right p-2">Vendas</th>
+                  <th className="text-right p-2">Conversão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {melhoresFontes.slice(0, 10).map((fonte, index) => (
+                  <tr key={index} className="border-b">
+                    <td className="p-2 font-medium">{fonte.fonte}</td>
+                    <td className="p-2">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        fonte.tipo === 'Orgânico' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {fonte.tipo}
+                      </span>
+                    </td>
                       <td className="text-right p-2">{fonte.leads}</td>
-                      <td className="text-right p-2">{fonte.vendas}</td>
-                      <td className="text-right p-2">{fonte.conversao.toFixed(1)}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                    <td className="text-right p-2">{fonte.vendas}</td>
+                    <td className="text-right p-2">{fonte.conversao.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DebriefingChartWithTable>
       )}
     </div>
   );
