@@ -2,16 +2,10 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, TrendingUp, TrendingDown, Info, Settings, Download } from "lucide-react";
+import { Info, Settings, Download } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
 import EditMetricsModal from "./EditMetricsModal";
 
 interface TrafficMetric {
@@ -28,86 +22,59 @@ interface TrafficMetric {
 interface TrafficMetricsProps {
   debriefingId: string;
   clienteId?: string;
+  dadosTrafego?: any[];
 }
 
-interface PeriodPreset {
-  label: string;
-  getValue: () => { start: Date; end: Date };
-}
-
-const periodPresets: PeriodPreset[] = [
-  {
-    label: "Hoje",
-    getValue: () => ({ start: new Date(), end: new Date() })
-  },
-  {
-    label: "Ontem", 
-    getValue: () => {
-      const yesterday = subDays(new Date(), 1);
-      return { start: yesterday, end: yesterday };
-    }
-  },
-  {
-    label: "Últimos 7 dias",
-    getValue: () => ({ start: subDays(new Date(), 6), end: new Date() })
-  },
-  {
-    label: "Últimos 14 dias",
-    getValue: () => ({ start: subDays(new Date(), 13), end: new Date() })
-  },
-  {
-    label: "Últimos 30 dias",
-    getValue: () => ({ start: subDays(new Date(), 29), end: new Date() })
-  },
-  {
-    label: "Mês atual",
-    getValue: () => ({ start: startOfMonth(new Date()), end: endOfMonth(new Date()) })
-  }
-];
-
-export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetricsProps) {
+export default function TrafficMetrics({ debriefingId, dadosTrafego = [] }: TrafficMetricsProps) {
   const [metrics, setMetrics] = useState<TrafficMetric[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState("Últimos 30 dias");
-  const [customStartDate, setCustomStartDate] = useState<Date>();
-  const [customEndDate, setCustomEndDate] = useState<Date>();
-  const [attributionWindow, setAttributionWindow] = useState("7d_click_1d_view");
   const [showEditModal, setShowEditModal] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, number>>({});
 
-  // Calcular datas do período
-  const getPeriodDates = () => {
-    if (selectedPeriod === "Intervalo personalizado") {
-      return {
-        start: customStartDate || new Date(),
-        end: customEndDate || new Date()
-      };
-    }
-    
-    const preset = periodPresets.find(p => p.label === selectedPeriod);
-    return preset?.getValue() || { start: new Date(), end: new Date() };
-  };
-
-  const { start: periodStart, end: periodEnd } = getPeriodDates();
-
   useEffect(() => {
     loadMetrics();
-  }, [debriefingId, selectedPeriod, customStartDate, customEndDate, attributionWindow]);
+  }, [debriefingId, dadosTrafego]);
+
+  const aggregateTrafficData = (data: any[]) => {
+    if (!Array.isArray(data) || data.length === 0) {
+      return {
+        investimento: 0,
+        leads: 0,
+        impressoes: 0,
+        cliques: 0,
+        vendas: 0,
+        conversoes_pagina: 0,
+        visitas_pagina: 0
+      };
+    }
+
+    return data.reduce((acc, item) => {
+      // Somar valores de tráfego dos dados importados
+      acc.investimento += parseFloat(item.spend || item.investimento || 0);
+      acc.leads += parseInt(item.leads || 0);
+      acc.impressoes += parseInt(item.impressions || item.impressoes || 0);
+      acc.cliques += parseInt(item.link_clicks || item.cliques || 0);
+      acc.vendas += parseInt(item.purchases || item.vendas || 0);
+      acc.conversoes_pagina += parseInt(item.conversions || item.conversoes || 0);
+      acc.visitas_pagina += parseInt(item.page_views || item.visitas || 0);
+      return acc;
+    }, {
+      investimento: 0,
+      leads: 0,
+      impressoes: 0,
+      cliques: 0,
+      vendas: 0,
+      conversoes_pagina: 0,
+      visitas_pagina: 0
+    });
+  };
 
   const loadMetrics = async () => {
     try {
       setLoading(true);
       
-      // Simular dados de tráfego com valores calculados
-      const baseData = {
-        investimento: Math.random() * 50000 + 10000,
-        leads: Math.floor(Math.random() * 500 + 100),
-        impressoes: Math.floor(Math.random() * 100000 + 50000),
-        cliques: Math.floor(Math.random() * 5000 + 1000),
-        vendas: Math.floor(Math.random() * 50 + 10),
-        conversoes_pagina: Math.floor(Math.random() * 300 + 50),
-        visitas_pagina: Math.floor(Math.random() * 2000 + 500)
-      };
+      // Agregar dados de tráfego reais
+      const aggregatedData = aggregateTrafficData(dadosTrafego);
 
       // Carregar overrides
       const { data: overridesData } = await supabase
@@ -121,12 +88,12 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
       });
       setOverrides(overridesMap);
 
-      // Definir métricas com cálculos
+      // Definir métricas com cálculos baseados nos dados reais
       const metricsData: TrafficMetric[] = [
         {
           key: 'investimento',
           title: 'Investimento',
-          value: overridesMap.investimento || baseData.investimento,
+          value: overridesMap.investimento || aggregatedData.investimento,
           tooltip: 'Gasto de mídia no período selecionado',
           format: 'currency',
           isEdited: !!overridesMap.investimento
@@ -134,7 +101,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'leads',
           title: 'Leads',
-          value: overridesMap.leads || baseData.leads,
+          value: overridesMap.leads || aggregatedData.leads,
           tooltip: 'Ações "lead" captadas no período',
           format: 'number',
           isEdited: !!overridesMap.leads
@@ -142,7 +109,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'cpl',
           title: 'CPL',
-          value: overridesMap.cpl || ((overridesMap.investimento || baseData.investimento) / (overridesMap.leads || baseData.leads)),
+          value: overridesMap.cpl || (aggregatedData.leads > 0 ? (overridesMap.investimento || aggregatedData.investimento) / (overridesMap.leads || aggregatedData.leads) : 0),
           formula: 'Investimento ÷ Leads',
           tooltip: 'Custo por Lead - investimento dividido por leads',
           format: 'currency',
@@ -151,7 +118,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'impressoes',
           title: 'Impressões',
-          value: overridesMap.impressoes || baseData.impressoes,
+          value: overridesMap.impressoes || aggregatedData.impressoes,
           tooltip: 'Exibições de anúncios',
           format: 'number',
           isEdited: !!overridesMap.impressoes
@@ -159,7 +126,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'cpm',
           title: 'CPM',
-          value: overridesMap.cpm || (((overridesMap.investimento || baseData.investimento) / (overridesMap.impressoes || baseData.impressoes)) * 1000),
+          value: overridesMap.cpm || (aggregatedData.impressoes > 0 ? ((overridesMap.investimento || aggregatedData.investimento) / (overridesMap.impressoes || aggregatedData.impressoes)) * 1000 : 0),
           formula: '(Investimento ÷ Impressões) × 1000',
           tooltip: 'Custo por Mil Impressões',
           format: 'currency',
@@ -168,7 +135,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'cliques',
           title: 'Cliques no Link',
-          value: overridesMap.cliques || baseData.cliques,
+          value: overridesMap.cliques || aggregatedData.cliques,
           tooltip: 'Cliques no link (link_clicks do Meta)',
           format: 'number',
           isEdited: !!overridesMap.cliques
@@ -176,7 +143,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'ctr',
           title: 'CTR (Link)',
-          value: overridesMap.ctr || (((overridesMap.cliques || baseData.cliques) / (overridesMap.impressoes || baseData.impressoes)) * 100),
+          value: overridesMap.ctr || (aggregatedData.impressoes > 0 ? ((overridesMap.cliques || aggregatedData.cliques) / (overridesMap.impressoes || aggregatedData.impressoes)) * 100 : 0),
           formula: 'Cliques ÷ Impressões',
           tooltip: 'Taxa de cliques no link - cliques dividido por impressões',
           format: 'percentage',
@@ -185,7 +152,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'cpc',
           title: 'CPC',
-          value: overridesMap.cpc || ((overridesMap.investimento || baseData.investimento) / (overridesMap.cliques || baseData.cliques)),
+          value: overridesMap.cpc || (aggregatedData.cliques > 0 ? (overridesMap.investimento || aggregatedData.investimento) / (overridesMap.cliques || aggregatedData.cliques) : 0),
           formula: 'Investimento ÷ Cliques',
           tooltip: 'Custo por Clique - investimento dividido por cliques',
           format: 'currency',
@@ -194,7 +161,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'connect_rate',
           title: 'Connect Rate',
-          value: overridesMap.connect_rate || (((overridesMap.leads || baseData.leads) / (overridesMap.cliques || baseData.cliques)) * 100),
+          value: overridesMap.connect_rate || (aggregatedData.cliques > 0 ? ((overridesMap.leads || aggregatedData.leads) / (overridesMap.cliques || aggregatedData.cliques)) * 100 : 0),
           formula: 'Leads ÷ Cliques',
           tooltip: 'Taxa de conversão de cliques em leads (se Lead vem de link)',
           format: 'percentage',
@@ -203,7 +170,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'tx_conversao_pg',
           title: 'Tx. Conversão Pg',
-          value: overridesMap.tx_conversao_pg || (((overridesMap.conversoes_pagina || baseData.conversoes_pagina) / (overridesMap.visitas_pagina || baseData.visitas_pagina)) * 100),
+          value: overridesMap.tx_conversao_pg || (aggregatedData.visitas_pagina > 0 ? ((overridesMap.conversoes_pagina || aggregatedData.conversoes_pagina) / (overridesMap.visitas_pagina || aggregatedData.visitas_pagina)) * 100 : null),
           formula: 'Conversões da página ÷ Visitas',
           tooltip: 'Taxa de conversão da página (opt-in/checkout) - conversões dividido por visitas',
           format: 'percentage',
@@ -212,7 +179,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'vendas',
           title: 'Vendas',
-          value: overridesMap.vendas || baseData.vendas,
+          value: overridesMap.vendas || aggregatedData.vendas || null,
           tooltip: 'Número de compras confirmadas (se integrado a checkout/Meta purchase)',
           format: 'number',
           isEdited: !!overridesMap.vendas
@@ -220,7 +187,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
         {
           key: 'cac',
           title: 'CAC',
-          value: overridesMap.cac || ((overridesMap.investimento || baseData.investimento) / (overridesMap.vendas || baseData.vendas)),
+          value: overridesMap.cac || (aggregatedData.vendas > 0 ? (overridesMap.investimento || aggregatedData.investimento) / (overridesMap.vendas || aggregatedData.vendas) : null),
           formula: 'Investimento ÷ Vendas',
           tooltip: 'Custo de Aquisição de Cliente - investimento dividido por vendas',
           format: 'currency',
@@ -255,17 +222,6 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
     }
   };
 
-  const generateComparison = () => {
-    // Simular comparação com período anterior
-    const isPositive = Math.random() > 0.5;
-    const percentage = Math.random() * 30 + 1;
-    
-    return {
-      isPositive,
-      percentage: percentage.toFixed(1)
-    };
-  };
-
   const handleExportPNG = async () => {
     try {
       // Implementar captura de tela da seção
@@ -283,7 +239,7 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
           .from('debrief_overrides')
           .upsert({
             debriefing_id: debriefingId,
-            periodo_hash: `${format(periodStart, 'yyyy-MM-dd')}_${format(periodEnd, 'yyyy-MM-dd')}`,
+            periodo_hash: 'current',
             card_key: key,
             valor: value,
             autor_id: (await supabase.auth.getUser()).data.user?.id
@@ -341,145 +297,50 @@ export default function TrafficMetrics({ debriefingId, clienteId }: TrafficMetri
               </Button>
             </div>
           </div>
-          
-          {/* Controles de filtro */}
-          <div className="flex flex-wrap items-center gap-4 pt-4">
-            <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium">Período:</label>
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {periodPresets.map((preset) => (
-                    <SelectItem key={preset.label} value={preset.label}>
-                      {preset.label}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="Intervalo personalizado">
-                    Intervalo personalizado
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedPeriod === "Intervalo personalizado" && (
-              <>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customStartDate ? format(customStartDate, "PPP", { locale: ptBR }) : "Data início"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={customStartDate}
-                      onSelect={setCustomStartDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customEndDate ? format(customEndDate, "PPP", { locale: ptBR }) : "Data fim"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={customEndDate}
-                      onSelect={setCustomEndDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </>
-            )}
-
-            <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium">Janela de atribuição:</label>
-              <Select value={attributionWindow} onValueChange={setAttributionWindow}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1d_click_1d_view">1d click / 1d view</SelectItem>
-                  <SelectItem value="7d_click_1d_view">7d click / 1d view</SelectItem>
-                  <SelectItem value="28d_click_1d_view">28d click / 1d view</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
         </CardHeader>
 
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {metrics.map((metric) => {
-              const comparison = generateComparison();
-              
-              return (
-                <Card key={metric.key} className="relative">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <h3 className="text-sm font-medium text-muted-foreground">
-                          {metric.title}
-                        </h3>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="h-3 w-3 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div>
-                              <p>{metric.tooltip}</p>
-                              {metric.formula && (
-                                <p className="text-xs mt-1 opacity-80">
-                                  Fórmula: {metric.formula}
-                                </p>
-                              )}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      
-                      {metric.isEdited && (
-                        <Badge variant="secondary" className="text-xs">
-                          editado
-                        </Badge>
-                      )}
+            {metrics.map((metric) => (
+              <Card key={metric.key} className="relative">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-sm font-medium text-muted-foreground">
+                        {metric.title}
+                      </h3>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div>
+                            <p>{metric.tooltip}</p>
+                            {metric.formula && (
+                              <p className="text-xs mt-1 opacity-80">
+                                Fórmula: {metric.formula}
+                              </p>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                     
-                    <div className="space-y-2">
-                      <p className="text-2xl font-bold">
-                        {formatValue(metric.value, metric.format)}
-                      </p>
-                      
-                      <div className="flex items-center space-x-1">
-                        {comparison.isPositive ? (
-                          <TrendingUp className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <TrendingDown className="h-3 w-3 text-red-500" />
-                        )}
-                        <span className={cn(
-                          "text-xs font-medium",
-                          comparison.isPositive ? "text-green-500" : "text-red-500"
-                        )}>
-                          {comparison.isPositive ? "+" : "-"}{comparison.percentage}%
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          vs período anterior
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    {metric.isEdited && (
+                      <Badge variant="secondary" className="text-xs">
+                        editado
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <p className="text-2xl font-bold">
+                      {formatValue(metric.value, metric.format)}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </CardContent>
       </Card>

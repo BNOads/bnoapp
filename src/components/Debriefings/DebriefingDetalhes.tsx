@@ -325,6 +325,7 @@ export default function DebriefingDetalhes() {
         <TrafficMetrics 
           debriefingId={debriefing.id}
           clienteId={debriefing.cliente_id}
+          dadosTrafego={debriefing.dados_trafego}
         />
       </div>
 
