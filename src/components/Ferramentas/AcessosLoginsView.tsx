@@ -265,6 +265,22 @@ export const AcessosLoginsView = () => {
     setVisiblePasswords(newVisible);
   };
 
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copiado!",
+        description: `${type} copiado para a área de transferência`
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível copiar para a área de transferência",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getCategoryIcon = (categoria: string) => {
     switch (categoria) {
       case 'redes_sociais': return <Globe className="h-4 w-4" />;
@@ -657,32 +673,53 @@ export const AcessosLoginsView = () => {
                       </div>
                     </Badge>
                   </TableCell>
-                  <TableCell>{acesso.login_usuario || '-'}</TableCell>
+                  <TableCell>
+                    {acesso.login_usuario ? (
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm">
+                          {acesso.login_usuario}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(acesso.login_usuario!, 'Login')}
+                          title="Copiar login"
+                        >
+                          <User className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : '-'}
+                  </TableCell>
                   <TableCell>
                     {acesso.senha_criptografada ? (
                       <div className="flex items-center gap-2">
-                        {isAdmin ? (
-                          <>
-                            <span className="font-mono text-sm">
-                              {visiblePasswords.has(acesso.id) 
-                                ? decryptPassword(acesso.senha_criptografada)
-                                : '••••••••'
-                              }
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => togglePasswordVisibility(acesso.id)}
-                            >
-                              {visiblePasswords.has(acesso.id) ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground">••••••••</span>
+                        <span className="font-mono text-sm">
+                          {visiblePasswords.has(acesso.id) 
+                            ? decryptPassword(acesso.senha_criptografada)
+                            : '••••••••'
+                          }
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => togglePasswordVisibility(acesso.id)}
+                          title="Mostrar/ocultar senha"
+                        >
+                          {visiblePasswords.has(acesso.id) ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                        {visiblePasswords.has(acesso.id) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => copyToClipboard(decryptPassword(acesso.senha_criptografada!), 'Senha')}
+                            title="Copiar senha"
+                          >
+                            <Lock className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     ) : '-'}
