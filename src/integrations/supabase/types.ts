@@ -992,6 +992,7 @@ export type Database = {
           cliente_id: string
           created_at: string
           id: string
+          parent_id: string | null
           reacoes: Json
           texto: string
           updated_at: string
@@ -1001,6 +1002,7 @@ export type Database = {
           cliente_id: string
           created_at?: string
           id?: string
+          parent_id?: string | null
           reacoes?: Json
           texto: string
           updated_at?: string
@@ -1010,11 +1012,20 @@ export type Database = {
           cliente_id?: string
           created_at?: string
           id?: string
+          parent_id?: string | null
           reacoes?: Json
           texto?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "diario_bordo_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "diario_bordo"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documentos: {
         Row: {

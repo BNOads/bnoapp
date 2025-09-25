@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, Plus, ChevronDown, ChevronUp, Edit2, Trash2 } from "lucide-react";
+import { MessageSquare, Plus, ChevronDown, ChevronUp, Edit2, Trash2, Reply } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -28,8 +28,10 @@ interface DiarioBordoEntry {
   reacoes: Record<string, string[]>;
   created_at: string;
   updated_at: string;
-  autor_nome?: string;
-  autor_avatar?: string;
+  author_nome?: string;
+  author_avatar?: string;
+  parent_id?: string;
+  replies?: DiarioBordoEntry[];
 }
 
 interface DiarioBordoProps {
@@ -41,6 +43,8 @@ const EMOJIS = [
   { emoji: "👎", label: "Não curtir" },
   { emoji: "🚀", label: "Excelente" },
   { emoji: "❗", label: "Importante" },
+  { emoji: "❌", label: "Problema" },
+  { emoji: "✅", label: "Verificado" },
 ];
 
 export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
@@ -57,6 +61,9 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
 
   const canWrite = isAdmin || canCreateContent;
 
@@ -68,16 +75,17 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
 
   const loadEntries = async () => {
     try {
-      // Buscar entradas do diário de bordo
+      // Buscar entradas do diário de bordo (apenas principais - sem parent_id)
       const { data: entriesData, error: entriesError } = await supabase
         .from('diario_bordo')
         .select('*')
         .eq('cliente_id', clienteId)
+        .is('parent_id', null)
         .order('created_at', { ascending: false });
 
       if (entriesError) throw entriesError;
 
-      // Buscar informações dos colaboradores para cada entrada
+      // Buscar informações dos colaboradores e replies para cada entrada
       const entriesWithAuthor: DiarioBordoEntry[] = [];
       
       if (entriesData) {
@@ -88,11 +96,38 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
             .eq('user_id', entry.autor_id)
             .maybeSingle();
 
+          // Buscar replies para esta entrada
+          const { data: repliesData } = await supabase
+            .from('diario_bordo')
+            .select('*')
+            .eq('parent_id', entry.id)
+            .order('created_at', { ascending: true });
+
+          const repliesWithAuthor: DiarioBordoEntry[] = [];
+          if (repliesData) {
+            for (const reply of repliesData) {
+              const { data: replyAuthorData } = await supabase
+                .from('colaboradores')
+                .select('nome, avatar_url')
+                .eq('user_id', reply.autor_id)
+                .maybeSingle();
+
+              repliesWithAuthor.push({
+                ...reply,
+                reacoes: (reply.reacoes as Record<string, string[]>) || {},
+                author_nome: replyAuthorData?.nome || 'Usuário',
+                author_avatar: replyAuthorData?.avatar_url,
+                replies: []
+              });
+            }
+          }
+
           entriesWithAuthor.push({
             ...entry,
             reacoes: (entry.reacoes as Record<string, string[]>) || {},
-            autor_nome: colaboradorData?.nome || 'Usuário',
-            autor_avatar: colaboradorData?.avatar_url
+            author_nome: colaboradorData?.nome || 'Usuário',
+            author_avatar: colaboradorData?.avatar_url,
+            replies: repliesWithAuthor
           });
         }
       }
@@ -131,8 +166,9 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
       const newEntry: DiarioBordoEntry = {
         ...data,
         reacoes: {},
-        autor_nome: userData?.nome || 'Usuário',
-        autor_avatar: userData?.avatar_url
+        author_nome: userData?.nome || 'Usuário',
+        author_avatar: userData?.avatar_url,
+        replies: []
       };
 
       setEntries(prev => [newEntry, ...prev]);
@@ -151,6 +187,58 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSubmitReply = async (parentId: string) => {
+    if (!replyText.trim() || !user?.id) return;
+
+    setSubmittingReply(true);
+    try {
+      const { data, error } = await supabase
+        .from('diario_bordo')
+        .insert({
+          cliente_id: clienteId,
+          autor_id: user.id,
+          texto: replyText.trim(),
+          parent_id: parentId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newReply: DiarioBordoEntry = {
+        ...data,
+        reacoes: {},
+        author_nome: userData?.nome || 'Usuário',
+        author_avatar: userData?.avatar_url,
+        replies: []
+      };
+
+      // Adicionar o reply à entrada pai
+      setEntries(prev => prev.map(entry => 
+        entry.id === parentId 
+          ? { ...entry, replies: [...(entry.replies || []), newReply] }
+          : entry
+      ));
+
+      setReplyText("");
+      setReplyingTo(null);
+      
+      toast({
+        title: "Sucesso",
+        description: "Resposta adicionada ao diário de bordo.",
+      });
+    } catch (error) {
+      console.error('Erro ao criar resposta:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível adicionar a resposta.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingReply(false);
     }
   };
 
@@ -343,26 +431,26 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
               displayedEntries.map((entry) => (
                 <div key={entry.id} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={entry.autor_avatar} />
-                        <AvatarFallback>
-                          {entry.autor_nome?.charAt(0) || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium text-sm">{entry.autor_nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(entry.created_at), {
-                            addSuffix: true,
-                            locale: ptBR,
-                          })}
-                          {entry.updated_at !== entry.created_at && (
-                            <span className="ml-1">(editado)</span>
-                          )}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={entry.author_avatar} />
+                          <AvatarFallback>
+                            {entry.author_nome?.charAt(0) || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-sm">{entry.author_nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(entry.created_at), {
+                              addSuffix: true,
+                              locale: ptBR,
+                            })}
+                            {entry.updated_at !== entry.created_at && (
+                              <span className="ml-1">(editado)</span>
+                            )}
+                          </p>
+                        </div>
                       </div>
-                    </div>
                     
                     {(user?.id === entry.autor_id || isAdmin) && (
                       <div className="flex gap-1">
@@ -408,28 +496,150 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
                     </p>
                   )}
 
-                  <div className="flex items-center gap-2 pt-2">
-                    {EMOJIS.map(({ emoji, label }) => {
-                      const reactions = entry.reacoes?.[emoji] || [];
-                      const hasReacted = user?.id ? reactions.includes(user.id) : false;
-                      
-                      return (
-                        <Button
-                          key={emoji}
-                          variant={hasReacted ? "secondary" : "ghost"}
-                          size="sm"
-                          onClick={() => handleReaction(entry.id, emoji)}
-                          className="h-8 px-2 text-xs"
-                          title={label}
-                        >
-                          <span className="mr-1">{emoji}</span>
-                          {reactions.length > 0 && (
-                            <span>{reactions.length}</span>
-                          )}
-                        </Button>
-                      );
-                    })}
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-2">
+                      {EMOJIS.map(({ emoji, label }) => {
+                        const reactions = entry.reacoes?.[emoji] || [];
+                        const hasReacted = user?.id ? reactions.includes(user.id) : false;
+                        
+                        return (
+                          <Button
+                            key={emoji}
+                            variant={hasReacted ? "secondary" : "ghost"}
+                            size="sm"
+                            onClick={() => handleReaction(entry.id, emoji)}
+                            className="h-8 px-2 text-xs"
+                            title={label}
+                          >
+                            <span className="mr-1">{emoji}</span>
+                            {reactions.length > 0 && (
+                              <span>{reactions.length}</span>
+                            )}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    
+                    {user && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setReplyingTo(replyingTo === entry.id ? null : entry.id)}
+                        className="h-8 px-2 text-xs"
+                      >
+                        <Reply className="h-3 w-3 mr-1" />
+                        Responder
+                      </Button>
+                    )}
                   </div>
+
+                  {/* Reply Form */}
+                  {replyingTo === entry.id && (
+                    <div className="mt-3 pl-8 border-l-2 border-muted">
+                      <div className="space-y-2">
+                        <Textarea
+                          placeholder="Escreva sua resposta..."
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          className="min-h-[60px] resize-none"
+                          onKeyDown={(e) => {
+                            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                              e.preventDefault();
+                              handleSubmitReply(entry.id);
+                            }
+                          }}
+                        />
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleSubmitReply(entry.id)}
+                            disabled={!replyText.trim() || submittingReply}
+                          >
+                            {submittingReply ? "Enviando..." : "Responder"}
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => {
+                              setReplyingTo(null);
+                              setReplyText("");
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Display Replies */}
+                  {entry.replies && entry.replies.length > 0 && (
+                    <div className="mt-3 pl-8 space-y-3 border-l-2 border-muted">
+                      {entry.replies.map((reply) => (
+                        <div key={reply.id} className="bg-muted/30 rounded-lg p-3 space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6">
+                                <AvatarImage src={reply.author_avatar} />
+                                <AvatarFallback className="text-xs">
+                                  {reply.author_nome?.charAt(0) || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium text-xs">{reply.author_nome}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDistanceToNow(new Date(reply.created_at), {
+                                    addSuffix: true,
+                                    locale: ptBR,
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {(user?.id === reply.autor_id || isAdmin) && (
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setDeleteConfirm(reply.id)}
+                                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                            {reply.texto}
+                          </p>
+                          
+                          <div className="flex items-center gap-1">
+                            {EMOJIS.map(({ emoji, label }) => {
+                              const reactions = reply.reacoes?.[emoji] || [];
+                              const hasReacted = user?.id ? reactions.includes(user.id) : false;
+                              
+                              return (
+                                <Button
+                                  key={emoji}
+                                  variant={hasReacted ? "secondary" : "ghost"}
+                                  size="sm"
+                                  onClick={() => handleReaction(reply.id, emoji)}
+                                  className="h-6 px-1 text-xs"
+                                  title={label}
+                                >
+                                  <span className="mr-1">{emoji}</span>
+                                  {reactions.length > 0 && (
+                                    <span className="text-xs">{reactions.length}</span>
+                                  )}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}
