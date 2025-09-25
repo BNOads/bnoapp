@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { PesquisaAnalysis } from "./PesquisaAnalysis";
-import { PerformanceCriativos } from "./PerformanceCriativos";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Edit, Save, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AdvancedChartsProps {
   dados_leads?: any[];
@@ -16,6 +20,9 @@ interface AdvancedChartsProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
 export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados_trafego = [], dados_pesquisa = [], dados_outras_fontes = [], debriefing }: AdvancedChartsProps) => {
+  const [isEditingDistribution, setIsEditingDistribution] = useState(false);
+  const [distributionData, setDistributionData] = useState<any[]>([]);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -145,102 +152,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     }));
   };
 
-  // 3. Temperatura do Público (com dados de pesquisa)
-  const getTemperaturaPublico = () => {
-    // Se temos dados de pesquisa, usar eles, senão usar dados dos leads padrão
-    const leadsData = dados_pesquisa.length > 0 ? dados_pesquisa : dados_leads;
-    
-    const temperaturas = leadsData.reduce((acc: any, lead: any) => {
-      // Mapear sexo para temperatura (exemplo de lógica)
-      let temp = lead.temperatura || 'Morno';
-      
-      // Se não tem temperatura mas tem dados de pesquisa, inferir
-      if (!lead.temperatura && dados_pesquisa.length > 0) {
-        const renda = lead.renda_mensal || lead['atualmente, qual é a sua renda mensal?'] || '';
-        if (renda.includes('10.000') || renda.includes('15.000')) {
-          temp = 'Quente';
-        } else if (renda.includes('5.000') || renda.includes('3.000')) {
-          temp = 'Morno';
-        } else {
-          temp = 'Frio';
-        }
-      }
-      
-      if (!acc[temp]) {
-        acc[temp] = { leads: 0, vendas: 0 };
-      }
-      acc[temp].leads++;
-      
-      const ehComprador = dados_compradores.some((comprador: any) => comprador.email === lead.email);
-      if (ehComprador) {
-        acc[temp].vendas++;
-      }
-      return acc;
-    }, {});
-
-    return Object.keys(temperaturas).map(temp => ({
-      temperatura: temp,
-      leads: temperaturas[temp].leads,
-      vendas: temperaturas[temp].vendas,
-      conversao: temperaturas[temp].leads > 0 ? (temperaturas[temp].vendas / temperaturas[temp].leads) * 100 : 0
-    }));
-  };
-
-  // 4. Top Criativos (com links e miniaturas)
-  const getTopCriativos = () => {
-    const trafegoCompleto = [...dados_trafego, ...dados_outras_fontes];
-    
-    const criativosData = trafegoCompleto.reduce((acc: any, item: any) => {
-      const criativo = item['Ad Name'] || item.ad_name || item.nome_criativo || 'Criativo não identificado';
-      const linkCriativo = item.link_criativo || '';
-      
-      if (!acc[criativo]) {
-        acc[criativo] = {
-          leads: 0,
-          gasto: 0,
-          cliques: 0,
-          impressoes: 0,
-          link_criativo: linkCriativo
-        };
-      }
-      acc[criativo].leads += parseInt(item['Action Leads'] || item.action_leads || item.leads || 0);
-      acc[criativo].gasto += parseFloat(item['Spend (Cost, Amount Spent)'] || item.spend || item.gasto || 0);
-      acc[criativo].cliques += parseInt(item['Action Link Clicks'] || item.action_link_clicks || item.cliques || 0);
-      acc[criativo].impressoes += parseInt(item['Impressions'] || item.impressions || item.impressoes || 0);
-      return acc;
-    }, {});
-
-    // Cruzar dados de compradores usando ad_name e utm_content
-    const criativosComVendas = Object.keys(criativosData).map(criativo => {
-      // Buscar vendas que correspondem ao criativo através do utm_content
-      const vendasDoCriativo = dados_compradores.filter((comprador: any) => {
-        const utmContent = comprador.utm_content || comprador.utm_campaign || '';
-        // Verificar se o utm_content corresponde ao nome do criativo (ad_name)
-        return utmContent === criativo || 
-               utmContent.includes(criativo) || 
-               criativo.includes(utmContent) ||
-               // Fallback para busca parcial por palavras-chave
-               (utmContent && criativo.toLowerCase().includes(utmContent.toLowerCase())) ||
-               (utmContent && utmContent.toLowerCase().includes(criativo.toLowerCase()));
-      });
-
-      return {
-        criativo,
-        ...criativosData[criativo],
-        cpl: criativosData[criativo].leads > 0 ? criativosData[criativo].gasto / criativosData[criativo].leads : 0,
-        ctr: criativosData[criativo].impressoes > 0 ? (criativosData[criativo].cliques / criativosData[criativo].impressoes) * 100 : 0,
-        vendas: vendasDoCriativo.length,
-        conversao: criativosData[criativo].leads > 0 ? (vendasDoCriativo.length / criativosData[criativo].leads) * 100 : 0
-      };
-    });
-
-    return criativosComVendas
-      .filter(item => item.leads > 0 || item.gasto > 0) // Filtrar apenas criativos com dados
-      .sort((a, b) => b.leads - a.leads)
-      .slice(0, 5);
-  };
-
-  // 5. Vendas por Dia
+  // 3. Vendas por Dia
   const getVendasPorDia = () => {
     const vendasPorDia = dados_compradores.reduce((acc: any, comprador: any) => {
       const data = new Date(comprador.data || Date.now()).toLocaleDateString('pt-BR');
@@ -259,67 +171,7 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
       }));
   };
 
-  // 6. Perfil Demográfico - Gênero (com dados de pesquisa)
-  const getPerfilGenero = () => {
-    const dadosBase = dados_pesquisa.length > 0 ? dados_pesquisa : dados_leads;
-    
-    const generoLeads = dadosBase.reduce((acc: any, lead: any) => {
-      const genero = lead.sexo || lead.genero || lead['sexo'] || 'Não informado';
-      acc[genero] = (acc[genero] || 0) + 1;
-      return acc;
-    }, {});
-
-    const generoVendas = dados_compradores.reduce((acc: any, comprador: any) => {
-      // Tentar mapear comprador com dados de pesquisa
-      const dadosPesquisa = dados_pesquisa.find(p => p.email === comprador.email);
-      const genero = dadosPesquisa?.sexo || dadosPesquisa?.genero || comprador.genero || 'Não informado';
-      acc[genero] = (acc[genero] || 0) + 1;
-      return acc;
-    }, {});
-
-    return Object.keys(generoLeads).map(genero => ({
-      genero,
-      leads: generoLeads[genero] || 0,
-      vendas: generoVendas[genero] || 0,
-      conversao: generoLeads[genero] > 0 ? ((generoVendas[genero] || 0) / generoLeads[genero]) * 100 : 0
-    }));
-  };
-
-  // 7. Perfil por Idade (com dados de pesquisa)
-  const getPerfilIdade = () => {
-    const getIdadeFaixa = (idade: number) => {
-      if (idade < 25) return '18-24';
-      if (idade < 35) return '25-34';
-      if (idade < 45) return '35-44';
-      if (idade < 55) return '45-54';
-      return '55+';
-    };
-
-    const dadosBase = dados_pesquisa.length > 0 ? dados_pesquisa : dados_leads;
-
-    const idadeLeads = dadosBase.reduce((acc: any, lead: any) => {
-      const faixa = getIdadeFaixa(lead.idade || 30);
-      acc[faixa] = (acc[faixa] || 0) + 1;
-      return acc;
-    }, {});
-
-    const idadeVendas = dados_compradores.reduce((acc: any, comprador: any) => {
-      const dadosPesquisa = dados_pesquisa.find(p => p.email === comprador.email);
-      const idade = dadosPesquisa?.idade || dadosPesquisa?.['idade'] || comprador.idade || 30;
-      const faixa = getIdadeFaixa(idade);
-      acc[faixa] = (acc[faixa] || 0) + 1;
-      return acc;
-    }, {});
-
-    return Object.keys(idadeLeads).map(faixa => ({
-      faixa,
-      leads: idadeLeads[faixa] || 0,
-      vendas: idadeVendas[faixa] || 0,
-      conversao: idadeLeads[faixa] > 0 ? ((idadeVendas[faixa] || 0) / idadeLeads[faixa]) * 100 : 0
-    }));
-  };
-
-  // 8. Melhores Fontes (Orgânicas vs Tráfego Pago)
+  // 4. Melhores Fontes (Orgânicas vs Tráfego Pago)
   const getMelhoresFontes = () => {
     const todasFontes = [...dados_leads, ...dados_compradores];
     
@@ -364,414 +216,252 @@ export const AdvancedCharts = ({ dados_leads = [], dados_compradores = [], dados
     return fontesArray.sort((a: any, b: any) => b.leads - a.leads);
   };
 
+  const handleEditDistribution = () => {
+    const currentData = getVerbaPorEtapa();
+    setDistributionData(currentData);
+    setIsEditingDistribution(true);
+  };
+
+  const handleSaveDistribution = async () => {
+    try {
+      const totalValue = distributionData.reduce((sum, item) => sum + item.value, 0);
+      const updatedData = distributionData.map(item => ({
+        ...item,
+        percentage: totalValue > 0 ? (item.value / totalValue) * 100 : 0
+      }));
+
+      const { error } = await supabase
+        .from('debriefings')
+        .update({
+          insights_automaticos: updatedData.map(item => ({
+            stage: item.name.toLowerCase().replace(/[^\w\s]/gi, '').replace(/\s+/g, '_'),
+            investment: item.value,
+            percentage: item.percentage
+          }))
+        })
+        .eq('id', debriefing.id);
+
+      if (error) throw error;
+
+      toast.success('Distribuição de verba atualizada com sucesso!');
+      setIsEditingDistribution(false);
+    } catch (error) {
+      console.error('Erro ao salvar distribuição:', error);
+      toast.error('Erro ao salvar distribuição de verba');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingDistribution(false);
+    setDistributionData([]);
+  };
+
+  const updateDistributionValue = (index: number, newValue: number) => {
+    const updated = [...distributionData];
+    updated[index] = { ...updated[index], value: newValue };
+    setDistributionData(updated);
+  };
+
   const verbaPorEtapa = getVerbaPorEtapa();
   const plataformas = getDesempenhoPorPlataforma();
-  const temperaturas = getTemperaturaPublico();
-  const topCriativos = getTopCriativos();
   const vendasPorDia = getVendasPorDia();
-  const perfilGenero = getPerfilGenero();
-  const perfilIdade = getPerfilIdade();
   const melhoresFontes = getMelhoresFontes();
 
   return (
     <div className="space-y-6">
-      {/* Tabs para organizar o conteúdo */}
-      <Tabs defaultValue="performance" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="performance">Performance por Criativo</TabsTrigger>
-          <TabsTrigger value="analises">Análises Gerais</TabsTrigger>
-          <TabsTrigger value="demograficos">Dados Demográficos</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="performance" className="space-y-6">
-          <PerformanceCriativos
-            dados_leads={dados_leads}
-            dados_compradores={dados_compradores}
-            dados_trafego={dados_trafego}
-            dados_outras_fontes={dados_outras_fontes}
-          />
-        </TabsContent>
-
-        <TabsContent value="analises" className="space-y-6">
-          {/* Distribuição de Verba por Etapa */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Distribuição de Verba por Etapa</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={verbaPorEtapa}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percentage }) => `${name} ${percentage.toFixed(1)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {verbaPorEtapa.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  </PieChart>
-                </ResponsiveContainer>
-                    <div className="space-y-2">
-                      {verbaPorEtapa.map((etapa, index) => (
-                        <div key={index} className="flex justify-between items-center p-2 border rounded">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-4 h-4 rounded" style={{ backgroundColor: etapa.color }}></div>
-                            <span>{etapa.name}</span>
-                            {etapa.count > 0 && (
-                              <span className="text-xs text-muted-foreground">({etapa.count} campanhas)</span>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold">{formatCurrency(etapa.value)}</div>
-                            <div className="text-sm text-muted-foreground">{etapa.percentage.toFixed(1)}%</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+      {/* Distribuição de Verba por Etapa */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Distribuição de Verba por Etapa</CardTitle>
+            {!isEditingDistribution ? (
+              <Button variant="outline" size="sm" onClick={handleEditDistribution}>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleSaveDistribution}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancelar
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Desempenho por Plataforma */}
-          {plataformas.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Desempenho por Plataforma de Tráfego</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={plataformas}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="plataforma" />
-                    <YAxis />
-                    <Tooltip formatter={(value: number, name: string) => {
-                      if (name === 'investimento') return [formatCurrency(value), 'Investimento'];
-                      if (name === 'cpl') return [formatCurrency(value), 'CPL'];
-                      if (name === 'ctr') return [`${formatNumber(value)}%`, 'CTR'];
-                      return [formatNumber(value), name];
-                    }} />
-                    <Bar dataKey="leads" fill="#8884d8" name="Leads" />
-                    <Bar dataKey="cpl" fill="#82ca9d" name="CPL" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Temperatura do Público */}
-          {temperaturas.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Temperatura do Público</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={temperaturas}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ temperatura, leads }) => `${temperatura} (${leads})`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="leads"
-                      >
-                        {temperaturas.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => [formatNumber(value), 'Leads']} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={temperaturas}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="temperatura" />
-                      <YAxis />
-                      <Tooltip formatter={(value: number, name: string) => {
-                        if (name === 'conversao') return [`${formatNumber(value)}%`, 'Taxa de Conversão'];
-                        return [formatNumber(value), name];
-                      }} />
-                      <Bar dataKey="vendas" fill="#82ca9d" name="Vendas" />
-                      <Bar dataKey="conversao" fill="#ffc658" name="Taxa de Conversão %" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Vendas por Dia */}
-          {vendasPorDia.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Vendas por Dia</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={vendasPorDia}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="data" />
-                    <YAxis />
-                    <Tooltip formatter={(value: number) => [formatNumber(value), 'Vendas']} />
-                    <Line type="monotone" dataKey="vendas" stroke="#8884d8" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Melhores Fontes (Orgânicas vs Tráfego Pago) */}
-          {melhoresFontes.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Melhores Fontes de Tráfego</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="text-lg font-semibold mb-4">Leads por Fonte</h4>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={melhoresFontes.slice(0, 8)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="fonte" 
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={isEditingDistribution ? distributionData : verbaPorEtapa}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percentage }) => `${name} ${percentage.toFixed(1)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {(isEditingDistribution ? distributionData : verbaPorEtapa).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="space-y-2">
+              {(isEditingDistribution ? distributionData : verbaPorEtapa).map((etapa, index) => (
+                <div key={index} className="flex justify-between items-center p-2 border rounded">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: etapa.color }}></div>
+                    <span>{etapa.name}</span>
+                    {etapa.count > 0 && (
+                      <span className="text-xs text-muted-foreground">({etapa.count} campanhas)</span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    {isEditingDistribution ? (
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`etapa-${index}`} className="sr-only">Valor para {etapa.name}</Label>
+                        <Input
+                          id={`etapa-${index}`}
+                          type="number"
+                          value={etapa.value}
+                          onChange={(e) => updateDistributionValue(index, parseFloat(e.target.value) || 0)}
+                          className="w-24 text-right"
                         />
-                        <YAxis />
-                        <Tooltip formatter={(value: number, name: string) => {
-                          if (name === 'conversao') return [`${formatNumber(value)}%`, 'Conversão'];
-                          return [formatNumber(value), name];
-                        }} />
-                        <Bar dataKey="leads" fill="#8884d8" name="Leads" />
-                        <Bar dataKey="vendas" fill="#82ca9d" name="Vendas" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-lg font-semibold mb-4">Orgânico vs Tráfego Pago</h4>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={melhoresFontes.reduce((acc: any, fonte: any) => {
-                            const tipo = fonte.tipo;
-                            if (!acc.find((item: any) => item.tipo === tipo)) {
-                              acc.push({
-                                tipo,
-                                leads: 0,
-                                vendas: 0
-                              });
-                            }
-                            const index = acc.findIndex((item: any) => item.tipo === tipo);
-                            acc[index].leads += fonte.leads;
-                            acc[index].vendas += fonte.vendas;
-                            return acc;
-                          }, [])}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ tipo, leads }) => `${tipo} (${leads})`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="leads"
-                        >
-                          {melhoresFontes.reduce((acc: any, fonte: any) => {
-                            const tipo = fonte.tipo;
-                            if (!acc.find((item: any) => item.tipo === tipo)) {
-                              acc.push({ tipo });
-                            }
-                            return acc;
-                          }, []).map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={entry.tipo === 'Orgânico' ? '#82ca9d' : '#8884d8'} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: number) => [formatNumber(value), 'Leads']} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="font-bold">{formatCurrency(etapa.value)}</div>
+                        <div className="text-sm text-muted-foreground">{etapa.percentage.toFixed(1)}%</div>
+                      </>
+                    )}
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-                {/* Tabela de Detalhes das Fontes */}
-                <div className="mt-6">
-                  <h4 className="text-lg font-semibold mb-4">Detalhes por Fonte</h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse border border-gray-200">
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="border border-gray-200 p-2 text-left">Fonte</th>
-                          <th className="border border-gray-200 p-2 text-left">Tipo</th>
-                          <th className="border border-gray-200 p-2 text-center">Leads</th>
-                          <th className="border border-gray-200 p-2 text-center">Vendas</th>
-                          <th className="border border-gray-200 p-2 text-center">Conversão</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {melhoresFontes.slice(0, 10).map((fonte: any, index: number) => (
-                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="border border-gray-200 p-2">{fonte.fonte}</td>
-                            <td className="border border-gray-200 p-2">
-                              <span className={`px-2 py-1 rounded text-xs ${
-                                fonte.tipo === 'Orgânico' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {fonte.tipo}
-                              </span>
-                            </td>
-                            <td className="border border-gray-200 p-2 text-center">{fonte.leads}</td>
-                            <td className="border border-gray-200 p-2 text-center">{fonte.vendas}</td>
-                            <td className="border border-gray-200 p-2 text-center">{formatNumber(fonte.conversao)}%</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+      {/* Desempenho por Plataforma */}
+      {plataformas.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Desempenho por Plataforma</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={plataformas}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="plataforma" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value: number, name: string) => {
+                    if (name === 'investimento') return formatCurrency(value);
+                    if (name === 'cpl') return formatCurrency(value);
+                    if (name === 'ctr') return value.toFixed(2) + '%';
+                    return formatNumber(value);
+                  }}
+                />
+                <Bar dataKey="investimento" fill="#0088FE" name="Investimento" />
+                <Bar dataKey="leads" fill="#00C49F" name="Leads" />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2">Plataforma</th>
+                    <th className="text-right p-2">Investimento</th>
+                    <th className="text-right p-2">Leads</th>
+                    <th className="text-right p-2">CPL</th>
+                    <th className="text-right p-2">CTR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plataformas.map((plataforma, index) => (
+                    <tr key={index} className="border-b">
+                      <td className="p-2 font-medium">{plataforma.plataforma}</td>
+                      <td className="text-right p-2">{formatCurrency(plataforma.investimento)}</td>
+                      <td className="text-right p-2">{plataforma.leads}</td>
+                      <td className="text-right p-2">{formatCurrency(plataforma.cpl)}</td>
+                      <td className="text-right p-2">{plataforma.ctr.toFixed(2)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        <TabsContent value="demograficos" className="space-y-6">
-          {/* Top Criativos */}
-          {topCriativos.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Top 5 Criativos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-300">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="border border-gray-300 p-2 text-left">Criativo</th>
-                        <th className="border border-gray-300 p-2 text-center">Preview</th>
-                        <th className="border border-gray-300 p-2 text-center">Leads</th>
-                        <th className="border border-gray-300 p-2 text-center">Vendas</th>
-                        <th className="border border-gray-300 p-2 text-center">CPL</th>
-                        <th className="border border-gray-300 p-2 text-center">CTR</th>
-                        <th className="border border-gray-300 p-2 text-center">Gasto</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topCriativos.map((criativo, index) => (
-                        <tr key={index}>
-                          <td className="border border-gray-300 p-2">
-                            <div className="font-medium">{criativo.criativo}</div>
-                          </td>
-                          <td className="border border-gray-300 p-2 text-center">
-                            {criativo.link_criativo ? (
-                              <a 
-                                href={criativo.link_criativo} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="inline-block hover:opacity-80 transition-opacity"
-                              >
-                                <img 
-                                  src={criativo.link_criativo} 
-                                  alt={`Preview do criativo ${criativo.criativo}`}
-                                  className="w-12 h-12 object-cover rounded border"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                    (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
-                                  }}
-                                />
-                                <div className="hidden w-12 h-12 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
-                                  N/A
-                                </div>
-                              </a>
-                            ) : (
-                              <div className="w-12 h-12 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
-                                N/A
-                              </div>
-                            )}
-                          </td>
-                          <td className="border border-gray-300 p-2 text-center">{criativo.leads}</td>
-                          <td className="border border-gray-300 p-2 text-center">{criativo.vendas}</td>
-                          <td className="border border-gray-300 p-2 text-center">{formatCurrency(criativo.cpl)}</td>
-                          <td className="border border-gray-300 p-2 text-center">{formatNumber(criativo.ctr)}%</td>
-                          <td className="border border-gray-300 p-2 text-center">{formatCurrency(criativo.gasto)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+      {/* Vendas por Dia */}
+      {vendasPorDia.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Vendas por Dia</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={vendasPorDia}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="data" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="vendas" stroke="#0088FE" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Perfil Demográfico - Gênero */}
-          {perfilGenero.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Perfil Demográfico - Gênero</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={perfilGenero}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="genero" />
-                    <YAxis />
-                    <Tooltip formatter={(value: number, name: string) => {
-                      if (name === 'conversao') return [`${formatNumber(value)}%`, 'Conversão'];
-                      return [formatNumber(value), name];
-                    }} />
-                    <Bar dataKey="leads" fill="#8884d8" name="Leads" />
-                    <Bar dataKey="vendas" fill="#82ca9d" name="Vendas" />
-                    <Bar dataKey="conversao" fill="#ffc658" name="Conversão %" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Perfil Demográfico - Idade */}
-          {perfilIdade.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Perfil Demográfico - Faixa Etária</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={perfilIdade}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="faixa" />
-                    <YAxis />
-                    <Tooltip formatter={(value: number, name: string) => {
-                      if (name === 'conversao') return [`${formatNumber(value)}%`, 'Conversão'];
-                      return [formatNumber(value), name];
-                    }} />
-                    <Bar dataKey="leads" fill="#8884d8" name="Leads" />
-                    <Bar dataKey="vendas" fill="#82ca9d" name="Vendas" />
-                    <Bar dataKey="conversao" fill="#ffc658" name="Conversão %" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Análise Demográfica da Pesquisa */}
-          {dados_pesquisa.length > 0 && (
-            <PesquisaAnalysis 
-              dados_pesquisa={dados_pesquisa}
-              dados_compradores={dados_compradores}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* Melhores Fontes de Tráfego */}
+      {melhoresFontes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Melhores Fontes de Tráfego</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2">Fonte</th>
+                    <th className="text-left p-2">Tipo</th>
+                    <th className="text-right p-2">Leads</th>
+                    <th className="text-right p-2">Vendas</th>
+                    <th className="text-right p-2">Conversão</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {melhoresFontes.slice(0, 10).map((fonte, index) => (
+                    <tr key={index} className="border-b">
+                      <td className="p-2 font-medium">{fonte.fonte}</td>
+                      <td className="p-2">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          fonte.tipo === 'Orgânico' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {fonte.tipo}
+                        </span>
+                      </td>
+                      <td className="text-right p-2">{fonte.leads}</td>
+                      <td className="text-right p-2">{fonte.vendas}</td>
+                      <td className="text-right p-2">{fonte.conversao.toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
