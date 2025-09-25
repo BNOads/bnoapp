@@ -431,117 +431,174 @@ export function DadosBrutosAnalysis({
           </div>
         </DebriefingChartWithTable>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumo Orgânico vs Pago</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {(() => {
-                const organicos = Object.values(utmAnalise).filter(s => s.tipo === 'organico');
-                const pagos = Object.values(utmAnalise).filter(s => s.tipo === 'pago');
-                
-                const totalLeadsOrganicos = organicos.reduce((sum, s) => sum + s.leads, 0);
-                const totalVendasOrganicas = organicos.reduce((sum, s) => sum + s.vendas, 0);
-                const totalLeadsPagos = pagos.reduce((sum, s) => sum + s.leads, 0);
-                const totalVendasPagas = pagos.reduce((sum, s) => sum + s.vendas, 0);
-                
-                const convOrganico = totalLeadsOrganicos > 0 ? (totalVendasOrganicas / totalLeadsOrganicos) * 100 : 0;
-                const convPago = totalLeadsPagos > 0 ? (totalVendasPagas / totalLeadsPagos) * 100 : 0;
+        <DebriefingChartWithTable
+          chartId="organico_vs_pago_resumo"
+          title="Resumo Orgânico vs Pago"
+          data={(() => {
+            const organicos = Object.values(utmAnalise).filter(s => s.tipo === 'organico');
+            const pagos = Object.values(utmAnalise).filter(s => s.tipo === 'pago');
+            
+            const totalLeadsOrganicos = organicos.reduce((sum, s) => sum + s.leads, 0);
+            const totalVendasOrganicas = organicos.reduce((sum, s) => sum + s.vendas, 0);
+            const totalLeadsPagos = pagos.reduce((sum, s) => sum + s.leads, 0);
+            const totalVendasPagas = pagos.reduce((sum, s) => sum + s.vendas, 0);
+            
+            const convOrganico = totalLeadsOrganicos > 0 ? (totalVendasOrganicas / totalLeadsOrganicos) * 100 : 0;
+            const convPago = totalLeadsPagos > 0 ? (totalVendasPagas / totalLeadsPagos) * 100 : 0;
 
-                return (
-                  <>
-                    <div className="border rounded p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium text-green-600">Tráfego Orgânico</h4>
-                        <Badge variant="default">{convOrganico.toFixed(1)}%</Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span>Leads: {totalLeadsOrganicos}</span>
-                        <span>Vendas: {totalVendasOrganicas}</span>
-                      </div>
-                      <Progress value={convOrganico} className="h-2 mt-2" />
-                    </div>
+            return [
+              {
+                tipo: 'Tráfego Orgânico',
+                leads: totalLeadsOrganicos,
+                vendas: totalVendasOrganicas,
+                conversao: convOrganico
+              },
+              {
+                tipo: 'Tráfego Pago',
+                leads: totalLeadsPagos,
+                vendas: totalVendasPagas,
+                conversao: convPago
+              }
+            ];
+          })()}
+          columns={[
+            { key: 'tipo', label: 'Tipo de Tráfego', type: 'text' },
+            { key: 'leads', label: 'Leads', type: 'number' },
+            { key: 'vendas', label: 'Vendas', type: 'number' },
+            { key: 'conversao', label: 'Conversão (%)', type: 'percentage' }
+          ]}
+        >
+          <div className="space-y-4">
+            {(() => {
+              const organicos = Object.values(utmAnalise).filter(s => s.tipo === 'organico');
+              const pagos = Object.values(utmAnalise).filter(s => s.tipo === 'pago');
+              
+              const totalLeadsOrganicos = organicos.reduce((sum, s) => sum + s.leads, 0);
+              const totalVendasOrganicas = organicos.reduce((sum, s) => sum + s.vendas, 0);
+              const totalLeadsPagos = pagos.reduce((sum, s) => sum + s.leads, 0);
+              const totalVendasPagas = pagos.reduce((sum, s) => sum + s.vendas, 0);
+              
+              const convOrganico = totalLeadsOrganicos > 0 ? (totalVendasOrganicas / totalLeadsOrganicos) * 100 : 0;
+              const convPago = totalLeadsPagos > 0 ? (totalVendasPagas / totalLeadsPagos) * 100 : 0;
 
-                    <div className="border rounded p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium text-blue-600">Tráfego Pago</h4>
-                        <Badge variant="secondary">{convPago.toFixed(1)}%</Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span>Leads: {totalLeadsPagos}</span>
-                        <span>Vendas: {totalVendasPagas}</span>
-                      </div>
-                      <Progress value={convPago} className="h-2 mt-2" />
+              return (
+                <>
+                  <div className="border rounded p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-medium text-green-600">Tráfego Orgânico</h4>
+                      <Badge variant="default">{convOrganico.toFixed(1)}%</Badge>
                     </div>
-                  </>
-                );
-              })()}
-            </div>
-          </CardContent>
-        </Card>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <span>Leads: {totalLeadsOrganicos}</span>
+                      <span>Vendas: {totalVendasOrganicas}</span>
+                    </div>
+                    <Progress value={convOrganico} className="h-2 mt-2" />
+                  </div>
+
+                  <div className="border rounded p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-medium text-blue-600">Tráfego Pago</h4>
+                      <Badge variant="secondary">{convPago.toFixed(1)}%</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <span>Leads: {totalLeadsPagos}</span>
+                      <span>Vendas: {totalVendasPagas}</span>
+                    </div>
+                    <Progress value={convPago} className="h-2 mt-2" />
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </DebriefingChartWithTable>
       </div>
 
       {/* Melhores Fontes por Tipo */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {Object.keys(fontesOrganicas).length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-green-600">Melhores Fontes Orgânicas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {Object.entries(fontesOrganicas)
-                  .sort((a, b) => b[1].conversao - a[1].conversao)
-                  .slice(0, 8)
-                  .map(([fonte, stats]) => (
-                    <div key={fonte} className="border rounded p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">{fonte}</span>
-                        <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "outline"}>
-                          {stats.conversao.toFixed(1)}%
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                        <span>Leads: {stats.leads}</span>
-                        <span>Vendas: {stats.vendas}</span>
-                      </div>
-                      <Progress value={stats.conversao} className="h-1 mt-2" />
+          <DebriefingChartWithTable
+            chartId="melhores_fontes_organicas"
+            title="Melhores Fontes Orgânicas"
+            data={Object.entries(fontesOrganicas)
+              .sort((a, b) => b[1].conversao - a[1].conversao)
+              .slice(0, 8)
+              .map(([fonte, stats]) => ({
+                fonte,
+                leads: stats.leads,
+                vendas: stats.vendas,
+                conversao: stats.conversao
+              }))}
+            columns={[
+              { key: 'fonte', label: 'Fonte', type: 'text' },
+              { key: 'leads', label: 'Leads', type: 'number' },
+              { key: 'vendas', label: 'Vendas', type: 'number' },
+              { key: 'conversao', label: 'Conversão (%)', type: 'percentage' }
+            ]}
+          >
+            <div className="space-y-3">
+              {Object.entries(fontesOrganicas)
+                .sort((a, b) => b[1].conversao - a[1].conversao)
+                .slice(0, 8)
+                .map(([fonte, stats]) => (
+                  <div key={fonte} className="border rounded p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">{fonte}</span>
+                      <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "outline"}>
+                        {stats.conversao.toFixed(1)}%
+                      </Badge>
                     </div>
-                  ))}
-              </div>
-            </CardContent>
-          </Card>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <span>Leads: {stats.leads}</span>
+                      <span>Vendas: {stats.vendas}</span>
+                    </div>
+                    <Progress value={stats.conversao} className="h-1 mt-2" />
+                  </div>
+                ))}
+            </div>
+          </DebriefingChartWithTable>
         )}
 
         {Object.keys(fontesPagas).length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-blue-600">Melhores Fontes Pagas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {Object.entries(fontesPagas)
-                  .sort((a, b) => b[1].conversao - a[1].conversao)
-                  .slice(0, 8)
-                  .map(([fonte, stats]) => (
-                    <div key={fonte} className="border rounded p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">{fonte}</span>
-                        <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "outline"}>
-                          {stats.conversao.toFixed(1)}%
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                        <span>Leads: {stats.leads}</span>
-                        <span>Vendas: {stats.vendas}</span>
-                      </div>
-                      <Progress value={stats.conversao} className="h-1 mt-2" />
+          <DebriefingChartWithTable
+            chartId="melhores_fontes_pagas"
+            title="Melhores Fontes Pagas"
+            data={Object.entries(fontesPagas)
+              .sort((a, b) => b[1].conversao - a[1].conversao)
+              .slice(0, 8)
+              .map(([fonte, stats]) => ({
+                fonte,
+                leads: stats.leads,
+                vendas: stats.vendas,
+                conversao: stats.conversao
+              }))}
+            columns={[
+              { key: 'fonte', label: 'Fonte', type: 'text' },
+              { key: 'leads', label: 'Leads', type: 'number' },
+              { key: 'vendas', label: 'Vendas', type: 'number' },
+              { key: 'conversao', label: 'Conversão (%)', type: 'percentage' }
+            ]}
+          >
+            <div className="space-y-3">
+              {Object.entries(fontesPagas)
+                .sort((a, b) => b[1].conversao - a[1].conversao)
+                .slice(0, 8)
+                .map(([fonte, stats]) => (
+                  <div key={fonte} className="border rounded p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">{fonte}</span>
+                      <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "outline"}>
+                        {stats.conversao.toFixed(1)}%
+                      </Badge>
                     </div>
-                  ))}
-              </div>
-            </CardContent>
-          </Card>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <span>Leads: {stats.leads}</span>
+                      <span>Vendas: {stats.vendas}</span>
+                    </div>
+                    <Progress value={stats.conversao} className="h-1 mt-2" />
+                  </div>
+                ))}
+            </div>
+          </DebriefingChartWithTable>
         )}
       </div>
 
@@ -658,46 +715,56 @@ export function DadosBrutosAnalysis({
 
       {/* Análise por Respostas da Pesquisa */}
       {Object.keys(pesquisaAnalise).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Conversão por Respostas da Pesquisa</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {Object.entries(pesquisaAnalise).map(([campo, valores]) => (
-                <div key={campo}>
-                  <h4 className="font-medium mb-3 capitalize">{campo.replace(/_/g, ' ')}</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {Object.entries(valores)
-                      .sort((a, b) => b[1].conversao - a[1].conversao)
-                      .slice(0, 8)
-                      .map(([valor, stats]) => (
-                        <div key={valor} className="border rounded p-3">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium">{valor}</span>
-                            <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "secondary"}>
-                              {stats.conversao.toFixed(1)}%
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>Total: {stats.total}</span>
-                            <span>Compraram: {stats.compraram}</span>
-                          </div>
-                          <Progress value={stats.conversao} className="h-1 mt-2" />
-                        </div>
-                      ))}
-                  </div>
-                  {Object.keys(valores).length > 8 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Mostrando top 8 de {Object.keys(valores).length} respostas
-                    </p>
-                  )}
-                  <Separator className="mt-4" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {Object.entries(pesquisaAnalise).map(([campo, valores]) => (
+            <DebriefingChartWithTable
+              key={campo}
+              chartId={`pesquisa_${campo}`}
+              title={`Conversão por ${campo.replace(/_/g, ' ')}`}
+              data={Object.entries(valores)
+                .sort((a, b) => b[1].conversao - a[1].conversao)
+                .slice(0, 8)
+                .map(([valor, stats]) => ({
+                  resposta: valor,
+                  total: stats.total,
+                  compraram: stats.compraram,
+                  conversao: stats.conversao
+                }))}
+              columns={[
+                { key: 'resposta', label: 'Resposta', type: 'text' },
+                { key: 'total', label: 'Total', type: 'number' },
+                { key: 'compraram', label: 'Compraram', type: 'number' },
+                { key: 'conversao', label: 'Conversão (%)', type: 'percentage' }
+              ]}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {Object.entries(valores)
+                  .sort((a, b) => b[1].conversao - a[1].conversao)
+                  .slice(0, 8)
+                  .map(([valor, stats]) => (
+                    <div key={valor} className="border rounded p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium">{valor}</span>
+                        <Badge variant={stats.conversao > taxaConversaoGeral ? "default" : "secondary"}>
+                          {stats.conversao.toFixed(1)}%
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Total: {stats.total}</span>
+                        <span>Compraram: {stats.compraram}</span>
+                      </div>
+                      <Progress value={stats.conversao} className="h-1 mt-2" />
+                    </div>
+                  ))}
+              </div>
+              {Object.keys(valores).length > 8 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Mostrando top 8 de {Object.keys(valores).length} respostas
+                </p>
+              )}
+            </DebriefingChartWithTable>
+          ))}
+        </div>
       )}
 
       {/* Outras Fontes */}
