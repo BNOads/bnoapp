@@ -248,11 +248,11 @@ const PainelCliente = () => {
               <div className="w-full overflow-hidden">
                 <TarefasListEnhanced clienteId={clienteId} tipo="cliente" isPublicView={!isAuthenticated} />
               </div>
-            </section>
-            
-            {/* Diário de Bordo */}
-            <section className="space-y-3 sm:space-y-4 min-w-0">
-              <DiarioBordo clienteId={clienteId} />
+              
+              {/* Diário de Bordo - Positioned below tasks on the right side */}
+              <div className="mt-6">
+                <DiarioBordo clienteId={clienteId} />
+              </div>
             </section>
           </div>
 
