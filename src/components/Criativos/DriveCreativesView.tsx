@@ -472,18 +472,40 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
 
   const saveNomenclatura = async (creativeId: string, value: string) => {
     try {
+      // Primeiro tentar buscar o criativo
+      const creative = creatives.find(c => c.id === creativeId);
+      if (!creative) {
+        throw new Error('Criativo não encontrado na lista');
+      }
+
+      // Usar upsert para garantir que o registro existe
       const { data, error } = await supabase
         .from('creatives')
-        .update({
+        .upsert({
+          id: creativeId,
+          file_id: creative.file_id,
+          client_id: clienteId,
+          name: creative.name,
           nomenclatura_trafego: value?.trim() || null,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          // Outros campos necessários para o upsert
+          mime_type: creative.mime_type,
+          link_web_view: creative.link_web_view,
+          link_direct: creative.link_direct,
+          file_size: creative.file_size,
+          modified_time: creative.modified_time,
+          folder_name: creative.folder_name,
+          folder_path: creative.folder_path,
+          parent_folder_id: creative.parent_folder_id,
+          is_active: creative.is_active,
+          archived: false
+        }, {
+          onConflict: 'id'
         })
-        .eq('id', creativeId)
         .select()
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error('Criativo não encontrado');
 
       // Atualização otimística do estado local
       setCreatives(prev => prev.map(creative => 
