@@ -15,6 +15,7 @@ import EditDebriefingModal from './EditDebriefingModal';
 import PDFExporter from './PDFExporter';
 import PanelManager from './PanelManager';
 import TrafficMetrics from './TrafficMetrics';
+import { DebriefingChartWithTable } from './DebriefingChartWithTable';
 interface DebriefingDetalhes {
   id: string;
   cliente_id?: string;
@@ -371,43 +372,58 @@ export default function DebriefingDetalhes() {
       </div>
 
       {/* Métricas Secundárias */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" data-panel-id="secondary-metrics">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm font-medium text-muted-foreground">CPL</p>
-              <p className="text-xl font-semibold">{formatCurrency(debriefing.cpl || 0)}</p>
-            </div>
-          </CardContent>
-        </Card>
+      <DebriefingChartWithTable
+        chartId="secondary-metrics"
+        title="Métricas Secundárias"
+        data={[
+          { metric: 'CPL', value: debriefing.cpl || 0 },
+          { metric: 'Ticket Médio', value: debriefing.ticket_medio || 0 },
+          { metric: 'Conversão Lead → Venda (%)', value: ((debriefing.conversao_lead_venda || 0) * 100) },
+          { metric: 'ROAS', value: debriefing.roas || 0 }
+        ]}
+        columns={[
+          { key: 'metric', label: 'Métrica', type: 'text' },
+          { key: 'value', label: 'Valor', type: 'number' }
+        ]}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" data-panel-id="secondary-metrics">
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">CPL</p>
+                <p className="text-xl font-semibold">{formatCurrency(debriefing.cpl || 0)}</p>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm font-medium text-muted-foreground">Ticket Médio</p>
-              <p className="text-xl font-semibold">{formatCurrency(debriefing.ticket_medio || 0)}</p>
-            </div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">Ticket Médio</p>
+                <p className="text-xl font-semibold">{formatCurrency(debriefing.ticket_medio || 0)}</p>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm font-medium text-muted-foreground">Conversão Lead → Venda</p>
-              <p className="text-xl font-semibold">{((debriefing.conversao_lead_venda || 0) * 100).toFixed(1)}%</p>
-            </div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">Conversão Lead → Venda</p>
+                <p className="text-xl font-semibold">{((debriefing.conversao_lead_venda || 0) * 100).toFixed(1)}%</p>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm font-medium text-muted-foreground">ROAS</p>
-              <p className="text-xl font-semibold">{debriefing.roas?.toFixed(1) || '0,0'}x</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">ROAS</p>
+                <p className="text-xl font-semibold">{debriefing.roas?.toFixed(1) || '0,0'}x</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DebriefingChartWithTable>
 
       {/* Status específicos */}
       {debriefing.status === 'processando' && <Card className="mb-6" data-panel-id="processing">
