@@ -472,40 +472,55 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
 
   const saveNomenclatura = async (creativeId: string, value: string) => {
     try {
-      // Primeiro tentar buscar o criativo
-      const creative = creatives.find(c => c.id === creativeId);
-      if (!creative) {
-        throw new Error('Criativo não encontrado na lista');
-      }
-
-      // Usar upsert para garantir que o registro existe
-      const { data, error } = await supabase
+      // Verificar se já existe registro na tabela creatives
+      const { data: existingCreative } = await supabase
         .from('creatives')
-        .upsert({
-          id: creativeId,
-          file_id: creative.file_id,
-          client_id: clienteId,
-          name: creative.name,
-          nomenclatura_trafego: value?.trim() || null,
-          updated_at: new Date().toISOString(),
-          // Outros campos necessários para o upsert
-          mime_type: creative.mime_type,
-          link_web_view: creative.link_web_view,
-          link_direct: creative.link_direct,
-          file_size: creative.file_size,
-          modified_time: creative.modified_time,
-          folder_name: creative.folder_name,
-          folder_path: creative.folder_path,
-          parent_folder_id: creative.parent_folder_id,
-          is_active: creative.is_active,
-          archived: false
-        }, {
-          onConflict: 'id'
-        })
-        .select()
+        .select('id')
+        .eq('id', creativeId)
         .maybeSingle();
 
-      if (error) throw error;
+      if (existingCreative) {
+        // Se existe, apenas atualizar
+        const { error } = await supabase
+          .from('creatives')
+          .update({
+            nomenclatura_trafego: value?.trim() || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', creativeId);
+
+        if (error) throw error;
+      } else {
+        // Se não existe, buscar dados do Drive e inserir
+        const creative = creatives.find(c => c.id === creativeId);
+        if (!creative) {
+          throw new Error('Criativo não encontrado na lista');
+        }
+
+        const { error } = await supabase
+          .from('creatives')
+          .insert({
+            id: creativeId,
+            file_id: creative.file_id,
+            client_id: clienteId,
+            name: creative.name,
+            nomenclatura_trafego: value?.trim() || null,
+            mime_type: creative.mime_type,
+            link_web_view: creative.link_web_view,
+            link_direct: creative.link_direct,
+            file_size: creative.file_size,
+            modified_time: creative.modified_time,
+            folder_name: creative.folder_name,
+            folder_path: creative.folder_path,
+            parent_folder_id: creative.parent_folder_id,
+            is_active: creative.is_active ?? true,
+            archived: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (error) throw error;
+      }
 
       // Atualização otimística do estado local
       setCreatives(prev => prev.map(creative => 
