@@ -15,6 +15,7 @@ import { OrcamentoPorFunil } from "@/components/Clientes/OrcamentoPorFunil";
 import { EditarClienteModal } from "@/components/Clientes/EditarClienteModal";
 import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
 import { HistoricoMensagensCliente } from "@/components/Clientes/HistoricoMensagensCliente";
+import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import type { User } from "@supabase/supabase-js";
 const PainelCliente = () => {
@@ -247,6 +248,11 @@ const PainelCliente = () => {
               <div className="w-full overflow-hidden">
                 <TarefasListEnhanced clienteId={clienteId} tipo="cliente" isPublicView={!isAuthenticated} />
               </div>
+            </section>
+            
+            {/* Diário de Bordo */}
+            <section className="space-y-3 sm:space-y-4 min-w-0">
+              <DiarioBordo clienteId={clienteId} />
             </section>
           </div>
 

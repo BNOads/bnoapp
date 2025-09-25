@@ -986,6 +986,36 @@ export type Database = {
           },
         ]
       }
+      diario_bordo: {
+        Row: {
+          autor_id: string
+          cliente_id: string
+          created_at: string
+          id: string
+          reacoes: Json
+          texto: string
+          updated_at: string
+        }
+        Insert: {
+          autor_id: string
+          cliente_id: string
+          created_at?: string
+          id?: string
+          reacoes?: Json
+          texto: string
+          updated_at?: string
+        }
+        Update: {
+          autor_id?: string
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          reacoes?: Json
+          texto?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       documentos: {
         Row: {
           autor: string | null
