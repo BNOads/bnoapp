@@ -10,15 +10,15 @@ export const METRIC_ALIASES: MetricAliasMap = {
   cpl: ['cpl', 'cost_per_lead', 'custo_por_lead'],
   impressoes: ['impressoes', 'impressions', 'reach', 'alcance'],
   cpm: ['cpm', 'cost_per_mille', 'cost_per_thousand', 'custo_por_mil'],
-  cliques: ['cliques_link', 'link_clicks', 'clicks', 'cliques', 'click'],
-  ctr: ['ctr_link', 'click_through_rate', 'taxa_cliques'],
+  cliques: ['cliques_link', 'link_clicks', 'clicks', 'cliques', 'click', 'action_link_click'],
+  ctr: ['ctr_link', 'click_through_rate', 'taxa_cliques', 'link_ctr'],
   cpc: ['cpc', 'cost_per_click', 'custo_por_clique'],
-  connect_rate: ['connect_rate', 'taxa_conexao', 'conversion_rate_clicks'],
+  connect_rate: ['connect_rate', 'taxa_conexao', 'conversion_rate_clicks', 'taxa_carregamento'],
   tx_conversao_pg: ['tx_conversao_pg', 'page_conv_rate', 'taxa_conversao_pagina'],
-  vendas: ['vendas', 'sales', 'purchases', 'compras', 'orders'],
-  cac: ['cac', 'cost_per_acquisition', 'custo_aquisicao_cliente'],
-  conversoes_pagina: ['conversions', 'conversoes', 'page_conversions'],
-  visitas_pagina: ['page_views', 'visitas', 'views', 'visualizacoes']
+  vendas: ['vendas', 'sales', 'purchases', 'compras', 'orders', 'action_purchase'],
+  cac: ['cac', 'cost_per_acquisition', 'custo_aquisicao_cliente', 'cost_per_purchase'],
+  conversoes_pagina: ['conversions', 'conversoes', 'page_conversions', 'action_conversion', 'actions_conversion'],
+  visitas_pagina: ['page_views', 'visitas', 'views', 'visualizacoes', 'action_landing_page_view', 'landing_page_views', 'unique_landing_page_views']
 };
 
 // Reverse mapping for faster lookups - alias to standard name
