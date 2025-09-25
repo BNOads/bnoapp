@@ -60,7 +60,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [selectedCreatives, setSelectedCreatives] = useState<string[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta' | 'status'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [editingCreative, setEditingCreative] = useState<Creative | null>(null);
@@ -80,8 +80,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     { id: 'date', label: 'Data Upload', visible: true, width: 'w-32' },
     { id: 'nomenclatura', label: 'Nomenclatura', visible: true, width: 'min-w-[150px]' },
     { id: 'observacao', label: 'Observação', visible: false, width: 'min-w-[150px]' },
-    { id: 'pagina_destino', label: 'Página de Destino', visible: true, width: 'min-w-[200px]' },
-    { id: 'actions', label: 'Ações', visible: true, width: 'w-32 sm:w-48' }
+    { id: 'pagina_destino', label: 'Página de Destino', visible: true, width: 'min-w-[200px]' }
   ]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -258,6 +257,11 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
             comparison = a.name.localeCompare(b.name);
           }
           break;
+        case 'status':
+          const statusA = getCurrentStatus(a);
+          const statusB = getCurrentStatus(b);
+          comparison = statusA.localeCompare(statusB);
+          break;
       }
       
       return sortOrder === 'asc' ? comparison : -comparison;
@@ -410,7 +414,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     }
   };
 
-  const handleToggleSort = (field: 'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta') => {
+  const handleToggleSort = (field: 'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta' | 'status') => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
@@ -437,25 +441,6 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     setBulkLinksModalOpen(true);
   };
 
-  // Handle row click (open creative link)
-  const handleRowClick = (creative: Creative, event: React.MouseEvent) => {
-    // Ignore clicks on interactive elements
-    const target = event.target as HTMLElement;
-    if (
-      target.closest('input[type="checkbox"]') ||
-      target.closest('button') ||
-      target.closest('select') ||
-      target.closest('.action-icon') ||
-      target.closest('[role="button"]')
-    ) {
-      return;
-    }
-
-    // Open creative link
-    if (creative.link_web_view) {
-      window.open(creative.link_web_view, '_blank');
-    }
-  };
 
   const handleEditCreative = (creative: Creative) => {
     setEditingCreative(creative);
@@ -577,7 +562,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   };
 
   const SortableHeader = ({ field, children, className = "" }: { 
-    field: 'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta', 
+    field: 'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta' | 'status', 
     children: React.ReactNode,
     className?: string 
   }) => (
@@ -871,7 +856,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                   </TableHead>
                 )}
                 {isColumnVisible('status') && (
-                  <TableHead className="w-24 sm:w-32">Status</TableHead>
+                  <SortableHeader field="status" className="w-24 sm:w-32">Status</SortableHeader>
                 )}
                 {isColumnVisible('activated_at') && (
                   <TableHead className="hidden lg:table-cell w-32">Ativado em</TableHead>
@@ -907,19 +892,15 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                     Página de Destino
                   </SortableHeader>
                 )}
-                {isColumnVisible('actions') && (
-                  <TableHead className="w-32 sm:w-48">Ações</TableHead>
-                )}
-              </TableRow>
+               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredCreatives.map((creative) => (
                 <TableRow 
                   key={creative.id} 
-                  className={`hover:bg-muted/50 group cursor-pointer transition-colors ${
+                  className={`hover:bg-muted/50 group transition-colors ${
                     selectedCreatives.includes(creative.id) ? 'bg-primary/5 hover:bg-primary/10' : ''
                   }`}
-                  onClick={(e) => handleRowClick(creative, e)}
                 >
                   {isColumnVisible('select') && (
                     <TableCell>
@@ -1167,42 +1148,8 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                        </div>
                      </TableCell>
                    )}
-                   {isColumnVisible('actions') && (
-                     <TableCell>
-                       <div className="flex gap-1 flex-wrap lg:hidden">
-                         <Button 
-                           variant="outline" 
-                           size="sm"
-                           onClick={() => handleEditCreative(creative)}
-                           className="h-7 px-2 text-xs"
-                           title="Editar informações"
-                         >
-                           <Edit2 className="h-3 w-3 sm:mr-1" />
-                           <span className="hidden sm:inline">Editar</span>
-                         </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => copyToClipboard(creative.link_direct, "Link direto")}
-                            className="h-7 w-7 p-0"
-                            title="Copiar link direto"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                          <Button 
-                            variant="default" 
-                            size="sm"
-                            onClick={() => window.open(creative.link_web_view, '_blank')}
-                            className="h-7 px-2 text-xs"
-                          >
-                            <ExternalLink className="h-3 w-3 sm:mr-1" />
-                            <span className="hidden sm:inline">Abrir</span>
-                          </Button>
-                       </div>
-                     </TableCell>
-                   )}
-                 </TableRow>
-              ))}
+                  </TableRow>
+               ))}
             </TableBody>
             </Table>
           </div>
