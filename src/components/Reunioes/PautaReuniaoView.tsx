@@ -1135,6 +1135,134 @@ export function PautaReuniaoView() {
         </CardContent>
       </Card>;
   };
+
+  const renderBlockContent = (block: MeetingBlock) => {
+    switch (block.tipo) {
+      case 'participantes':
+        return <div className="space-y-2">
+            {(block.conteudo.lista || []).map((participante: string, index: number) => <div key={index} className="flex items-center gap-2">
+                <Input value={participante} onChange={e => {
+              const newLista = [...(block.conteudo.lista || [])];
+              newLista[index] = e.target.value;
+              updateBlock(block.id, {
+                conteudo: {
+                  ...block.conteudo,
+                  lista: newLista
+                }
+              });
+            }} placeholder="Nome do participante" />
+                <Button variant="ghost" size="sm" onClick={() => {
+              const newLista = (block.conteudo.lista || []).filter((_: any, i: number) => i !== index);
+              updateBlock(block.id, {
+                conteudo: {
+                  ...block.conteudo,
+                  lista: newLista
+                }
+              });
+            }}>
+                  ×
+                </Button>
+              </div>)}
+            <Button variant="outline" size="sm" onClick={() => {
+            const newLista = [...(block.conteudo.lista || []), ''];
+            updateBlock(block.id, {
+              conteudo: {
+                ...block.conteudo,
+                lista: newLista
+              }
+            });
+          }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Participante
+            </Button>
+          </div>;
+      case 'pauta':
+      case 'acoes':
+        const items = block.conteudo.itens || block.conteudo.checklist || [];
+        return <div className="space-y-2">
+            {items.map((item: any, index: number) => <div key={index} className="flex items-center gap-2">
+                {block.tipo === 'acoes' && <input type="checkbox" checked={typeof item === 'object' ? item.concluido : false} onChange={e => {
+              const newItems = [...items];
+              if (typeof item === 'object') {
+                newItems[index] = {
+                  ...item,
+                  concluido: e.target.checked
+                };
+              } else {
+                newItems[index] = {
+                  texto: item,
+                  concluido: e.target.checked
+                };
+              }
+              const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
+              updateBlock(block.id, {
+                conteudo: {
+                  ...block.conteudo,
+                  [key]: newItems
+                }
+              });
+            }} />}
+                <Input value={typeof item === 'object' ? item.texto : item} onChange={e => {
+              const newItems = [...items];
+              if (typeof item === 'object') {
+                newItems[index] = {
+                  ...item,
+                  texto: e.target.value
+                };
+              } else {
+                newItems[index] = e.target.value;
+              }
+              const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
+              updateBlock(block.id, {
+                conteudo: {
+                  ...block.conteudo,
+                  [key]: newItems
+                }
+              });
+            }} placeholder={block.tipo === 'pauta' ? "Item da pauta" : "Ação"} />
+                <Button variant="ghost" size="sm" onClick={() => {
+              const newItems = items.filter((_: any, i: number) => i !== index);
+              const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
+              updateBlock(block.id, {
+                conteudo: {
+                  ...block.conteudo,
+                  [key]: newItems
+                }
+              });
+            }}>
+                  ×
+                </Button>
+              </div>)}
+            <Button variant="outline" size="sm" onClick={() => {
+            const newItem = block.tipo === 'acoes' ? {
+              texto: '',
+              concluido: false
+            } : '';
+            const newItems = [...items, newItem];
+            const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
+            updateBlock(block.id, {
+              conteudo: {
+                ...block.conteudo,
+                [key]: newItems
+              }
+            });
+          }}>
+              <Plus className="h-4 w-4 mr-2" />
+              {block.tipo === 'pauta' ? 'Adicionar Item' : 'Adicionar Ação'}
+            </Button>
+          </div>;
+      default:
+        return <RealtimeCollaborativeEditor
+          documentId={documentId}
+          blockId={block.id}
+          content={block.conteudo.texto || ''}
+          onChange={content => handleBlockContentChange(block.id, content)}
+          placeholder="Digite o conteúdo da pauta..."
+          className="min-h-[120px]"
+        />;
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -1387,143 +1515,17 @@ export function PautaReuniaoView() {
       </Dialog>
       
       {/* Modal Enviar no Slack */}
-      {currentDocument && <EnviarSlackModal isOpen={showSlackModal} onClose={() => setShowSlackModal(false)} agenda={prepareAgendaForSlack() || {
-      title: '',
-      date: '',
-      content: '',
-      attachments: []
-     }} />}
-        </div>
+      {currentDocument && <EnviarSlackModal 
+        isOpen={showSlackModal} 
+        onClose={() => setShowSlackModal(false)} 
+        agenda={prepareAgendaForSlack() || {
+          title: '',
+          date: '',
+          content: '',
+          attachments: []
+        }} 
+      />}
       </div>
-    </div>;
-  }
-
-  const renderBlockContent = (block: MeetingBlock) => {
-    switch (block.tipo) {
-      case 'participantes':
-        return <div className="space-y-2">
-            {(block.conteudo.lista || []).map((participante: string, index: number) => <div key={index} className="flex items-center gap-2">
-                <Input value={participante} onChange={e => {
-              const newLista = [...(block.conteudo.lista || [])];
-              newLista[index] = e.target.value;
-              updateBlock(block.id, {
-                conteudo: {
-                  ...block.conteudo,
-                  lista: newLista
-                }
-              });
-            }} placeholder="Nome do participante" />
-                <Button variant="ghost" size="sm" onClick={() => {
-              const newLista = (block.conteudo.lista || []).filter((_: any, i: number) => i !== index);
-              updateBlock(block.id, {
-                conteudo: {
-                  ...block.conteudo,
-                  lista: newLista
-                }
-              });
-            }}>
-                  ×
-                </Button>
-              </div>)}
-            <Button variant="outline" size="sm" onClick={() => {
-            const newLista = [...(block.conteudo.lista || []), ''];
-            updateBlock(block.id, {
-              conteudo: {
-                ...block.conteudo,
-                lista: newLista
-              }
-            });
-          }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Participante
-            </Button>
-          </div>;
-      case 'pauta':
-      case 'acoes':
-        const items = block.conteudo.itens || block.conteudo.checklist || [];
-        return <div className="space-y-2">
-            {items.map((item: any, index: number) => <div key={index} className="flex items-center gap-2">
-                {block.tipo === 'acoes' && <input type="checkbox" checked={typeof item === 'object' ? item.concluido : false} onChange={e => {
-              const newItems = [...items];
-              if (typeof item === 'object') {
-                newItems[index] = {
-                  ...item,
-                  concluido: e.target.checked
-                };
-              } else {
-                newItems[index] = {
-                  texto: item,
-                  concluido: e.target.checked
-                };
-              }
-              const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
-              updateBlock(block.id, {
-                conteudo: {
-                  ...block.conteudo,
-                  [key]: newItems
-                }
-              });
-            }} />}
-                <Input value={typeof item === 'object' ? item.texto : item} onChange={e => {
-              const newItems = [...items];
-              if (typeof item === 'object') {
-                newItems[index] = {
-                  ...item,
-                  texto: e.target.value
-                };
-              } else {
-                newItems[index] = e.target.value;
-              }
-              const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
-              updateBlock(block.id, {
-                conteudo: {
-                  ...block.conteudo,
-                  [key]: newItems
-                }
-              });
-            }} placeholder={block.tipo === 'pauta' ? "Item da pauta" : "Ação"} />
-                <Button variant="ghost" size="sm" onClick={() => {
-              const newItems = items.filter((_: any, i: number) => i !== index);
-              const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
-              updateBlock(block.id, {
-                conteudo: {
-                  ...block.conteudo,
-                  [key]: newItems
-                }
-              });
-            }}>
-                  ×
-                </Button>
-              </div>)}
-            <Button variant="outline" size="sm" onClick={() => {
-            const newItem = block.tipo === 'acoes' ? {
-              texto: '',
-              concluido: false
-            } : '';
-            const newItems = [...items, newItem];
-            const key = block.tipo === 'acoes' ? 'checklist' : 'itens';
-            updateBlock(block.id, {
-              conteudo: {
-                ...block.conteudo,
-                [key]: newItems
-              }
-            });
-          }}>
-              <Plus className="h-4 w-4 mr-2" />
-              {block.tipo === 'pauta' ? 'Adicionar Item' : 'Adicionar Ação'}
-            </Button>
-          </div>;
-      default:
-        return <RealtimeCollaborativeEditor
-          documentId={documentId}
-          blockId={block.id}
-          content={block.conteudo.texto || ''}
-          onChange={content => handleBlockContentChange(block.id, content)}
-          placeholder="Digite o conteúdo da pauta..."
-          className="min-h-[120px]"
-        />;
-    }
-  };
-    }
-  }
+    </div>
+  );
 }
