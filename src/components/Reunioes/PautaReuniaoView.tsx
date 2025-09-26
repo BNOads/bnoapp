@@ -1525,7 +1525,7 @@ export function PautaReuniaoView() {
           attachments: []
         }} 
       />}
-      </div>
     </div>
+  </div>
   );
 }
