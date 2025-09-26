@@ -33,7 +33,10 @@ export function useRealtimePresence(documentId: string) {
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    if (!documentId || !userData || !user) return;
+    if (!documentId || !userData || !user || documentId.length === 0) {
+      setIsConnected(false);
+      return;
+    }
 
     const channelName = `pauta:${documentId}`;
     

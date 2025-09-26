@@ -117,9 +117,9 @@ export function PautaReuniaoView() {
   const [showSlackModal, setShowSlackModal] = useState(false);
 
   // Realtime collaboration hooks
-  const documentId = currentDocument?.id || '';
-  const { presenceUsers, isConnected, updateTypingStatus } = useRealtimePresence(documentId);
-  const { broadcastContentUpdate, onSyncEvent, syncStatus, lastSyncTime } = useRealtimeDocument(documentId);
+  const documentId = currentDocument?.id;
+  const { presenceUsers, isConnected, updateTypingStatus } = useRealtimePresence(documentId || '');
+  const { broadcastContentUpdate, onSyncEvent, syncStatus, lastSyncTime } = useRealtimeDocument(documentId || '');
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -1326,7 +1326,7 @@ export function PautaReuniaoView() {
             </div>
             
             {/* Realtime Collaboration Status */}
-            {currentDocument && (
+            {currentDocument && documentId && (
               <div className="flex items-center justify-between">
                 <RealtimePresenceIndicator 
                   presenceUsers={presenceUsers}

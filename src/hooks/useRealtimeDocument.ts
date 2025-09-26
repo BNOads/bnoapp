@@ -29,7 +29,10 @@ export function useRealtimeDocument(documentId: string) {
   const DEBOUNCE_DELAY = 300;
 
   useEffect(() => {
-    if (!documentId || !userData || !user) return;
+    if (!documentId || !userData || !user || documentId.length === 0) {
+      setSyncStatus('idle');
+      return;
+    }
 
     const channelName = `pauta-sync:${documentId}`;
     
