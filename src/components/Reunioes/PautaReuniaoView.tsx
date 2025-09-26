@@ -17,6 +17,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { EnviarSlackModal } from "./EnviarSlackModal";
+import { RealtimePresenceIndicator } from "./RealtimePresenceIndicator";
+import { RealtimeSyncStatus } from "./RealtimeSyncStatus";
+import { RealtimeCollaborativeEditor } from "./RealtimeCollaborativeEditor";
+import { useRealtimePresence } from "@/hooks/useRealtimePresence";
+import { useRealtimeDocument } from "@/hooks/useRealtimeDocument";
 interface MeetingDocument {
   id: string;
   ano: number;
@@ -110,6 +115,11 @@ export function PautaReuniaoView() {
   const [newBlockInCreation, setNewBlockInCreation] = useState<string | null>(null);
   const [minimizedBlocks, setMinimizedBlocks] = useState<Set<string>>(new Set());
   const [showSlackModal, setShowSlackModal] = useState(false);
+
+  // Realtime collaboration hooks
+  const documentId = currentDocument?.id || '';
+  const { presenceUsers, isConnected, updateTypingStatus } = useRealtimePresence(documentId);
+  const { broadcastContentUpdate, onSyncEvent, syncStatus, lastSyncTime } = useRealtimeDocument(documentId);
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -1137,9 +1147,11 @@ export function PautaReuniaoView() {
         {/* Main Content */}
         <div className="flex-1 space-y-4">
           {/* Header */}
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-3">
-              {!showSidebar && <Button variant="outline" size="sm" onClick={() => setShowSidebar(true)} className="lg:hidden h-7">
+          <div className="space-y-3">
+            {/* Top Header Bar */}
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                {!showSidebar && <Button variant="outline" size="sm" onClick={() => setShowSidebar(true)} className="lg:hidden h-7">
                   <ArrowRight className="h-3 w-3" />
                 </Button>}
               <div>
@@ -1183,6 +1195,23 @@ export function PautaReuniaoView() {
                   {hasUnsavedChanges ? 'Salvar Agora' : 'Salvo'}
                 </Button>}
             </div>
+            
+            {/* Realtime Collaboration Status */}
+            {currentDocument && (
+              <div className="flex items-center justify-between">
+                <RealtimePresenceIndicator 
+                  presenceUsers={presenceUsers}
+                  isConnected={isConnected}
+                  currentUserName={userData?.nome}
+                />
+                <RealtimeSyncStatus
+                  syncStatus={syncStatus}
+                  saveStatus={saveStatus}
+                  lastSyncTime={lastSyncTime}
+                  lastSaveTime={lastSaved}
+                />
+              </div>
+            )}
           </div>
 
           {/* Content */}
@@ -1363,9 +1392,13 @@ export function PautaReuniaoView() {
       date: '',
       content: '',
       attachments: []
-    }} />}
+     }} />}
+        </div>
+      </div>
     </div>;
-  function renderBlockContent(block: MeetingBlock) {
+  }
+
+  const renderBlockContent = (block: MeetingBlock) => {
     switch (block.tipo) {
       case 'participantes':
         return <div className="space-y-2">
@@ -1481,13 +1514,16 @@ export function PautaReuniaoView() {
             </Button>
           </div>;
       default:
-        return <WYSIWYGEditor content={block.conteudo.texto || ''} onChange={content => handleBlockContentChange(block.id, content)} placeholder="Digite o conteúdo da pauta..." className="min-h-[120px]" showToolbar={true} onTitleExtracted={titles => {
-          // Update the block's extracted titles for index
-          setExtractedTitles(prev => {
-            const filtered = prev.filter(t => !titles.includes(t));
-            return [...filtered, ...titles];
-          });
-        }} />;
+        return <RealtimeCollaborativeEditor
+          documentId={documentId}
+          blockId={block.id}
+          content={block.conteudo.texto || ''}
+          onChange={content => handleBlockContentChange(block.id, content)}
+          placeholder="Digite o conteúdo da pauta..."
+          className="min-h-[120px]"
+        />;
+    }
+  };
     }
   }
 }
