@@ -31,6 +31,12 @@ export function useRealtimePresence(documentId: string) {
   const [isConnected, setIsConnected] = useState(false);
   const channelRef = useRef<any>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const userDataRef = useRef(userData);
+
+  // Keep latest userData without resubscribing
+  useEffect(() => {
+    userDataRef.current = userData;
+  }, [userData]);
 
   useEffect(() => {
     if (!documentId || !userData || !user || documentId.length === 0) {
@@ -41,7 +47,11 @@ export function useRealtimePresence(documentId: string) {
     const channelName = `pauta:${documentId}`;
     
     const channel = supabase
-      .channel(channelName)
+      .channel(channelName, {
+        config: {
+          presence: { key: user.id },
+        },
+      })
       .on('presence', { event: 'sync' }, () => {
         const newState = channel.presenceState();
         const users: UserPresence[] = [];
@@ -68,8 +78,8 @@ export function useRealtimePresence(documentId: string) {
 
     channelRef.current = channel;
 
-    // Subscribe and track presence
     channel.subscribe(async (status) => {
+      console.log('Presence channel status:', status);
       if (status === 'SUBSCRIBED') {
         setIsConnected(true);
         
@@ -77,16 +87,17 @@ export function useRealtimePresence(documentId: string) {
         const existingUsers = Object.keys(channel.presenceState()).length;
         const userColor = USER_COLORS[existingUsers % USER_COLORS.length];
         
+        const currentUser = userDataRef.current;
         await channel.track({
           user_id: user.id,
-          name: userData.nome,
-          avatar_url: userData.avatar_url,
+          name: currentUser?.nome,
+          avatar_url: currentUser?.avatar_url,
           cursor_position: null,
           is_typing: false,
           last_seen: new Date().toISOString(),
           color: userColor,
         });
-      } else {
+      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         setIsConnected(false);
       }
     });
@@ -99,15 +110,16 @@ export function useRealtimePresence(documentId: string) {
         clearTimeout(typingTimeoutRef.current);
       }
     };
-  }, [documentId, userData, user]);
+  }, [documentId, user?.id]);
 
   const updateTypingStatus = (isTyping: boolean, cursorPosition?: number) => {
-    if (!channelRef.current || !userData || !user) return;
+    if (!channelRef.current || !user || !user?.id) return;
+    const currentUser = userDataRef.current;
 
     channelRef.current.track({
       user_id: user.id,
-      name: userData.nome,
-      avatar_url: userData.avatar_url,
+      name: currentUser?.nome,
+      avatar_url: currentUser?.avatar_url,
       cursor_position: cursorPosition || null,
       is_typing: isTyping,
       last_seen: new Date().toISOString(),

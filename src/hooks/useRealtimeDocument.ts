@@ -27,6 +27,11 @@ export function useRealtimeDocument(documentId: string) {
   // Debounce function for batching updates
   const debounceTimeoutRef = useRef<NodeJS.Timeout>();
   const DEBOUNCE_DELAY = 300;
+  const userDataRef = useRef(userData);
+
+  useEffect(() => {
+    userDataRef.current = userData;
+  }, [userData]);
 
   useEffect(() => {
     if (!documentId || !userData || !user || documentId.length === 0) {
@@ -37,7 +42,9 @@ export function useRealtimeDocument(documentId: string) {
     const channelName = `pauta-sync:${documentId}`;
     
     const channel = supabase
-      .channel(channelName)
+      .channel(channelName, {
+        config: { broadcast: { self: false } },
+      })
       .on('broadcast', { event: 'document_sync' }, (payload) => {
         const event = payload.data as DocumentSyncEvent;
         
@@ -76,7 +83,7 @@ export function useRealtimeDocument(documentId: string) {
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [documentId, userData, user]);
+  }, [documentId, user?.id]);
 
   const broadcastUpdate = useCallback((event: Omit<DocumentSyncEvent, 'user_id' | 'timestamp'>) => {
     if (!channelRef.current || !userData || !user) return;
