@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -110,9 +110,19 @@ export function WYSIWYGEditor({
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[120px] p-3 text-sm leading-relaxed',
       },
     },
-  });
+});
 
-  const extractTitles = (doc: any): string[] => {
+// Sync external prop changes into the editor without re-emitting onUpdate
+useEffect(() => {
+  if (!editor) return;
+  const current = editor.getHTML();
+  if (content !== current) {
+    // false prevents triggering onUpdate to avoid feedback loops
+    editor.commands.setContent(content, { emitUpdate: false });
+  }
+}, [content, editor]);
+
+const extractTitles = (doc: any): string[] => {
     const titles: string[] = [];
     
     if (doc.content) {
