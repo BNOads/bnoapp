@@ -703,6 +703,39 @@ export type Database = {
           },
         ]
       }
+      collaboration_permissions: {
+        Row: {
+          document_id: string
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
+          id: string
+          is_active: boolean
+          permission_type: string
+          user_id: string
+        }
+        Insert: {
+          document_id: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          is_active?: boolean
+          permission_type: string
+          user_id: string
+        }
+        Update: {
+          document_id?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          is_active?: boolean
+          permission_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       conquistas: {
         Row: {
           ativo: boolean
@@ -2980,6 +3013,42 @@ export type Database = {
         }
         Relationships: []
       }
+      yjs_snapshots: {
+        Row: {
+          block_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          document_id: string
+          id: string
+          operations_count: number
+          snapshot_data: string
+          version: number
+        }
+        Insert: {
+          block_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          document_id: string
+          id?: string
+          operations_count?: number
+          snapshot_data: string
+          version?: number
+        }
+        Update: {
+          block_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          document_id?: string
+          id?: string
+          operations_count?: number
+          snapshot_data?: string
+          version?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -3018,6 +3087,17 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      create_yjs_snapshot: {
+        Args: {
+          _block_id: string
+          _description?: string
+          _document_id: string
+          _operations_count?: number
+          _snapshot_data: string
+          _version?: number
+        }
+        Returns: string
+      }
       extrair_titulos_reuniao: {
         Args: { conteudo: string }
         Returns: string[]
@@ -3047,6 +3127,10 @@ export type Database = {
           telefone_contato: string
           telefone_proximo: string
         }[]
+      }
+      get_user_collaboration_permission: {
+        Args: { _document_id: string; _user_id?: string }
+        Returns: string
       }
       grant_master_access_to_email: {
         Args: { _email: string }

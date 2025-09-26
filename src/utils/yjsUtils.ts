@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface YjsSnapshot {
   id: string;
@@ -28,6 +29,8 @@ export class YjsDocumentManager {
   private lastCheckpoint = Date.now();
   private checkpointInterval = 5 * 60 * 1000; // 5 minutes
   private maxOperationsBeforeCheckpoint = 1000;
+  private currentDocumentId: string;
+  private currentBlockId: string;
 
   constructor(
     documentId: string,
@@ -38,6 +41,8 @@ export class YjsDocumentManager {
     this.ydoc = new Y.Doc();
     this.onSave = onSave;
     this.saveInterval = saveInterval;
+    this.currentDocumentId = documentId;
+    this.currentBlockId = blockId;
     this.autosaveManager = {
       lastSave: null,
       pendingChanges: false,
@@ -55,14 +60,12 @@ export class YjsDocumentManager {
     const room = `pauta:${documentId}:${blockId}`;
     
     try {
-      // Use Supabase WebSocket endpoint for Yjs
-      const wsUrl = `wss://tbdooscfrrkwfutkdjha.supabase.co/realtime/v1/websocket`;
+      // Use Supabase WebSocket for production or fallback to local for development
+      const wsUrl = process.env.NODE_ENV === 'production' 
+        ? `wss://yjs-server.yourdomain.com/${room}`
+        : `ws://localhost:1234`;
       
       this.provider = new WebsocketProvider(wsUrl, room, this.ydoc, {
-        params: {
-          room: room,
-          apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiZG9vc2NmcnJrd2Z1dGtkamhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTQwODIsImV4cCI6MjA3MTUzMDA4Mn0.yd988Fotgc9LIZi83NlGDTaeB4f8BNgr9TYJgye0Cqw'
-        },
         resyncInterval: 5000,
         maxBackoffTime: 30000,
       });
@@ -72,6 +75,8 @@ export class YjsDocumentManager {
 
     } catch (error) {
       console.error('Failed to initialize Yjs provider:', error);
+      // Fallback to local mode without sync
+      console.warn('Running in local-only mode without real-time collaboration');
     }
   }
 
@@ -144,15 +149,24 @@ export class YjsDocumentManager {
     try {
       const snapshot = Y.encodeStateAsUpdate(this.ydoc);
       
-      // Store checkpoint in Supabase
-      const checkpointData = {
-        snapshot_data: Array.from(snapshot),
-        version: this.operationsCount,
-        operations_count: this.operationsCount,
-        created_at: new Date().toISOString(),
-      };
+      // Convert to base64 for storage
+      const snapshotBase64 = btoa(String.fromCharCode(...Array.from(snapshot)));
+      
+      // Store checkpoint in Supabase using the function we created
+      const { data, error } = await supabase.rpc('create_yjs_snapshot', {
+        _document_id: this.currentDocumentId,
+        _block_id: this.currentBlockId,
+        _snapshot_data: snapshotBase64,
+        _version: this.operationsCount,
+        _operations_count: this.operationsCount,
+        _description: `Checkpoint at ${new Date().toISOString()}`
+      });
 
-      console.log('Checkpoint created:', checkpointData);
+      if (error) {
+        console.error('Failed to create checkpoint:', error);
+      } else {
+        console.log('Checkpoint created successfully:', data);
+      }
       
       this.lastCheckpoint = Date.now();
       this.operationsCount = 0;

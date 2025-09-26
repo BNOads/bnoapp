@@ -20,6 +20,7 @@ import { EnviarSlackModal } from "./EnviarSlackModal";
 import { RealtimePresenceIndicator } from "./RealtimePresenceIndicator";
 import { RealtimeSyncStatus } from "./RealtimeSyncStatus";
 import { QuillCollaborativeEditor } from "./QuillCollaborativeEditor";
+import { YjsCollaborationDemo } from "./YjsCollaborationDemo";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 interface MeetingDocument {
   id: string;
@@ -1437,6 +1438,15 @@ export function PautaReuniaoView() {
                         <p className="text-muted-foreground">
                           Use o calendário lateral para navegar pelos dias do mês
                         </p>
+                        
+                        {/* Demo do Editor Colaborativo */}
+                        <div className="mt-6">
+                          <YjsCollaborationDemo 
+                            currentDocument={{ id: 'demo-doc' }}
+                            userData={currentUserData}
+                            permissions={permissions}
+                          />
+                        </div>
                       </>
                     )}
                   </CardContent>
