@@ -45,8 +45,8 @@ export function useRealtimeDocument(documentId: string) {
       .channel(channelName, {
         config: { broadcast: { self: false } },
       })
-      .on('broadcast', { event: 'document_sync' }, (payload) => {
-        const event = payload.data as DocumentSyncEvent;
+      .on('broadcast', { event: 'document_sync' }, (message) => {
+        const event = message.payload as DocumentSyncEvent;
         
         // Ignore events from current user
         if (event.user_id === user.id) return;
@@ -117,7 +117,7 @@ export function useRealtimeDocument(documentId: string) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'document_sync',
-        data: lastUpdate,
+        payload: lastUpdate,
       });
 
       console.log('Broadcasted sync event:', lastUpdate);
