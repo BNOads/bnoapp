@@ -19,9 +19,8 @@ import { useAuth } from "@/components/Auth/AuthContext";
 import { EnviarSlackModal } from "./EnviarSlackModal";
 import { RealtimePresenceIndicator } from "./RealtimePresenceIndicator";
 import { RealtimeSyncStatus } from "./RealtimeSyncStatus";
-import { RealtimeCollaborativeEditor } from "./RealtimeCollaborativeEditor";
-import { useRealtimePresence } from "@/hooks/useRealtimePresence";
-import { useRealtimeDocument } from "@/hooks/useRealtimeDocument";
+import { QuillCollaborativeEditor } from "./QuillCollaborativeEditor";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 interface MeetingDocument {
   id: string;
   ano: number;
@@ -116,10 +115,9 @@ export function PautaReuniaoView() {
   const [minimizedBlocks, setMinimizedBlocks] = useState<Set<string>>(new Set());
   const [showSlackModal, setShowSlackModal] = useState(false);
 
-  // Realtime collaboration hooks
-  const documentId = currentDocument?.id;
-  const { presenceUsers, isConnected, updateTypingStatus } = useRealtimePresence(documentId || '');
-  const { broadcastContentUpdate, onSyncEvent, syncStatus, lastSyncTime } = useRealtimeDocument(documentId || '');
+  // User permissions
+  const { userData: currentUserData } = useCurrentUser();
+  const permissions = useUserPermissions();
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -1252,13 +1250,17 @@ export function PautaReuniaoView() {
             </Button>
           </div>;
       default:
-        return <RealtimeCollaborativeEditor
-          documentId={documentId}
+        return <QuillCollaborativeEditor
+          documentId={currentDocument?.id || ''}
           blockId={block.id}
           content={block.conteudo.texto || ''}
           onChange={content => handleBlockContentChange(block.id, content)}
           placeholder="Digite o conteúdo da pauta..."
           className="min-h-[120px]"
+          permissions={{
+            canEdit: permissions.canCreateContent || permissions.isAdmin,
+            canView: true
+          }}
         />;
     }
   };
@@ -1325,22 +1327,6 @@ export function PautaReuniaoView() {
                 </Button>}
             </div>
             
-            {/* Realtime Collaboration Status */}
-            {currentDocument && documentId && (
-              <div className="flex items-center justify-between">
-                <RealtimePresenceIndicator 
-                  presenceUsers={presenceUsers}
-                  isConnected={isConnected}
-                  currentUserName={userData?.nome}
-                />
-                <RealtimeSyncStatus
-                  syncStatus={syncStatus}
-                  saveStatus={saveStatus}
-                  lastSyncTime={lastSyncTime}
-                  lastSaveTime={lastSaved}
-                />
-              </div>
-            )}
           </div>
 
           {/* Content */}
