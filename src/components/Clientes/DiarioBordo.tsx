@@ -723,15 +723,17 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
 
       {/* Modal de Histórico Completo */}
       <Dialog open={showMaximizeModal} onOpenChange={setShowMaximizeModal}>
-        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Histórico Completo - Diário de Bordo</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-4">
-            <div className="space-y-4">
-              {allEntries.map((entry) => renderEntry(entry, true))}
-            </div>
-          </ScrollArea>
+          <div className="flex-1 min-h-0">
+            <ScrollArea className="h-full pr-4">
+              <div className="space-y-4 pb-4">
+                {allEntries.map((entry) => renderEntry(entry, true))}
+              </div>
+            </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
 
