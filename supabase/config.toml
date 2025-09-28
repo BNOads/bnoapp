@@ -39,9 +39,6 @@ verify_jwt = false
 [functions.clients-assignments]
 verify_jwt = true
 
-[functions.update-funnel-status]
-verify_jwt = true
-
 [functions.confirm-password-reset]
 verify_jwt = false
 
@@ -101,6 +98,9 @@ verify_jwt = true
 
 [functions.sync-pops-drive]
 verify_jwt = false
+
+[functions.update-funnel-status]
+verify_jwt = true
 
 [functions.upload-pauta-media]
 verify_jwt = true

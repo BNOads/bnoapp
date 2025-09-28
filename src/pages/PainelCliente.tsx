@@ -184,10 +184,10 @@ const PainelCliente = () => {
                     <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground break-words">
                       {cliente.nome}
                     </h1>
-                    <FunnelStatusToggle
-                      clienteId={clienteId!}
-                      initialStatus={cliente.funnel_status ?? true}
-                      isPublicView={!isAuthenticated}
+                     <FunnelStatusToggle
+                       clienteId={clienteId!}
+                       currentStatus={cliente.funnel_status ?? true}
+                       isPublicView={!isAuthenticated}
                       onStatusChange={(newStatus) => {
                         setCliente(prev => prev ? { ...prev, funnel_status: newStatus } : null);
                       }}
