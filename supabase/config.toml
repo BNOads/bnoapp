@@ -39,6 +39,9 @@ verify_jwt = false
 [functions.clients-assignments]
 verify_jwt = true
 
+[functions.update-funnel-status]
+verify_jwt = true
+
 [functions.confirm-password-reset]
 verify_jwt = false
 
