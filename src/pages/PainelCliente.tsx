@@ -17,7 +17,6 @@ import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
 import { HistoricoMensagensCliente } from "@/components/Clientes/HistoricoMensagensCliente";
 import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { FunnelStatusToggle } from "@/components/Clientes/FunnelStatusToggle";
 import type { User } from "@supabase/supabase-js";
 const PainelCliente = () => {
   const {
@@ -180,19 +179,10 @@ const PainelCliente = () => {
                      <ArrowLeft className="h-4 w-4" />
                    </Button>}
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground break-words">
-                      {cliente.nome}
-                    </h1>
-                     <FunnelStatusToggle
-                       clienteId={clienteId!}
-                       currentStatus={cliente.funnel_status ?? true}
-                       isPublicView={!isAuthenticated}
-                      onStatusChange={(newStatus) => {
-                        setCliente(prev => prev ? { ...prev, funnel_status: newStatus } : null);
-                      }}
-                    />
-                  </div>
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground break-words">
+                    {cliente.nome}
+                  </h1>
+                  
                 </div>
               </div>
             </div>
