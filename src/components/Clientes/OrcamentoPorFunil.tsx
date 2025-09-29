@@ -398,7 +398,7 @@ export const OrcamentoPorFunil = ({
                   <CardTitle className="text-base sm:text-lg font-semibold line-clamp-2 leading-tight pr-2">
                     {orcamento.nome_funil}
                   </CardTitle>
-                  <OrcamentoStatusToggle
+                   <OrcamentoStatusToggle
                     orcamentoId={orcamento.id}
                     currentStatus={orcamento.active}
                     onStatusChange={(newStatus) => handleStatusChange(orcamento.id, newStatus)}
