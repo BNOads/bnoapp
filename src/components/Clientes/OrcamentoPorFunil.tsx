@@ -111,7 +111,7 @@ export const OrcamentoPorFunil = ({
       const {
         data,
         error
-      } = await clientInstance.from('orcamentos_funil').select('*').eq('cliente_id', clienteId).eq('ativo', true).order('created_at', {
+      } = await clientInstance.from('orcamentos_funil').select('*').eq('cliente_id', clienteId).order('created_at', {
         ascending: false
       });
       if (error) throw error;
@@ -148,7 +148,7 @@ export const OrcamentoPorFunil = ({
       const {
         data: orcamentos,
         error: orcError
-      } = await supabase.from('orcamentos_funil').select('cliente_id, nome_funil, valor_investimento, active').eq('ativo', true);
+      } = await supabase.from('orcamentos_funil').select('cliente_id, nome_funil, valor_investimento, active');
       if (orcError) throw orcError;
       console.log('💰 Orçamentos encontrados:', orcamentos?.length);
       const gestoresMap = new Map<string, GestorOrcamento>();
