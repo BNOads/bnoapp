@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp } from "lucide-react";
+import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp, Power } from "lucide-react";
+import { OrcamentoStatusToggle } from "./OrcamentoStatusToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -24,6 +25,7 @@ interface OrcamentoFunil {
   data_atualizacao: string;
   observacoes: string;
   created_by: string;
+  active: boolean;
 }
 interface HistoricoOrcamento {
   id: string;
@@ -146,7 +148,7 @@ export const OrcamentoPorFunil = ({
       const {
         data: orcamentos,
         error: orcError
-      } = await supabase.from('orcamentos_funil').select('cliente_id, nome_funil, valor_investimento').eq('ativo', true);
+      } = await supabase.from('orcamentos_funil').select('cliente_id, nome_funil, valor_investimento, active').eq('ativo', true);
       if (orcError) throw orcError;
       console.log('💰 Orçamentos encontrados:', orcamentos?.length);
       const gestoresMap = new Map<string, GestorOrcamento>();
@@ -169,8 +171,11 @@ export const OrcamentoPorFunil = ({
         gestor.total_clientes++;
         const clienteOrcamentos = orcamentos?.filter(o => o.cliente_id === cliente.id) || [];
         clienteOrcamentos.forEach(orcamento => {
-          gestor.total_orcamentos++;
-          gestor.total_investimento += Number(orcamento.valor_investimento);
+          // Só contar orçamentos ativos
+          if (orcamento.active) {
+            gestor.total_orcamentos++;
+            gestor.total_investimento += Number(orcamento.valor_investimento);
+          }
           gestor.funis.push({
             nome_funil: orcamento.nome_funil,
             valor_investimento: Number(orcamento.valor_investimento),
@@ -234,7 +239,7 @@ export const OrcamentoPorFunil = ({
         });
         setShowEditarModal(false);
       } else {
-        // Criar novo
+        // Criar novo - orçamentos são criados ativos por padrão
         const {
           error
         } = await supabase.from('orcamentos_funil').insert({
@@ -242,6 +247,7 @@ export const OrcamentoPorFunil = ({
           nome_funil: formData.nome_funil,
           valor_investimento: valor,
           observacoes: formData.observacoes,
+          active: true,
           created_by: (await supabase.auth.getUser()).data.user?.id
         });
         if (error) throw error;
@@ -265,6 +271,12 @@ export const OrcamentoPorFunil = ({
         variant: "destructive"
       });
     }
+  };
+
+  const handleStatusChange = (orcamentoId: string, newStatus: boolean) => {
+    setOrcamentos(prev => prev.map(o => 
+      o.id === orcamentoId ? { ...o, active: newStatus } : o
+    ));
   };
   const abrirEdicao = (orcamento: OrcamentoFunil) => {
     setSelectedOrcamento(orcamento);
@@ -376,12 +388,23 @@ export const OrcamentoPorFunil = ({
 
             {/* Cards de Orçamentos - Mobile First Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-        {orcamentosFiltrados.map(orcamento => <Card key={orcamento.id} className="relative w-full">
+        {orcamentosFiltrados.map(orcamento => <Card 
+          key={orcamento.id} 
+          className={`relative w-full ${!orcamento.active ? 'opacity-60' : ''}`}
+        >
             <CardHeader className="pb-2 sm:pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
-                <CardTitle className="text-base sm:text-lg font-semibold line-clamp-2 leading-tight pr-2">
-                  {orcamento.nome_funil}
-                </CardTitle>
+                <div className="flex flex-col gap-2">
+                  <CardTitle className="text-base sm:text-lg font-semibold line-clamp-2 leading-tight pr-2">
+                    {orcamento.nome_funil}
+                  </CardTitle>
+                  <OrcamentoStatusToggle
+                    orcamentoId={orcamento.id}
+                    currentStatus={orcamento.active}
+                    onStatusChange={(newStatus) => handleStatusChange(orcamento.id, newStatus)}
+                    disabled={isPublicView || !canManageBudgets}
+                  />
+                </div>
                 <div className="flex gap-1 flex-shrink-0 self-end sm:self-start">
                   <Button variant="ghost" size="sm" onClick={() => abrirHistorico(orcamento)} className="h-7 w-7 p-0 sm:h-8 sm:w-8">
                     <History className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -399,7 +422,9 @@ export const OrcamentoPorFunil = ({
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-2 sm:space-y-3">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary break-all">
+                <div className={`text-xl sm:text-2xl lg:text-3xl font-bold break-all ${
+                  orcamento.active ? 'text-primary' : 'text-muted-foreground'
+                }`}>
                   {formatarMoeda(orcamento.valor_investimento)}
                 </div>
                 
