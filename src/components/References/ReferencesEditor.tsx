@@ -32,7 +32,7 @@ export const ReferencesEditor = ({
   const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
   const [formData, setFormData] = useState({
     titulo: "",
-    categoria: "infoproduto" as "infoproduto" | "negocio_local" | "pagina",
+    categoria: "criativos" as "criativos" | "pagina",
     is_template: false,
     link_publico: ""
   });
@@ -61,7 +61,7 @@ export const ReferencesEditor = ({
 
       setFormData({
         titulo: data.titulo,
-        categoria: data.categoria as "infoproduto" | "negocio_local" | "pagina",
+        categoria: data.categoria as "criativos" | "pagina",
         is_template: data.is_template,
         link_publico: data.link_publico || ""
       });
@@ -115,7 +115,7 @@ export const ReferencesEditor = ({
   const resetForm = () => {
     setFormData({
       titulo: "",
-      categoria: "infoproduto",
+      categoria: "criativos",
       is_template: false,
       link_publico: ""
     });
@@ -250,20 +250,10 @@ export const ReferencesEditor = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="infoproduto">Infoproduto</SelectItem>
-                      <SelectItem value="negocio_local">Negócio Local</SelectItem>
+                      <SelectItem value="criativos">Criativos</SelectItem>
                       <SelectItem value="pagina">Página</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="template"
-                    checked={formData.is_template}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_template: checked }))}
-                  />
-                  <Label htmlFor="template">Usar como template</Label>
                 </div>
 
                 <div className="space-y-2">
