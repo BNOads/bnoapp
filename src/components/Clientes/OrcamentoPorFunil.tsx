@@ -115,14 +115,23 @@ export const OrcamentoPorFunil = ({
         } = await import('@/lib/supabase-public');
         clientInstance = createPublicSupabaseClient();
       }
-      const {
+      const { 
         data,
         error
-      } = await clientInstance.from('orcamentos_funil').select('*').eq('cliente_id', clienteId).order('created_at', {
-        ascending: false
-      });
+      } = await clientInstance
+        .from('orcamentos_funil')
+        .select('*')
+        .eq('cliente_id', clienteId)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
-      setOrcamentos(data || []);
+
+      const normalized = (data || []).map((row: any) => ({
+        ...row,
+        active: row.active ?? row.ativo ?? true,
+      }));
+
+      setOrcamentos(normalized);
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -155,9 +164,12 @@ export const OrcamentoPorFunil = ({
       const {
         data: orcamentos,
         error: orcError
-      } = await supabase.from('orcamentos_funil').select('cliente_id, nome_funil, valor_investimento, active');
+      } = await supabase
+        .from('orcamentos_funil')
+        .select('cliente_id, nome_funil, valor_investimento, active, ativo');
       if (orcError) throw orcError;
       console.log('💰 Orçamentos encontrados:', orcamentos?.length);
+
       const gestoresMap = new Map<string, GestorOrcamento>();
       rawData?.forEach(cliente => {
         const colaborador = colaboradores?.find(c => c.user_id === cliente.primary_gestor_user_id);
@@ -176,16 +188,16 @@ export const OrcamentoPorFunil = ({
         }
         const gestor = gestoresMap.get(gestorId)!;
         gestor.total_clientes++;
-        const clienteOrcamentos = orcamentos?.filter(o => o.cliente_id === cliente.id) || [];
+        const clienteOrcamentos = (orcamentos || []).filter(o => o.cliente_id === cliente.id) as any[];
         clienteOrcamentos.forEach(orcamento => {
-          // Só contar orçamentos ativos
-          if (orcamento.active) {
+          const isActive = (orcamento as any).active ?? (orcamento as any).ativo ?? true;
+          if (isActive) {
             gestor.total_orcamentos++;
-            gestor.total_investimento += Number(orcamento.valor_investimento);
+            gestor.total_investimento += Number((orcamento as any).valor_investimento);
           }
           gestor.funis.push({
-            nome_funil: orcamento.nome_funil,
-            valor_investimento: Number(orcamento.valor_investimento),
+            nome_funil: (orcamento as any).nome_funil,
+            valor_investimento: Number((orcamento as any).valor_investimento),
             cliente_nome: cliente.nome
           });
         });
