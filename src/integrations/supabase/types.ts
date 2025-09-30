@@ -408,6 +408,12 @@ export type Database = {
           aliases: string[] | null
           ativo: boolean
           auto_permission: boolean | null
+          branding_bg: string | null
+          branding_description: string | null
+          branding_enabled: boolean | null
+          branding_logo_url: string | null
+          branding_primary: string | null
+          branding_secondary: string | null
           catalogo_criativos_url: string | null
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at: string
@@ -443,6 +449,12 @@ export type Database = {
           aliases?: string[] | null
           ativo?: boolean
           auto_permission?: boolean | null
+          branding_bg?: string | null
+          branding_description?: string | null
+          branding_enabled?: boolean | null
+          branding_logo_url?: string | null
+          branding_primary?: string | null
+          branding_secondary?: string | null
           catalogo_criativos_url?: string | null
           categoria: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
@@ -478,6 +490,12 @@ export type Database = {
           aliases?: string[] | null
           ativo?: boolean
           auto_permission?: boolean | null
+          branding_bg?: string | null
+          branding_description?: string | null
+          branding_enabled?: boolean | null
+          branding_logo_url?: string | null
+          branding_primary?: string | null
+          branding_secondary?: string | null
           catalogo_criativos_url?: string | null
           categoria?: Database["public"]["Enums"]["categoria_cliente"]
           created_at?: string
