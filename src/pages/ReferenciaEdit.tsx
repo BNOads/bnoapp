@@ -236,6 +236,16 @@ export default function ReferenciaEdit() {
   };
 
   const handleShareToggle = async () => {
+    // Verificar se é nova referência
+    if (isNewRef) {
+      toast({
+        title: "Erro",
+        description: "Salve a referência antes de compartilhar.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!formData.is_public) {
       // Validar título antes de compartilhar
       if (!formData.titulo.trim()) {
@@ -250,24 +260,20 @@ export default function ReferenciaEdit() {
       try {
         setSaving(true);
         
-        const user = await supabase.auth.getUser();
-        
         // Salvar com is_public = true e deixar o trigger gerar o public_slug
         const { data, error } = await supabase
           .from('referencias_criativos')
           .update({
-            titulo: formData.titulo,
-            categoria: formData.categoria,
-            conteudo_markdown: formData.conteudo_markdown,
-            is_public: true,
-            cliente_id: null,
-            created_by: user.data.user?.id
+            is_public: true
           })
           .eq('id', id)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Erro detalhado:', error);
+          throw error;
+        }
 
         // Atualizar formData com os dados retornados (incluindo public_slug gerado)
         setFormData({
