@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardAnual } from '@/components/Financeiro/DashboardAnual';
 import { ClientesAtivos } from '@/components/Financeiro/ClientesAtivos';
 import { ResumoMes } from '@/components/Financeiro/ResumoMes';
+import { ConfiguracaoSheets } from '@/components/Financeiro/ConfiguracaoSheets';
 
 const Financeiro = () => {
   const { isAuthenticated, isLoading, attempts, authenticate } = useFinanceiroAccess();
@@ -41,10 +42,11 @@ const Financeiro = () => {
             </div>
 
             <Tabs defaultValue="dashboard" className="space-y-6">
-              <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsList className="grid w-full max-w-2xl grid-cols-4">
                 <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                 <TabsTrigger value="clientes">Clientes Ativos</TabsTrigger>
                 <TabsTrigger value="mes">Resumo do Mês</TabsTrigger>
+                <TabsTrigger value="config">Configuração</TabsTrigger>
               </TabsList>
 
               <TabsContent value="dashboard" className="space-y-6">
@@ -57,6 +59,10 @@ const Financeiro = () => {
 
               <TabsContent value="mes" className="space-y-6">
                 <ResumoMes />
+              </TabsContent>
+
+              <TabsContent value="config" className="space-y-6">
+                <ConfiguracaoSheets />
               </TabsContent>
             </Tabs>
           </div>
