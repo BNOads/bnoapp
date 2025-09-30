@@ -1513,6 +1513,182 @@ export type Database = {
           },
         ]
       }
+      financeiro_access_sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          session_token: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          session_token: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          session_token?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      financeiro_clientes_ativos: {
+        Row: {
+          ano_referencia: number
+          cliente_id: string | null
+          created_at: string | null
+          id: string
+          ltv: number | null
+          mes_referencia: number
+          mrr: number
+          tempo_ativo_meses: number
+          updated_at: string | null
+        }
+        Insert: {
+          ano_referencia: number
+          cliente_id?: string | null
+          created_at?: string | null
+          id?: string
+          ltv?: number | null
+          mes_referencia: number
+          mrr: number
+          tempo_ativo_meses?: number
+          updated_at?: string | null
+        }
+        Update: {
+          ano_referencia?: number
+          cliente_id?: string | null
+          created_at?: string | null
+          id?: string
+          ltv?: number | null
+          mes_referencia?: number
+          mrr?: number
+          tempo_ativo_meses?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_clientes_ativos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_mensal: {
+        Row: {
+          ano: number
+          clientes_ativos: number | null
+          clientes_perdidos: number | null
+          colaboradores: number | null
+          created_at: string | null
+          despesas_previstas: number | null
+          despesas_realizadas: number | null
+          faturamento_previsto: number | null
+          faturamento_realizado: number | null
+          fechamento: string | null
+          id: string
+          mes: number
+          pagamento_parceiros_previsto: number | null
+          pagamento_parceiros_realizado: number | null
+          total_ads: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          ano: number
+          clientes_ativos?: number | null
+          clientes_perdidos?: number | null
+          colaboradores?: number | null
+          created_at?: string | null
+          despesas_previstas?: number | null
+          despesas_realizadas?: number | null
+          faturamento_previsto?: number | null
+          faturamento_realizado?: number | null
+          fechamento?: string | null
+          id?: string
+          mes: number
+          pagamento_parceiros_previsto?: number | null
+          pagamento_parceiros_realizado?: number | null
+          total_ads?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          ano?: number
+          clientes_ativos?: number | null
+          clientes_perdidos?: number | null
+          colaboradores?: number | null
+          created_at?: string | null
+          despesas_previstas?: number | null
+          despesas_realizadas?: number | null
+          faturamento_previsto?: number | null
+          faturamento_realizado?: number | null
+          fechamento?: string | null
+          id?: string
+          mes?: number
+          pagamento_parceiros_previsto?: number | null
+          pagamento_parceiros_realizado?: number | null
+          total_ads?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      financeiro_movimentos: {
+        Row: {
+          ano_referencia: number
+          classificacao: string
+          created_at: string | null
+          created_by: string | null
+          data_prevista: string
+          descricao: string | null
+          id: string
+          mes_referencia: number
+          movimento: string
+          observacoes: string | null
+          status: string
+          tipo: string
+          updated_at: string | null
+          valor: number
+        }
+        Insert: {
+          ano_referencia: number
+          classificacao: string
+          created_at?: string | null
+          created_by?: string | null
+          data_prevista: string
+          descricao?: string | null
+          id?: string
+          mes_referencia: number
+          movimento: string
+          observacoes?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string | null
+          valor: number
+        }
+        Update: {
+          ano_referencia?: number
+          classificacao?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_prevista?: string
+          descricao?: string | null
+          id?: string
+          mes_referencia?: number
+          movimento?: string
+          observacoes?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
       funis_marketing: {
         Row: {
           compartilhado_em: string | null
