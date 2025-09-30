@@ -25,12 +25,13 @@ export const OrcamentoStatusToggle = ({
     
     setLoading(true);
     try {
-      const userRes = await supabase.auth.getUser();
-      const updatedBy = userRes.data.user?.id || null;
-
       const { error } = await supabase
         .from('orcamentos_funil')
-        .update({ active: newStatus, ativo: newStatus, updated_at: new Date().toISOString(), updated_by: updatedBy })
+        .update({ 
+          active: newStatus, 
+          ativo: newStatus, 
+          updated_at: new Date().toISOString()
+        })
         .eq('id', orcamentoId);
 
       if (error) throw error;
