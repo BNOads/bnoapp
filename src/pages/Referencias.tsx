@@ -326,64 +326,73 @@ export default function Referencias() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredReferencias.map((ref) => (
-                  <TableRow key={ref.id}>
-                    <TableCell className="font-medium">{ref.titulo}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {ref.categoria === 'criativos' ? 'Criativos' : 'Página'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={ref.link_url ? "secondary" : "default"}>
-                        Referência
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {contarBlocos(ref)} bloco(s)
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(ref.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {temLinkExterno(ref) ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(obterLinkExterno(ref)!, '_blank')}
-                            title="Abrir link externo em nova aba"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
+                filteredReferencias.map((ref) => {
+                  const isExternal = temLinkExterno(ref);
+                  return (
+                    <TableRow key={ref.id}>
+                      <TableCell className="font-medium">{ref.titulo}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {ref.categoria === 'criativos' ? 'Criativos' : 'Página'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {isExternal ? (
+                          <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-transparent">
+                            EXTERNO
+                          </Badge>
                         ) : (
+                          <Badge variant="default">
+                            Referência
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {!isExternal && `${contarBlocos(ref)} bloco(s)`}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(ref.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {isExternal ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(obterLinkExterno(ref)!, '_blank')}
+                              title="Abrir link externo em nova aba"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/referencias/${ref.id}?mode=view`)}
+                              title="Visualizar referência"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/referencias/${ref.id}?mode=view`)}
-                            title="Visualizar referência"
+                            onClick={() => handleCopyLink(ref)}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Copy className="w-4 h-4" />
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleCopyLink(ref)}
-                        >
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteDialog({ open: true, referencia: ref })}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteDialog({ open: true, referencia: ref })}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
