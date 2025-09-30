@@ -177,3 +177,27 @@ All colors MUST be HSL.
     display: none;
   }
 }
+
+/* Links azuis e sublinhados no editor de referências */
+.ref-modal a[href] {
+  color: #2563EB;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ref-modal a[href]:hover {
+  filter: brightness(0.9);
+}
+
+/* Links no editor visual (tiptap) */
+.prose a[href],
+.ProseMirror a[href] {
+  color: #2563EB;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.prose a[href]:hover,
+.ProseMirror a[href]:hover {
+  filter: brightness(0.9);
+}

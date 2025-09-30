@@ -48,6 +48,7 @@ interface MarkdownEditorProps {
   onSave?: () => void;
   autoSave?: boolean;
   className?: string;
+  visualOnly?: boolean;
 }
 
 interface MediaModalProps {
@@ -95,7 +96,8 @@ export const MarkdownEditor = ({
   onChange, 
   onSave,
   autoSave = true,
-  className = "" 
+  className = "",
+  visualOnly = false
 }: MarkdownEditorProps) => {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -159,7 +161,7 @@ export const MarkdownEditor = ({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose-base max-w-none focus:outline-none min-h-[300px] p-4'
+        class: 'prose prose-sm sm:prose-base max-w-none focus:outline-none min-h-[300px] p-4 ref-modal'
       },
       handleClickOn: (view, pos, node, nodePos, event) => {
         // Detectar clique em imagens para abrir modal
@@ -428,192 +430,288 @@ export const MarkdownEditor = ({
 
   return (
     <div className={`border rounded-lg overflow-hidden ${className}`}>
-      {/* Header com Tabs */}
-      <div className="border-b bg-muted/30">
-        <Tabs value={activeView} onValueChange={(value) => handleViewChange(value as 'wysiwyg' | 'markdown')}>
-          <div className="flex items-center justify-between p-2">
-            <TabsList className="grid w-fit grid-cols-2">
-              <TabsTrigger value="wysiwyg" className="flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                Visual
-              </TabsTrigger>
-              <TabsTrigger value="markdown" className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Markdown
-              </TabsTrigger>
-            </TabsList>
-            
-            {onSave && (
-              <Button size="sm" onClick={onSave} className="flex items-center gap-2">
-                <Save className="w-4 h-4" />
-                Salvar
-              </Button>
-            )}
-          </div>
-          
-          <TabsContent value="wysiwyg" className="mt-0">
-            {/* Toolbar WYSIWYG */}
-            <div className="border-t bg-muted/50 p-2">
-              <div className="flex flex-wrap items-center gap-1">
-                {/* Formatação básica */}
-                <Button
-                  variant={editor.isActive('bold') ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleBold().run()}
-                >
-                  <Bold className="h-4 w-4" />
+      <style>{`
+        .ref-modal a[href] {
+          color: #2563EB;
+          text-decoration: underline;
+          cursor: pointer;
+        }
+        .ref-modal a[href]:hover {
+          filter: brightness(0.9);
+        }
+      `}</style>
+      
+      {/* Header com Tabs - Ocultar se visualOnly */}
+      {!visualOnly ? (
+        <div className="border-b bg-muted/30">
+          <Tabs value={activeView} onValueChange={(value) => handleViewChange(value as 'wysiwyg' | 'markdown')}>
+            <div className="flex items-center justify-between p-2">
+              <TabsList className="grid w-fit grid-cols-2">
+                <TabsTrigger value="wysiwyg" className="flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  Visual
+                </TabsTrigger>
+                <TabsTrigger value="markdown" className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Markdown
+                </TabsTrigger>
+              </TabsList>
+              
+              {onSave && (
+                <Button size="sm" onClick={onSave} className="flex items-center gap-2">
+                  <Save className="w-4 h-4" />
+                  Salvar
                 </Button>
-                
-                <Button
-                  variant={editor.isActive('italic') ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleItalic().run()}
-                >
-                  <Italic className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant={editor.isActive('underline') ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleUnderline().run()}
-                >
-                  <Underline className="h-4 w-4" />
-                </Button>
-
-                <Separator orientation="vertical" className="h-6" />
-
-                {/* Títulos */}
-                <Button
-                  variant={editor.isActive('heading', { level: 1 }) ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                >
-                  <Heading1 className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant={editor.isActive('heading', { level: 2 }) ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                >
-                  <Heading2 className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant={editor.isActive('heading', { level: 3 }) ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                >
-                  <Heading3 className="h-4 w-4" />
-                </Button>
-
-                <Separator orientation="vertical" className="h-6" />
-
-                {/* Listas */}
-                <Button
-                  variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleBulletList().run()}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                >
-                  <ListOrdered className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant={editor.isActive('taskList') ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleTaskList().run()}
-                >
-                  <CheckSquare className="h-4 w-4" />
-                </Button>
-
-                <Separator orientation="vertical" className="h-6" />
-
-                {/* Citação e Código */}
-                <Button
-                  variant={editor.isActive('blockquote') ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                >
-                  <Quote className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant={editor.isActive('code') ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleCode().run()}
-                >
-                  <Code className="h-4 w-4" />
-                </Button>
-
-                <Separator orientation="vertical" className="h-6" />
-
-                {/* Mídia */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploadingMedia}
-                >
-                  {isUploadingMedia ? (
-                    <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  ) : (
-                    <ImageIcon className="h-4 w-4" />
-                  )}
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowVideoDialog(true)}
-                >
-                  <Video className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant={editor.isActive('link') ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setShowLinkDialog(true)}
-                >
-                  <LinkIcon className="h-4 w-4" />
-                </Button>
-
-                <Separator orientation="vertical" className="h-6" />
-
-                {/* Undo/Redo */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor.chain().focus().undo().run()}
-                  disabled={!editor.can().undo()}
-                >
-                  <Undo className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor.chain().focus().redo().run()}
-                  disabled={!editor.can().redo()}
-                >
-                  <Redo className="h-4 w-4" />
-                </Button>
-              </div>
+              )}
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+            
+            <TabsContent value="wysiwyg" className="mt-0">
+              {/* Toolbar WYSIWYG */}
+              <div className="border-t bg-muted/50 p-2">
+                <div className="flex flex-wrap items-center gap-1">
+                  {/* Formatação básica */}
+                  <Button
+                    variant={editor.isActive('bold') ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleBold().run()}
+                  >
+                    <Bold className="h-4 w-4" />
+                  </Button>
+                  
+                  <Button
+                    variant={editor.isActive('italic') ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleItalic().run()}
+                  >
+                    <Italic className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant={editor.isActive('underline') ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleUnderline().run()}
+                  >
+                    <Underline className="h-4 w-4" />
+                  </Button>
+
+                  <Separator orientation="vertical" className="h-6" />
+
+                  {/* Títulos */}
+                  <Button
+                    variant={editor.isActive('heading', { level: 1 }) ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                  >
+                    <Heading1 className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant={editor.isActive('heading', { level: 2 }) ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                  >
+                    <Heading2 className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant={editor.isActive('heading', { level: 3 }) ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                  >
+                    <Heading3 className="h-4 w-4" />
+                  </Button>
+
+                  <Separator orientation="vertical" className="h-6" />
+
+                  {/* Listas */}
+                  <Button
+                    variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleBulletList().run()}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                  >
+                    <ListOrdered className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant={editor.isActive('taskList') ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleTaskList().run()}
+                  >
+                    <CheckSquare className="h-4 w-4" />
+                  </Button>
+
+                  <Separator orientation="vertical" className="h-6" />
+
+                  {/* Citação e Código */}
+                  <Button
+                    variant={editor.isActive('blockquote') ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                  >
+                    <Quote className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant={editor.isActive('code') ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleCode().run()}
+                  >
+                    <Code className="h-4 w-4" />
+                  </Button>
+
+                  <Separator orientation="vertical" className="h-6" />
+
+                  {/* Mídia */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingMedia}
+                  >
+                    {isUploadingMedia ? (
+                      <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    ) : (
+                      <ImageIcon className="h-4 w-4" />
+                    )}
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowVideoDialog(true)}
+                  >
+                    <Video className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant={editor.isActive('link') ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setShowLinkDialog(true)}
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                  </Button>
+
+                  <Separator orientation="vertical" className="h-6" />
+
+                  {/* Undo/Redo */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => editor.chain().focus().undo().run()}
+                    disabled={!editor.can().undo()}
+                  >
+                    <Undo className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => editor.chain().focus().redo().run()}
+                    disabled={!editor.can().redo()}
+                  >
+                    <Redo className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      ) : (
+        /* Toolbar simplificada para modo Visual Only */
+        <div className="border-b bg-muted/30 p-2">
+          <div className="flex flex-wrap items-center gap-1">
+            {/* Formatação básica */}
+            <Button
+              variant={editor.isActive('bold') ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleBold().run()}
+            >
+              <Bold className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant={editor.isActive('italic') ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+            >
+              <Italic className="h-4 w-4" />
+            </Button>
+
+            <Separator orientation="vertical" className="h-6" />
+
+            {/* Títulos */}
+            <Button
+              variant={editor.isActive('heading', { level: 2 }) ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            >
+              <Heading2 className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant={editor.isActive('heading', { level: 3 }) ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            >
+              <Heading3 className="h-4 w-4" />
+            </Button>
+
+            <Separator orientation="vertical" className="h-6" />
+
+            {/* Listas */}
+            <Button
+              variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            >
+              <ListOrdered className="h-4 w-4" />
+            </Button>
+
+            <Separator orientation="vertical" className="h-6" />
+
+            <Button
+              variant={editor.isActive('link') ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setShowLinkDialog(true)}
+            >
+              <LinkIcon className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploadingMedia}
+            >
+              {isUploadingMedia ? (
+                <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              ) : (
+                <ImageIcon className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Editor Content */}
       <div className="relative">
-        {activeView === 'wysiwyg' ? (
+        {(visualOnly || activeView === 'wysiwyg') ? (
           <EditorContent 
             editor={editor} 
             className="min-h-[300px] max-h-96 overflow-y-auto"
