@@ -167,8 +167,13 @@ export const ReferencesEditor = ({
         description: referenceId ? "Referência atualizada!" : "Referência criada!",
       });
 
+      // Recarregar dados sem fechar o modal
+      if (referenceId) {
+        await loadReference();
+      }
+      
       onSave?.();
-      // NÃO FECHA O MODAL - mantém aberto
+      // Modal permanece aberto - usuário fecha manualmente
     } catch (error) {
       console.error('Erro ao salvar referência:', error);
       toast({

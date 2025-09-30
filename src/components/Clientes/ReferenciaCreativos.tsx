@@ -29,7 +29,7 @@ interface ReferenciaCreativo {
   titulo: string;
   conteudo: any;
   link_publico: string;
-  categoria: 'infoproduto' | 'negocio_local' | 'pagina';
+  categoria: 'criativos' | 'pagina';
   created_at: string;  
   updated_at: string;
   is_template: boolean;
@@ -54,12 +54,12 @@ export const ReferenciaCreativos = ({
   const [selectedReferencia, setSelectedReferencia] = useState<ReferenciaCreativo | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filtroCategoria, setFiltroCategoria] = useState<'todas' | 'infoproduto' | 'negocio_local' | 'pagina'>('todas');
+  const [filtroCategoria, setFiltroCategoria] = useState<'todas' | 'criativos' | 'pagina'>('todas');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [formData, setFormData] = useState({
     titulo: "",
-    categoria: "infoproduto" as "infoproduto" | "negocio_local" | "pagina",
+    categoria: "criativos" as "criativos" | "pagina",
     is_template: false,
     is_public: false,
     public_slug: ""
@@ -111,10 +111,17 @@ export const ReferenciaCreativos = ({
       }
       
       const { data, error } = await query;
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Erro ao carregar referências:', error);
+        throw error;
+      }
+      
+      console.log('Referências carregadas:', data);
       setReferencias((data || []) as ReferenciaCreativo[]);
       setReferenciasFiltradas((data || []) as ReferenciaCreativo[]);
     } catch (error: any) {
+      console.error('Erro detalhado ao carregar referências:', error);
       toast({
         title: "Erro",
         description: "Erro ao carregar referências: " + error.message,
@@ -222,7 +229,7 @@ export const ReferenciaCreativos = ({
   const resetarForm = () => {
     setFormData({
       titulo: "",
-      categoria: "infoproduto",
+      categoria: "criativos",
       is_template: false,
       is_public: false,
       public_slug: ""
@@ -235,7 +242,7 @@ export const ReferenciaCreativos = ({
     setEditingId(referencia.id);
     setFormData({
       titulo: referencia.titulo,
-      categoria: referencia.categoria || "infoproduto",
+      categoria: referencia.categoria || "criativos",
       is_template: referencia.is_template,
       is_public: (referencia as any).is_public || false,
       public_slug: (referencia as any).public_slug || ""
@@ -352,7 +359,7 @@ export const ReferenciaCreativos = ({
         }
         return {
           titulo: values[0] || '',
-          categoria: (['negocio_local', 'pagina'].includes(values[1]) ? values[1] : 'infoproduto') as 'infoproduto' | 'negocio_local' | 'pagina',
+          categoria: (['criativos', 'pagina'].includes(values[1]) ? values[1] : 'criativos') as 'criativos' | 'pagina',
           is_template: values[2] === 'true' || values[2] === 'TRUE',
           links_externos: linksExternos
         };
@@ -389,9 +396,9 @@ export const ReferenciaCreativos = ({
   };
   const downloadTemplateCSV = () => {
     const template = `titulo,categoria,is_template,links_externos
-"Exemplo Referência","infoproduto","false","[]"
-"Template Negócio Local","negocio_local","true","[{""url"":""https://example.com"",""titulo"":""Link Exemplo""}]"
-"Exemplo Página","pagina","false","https://example.com/pagina"`;
+"Exemplo Referência","criativos","false","[]"
+"Template Página","pagina","true","[{""url"":""https://example.com"",""titulo"":""Link Exemplo""}]"
+"Exemplo Página 2","pagina","false","https://example.com/pagina"`;
     const blob = new Blob([template], {
       type: 'text/csv;charset=utf-8;'
     });
@@ -475,14 +482,13 @@ export const ReferenciaCreativos = ({
             </div>
             <div className="w-48">
               <Label>Categoria</Label>
-              <Select value={filtroCategoria} onValueChange={(value: 'todas' | 'infoproduto' | 'negocio_local' | 'pagina') => setFiltroCategoria(value)}>
+              <Select value={filtroCategoria} onValueChange={(value: 'todas' | 'criativos' | 'pagina') => setFiltroCategoria(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas">Todas</SelectItem>
-                  <SelectItem value="infoproduto">Infoproduto</SelectItem>
-                  <SelectItem value="negocio_local">Negócio Local</SelectItem>
+                  <SelectItem value="criativos">Criativos</SelectItem>
                   <SelectItem value="pagina">Página</SelectItem>
                 </SelectContent>
               </Select>
@@ -512,7 +518,7 @@ export const ReferenciaCreativos = ({
                     </TableCell>
                      <TableCell>
                        <Badge variant="outline">
-                         {referencia.categoria === 'infoproduto' ? 'Infoproduto' : referencia.categoria === 'negocio_local' ? 'Negócio Local' : 'Página'}
+                         {referencia.categoria === 'criativos' ? 'Criativos' : 'Página'}
                        </Badge>
                      </TableCell>
                     <TableCell>
@@ -637,7 +643,7 @@ export const ReferenciaCreativos = ({
               </div>
               <div>
                 <Label htmlFor="categoria">Categoria</Label>
-                <Select value={formData.categoria} onValueChange={(value: "infoproduto" | "negocio_local" | "pagina") => setFormData({
+                <Select value={formData.categoria} onValueChange={(value: "criativos" | "pagina") => setFormData({
                 ...formData,
                 categoria: value
               })}>
@@ -645,8 +651,7 @@ export const ReferenciaCreativos = ({
                     <SelectValue placeholder="Selecione a categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="infoproduto">Infoproduto</SelectItem>
-                    <SelectItem value="negocio_local">Negócio Local</SelectItem>
+                    <SelectItem value="criativos">Criativos</SelectItem>
                     <SelectItem value="pagina">Página</SelectItem>
                   </SelectContent>
                 </Select>
