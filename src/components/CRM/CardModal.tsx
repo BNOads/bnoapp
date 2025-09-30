@@ -13,11 +13,12 @@ import { X } from 'lucide-react';
 interface CardModalProps {
   isOpen: boolean;
   card: any;
+  columns: any[];
   onClose: () => void;
   onSave: () => void;
 }
 
-export const CardModal = ({ isOpen, card, onClose, onSave }: CardModalProps) => {
+export const CardModal = ({ isOpen, card, columns, onClose, onSave }: CardModalProps) => {
   const [formData, setFormData] = useState<any>({
     title: '',
     instagram: '',
@@ -138,6 +139,31 @@ export const CardModal = ({ isOpen, card, onClose, onSave }: CardModalProps) => 
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <Label htmlFor="column">Coluna *</Label>
+              <Select 
+                value={formData.column_id} 
+                onValueChange={(value) => setFormData({ ...formData, column_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a coluna" />
+                </SelectTrigger>
+                <SelectContent>
+                  {columns.map(col => (
+                    <SelectItem key={col.id} value={col.id}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: col.color }}
+                        />
+                        {col.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="col-span-2">
               <Label htmlFor="title">Nome do Lead *</Label>
               <Input

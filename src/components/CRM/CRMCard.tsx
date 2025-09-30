@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
-import { Instagram, Building2, DollarSign, Clock } from 'lucide-react';
+import { Instagram, Building2, DollarSign, Clock, Snowflake, Users, DollarSignIcon, TrendingUp } from 'lucide-react';
 import { format, isToday, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -25,6 +25,36 @@ export const CRMCard = ({ card, onEdit, isDragging }: CRMCardProps) => {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isSorting ? 0.5 : 1,
+  };
+
+  const getOriginIcon = () => {
+    switch (card.origin) {
+      case 'Frio':
+        return <Snowflake className="h-3 w-3 text-blue-400" />;
+      case 'Indicação':
+        return <Users className="h-3 w-3 text-green-500" />;
+      case 'Pago':
+        return <DollarSignIcon className="h-3 w-3 text-yellow-500" />;
+      case 'Orgânico':
+        return <TrendingUp className="h-3 w-3 text-purple-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getOriginColor = () => {
+    switch (card.origin) {
+      case 'Frio':
+        return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case 'Indicação':
+        return 'bg-green-500/10 text-green-500 border-green-500/20';
+      case 'Pago':
+        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      case 'Orgânico':
+        return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
   };
 
   const getActionBadge = () => {
@@ -57,6 +87,15 @@ export const CRMCard = ({ card, onEdit, isDragging }: CRMCardProps) => {
         <h4 className="font-medium text-sm line-clamp-2">{card.title}</h4>
         {getActionBadge()}
       </div>
+
+      {card.origin && (
+        <div className="flex items-center gap-1">
+          <Badge variant="outline" className={`text-xs ${getOriginColor()}`}>
+            {getOriginIcon()}
+            <span className="ml-1">{card.origin}</span>
+          </Badge>
+        </div>
+      )}
 
       <div className="space-y-1 text-xs text-muted-foreground">
         {card.instagram && (

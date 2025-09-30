@@ -4,6 +4,7 @@ import { KanbanColumn } from './KanbanColumn';
 import { Button } from '@/components/ui/button';
 import { Plus, Settings, Filter } from 'lucide-react';
 import { CardModal } from './CardModal';
+import { ColumnModal } from './ColumnModal';
 import { useToast } from '@/hooks/use-toast';
 import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
@@ -16,6 +17,8 @@ export const KanbanBoard = () => {
   const [activeCard, setActiveCard] = useState<any>(null);
   const [editingCard, setEditingCard] = useState<any>(null);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [editingColumn, setEditingColumn] = useState<any>(null);
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const { toast } = useToast();
 
   const sensors = useSensors(
@@ -138,6 +141,30 @@ export const KanbanBoard = () => {
     setEditingCard(null);
   };
 
+  const handleCreateLead = () => {
+    const firstColumn = columns[0];
+    if (firstColumn) {
+      setEditingCard({ column_id: firstColumn.id });
+      setIsCardModalOpen(true);
+    }
+  };
+
+  const handleEditColumn = (column: any) => {
+    setEditingColumn(column);
+    setIsColumnModalOpen(true);
+  };
+
+  const handleCreateColumn = () => {
+    setEditingColumn(null);
+    setIsColumnModalOpen(true);
+  };
+
+  const handleSaveColumn = async () => {
+    await loadData();
+    setIsColumnModalOpen(false);
+    setEditingColumn(null);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -151,8 +178,16 @@ export const KanbanBoard = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold">CRM - Pipeline de Vendas</h1>
+          <Button onClick={handleCreateLead}>
+            <Plus className="h-4 w-4 mr-2" />
+            Criar Lead
+          </Button>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleCreateColumn}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Coluna
+          </Button>
           <Button variant="outline" size="sm">
             <Filter className="h-4 w-4 mr-2" />
             Filtros
@@ -182,6 +217,7 @@ export const KanbanBoard = () => {
                 cards={cards.filter(c => c.column_id === column.id)}
                 onCreateCard={() => handleCreateCard(column.id)}
                 onEditCard={handleEditCard}
+                onEditColumn={() => handleEditColumn(column)}
               />
             ))}
           </SortableContext>
@@ -199,11 +235,22 @@ export const KanbanBoard = () => {
       <CardModal
         isOpen={isCardModalOpen}
         card={editingCard}
+        columns={columns}
         onClose={() => {
           setIsCardModalOpen(false);
           setEditingCard(null);
         }}
         onSave={handleSaveCard}
+      />
+
+      <ColumnModal
+        isOpen={isColumnModalOpen}
+        column={editingColumn}
+        onClose={() => {
+          setIsColumnModalOpen(false);
+          setEditingColumn(null);
+        }}
+        onSave={handleSaveColumn}
       />
     </div>
   );

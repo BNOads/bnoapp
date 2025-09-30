@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CRMCard } from './CRMCard';
 import { useDroppable } from '@dnd-kit/core';
@@ -9,9 +9,10 @@ interface KanbanColumnProps {
   cards: any[];
   onCreateCard: () => void;
   onEditCard: (card: any) => void;
+  onEditColumn: () => void;
 }
 
-export const KanbanColumn = ({ column, cards, onCreateCard, onEditCard }: KanbanColumnProps) => {
+export const KanbanColumn = ({ column, cards, onCreateCard, onEditCard, onEditColumn }: KanbanColumnProps) => {
   const { setNodeRef } = useDroppable({
     id: column.id,
   });
@@ -29,6 +30,14 @@ export const KanbanColumn = ({ column, cards, onCreateCard, onEditCard }: Kanban
             <span className="text-sm text-muted-foreground">
               {cards.length}
             </span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onEditColumn}
+              className="h-6 w-6 p-0"
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
           </div>
           <Button variant="ghost" size="sm" onClick={onCreateCard}>
             <Plus className="h-4 w-4" />
