@@ -314,21 +314,23 @@ export const ReferenciaCreativos = ({
     }
     
     try {
-      const {
-        error
-      } = await supabase.from('referencias_criativos').update({
-        ativo: false
-      }).eq('id', referencia.id);
+      // Usar a função RPC para soft delete
+      const { error } = await supabase.rpc('soft_delete_referencia', {
+        _id: referencia.id
+      });
+      
       if (error) throw error;
+      
       toast({
         title: "Sucesso",
         description: "Referência excluída com sucesso!"
       });
       carregarReferencias();
     } catch (error: any) {
+      console.error('Erro ao excluir referência:', error);
       toast({
         title: "Erro",
-        description: "Erro ao excluir referência: " + error.message,
+        description: error.message || "Erro ao excluir referência",
         variant: "destructive"
       });
     }
