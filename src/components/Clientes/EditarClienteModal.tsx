@@ -18,10 +18,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Plus } from "lucide-react";
+import { Users, Palette } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { TeamAssignmentModal } from "./TeamAssignmentModal";
+import { BrandingConfigModal } from "./BrandingConfigModal";
 
 interface EditarClienteModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ interface EditarClienteModalProps {
 export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: EditarClienteModalProps) => {
   const [loading, setLoading] = useState(false);
   const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const [brandingModalOpen, setBrandingModalOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const { toast } = useToast();
   const [formData, setFormData] = useState({
@@ -261,6 +263,29 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
             />
           </div>
 
+          {/* Seção de Branding */}
+          <div className="space-y-2">
+            <Label>Identidade Visual</Label>
+            <div className="border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium">Configurar Branding</span>
+                  <p className="text-xs text-muted-foreground">Personalize logo, cores e descritivo</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBrandingModalOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Palette className="h-4 w-4" />
+                  Configurar
+                </Button>
+              </div>
+            </div>
+          </div>
+
           {/* Seção de Equipe */}
           <div className="space-y-2">
             <Label>Equipe Atribuída</Label>
@@ -347,6 +372,13 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
           loadTeamMembers();
           onSuccess?.();
         }}
+      />
+
+      <BrandingConfigModal
+        open={brandingModalOpen}
+        onOpenChange={setBrandingModalOpen}
+        cliente={cliente}
+        onSuccess={onSuccess}
       />
     </Dialog>
   );

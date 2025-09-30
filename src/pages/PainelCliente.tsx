@@ -17,6 +17,8 @@ import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
 import { HistoricoMensagensCliente } from "@/components/Clientes/HistoricoMensagensCliente";
 import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { ClienteBrandingProvider } from "@/components/Clientes/ClienteBrandingProvider";
+import { ClienteBrandingHeader } from "@/components/Clientes/ClienteBrandingHeader";
 import type { User } from "@supabase/supabase-js";
 const PainelCliente = () => {
   const {
@@ -166,8 +168,15 @@ const PainelCliente = () => {
   }
   
   return (
-    <>
-      <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border">
+    <ClienteBrandingProvider cliente={cliente}>
+      <div 
+        className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border"
+        style={{
+          backgroundColor: cliente.branding_enabled && cliente.branding_bg 
+            ? cliente.branding_bg 
+            : undefined
+        }}
+      >
         <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
             <div className="flex-1">
@@ -179,10 +188,7 @@ const PainelCliente = () => {
                      <ArrowLeft className="h-4 w-4" />
                    </Button>}
                 <div className="min-w-0 flex-1">
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground break-words">
-                    {cliente.nome}
-                  </h1>
-                  
+                  <ClienteBrandingHeader clienteNome={cliente.nome} />
                 </div>
               </div>
             </div>
@@ -301,7 +307,7 @@ const PainelCliente = () => {
         cliente={cliente}
         onSuccess={handleEditSuccess}
       />
-    </>
+    </ClienteBrandingProvider>
   );
 };
 
