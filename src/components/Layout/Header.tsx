@@ -60,6 +60,12 @@ export const Header = ({}: HeaderProps) => {
 
   const getActiveTab = () => {
     const currentPath = location.pathname;
+    
+    // Check for ferramentas sub-routes
+    if (currentPath.startsWith('/ferramentas')) {
+      return 'ferramentas';
+    }
+    
     const tab = tabs.find(t => t.path === currentPath);
     return tab ? tab.id : 'dashboard';
   };
