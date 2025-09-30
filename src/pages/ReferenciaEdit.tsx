@@ -362,7 +362,7 @@ export default function ReferenciaEdit() {
               )}
             </div>
 
-            {!isNewRef && (
+            {!isNewRef && formData.created_at && (
               <>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Criado em</Label>
