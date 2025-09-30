@@ -493,21 +493,22 @@ export function PautaReuniaoView() {
 
     // If a specific day is selected, load it
     if (selectedDate.dia && docsMap[selectedDate.dia.toString()]) {
-      setCurrentDocument(docsMap[selectedDate.dia.toString()]);
-      setBlocks(docsMap[selectedDate.dia.toString()].blocos || []);
+      const doc = docsMap[selectedDate.dia.toString()];
+      setCurrentDocument(doc);
+      setBlocks(doc.blocos || []);
     } else if (selectedDate.dia && !docsMap[selectedDate.dia.toString()]) {
-      // If selected day has no document, create one automatically if it's today or in the future
+      // Se não tem documento para o dia selecionado
       const today = new Date();
       const selectedDateObj = new Date(selectedDate.ano, selectedDate.mes - 1, selectedDate.dia);
       const todayObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       
-      // Always create document for today to ensure it's accessible
       const isToday = selectedDateObj.getTime() === todayObj.getTime();
-      if (isToday || selectedDateObj >= todayObj) {
-        // Auto-create document for today or future dates
-        createOrOpenDocument(selectedDate.dia);
+      
+      // APENAS auto-criar para hoje
+      if (isToday) {
+        await createOrOpenDocument(selectedDate.dia);
       } else {
-        // Clear current document for past dates without documents
+        // Para dias futuros ou passados sem documento, apenas limpar a tela
         setCurrentDocument(null);
         setBlocks([]);
       }
@@ -1193,14 +1194,28 @@ export function PautaReuniaoView() {
                 ...prev,
                 dia: day
               }));
+              
+              // Se já existe documento, apenas abrir
               if (hasDocument) {
                 setCurrentDocument(hasDocument);
                 setBlocks(hasDocument.blocos || []);
+                updateURL(selectedDate.ano, selectedDate.mes, day);
               } else {
-                // Auto-create document for this day
-                await createOrOpenDocument(day);
+                // Se não existe, criar automaticamente apenas para hoje ou futuro
+                const today = new Date();
+                const selectedDateObj = new Date(selectedDate.ano, selectedDate.mes - 1, day);
+                const todayObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                
+                if (selectedDateObj >= todayObj) {
+                  // Auto-criar para hoje ou futuro
+                  await createOrOpenDocument(day);
+                } else {
+                  // Passado sem documento = limpar
+                  setCurrentDocument(null);
+                  setBlocks([]);
+                  updateURL(selectedDate.ano, selectedDate.mes, day);
+                }
               }
-              updateURL(selectedDate.ano, selectedDate.mes, day);
             }}>
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-mono ${isSelected ? 'font-bold' : ''}`}>
