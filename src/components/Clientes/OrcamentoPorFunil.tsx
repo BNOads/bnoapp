@@ -67,6 +67,7 @@ export const OrcamentoPorFunil = ({
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
   const [selectedOrcamento, setSelectedOrcamento] = useState<OrcamentoFunil | null>(null);
   const [selectedFunil, setSelectedFunil] = useState<string>("todos");
+  const [selectedStatus, setSelectedStatus] = useState<string>("todos");
   const [formData, setFormData] = useState({
     nome_funil: "",
     valor_investimento: "",
@@ -87,8 +88,14 @@ export const OrcamentoPorFunil = ({
     filteredItems
   } = useSearch(orcamentos, ['nome_funil', 'observacoes']);
 
-  // Filtro por funil
-  const orcamentosFiltrados = filteredItems.filter(orcamento => selectedFunil === "todos" || orcamento.nome_funil === selectedFunil);
+  // Filtro por funil e status
+  const orcamentosFiltrados = filteredItems.filter(orcamento => {
+    const matchFunil = selectedFunil === "todos" || orcamento.nome_funil === selectedFunil;
+    const matchStatus = selectedStatus === "todos" || 
+                       (selectedStatus === "ativos" && orcamento.active) ||
+                       (selectedStatus === "desativados" && !orcamento.active);
+    return matchFunil && matchStatus;
+  });
 
   // Lista única de funis para o filtro
   const funisUnicos = Array.from(new Set(orcamentos.map(o => o.nome_funil))).sort();
@@ -384,20 +391,40 @@ export const OrcamentoPorFunil = ({
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center gap-2 sm:min-w-[200px]">
+                <Power className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="ativos">Ativos</SelectItem>
+                    <SelectItem value="desativados">Desativados</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Cards de Orçamentos - Mobile First Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         {orcamentosFiltrados.map(orcamento => <Card 
           key={orcamento.id} 
-          className={`relative w-full ${!orcamento.active ? 'opacity-60' : ''}`}
+          className={`relative w-full transition-all ${!orcamento.active ? 'opacity-60 grayscale-[0.4]' : ''}`}
         >
             <CardHeader className="pb-2 sm:pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
                 <div className="flex flex-col gap-2">
-                  <CardTitle className="text-base sm:text-lg font-semibold line-clamp-2 leading-tight pr-2">
-                    {orcamento.nome_funil}
-                  </CardTitle>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CardTitle className="text-base sm:text-lg font-semibold line-clamp-2 leading-tight">
+                      {orcamento.nome_funil}
+                    </CardTitle>
+                    {!orcamento.active && (
+                      <Badge variant="secondary" className="text-xs bg-muted text-muted-foreground">
+                        Desativado
+                      </Badge>
+                    )}
+                  </div>
                    <OrcamentoStatusToggle
                     orcamentoId={orcamento.id}
                     currentStatus={orcamento.active}
