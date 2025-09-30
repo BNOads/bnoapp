@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ReferenciasView } from "@/components/Referencias/ReferenciasView";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { MapaMentalView } from "./MapaMentalView";
@@ -45,7 +44,7 @@ export const FerramentasView = () => {
       title: "Referências",
       description: "Gerencie documentos multimídia para referência da equipe criativa",
       icon: Palette,
-      component: <ReferenciasView />,
+      component: null, // Redirecionamento para /referencias
       color: "text-purple-600"
     },
     {
@@ -141,6 +140,11 @@ export const FerramentasView = () => {
   }, [toolName, selectedTool, tools]);
 
   const handleToolSelect = (toolId: string) => {
+    // Redirecionar para /referencias ao invés de usar ferramenta inline
+    if (toolId === 'referencias') {
+      navigate('/referencias');
+      return;
+    }
     setSelectedTool(toolId);
     navigate(`/ferramentas/${toolId}`);
   };

@@ -40,7 +40,7 @@ interface ReferenciaCreativo {
 }
 
 export const ReferenciaPublica = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id?: string; slug?: string }>();
   const [searchParams] = useSearchParams();
   const [referencia, setReferencia] = useState<ReferenciaCreativo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,34 +52,36 @@ export const ReferenciaPublica = () => {
   const token = searchParams.get('token');
 
   useEffect(() => {
-    if (id) {
+    if (id || slug) {
       carregarReferencia();
     }
-  }, [id]);
+  }, [id, slug]);
 
   const carregarReferencia = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('Carregando referência pública:', id, 'token:', token);
+      console.log('Carregando referência pública:', { id, slug, token });
       
       let query = supabase
         .from('referencias_criativos')
         .select('*')
         .eq('ativo', true);
 
+      const identifier = slug || id;
+
       // Try to find by slug first (more user-friendly URLs)
-      if (id && !token) {
+      if (identifier && !token) {
         // First try by public_slug, then fallback to ID
-        const { data: slugData } = await query.eq('public_slug', id).maybeSingle();
+        const { data: slugData } = await query.eq('public_slug', identifier).maybeSingle();
         
         if (slugData && slugData.is_public) {
           // Found by slug and it's public
           setReferencia(slugData as ReferenciaCreativo);
         } else {
           // Try by ID if slug fails or isn't public
-          const { data: idData } = await query.eq('id', id).maybeSingle();
+          const { data: idData } = await query.eq('id', identifier).maybeSingle();
           
           if (idData) {
             // For existing references, allow access if they exist (backward compatibility)
@@ -90,10 +92,10 @@ export const ReferenciaPublica = () => {
             return;
           }
         }
-      } else if (id && token) {
+      } else if (identifier && token) {
         // Access via token - valid token grants access regardless of is_public
         const { data: tokenData } = await query
-          .eq('id', id)
+          .eq('id', identifier)
           .eq('public_token', token)
           .maybeSingle();
 
@@ -112,9 +114,9 @@ export const ReferenciaPublica = () => {
       // If we already found the reference in the previous step, get it again if needed
       let finalData = referencia;
       if (!finalData) {
-        const finalQuery = id && !token 
-          ? query.or(`public_slug.eq.${id},id.eq.${id}`)
-          : query.eq('id', id).eq('public_token', token);
+        const finalQuery = identifier && !token 
+          ? query.or(`public_slug.eq.${identifier},id.eq.${identifier}`)
+          : query.eq('id', identifier).eq('public_token', token);
 
         const { data, error } = await finalQuery.maybeSingle();
 

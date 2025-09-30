@@ -201,3 +201,14 @@ All colors MUST be HSL.
 .ProseMirror a[href]:hover {
   filter: brightness(0.9);
 }
+
+/* Estilos para links nas páginas de referência */
+.ref-page a[href] {
+  color: #2563EB;
+  text-decoration: underline;
+}
+
+.ref-page a[href]:hover {
+  filter: brightness(0.9);
+  cursor: pointer;
+}

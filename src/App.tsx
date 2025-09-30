@@ -23,6 +23,8 @@ import Perfil from "./pages/Perfil";
 import POPPublico from "./pages/POPPublico";
 import { ReferenciaViewer } from "./pages/ReferenciaViewer";
 import { ReferenciaPublica } from "./pages/ReferenciaPublica";
+import Referencias from "./pages/Referencias";
+import ReferenciaEdit from "./pages/ReferenciaEdit";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
@@ -50,6 +52,18 @@ function App() {
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/auth/reset-password" element={<ResetPassword />} />
                 <Route path="/pop/publico/:id" element={<POPPublico />} />
+                <Route path="/r/:slug" element={<ReferenciaPublica />} />
+                <Route path="/referencias" element={
+                  <ProtectedRoute>
+                    <Referencias />
+                  </ProtectedRoute>
+                } />
+                <Route path="/referencias/:id" element={
+                  <ProtectedRoute>
+                    <ReferenciaEdit />
+                  </ProtectedRoute>
+                } />
+                {/* Legacy routes - manter compatibilidade */}
                 <Route path="/referencia/:id" element={<ReferenciaViewer />} />
                 <Route path="/referencia/publica/:id" element={<ReferenciaPublica />} />
                 <Route path="/debriefing/publico/:id" element={<DebriefingPublico />} />
