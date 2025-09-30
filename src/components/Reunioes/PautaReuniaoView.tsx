@@ -158,7 +158,7 @@ export function PautaReuniaoView() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
-    // Parse URL parameters and auto-navigate to today
+    // Parse URL parameters and auto-navigate to today or last selected day
     const yearParam = searchParams.get('ano');
     const monthParam = searchParams.get('mes');
     const dayParam = searchParams.get('dia');
@@ -169,12 +169,38 @@ export function PautaReuniaoView() {
 
     if (yearParam && monthParam && dayParam) {
       // URL tem todos os parâmetros, usar eles
+      const selectedDay = parseInt(dayParam);
       setSelectedDate({
         ano: parseInt(yearParam),
         mes: parseInt(monthParam),
-        dia: parseInt(dayParam)
+        dia: selectedDay
       });
+      // Persistir no localStorage
+      localStorage.setItem('pauta-last-date', JSON.stringify({
+        ano: parseInt(yearParam),
+        mes: parseInt(monthParam),
+        dia: selectedDay
+      }));
     } else {
+      // Tentar carregar último dia do localStorage
+      try {
+        const savedDate = localStorage.getItem('pauta-last-date');
+        if (savedDate) {
+          const parsed = JSON.parse(savedDate);
+          // Verificar se é uma data válida recente (últimos 30 dias)
+          const savedDateObj = new Date(parsed.ano, parsed.mes - 1, parsed.dia);
+          const daysDiff = Math.floor((today.getTime() - savedDateObj.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysDiff >= 0 && daysDiff <= 30) {
+            setSelectedDate(parsed);
+            updateURL(parsed.ano, parsed.mes, parsed.dia);
+            loadInitialData();
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load last date from localStorage', e);
+      }
+      
       // Auto-navegar para o dia atual
       setSelectedDate({
         ano: currentYear,
@@ -182,6 +208,11 @@ export function PautaReuniaoView() {
         dia: currentDay
       });
       updateURL(currentYear, currentMonth, currentDay);
+      localStorage.setItem('pauta-last-date', JSON.stringify({
+        ano: currentYear,
+        mes: currentMonth,
+        dia: currentDay
+      }));
     }
     loadInitialData();
   }, [searchParams]);
@@ -232,11 +263,9 @@ export function PautaReuniaoView() {
     };
   }, [saveStatus, autosaveTimeout.current]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts - Navigation and Day Switching
   useEffect(() => {
     const handleKeyboard = (e: KeyboardEvent) => {
-      if (!currentDocument || blocks.length === 0) return;
-      
       // Don't intercept keys when user is typing in input fields
       const target = e.target as HTMLElement;
       const isTyping = target.tagName === 'INPUT' || 
@@ -246,17 +275,117 @@ export function PautaReuniaoView() {
       
       if (isTyping) return;
       
-      if (e.key === 'j' || e.key === 'J') {
+      // Block navigation (only when document is open)
+      if (currentDocument && blocks.length > 0) {
+        if (e.key === 'j' || e.key === 'J') {
+          e.preventDefault();
+          navigateToNextBlock();
+          return;
+        } else if (e.key === 'k' || e.key === 'K') {
+          e.preventDefault();
+          navigateToPreviousBlock();
+          return;
+        }
+      }
+      
+      // Day navigation
+      if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        navigateToNextBlock();
-      } else if (e.key === 'k' || e.key === 'K') {
+        navigateToPreviousDay();
+      } else if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        navigateToPreviousBlock();
+        navigateToNextDay();
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        navigateToToday();
       }
     };
     document.addEventListener('keydown', handleKeyboard);
     return () => document.removeEventListener('keydown', handleKeyboard);
-  }, [blocks, currentDocument]);
+  }, [blocks, currentDocument, selectedDate]);
+  // Day navigation functions
+  const navigateToPreviousDay = async () => {
+    if (!selectedDate.dia) return;
+    
+    const newDay = selectedDate.dia - 1;
+    if (newDay < 1) {
+      // Go to previous month
+      const newMonth = selectedDate.mes === 1 ? 12 : selectedDate.mes - 1;
+      const newYear = selectedDate.mes === 1 ? selectedDate.ano - 1 : selectedDate.ano;
+      const daysInNewMonth = getDaysInMonth(newYear, newMonth);
+      
+      setSelectedDate({ ano: newYear, mes: newMonth, dia: daysInNewMonth });
+      await loadDocuments();
+      updateURL(newYear, newMonth, daysInNewMonth);
+    } else {
+      setSelectedDate(prev => ({ ...prev, dia: newDay }));
+      const dayKey = newDay.toString();
+      if (documents[dayKey]) {
+        setCurrentDocument(documents[dayKey]);
+        setBlocks(documents[dayKey].blocos || []);
+      } else {
+        await createOrOpenDocument(newDay);
+      }
+      updateURL(selectedDate.ano, selectedDate.mes, newDay);
+    }
+  };
+
+  const navigateToNextDay = async () => {
+    if (!selectedDate.dia) return;
+    
+    const daysInMonth = getDaysInMonth(selectedDate.ano, selectedDate.mes);
+    const newDay = selectedDate.dia + 1;
+    
+    if (newDay > daysInMonth) {
+      // Go to next month
+      const newMonth = selectedDate.mes === 12 ? 1 : selectedDate.mes + 1;
+      const newYear = selectedDate.mes === 12 ? selectedDate.ano + 1 : selectedDate.ano;
+      
+      setSelectedDate({ ano: newYear, mes: newMonth, dia: 1 });
+      await loadDocuments();
+      updateURL(newYear, newMonth, 1);
+    } else {
+      setSelectedDate(prev => ({ ...prev, dia: newDay }));
+      const dayKey = newDay.toString();
+      if (documents[dayKey]) {
+        setCurrentDocument(documents[dayKey]);
+        setBlocks(documents[dayKey].blocos || []);
+      } else {
+        await createOrOpenDocument(newDay);
+      }
+      updateURL(selectedDate.ano, selectedDate.mes, newDay);
+    }
+  };
+
+  const navigateToToday = async () => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+    const currentDay = today.getDate();
+    
+    setSelectedDate({ ano: currentYear, mes: currentMonth, dia: currentDay });
+    
+    // Reload documents if month/year changed
+    if (currentYear !== selectedDate.ano || currentMonth !== selectedDate.mes) {
+      await loadDocuments();
+    }
+    
+    const dayKey = currentDay.toString();
+    if (documents[dayKey]) {
+      setCurrentDocument(documents[dayKey]);
+      setBlocks(documents[dayKey].blocos || []);
+    } else {
+      await createOrOpenDocument(currentDay);
+    }
+    updateURL(currentYear, currentMonth, currentDay);
+    
+    toast({
+      title: "📅 Hoje",
+      description: `${currentDay}/${currentMonth}/${currentYear}`,
+      duration: 2000
+    });
+  };
+
   const navigateToNextBlock = () => {
     const sortedBlocks = blocks.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
     const currentIndex = sortedBlocks.findIndex(block => {
@@ -540,7 +669,11 @@ export function PautaReuniaoView() {
     const params = new URLSearchParams();
     params.set('ano', ano.toString());
     params.set('mes', mes.toString());
-    if (dia) params.set('dia', dia.toString());
+    if (dia) {
+      params.set('dia', dia.toString());
+      // Persistir no localStorage
+      localStorage.setItem('pauta-last-date', JSON.stringify({ ano, mes, dia }));
+    }
     setSearchParams(params);
   };
 
@@ -1029,7 +1162,11 @@ export function PautaReuniaoView() {
             const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const currentDate = new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate());
             const isToday = currentDate.getTime() === todayDate.getTime();
-            return <div key={day} className={`flex items-center justify-between p-1 rounded-md cursor-pointer hover:bg-muted transition-colors text-sm ${isSelected ? 'bg-primary text-primary-foreground' : ''} ${isToday ? 'bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800' : ''}`} onClick={async () => {
+            return <div key={day} className={`
+              flex items-center justify-between p-2 rounded-md cursor-pointer transition-all text-sm
+              ${isSelected ? 'bg-primary text-primary-foreground shadow-md ring-2 ring-primary/50' : 'hover:bg-muted'}
+              ${isToday && !isSelected ? 'bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800' : ''}
+            `} onClick={async () => {
               setSelectedDate(prev => ({
                 ...prev,
                 dia: day
@@ -1043,9 +1180,14 @@ export function PautaReuniaoView() {
               }
               updateURL(selectedDate.ano, selectedDate.mes, day);
             }}>
-                  <div className="flex items-center gap-1">{/* Reduced gap */}
-                    <span className="text-xs font-mono">{day}/{selectedDate.mes}</span>{/* Simplified date format */}
-                    {isToday && <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-mono ${isSelected ? 'font-bold' : ''}`}>
+                      {day}/{selectedDate.mes}
+                    </span>
+                    {isSelected && <Badge variant="default" className="text-xs px-1.5 py-0 h-5">
+                        Ativo
+                      </Badge>}
+                    {isToday && !isSelected && <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
                         Hoje
                       </Badge>}
                   </div>
