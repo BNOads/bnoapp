@@ -263,6 +263,24 @@ export function PautaReuniaoView() {
     };
   }, [saveStatus, autosaveTimeout.current]);
 
+  // Auto-scroll to selected day in calendar
+  useEffect(() => {
+    if (selectedDate.dia) {
+      // Pequeno delay para garantir que o DOM foi atualizado
+      setTimeout(() => {
+        const selectedElement = document.querySelector(`[data-calendar-day="${selectedDate.dia}"]`);
+        if (selectedElement) {
+          selectedElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest'
+          });
+        }
+      }, 100);
+    }
+  }, [selectedDate.dia]);
+
+
   // Keyboard shortcuts - Navigation and Day Switching
   useEffect(() => {
     const handleKeyboard = (e: KeyboardEvent) => {
@@ -1162,11 +1180,15 @@ export function PautaReuniaoView() {
             const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const currentDate = new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate());
             const isToday = currentDate.getTime() === todayDate.getTime();
-            return <div key={day} className={`
-              flex items-center justify-between p-2 rounded-md cursor-pointer transition-all text-sm
-              ${isSelected ? 'bg-primary text-primary-foreground shadow-md ring-2 ring-primary/50' : 'hover:bg-muted'}
-              ${isToday && !isSelected ? 'bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800' : ''}
-            `} onClick={async () => {
+            return <div 
+              key={day} 
+              data-calendar-day={day}
+              className={`
+                flex items-center justify-between p-2 rounded-md cursor-pointer transition-all text-sm
+                ${isSelected ? 'bg-primary text-primary-foreground shadow-md ring-2 ring-primary/50' : 'hover:bg-muted'}
+                ${isToday && !isSelected ? 'bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800' : ''}
+              `} 
+              onClick={async () => {
               setSelectedDate(prev => ({
                 ...prev,
                 dia: day
