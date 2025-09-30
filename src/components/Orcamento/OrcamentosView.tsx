@@ -234,7 +234,9 @@ export const OrcamentosView = () => {
   const gestoresAggregados = useMemo(() => {
     const acc: Record<string, { totalPrevisto: number; totalGasto: number; funis: Array<{ nome_funil: string; cliente_nome: string; valor_investimento: number }> }> = {};
 
+    // Considerar apenas orçamentos ativos
     for (const o of filteredAndSortedOrcamentos) {
+      if (!o.active) continue; // Ignorar orçamentos desativados
       const gestorId = o.cliente_id ? clienteGestorMap[o.cliente_id] : null;
       if (!gestorId) continue;
       if (!acc[gestorId]) {
