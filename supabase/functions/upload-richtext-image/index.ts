@@ -16,29 +16,27 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    );
-
-    // Verificar autenticação
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser();
-
-    if (authError || !user) {
-      console.error('Erro de autenticação:', authError);
+    // Criar cliente Supabase com o token do usuário
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('Header de autorização ausente');
       return new Response(JSON.stringify({ error: 'Não autorizado' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      }
+    );
+
+    console.log('Cliente Supabase criado com autenticação');
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
@@ -78,7 +76,6 @@ serve(async (req) => {
       fileName: file.name,
       fileType: file.type,
       fileSize: file.size,
-      userId: user.id,
       context,
       entityId
     });
@@ -93,14 +90,15 @@ serve(async (req) => {
     const extension = file.name.split('.').pop() || 'jpg';
     const fileName = `${timestamp}-${randomString}.${extension}`;
 
-    // Construir caminho: uploads/richtext/{userId}/{context}/{entityId}/{yyyy}/{mm}/{fileName}
+    // Construir caminho: uploads/richtext/{context}/{entityId}/{yyyy}/{mm}/{fileName}
+    // Se não houver context/entityId, usar 'general'
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     
     const filePath = context && entityId
-      ? `${user.id}/${context}/${entityId}/${yyyy}/${mm}/${fileName}`
-      : `${user.id}/general/${yyyy}/${mm}/${fileName}`;
+      ? `${context}/${entityId}/${yyyy}/${mm}/${fileName}`
+      : `general/${yyyy}/${mm}/${fileName}`;
 
     console.log('Fazendo upload para:', filePath);
 
