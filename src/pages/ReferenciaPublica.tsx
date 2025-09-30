@@ -72,13 +72,23 @@ export const ReferenciaPublica = () => {
         return;
       }
 
-      const { data, error: fetchError } = await supabase
+      // Tentar buscar por public_slug primeiro, depois por ID se não encontrar
+      let query = supabase
         .from('referencias_criativos')
         .select('*')
         .eq('ativo', true)
-        .eq('is_public', true)
-        .eq('public_slug', identifier)
-        .maybeSingle();
+        .eq('is_public', true);
+
+      // Se parece com UUID, buscar por ID também
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+      
+      if (isUUID) {
+        query = query.eq('id', identifier);
+      } else {
+        query = query.eq('public_slug', identifier);
+      }
+
+      const { data, error: fetchError } = await query.maybeSingle();
 
       if (fetchError) {
         console.error('Erro ao carregar referência:', fetchError);

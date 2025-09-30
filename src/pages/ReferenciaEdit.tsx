@@ -237,29 +237,74 @@ export default function ReferenciaEdit() {
 
   const handleShareToggle = async () => {
     if (!formData.is_public) {
-      // Tornar público e gerar slug se necessário
-      const slug = formData.public_slug || formData.titulo
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .trim();
-      
-      handleFieldChange('is_public', true);
-      handleFieldChange('public_slug', slug);
-      
-      toast({
-        title: "Atenção",
-        description: "Salve para ativar o compartilhamento público",
-        duration: 3000
-      });
+      // Validar título antes de compartilhar
+      if (!formData.titulo.trim()) {
+        toast({
+          title: "Erro",
+          description: "Adicione um título antes de compartilhar.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      try {
+        setSaving(true);
+        
+        const user = await supabase.auth.getUser();
+        
+        // Salvar com is_public = true e deixar o trigger gerar o public_slug
+        const { data, error } = await supabase
+          .from('referencias_criativos')
+          .update({
+            titulo: formData.titulo,
+            categoria: formData.categoria,
+            conteudo_markdown: formData.conteudo_markdown,
+            is_public: true,
+            cliente_id: null,
+            created_by: user.data.user?.id
+          })
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Atualizar formData com os dados retornados (incluindo public_slug gerado)
+        setFormData({
+          titulo: data.titulo,
+          categoria: data.categoria as "criativos" | "pagina",
+          conteudo_markdown: data.conteudo_markdown || "",
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          created_by: data.created_by,
+          is_public: data.is_public || false,
+          public_slug: data.public_slug || ""
+        });
+
+        // Copiar link público
+        const publicUrl = `${window.location.origin}/r/${data.public_slug}`;
+        await navigator.clipboard.writeText(publicUrl);
+
+        toast({
+          title: "✔ Link Público Criado",
+          description: "Link copiado para a área de transferência!",
+        });
+
+        setHasChanges(false);
+      } catch (error: any) {
+        console.error('Erro ao compartilhar:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível criar o link público.",
+          variant: "destructive"
+        });
+      } finally {
+        setSaving(false);
+      }
     } else {
-      // Copiar link público
-      const baseUrl = window.location.origin;
-      const url = `${baseUrl}/r/${formData.public_slug}`;
-      
-      navigator.clipboard.writeText(url);
+      // Se já está público, copiar link
+      const publicUrl = `${window.location.origin}/r/${formData.public_slug}`;
+      await navigator.clipboard.writeText(publicUrl);
       toast({
         title: "Link copiado!",
         description: "Link público copiado para a área de transferência.",
