@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Save, X, Eye, Copy, ExternalLink } from "lucide-react";
+import { Save, X, Eye } from "lucide-react";
 import { MarkdownEditor } from "./MarkdownEditor/MarkdownEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -28,8 +27,6 @@ export const ReferencesEditor = ({
 }: ReferencesEditorProps) => {
   const [loading, setLoading] = useState(false);
   const [markdownContent, setMarkdownContent] = useState('');
-  const [linkUrl, setLinkUrl] = useState('');
-  const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
   const [formData, setFormData] = useState({
     titulo: "",
     categoria: "criativos" as "criativos" | "pagina",
@@ -55,9 +52,17 @@ export const ReferencesEditor = ({
         .from('referencias_criativos')
         .select('*')
         .eq('id', referenceId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        toast({
+          title: "Erro",
+          description: "Referência não encontrada.",
+          variant: "destructive"
+        });
+        return;
+      }
 
       setFormData({
         titulo: data.titulo,
@@ -65,7 +70,6 @@ export const ReferencesEditor = ({
         is_template: data.is_template,
         link_publico: data.link_publico || ""
       });
-      setLinkUrl(data.link_publico || "");
 
       // Converter conteúdo para markdown
       if ((data as any).conteudo_markdown) {
@@ -120,7 +124,6 @@ export const ReferencesEditor = ({
       link_publico: ""
     });
     setMarkdownContent('');
-    setLinkUrl('');
   };
 
   const handleSave = async () => {
@@ -136,19 +139,11 @@ export const ReferencesEditor = ({
     try {
       setLoading(true);
 
-      // Auto-adicionar https:// se necessário
-      let processedUrl = linkUrl.trim();
-      if (processedUrl && !processedUrl.match(/^https?:\/\//i)) {
-        processedUrl = `https://${processedUrl}`;
-        setLinkUrl(processedUrl);
-      }
-
       const dataToSave = {
         titulo: formData.titulo,
         categoria: formData.categoria,
         is_template: formData.is_template,
         conteudo_markdown: markdownContent,
-        link_url: processedUrl || null,
         cliente_id: clienteId === 'geral' ? null : clienteId,
         created_by: (await supabase.auth.getUser()).data.user?.id
       };
@@ -183,33 +178,6 @@ export const ReferencesEditor = ({
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const copyLink = async () => {
-    if (!linkUrl.trim()) {
-      toast({
-        title: "URL inválida",
-        description: "Digite uma URL válida antes de copiar.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(linkUrl);
-      setShowCopiedFeedback(true);
-      setTimeout(() => setShowCopiedFeedback(false), 2000);
-    } catch {
-      // Fallback
-      const ta = document.createElement("textarea");
-      ta.value = linkUrl;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      setShowCopiedFeedback(true);
-      setTimeout(() => setShowCopiedFeedback(false), 2000);
     }
   };
 
@@ -254,55 +222,6 @@ export const ReferencesEditor = ({
                       <SelectItem value="pagina">Página</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="link_url">Link (URL)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="link_url"
-                      value={linkUrl}
-                      onChange={(e) => setLinkUrl(e.target.value)}
-                      placeholder="https://exemplo.com"
-                      className="flex-1"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={copyLink}
-                      disabled={!linkUrl.trim()}
-                      className="relative"
-                    >
-                      <Copy className="w-4 h-4" />
-                      {showCopiedFeedback && (
-                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs whitespace-nowrap">
-                          Copiado!
-                        </span>
-                      )}
-                    </Button>
-                    {linkUrl && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const url = linkUrl.match(/^https?:\/\//i) ? linkUrl : `https://${linkUrl}`;
-                          window.open(url, '_blank', 'noopener,noreferrer');
-                        }}
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                  {linkUrl && (
-                    <a 
-                      href={linkUrl.match(/^https?:\/\//i) ? linkUrl : `https://${linkUrl}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-700 underline block"
-                    >
-                      {linkUrl}
-                    </a>
-                  )}
                 </div>
               </CardContent>
             </Card>
