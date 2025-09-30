@@ -181,6 +181,8 @@ export const ReferenciaCreativos = ({
             categoria: formData.categoria,
             conteudo: blocos.length > 0 ? JSON.stringify(blocos) : '[]',
             is_template: formData.is_template,
+            is_public: formData.is_public || false,
+            public_slug: formData.is_public ? (formData.public_slug || null) : null,
             links_externos: linksExternos || []
           })
           .eq('id', editingId);
@@ -201,6 +203,8 @@ export const ReferenciaCreativos = ({
             categoria: formData.categoria,
             conteudo: blocos.length > 0 ? JSON.stringify(blocos) : '[]',
             is_template: formData.is_template,
+            is_public: formData.is_public || false,
+            public_slug: formData.is_public ? (formData.public_slug || null) : null,
             links_externos: linksExternos || [],
             created_by: user.id,
             ativo: true
@@ -567,24 +571,32 @@ export const ReferenciaCreativos = ({
                                  <Eye className="h-4 w-4" />
                                </Button>;
                    })()}
-                          <Button variant="ghost" size="sm" onClick={() => {
-                     // Generate the correct public link based on public_slug or link_publico
-                     let fullLink = '';
-                     
-                     if (referencia.public_slug) {
-                       fullLink = `${window.location.origin}/referencia/publica/${referencia.public_slug}`;
-                     } else if (referencia.link_publico) {
-                       fullLink = referencia.link_publico.startsWith('http') 
-                         ? referencia.link_publico 
-                         : `${window.location.origin}${referencia.link_publico}`;
-                     } else {
-                       fullLink = `${window.location.origin}/referencia/${referencia.id}`;
-                     }
-                     
-                     copiarLink(fullLink);
-                   }} title="Copiar link público">
-                            <Copy className="h-4 w-4" />
-                          </Button>
+                           {referencia.is_public && referencia.public_slug ? (
+                             <Button 
+                               variant="ghost" 
+                               size="sm" 
+                               onClick={() => {
+                                 const fullLink = `${window.location.origin}/r/${referencia.public_slug}`;
+                                 copiarLink(fullLink);
+                               }} 
+                               title="Copiar link público"
+                               className="text-primary hover:text-primary"
+                             >
+                               <Share2 className="h-4 w-4" />
+                             </Button>
+                           ) : (
+                             <Button 
+                               variant="ghost" 
+                               size="sm" 
+                               onClick={() => {
+                                 const fullLink = `${window.location.origin}/referencia/${referencia.id}`;
+                                 copiarLink(fullLink);
+                               }} 
+                               title="Copiar link"
+                             >
+                               <Copy className="h-4 w-4" />
+                             </Button>
+                           )}
                         {canCreateContent && <>
                              <Button variant="ghost" size="sm" onClick={() => {
                       setEditingId(referencia.id);
@@ -734,35 +746,38 @@ export const ReferenciaCreativos = ({
                     </p>
                   </div>
 
-                  {editingId && (
-                    <div className="flex items-center justify-between p-3 bg-background rounded border">
-                      <div>
-                        <p className="text-sm font-medium">Link Público</p>
-                        <p className="text-xs text-muted-foreground">
+                  {editingId && formData.is_public && (
+                    <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/20">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-primary mb-1">🔗 Link Público Ativo</p>
+                        <p className="text-xs text-muted-foreground break-all">
                           {formData.public_slug 
-                            ? `${window.location.origin}/referencia/publica/${formData.public_slug}`
+                            ? `${window.location.origin}/r/${formData.public_slug}`
                             : 'Salve para gerar o link público'
                           }
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 ml-4">
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={() => {
                             if (formData.public_slug) {
-                              const link = `${window.location.origin}/referencia/publica/${formData.public_slug}`;
+                              const link = `${window.location.origin}/r/${formData.public_slug}`;
                               navigator.clipboard.writeText(link);
                               toast({
                                 title: "Link copiado!",
-                                description: "Link público copiado para a área de transferência."
+                                description: "Link público copiado para a área de transferência.",
+                                duration: 3000
                               });
                             }
                           }}
                           disabled={!formData.public_slug}
+                          className="gap-2"
                         >
                           <Copy className="h-4 w-4" />
+                          Copiar Link
                         </Button>
                         <Button
                           type="button"

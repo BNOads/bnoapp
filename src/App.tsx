@@ -53,6 +53,7 @@ function App() {
                 <Route path="/auth/reset-password" element={<ResetPassword />} />
                 <Route path="/pop/publico/:id" element={<POPPublico />} />
                 <Route path="/r/:slug" element={<ReferenciaPublica />} />
+                <Route path="/referencia/publica/:slug" element={<ReferenciaPublica />} />
                 <Route path="/referencias" element={
                   <ProtectedRoute>
                     <Referencias />
@@ -65,7 +66,6 @@ function App() {
                 } />
                 {/* Legacy routes - manter compatibilidade */}
                 <Route path="/referencia/:id" element={<ReferenciaViewer />} />
-                <Route path="/referencia/publica/:id" element={<ReferenciaPublica />} />
                 <Route path="/debriefing/publico/:id" element={<DebriefingPublico />} />
                 <Route path="/mapa-mental/publico/:id" element={<MapaMentalPublico />} />
                 <Route path="/funil/publico/:id" element={<FunilPublico />} />
