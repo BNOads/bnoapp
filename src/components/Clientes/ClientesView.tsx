@@ -662,10 +662,14 @@ export const ClientesView = () => {
                                 <Edit className="h-4 w-4" />
                               </Button>}
                             
+                            <Button variant="ghost" size="sm" onClick={() => navigate(`/painel/${cliente.id}`)} className="h-8 w-8 p-0" title="Ver Painel">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            
                             <Button variant="ghost" size="sm" onClick={() => {
                             const fullLink = cliente.link_painel?.startsWith('http') ? cliente.link_painel : `${window.location.origin}${cliente.link_painel}`;
                             copyToClipboard(fullLink);
-                          }} className="h-8 w-8 p-0">
+                          }} className="h-8 w-8 p-0" title="Copiar Link do Painel">
                               <Copy className="h-4 w-4" />
                             </Button>
                             
