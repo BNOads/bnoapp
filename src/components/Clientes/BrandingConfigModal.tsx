@@ -114,9 +114,9 @@ export const BrandingConfigModal = ({ open, onOpenChange, cliente, onSuccess }: 
       const fileName = `${cliente.id}-${Date.now()}.${fileExt}`;
       const filePath = `client-logos/${fileName}`;
 
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage (using avatars bucket)
       const { error: uploadError } = await supabase.storage
-        .from('client-assets')
+        .from('avatars')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true
@@ -126,7 +126,7 @@ export const BrandingConfigModal = ({ open, onOpenChange, cliente, onSuccess }: 
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('client-assets')
+        .from('avatars')
         .getPublicUrl(filePath);
 
       setFormData(prev => ({ ...prev, branding_logo_url: publicUrl }));
