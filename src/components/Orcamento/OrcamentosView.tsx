@@ -552,6 +552,7 @@ export const OrcamentosView = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Ativo/Desativado</TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => handleSort('nome_funil')}
@@ -597,14 +598,24 @@ export const OrcamentosView = () => {
                         {getSortIcon('valor_gasto')}
                       </div>
                     </TableHead>
-                    <TableHead>Status Orçamento</TableHead>
-                    <TableHead>Ativo/Desativado</TableHead>
                     {canManageBudgets && <TableHead>Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredAndSortedOrcamentos.map((orcamento) => (
                     <TableRow key={orcamento.id}>
+                      <TableCell>
+                        <OrcamentoStatusToggle
+                          orcamentoId={orcamento.id}
+                          currentStatus={orcamento.active}
+                          onStatusChange={(newStatus) => {
+                            setOrcamentos(prev => prev.map(o => 
+                              o.id === orcamento.id ? { ...o, active: newStatus } : o
+                            ));
+                          }}
+                          disabled={!canManageBudgets}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{orcamento.nome_funil}</TableCell>
                       <TableCell>{orcamento.cliente_nome}</TableCell>
                       <TableCell>
@@ -617,21 +628,6 @@ export const OrcamentosView = () => {
                       </TableCell>
                       <TableCell className="text-red-600 font-semibold">
                         {formatCurrency(orcamento.valor_gasto)}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(orcamento.status_orcamento)}
-                      </TableCell>
-                      <TableCell>
-                        <OrcamentoStatusToggle
-                          orcamentoId={orcamento.id}
-                          currentStatus={orcamento.active}
-                          onStatusChange={(newStatus) => {
-                            setOrcamentos(prev => prev.map(o => 
-                              o.id === orcamento.id ? { ...o, active: newStatus } : o
-                            ));
-                          }}
-                          disabled={!canManageBudgets}
-                        />
                       </TableCell>
                       {canManageBudgets && (
                         <TableCell>
