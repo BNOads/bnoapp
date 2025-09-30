@@ -497,20 +497,25 @@ export function PautaReuniaoView() {
       setCurrentDocument(doc);
       setBlocks(doc.blocos || []);
     } else if (selectedDate.dia && !docsMap[selectedDate.dia.toString()]) {
-      // Se não tem documento para o dia selecionado
-      const today = new Date();
-      const selectedDateObj = new Date(selectedDate.ano, selectedDate.mes - 1, selectedDate.dia);
-      const todayObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      // Se a URL tem dia especificado e não tem documento, criar automaticamente
+      const hasUrlParams = searchParams.get('ano') && searchParams.get('mes') && searchParams.get('dia');
       
-      const isToday = selectedDateObj.getTime() === todayObj.getTime();
-      
-      // APENAS auto-criar para hoje
-      if (isToday) {
+      if (hasUrlParams) {
+        // URL completa = criar automaticamente
         await createOrOpenDocument(selectedDate.dia);
       } else {
-        // Para dias futuros ou passados sem documento, apenas limpar a tela
-        setCurrentDocument(null);
-        setBlocks([]);
+        // Sem URL completa, verificar se é hoje
+        const today = new Date();
+        const selectedDateObj = new Date(selectedDate.ano, selectedDate.mes - 1, selectedDate.dia);
+        const todayObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const isToday = selectedDateObj.getTime() === todayObj.getTime();
+        
+        if (isToday) {
+          await createOrOpenDocument(selectedDate.dia);
+        } else {
+          setCurrentDocument(null);
+          setBlocks([]);
+        }
       }
     }
   };
