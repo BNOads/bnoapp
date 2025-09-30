@@ -13,6 +13,7 @@ import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { NovoOrcamentoModal } from './NovoOrcamentoModal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { OrcamentoStatusToggle } from '@/components/Clientes/OrcamentoStatusToggle';
 
 interface Orcamento {
   id: string;
@@ -27,6 +28,8 @@ interface Orcamento {
   created_at: string;
   cliente_id: string;
   cliente_nome?: string;
+  active: boolean;
+  ativo?: boolean;
 }
 
 type SortField = 'nome_funil' | 'cliente_nome' | 'valor_investimento' | 'valor_gasto' | 'periodo_mes' | 'etapa_funil';
@@ -98,6 +101,12 @@ export const OrcamentosView = () => {
 
       if (orcamentosError) throw orcamentosError;
 
+      // Normalize active status from both fields
+      const normalizedOrcamentos = (orcamentosData || []).map(o => ({
+        ...o,
+        active: o.active ?? o.ativo ?? true
+      }));
+
       // Buscar apenas clientes que têm orçamentos
       const clienteIds = Array.from(new Set((orcamentosData || []).map(o => o.cliente_id).filter(Boolean)));
       const { data: clientesData, error: clientesError } = await supabase
@@ -124,13 +133,13 @@ export const OrcamentosView = () => {
       colaboradoresData?.forEach((col) => { gestorMap[col.user_id] = { nome: col.nome, avatar_url: col.avatar_url || undefined }; });
       setGestorInfoMap(gestorMap);
 
-      const orcamentosComCliente = orcamentosData?.map(orcamento => {
+      const orcamentosComCliente = normalizedOrcamentos.map(orcamento => {
         const cliente = clientesData?.find(c => c.id === orcamento.cliente_id);
         return {
           ...orcamento,
           cliente_nome: cliente?.nome || 'Cliente não encontrado'
         };
-      }) || [];
+      });
 
       setOrcamentos(orcamentosComCliente);
     } catch (error) {
@@ -588,7 +597,8 @@ export const OrcamentosView = () => {
                         {getSortIcon('valor_gasto')}
                       </div>
                     </TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Status Orçamento</TableHead>
+                    <TableHead>Ativo/Desativado</TableHead>
                     {canManageBudgets && <TableHead>Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -610,6 +620,18 @@ export const OrcamentosView = () => {
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(orcamento.status_orcamento)}
+                      </TableCell>
+                      <TableCell>
+                        <OrcamentoStatusToggle
+                          orcamentoId={orcamento.id}
+                          currentStatus={orcamento.active}
+                          onStatusChange={(newStatus) => {
+                            setOrcamentos(prev => prev.map(o => 
+                              o.id === orcamento.id ? { ...o, active: newStatus } : o
+                            ));
+                          }}
+                          disabled={!canManageBudgets}
+                        />
                       </TableCell>
                       {canManageBudgets && (
                         <TableCell>
