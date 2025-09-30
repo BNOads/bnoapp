@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useImagePaste } from '@/hooks/useImagePaste';
+import { ImageUploadButton } from './ImageUploadButton';
 
 interface WYSIWYGEditorProps {
   content: string;
@@ -34,6 +36,8 @@ interface WYSIWYGEditorProps {
   className?: string;
   showToolbar?: boolean;
   onTitleExtracted?: (titles: string[]) => void;
+  context?: string;
+  entityId?: string;
 }
 
 interface MediaItem {
@@ -48,7 +52,9 @@ export function WYSIWYGEditor({
   placeholder = "Digite aqui...",
   className = "",
   showToolbar = true,
-  onTitleExtracted
+  onTitleExtracted,
+  context,
+  entityId
 }: WYSIWYGEditorProps) {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [showMediaPreview, setShowMediaPreview] = useState<MediaItem | null>(null);
@@ -58,6 +64,7 @@ export function WYSIWYGEditor({
   const [showEmbedDialog, setShowEmbedDialog] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const editor = useEditor({
@@ -75,7 +82,9 @@ export function WYSIWYGEditor({
       }),
       Image.configure({
         HTMLAttributes: {
-          class: 'max-w-xs rounded-lg cursor-pointer hover:opacity-80 transition-opacity',
+          class: 'max-w-full h-auto rounded-lg cursor-pointer hover:opacity-80 transition-opacity',
+          loading: 'lazy',
+          decoding: 'async',
         },
       }),
       TaskList.configure({
@@ -110,7 +119,44 @@ export function WYSIWYGEditor({
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[120px] p-3 text-sm leading-relaxed',
       },
     },
-});
+  });
+
+  // Hook para drag & drop e paste de imagens
+  const { handlePaste, handleDrop } = useImagePaste({
+    editor,
+    context,
+    entityId,
+  });
+
+  // Adicionar event listeners para paste e drop
+  useEffect(() => {
+    if (!editorContainerRef.current) return;
+
+    const container = editorContainerRef.current;
+
+    // Paste event
+    const pasteHandler = (e: Event) => handlePaste(e as ClipboardEvent);
+    container.addEventListener('paste', pasteHandler);
+
+    // Drop event
+    const dropHandler = (e: Event) => {
+      e.preventDefault();
+      handleDrop(e as DragEvent);
+    };
+    const dragOverHandler = (e: Event) => {
+      e.preventDefault();
+      (e as DragEvent).dataTransfer!.dropEffect = 'copy';
+    };
+    
+    container.addEventListener('drop', dropHandler);
+    container.addEventListener('dragover', dragOverHandler);
+
+    return () => {
+      container.removeEventListener('paste', pasteHandler);
+      container.removeEventListener('drop', dropHandler);
+      container.removeEventListener('dragover', dragOverHandler);
+    };
+  }, [handlePaste, handleDrop]);
 
 // Sync external prop changes into the editor without re-emitting onUpdate
 useEffect(() => {
@@ -373,16 +419,13 @@ const extractTitles = (doc: any): string[] => {
           >
             <LinkIcon className="h-3 w-3" />
           </Button>
-          <Button
+          <ImageUploadButton
+            editor={editor}
+            context={context}
+            entityId={entityId}
             variant="ghost"
             size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            className="h-7 w-7 p-0"
-            title="Upload Imagem/Vídeo"
-            disabled={isUploading}
-          >
-            <ImageIcon className="h-3 w-3" />
-          </Button>
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -402,21 +445,23 @@ const extractTitles = (doc: any): string[] => {
         </div>
       )}
 
-      <EditorContent 
-        editor={editor} 
-        onClick={(e) => {
-          // Handle image clicks for preview
-          const target = e.target as HTMLElement;
-          if (target.tagName === 'IMG') {
-            const img = target as HTMLImageElement;
-            setShowMediaPreview({
-              type: 'image',
-              url: img.src,
+      <div ref={editorContainerRef}>
+        <EditorContent 
+          editor={editor} 
+          onClick={(e) => {
+            // Handle image clicks for preview
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'IMG') {
+              const img = target as HTMLImageElement;
+              setShowMediaPreview({
+                type: 'image',
+                url: img.src,
               caption: img.alt
             });
           }
         }}
       />
+      </div>
 
       {/* Hidden file input */}
       <input

@@ -1,11 +1,15 @@
 import { useEditor, EditorContent } from '@tiptap/react'
+import { useEffect, useRef } from 'react'
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import { Link } from '@tiptap/extension-link'
 import { TaskList } from '@tiptap/extension-task-list'
 import { TaskItem } from '@tiptap/extension-task-item'
+import Image from '@tiptap/extension-image'
 import { Button } from '@/components/ui/button'
+import { useImagePaste } from '@/hooks/useImagePaste'
+import { ImageUploadButton } from './ImageUploadButton'
 import { 
   Bold, 
   Italic, 
@@ -32,6 +36,8 @@ interface RichTextEditorProps {
   className?: string
   showToolbar?: boolean
   onTitleExtracted?: (titles: string[]) => void
+  context?: string
+  entityId?: string
 }
 
 const COLORS = [
@@ -48,11 +54,14 @@ const DECISION_BLOCKS = [
 export function RichTextEditor({ 
   content, 
   onChange, 
-  placeholder = "Digite aqui...", 
+  placeholder = "Digite aqui...",
   className = "",
   showToolbar = true,
-  onTitleExtracted
+  onTitleExtracted,
+  context,
+  entityId
 }: RichTextEditorProps) {
+  const editorContainerRef = useRef<HTMLDivElement>(null);
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showLinkDialog, setShowLinkDialog] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
@@ -72,6 +81,13 @@ export function RichTextEditor({
           target: '_blank',
           rel: 'noopener noreferrer'
         }
+      }),
+      Image.configure({
+        HTMLAttributes: {
+          class: 'max-w-full h-auto rounded-lg',
+          loading: 'lazy',
+          decoding: 'async',
+        },
       }),
       TaskList,
       TaskItem.configure({
@@ -100,6 +116,41 @@ export function RichTextEditor({
       }
     }
   })
+
+  // Hook para drag & drop e paste de imagens
+  const { handlePaste, handleDrop } = useImagePaste({
+    editor,
+    context,
+    entityId,
+  });
+
+  // Adicionar event listeners para paste e drop
+  useEffect(() => {
+    if (!editorContainerRef.current) return;
+
+    const container = editorContainerRef.current;
+
+    const pasteHandler = (e: Event) => handlePaste(e as ClipboardEvent);
+    container.addEventListener('paste', pasteHandler);
+
+    const dropHandler = (e: Event) => {
+      e.preventDefault();
+      handleDrop(e as DragEvent);
+    };
+    const dragOverHandler = (e: Event) => {
+      e.preventDefault();
+      (e as DragEvent).dataTransfer!.dropEffect = 'copy';
+    };
+    
+    container.addEventListener('drop', dropHandler);
+    container.addEventListener('dragover', dragOverHandler);
+
+    return () => {
+      container.removeEventListener('paste', pasteHandler);
+      container.removeEventListener('drop', dropHandler);
+      container.removeEventListener('dragover', dragOverHandler);
+    };
+  }, [handlePaste, handleDrop]);
 
   const setLink = useCallback(() => {
     if (!editor) return
@@ -329,7 +380,7 @@ export function RichTextEditor({
         </div>
       )}
 
-      <div className="relative">
+      <div className="relative" ref={editorContainerRef}>
         <EditorContent 
           editor={editor} 
           className="min-h-[120px] max-h-96 overflow-y-auto"
