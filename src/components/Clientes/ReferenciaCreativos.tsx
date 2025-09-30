@@ -951,13 +951,18 @@ export const ReferenciaCreativos = ({
       </Dialog>
 
       {/* Editor estilo Notion */}
-      <ReferencesEditor isOpen={showNotionEditor} onClose={() => {
-      setShowNotionEditor(false);
-      setEditingId(null);
-    }} referenceId={editingId} clienteId={clienteId} onSave={() => {
-      carregarReferencias();
-      setShowNotionEditor(false);
-      setEditingId(null);
-    }} />
+      <ReferencesEditor 
+        isOpen={showNotionEditor} 
+        onClose={() => {
+          setShowNotionEditor(false);
+          setEditingId(null);
+        }} 
+        referenceId={editingId} 
+        clienteId={clienteId} 
+        onSave={() => {
+          // Apenas recarregar as referências, NÃO fechar o modal
+          carregarReferencias();
+        }} 
+      />
     </div>;
 };

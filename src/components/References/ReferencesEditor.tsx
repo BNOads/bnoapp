@@ -182,8 +182,18 @@ export const ReferencesEditor = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      // Prevenir fechamento ao clicar fora ou pressionar ESC durante salvamento
+      if (!open && loading) return;
+      onClose();
+    }}>
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col" onInteractOutside={(e) => {
+        // Bloquear fechamento ao clicar fora durante salvamento
+        if (loading) e.preventDefault();
+      }} onEscapeKeyDown={(e) => {
+        // Bloquear fechamento ao pressionar ESC durante salvamento
+        if (loading) e.preventDefault();
+      }}>
         <DialogHeader>
           <DialogTitle>
             {referenceId ? "Editar Referência" : "Nova Referência"}
