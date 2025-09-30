@@ -3836,6 +3836,14 @@ export type Database = {
         Args: { "": unknown[] }
         Returns: number
       }
+      unaccent: {
+        Args: { "": string }
+        Returns: string
+      }
+      unaccent_init: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
       update_creative_status: {
         Args: { creative_id: string; new_status: boolean }
         Returns: Json
