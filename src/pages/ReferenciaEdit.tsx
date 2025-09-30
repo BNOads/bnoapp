@@ -247,7 +247,7 @@ export default function ReferenciaEdit() {
     }
 
     if (!formData.is_public) {
-      // Validar título antes de compartilhar
+      // Validar título
       if (!formData.titulo.trim()) {
         toast({
           title: "Erro",
@@ -260,19 +260,18 @@ export default function ReferenciaEdit() {
       try {
         setSaving(true);
         
-        // Salvar com is_public = true e deixar o trigger gerar o public_slug
+        // Salvar alteração is_public=true - o trigger vai gerar public_slug/token
         const { data, error } = await supabase
           .from('referencias_criativos')
-          .update({
-            is_public: true
-          })
+          .update({ is_public: true })
           .eq('id', id)
           .select()
           .single();
 
-        if (error) {
-          console.error('Erro detalhado:', error);
-          throw error;
+        if (error) throw error;
+        
+        if (!data.public_slug) {
+          throw new Error('Slug público não foi gerado pelo sistema');
         }
 
         // Atualizar formData com os dados retornados (incluindo public_slug gerado)
