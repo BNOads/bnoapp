@@ -136,5 +136,46 @@ export function MensagemSemanal({
       setLoading(false);
     }
   };
-  return;
+  
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Calendar className="h-5 w-5" />
+          Mensagem Semanal
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="semana">Semana de Referência</Label>
+          <Input
+            id="semana"
+            type="date"
+            value={semanaReferencia}
+            onChange={(e) => setSemanaReferencia(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="mensagem">Mensagem</Label>
+          <Textarea
+            id="mensagem"
+            value={mensagem}
+            onChange={(e) => setMensagem(e.target.value)}
+            placeholder="Digite a mensagem semanal para o cliente..."
+            rows={6}
+          />
+        </div>
+
+        <Button 
+          onClick={handleSalvar} 
+          disabled={loading}
+          className="w-full"
+        >
+          <Save className="h-4 w-4 mr-2" />
+          {loading ? "Salvando..." : mensagemExistente ? "Atualizar Mensagem" : "Salvar Mensagem"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }

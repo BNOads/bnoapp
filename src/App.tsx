@@ -31,6 +31,7 @@ import DebriefingDetalhes from "@/components/Debriefings/DebriefingDetalhes";
 import DebriefingPublico from "./pages/DebriefingPublico";
 import { MapaMentalPublico } from "./pages/MapaMentalPublico";
 import FunilPublico from "./pages/FunilPublico";
+import CRM from "./pages/CRM";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient();
@@ -134,6 +135,7 @@ function App() {
                     <FerramentasPage />
                   </ProtectedRoute>
                 } />
+                <Route path="/crm" element={<CRM />} />
                 <Route path="/" element={
                   <ProtectedRoute>
                     <Index />
