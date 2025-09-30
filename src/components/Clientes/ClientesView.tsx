@@ -7,17 +7,20 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
 import { DeleteClienteModal } from "./DeleteClienteModal";
+import { InativarClienteModal } from "./InativarClienteModal";
+import { ReativarClienteModal } from "./ReativarClienteModal";
 import { ImportarClientesModal } from "./ImportarClientesModal";
 import { EditarClienteModal } from "./EditarClienteModal";
 import { EdicaoMassaModal } from "./EdicaoMassaModal";
 import { AlocacaoClientes } from "./AlocacaoClientes";
 import { KickoffModal } from "./KickoffModal";
 import { TeamAssignmentModal } from "./TeamAssignmentModal";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
@@ -53,12 +56,23 @@ export const ClientesView = () => {
   const {
     canCreateContent
   } = useUserPermissions();
+  const [activeTab, setActiveTab] = useState<'ativos' | 'desativados'>('ativos');
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [inativarModalOpen, setInativarModalOpen] = useState(false);
+  const [reativarModalOpen, setReativarModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [edicaoMassaModalOpen, setEdicaoMassaModalOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
+  const [clienteToInativar, setClienteToInativar] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
+  const [clienteToReativar, setClienteToReativar] = useState<{
     id: string;
     nome: string;
   } | null>(null);
@@ -88,6 +102,7 @@ export const ClientesView = () => {
   const navigate = useNavigate();
   const carregarClientes = async () => {
     try {
+      const isActive = activeTab === 'ativos';
       const {
         data,
         error
@@ -99,7 +114,7 @@ export const ClientesView = () => {
             user_id, role, is_primary,
             colaboradores(user_id, nome, avatar_url)
           )
-        `).eq('ativo', true).order('created_at', {
+        `).eq('ativo', true).eq('is_active', isActive).is('deleted_at', null).order('created_at', {
         ascending: false
       });
       if (error) {
@@ -132,7 +147,7 @@ export const ClientesView = () => {
   useEffect(() => {
     carregarClientes();
     carregarColaboradores();
-  }, []);
+  }, [activeTab]);
   const getStatusColor = (etapa: string) => {
     switch (etapa) {
       case 'ativo':
@@ -205,6 +220,22 @@ export const ClientesView = () => {
       }
     }
   };
+  const handleInativarClick = (cliente: any) => {
+    setClienteToInativar({
+      id: cliente.id,
+      nome: cliente.nome
+    });
+    setInativarModalOpen(true);
+  };
+
+  const handleReativarClick = (cliente: any) => {
+    setClienteToReativar({
+      id: cliente.id,
+      nome: cliente.nome
+    });
+    setReativarModalOpen(true);
+  };
+
   const handleDeleteClick = (cliente: any) => {
     setClienteToDelete({
       id: cliente.id,
@@ -212,9 +243,22 @@ export const ClientesView = () => {
     });
     setDeleteModalOpen(true);
   };
+  
   const handleDeleteSuccess = () => {
     setDeleteModalOpen(false);
     setClienteToDelete(null);
+    carregarClientes();
+  };
+
+  const handleInativarSuccess = () => {
+    setInativarModalOpen(false);
+    setClienteToInativar(null);
+    carregarClientes();
+  };
+
+  const handleReativarSuccess = () => {
+    setReativarModalOpen(false);
+    setClienteToReativar(null);
     carregarClientes();
   };
   const handleEditClick = (cliente: any) => {
@@ -347,7 +391,19 @@ export const ClientesView = () => {
       {!canCreateContent && <ViewOnlyBadge />}
 
       {/* Tabs */}
-      <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'ativos' | 'desativados')} className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="ativos">
+            Ativos
+          </TabsTrigger>
+          <TabsTrigger value="desativados" className="data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive">
+            Desativados {clientes.length > 0 && activeTab === 'desativados' && (
+              <Badge className="ml-2 bg-destructive text-destructive-foreground">{clientes.length}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={activeTab} className="space-y-6">
 
         <div className="space-y-6">
           {/* Search and Filters */}
@@ -390,11 +446,11 @@ export const ClientesView = () => {
           </div>
 
       {/* Tabela de Clientes */}
-      <Card className="bg-card border border-border shadow-card">
-        <div className="p-6 border-b border-border">
+      <Card className={`bg-card border shadow-card ${activeTab === 'desativados' ? 'border-destructive/30' : 'border-border'}`}>
+        <div className={`p-6 border-b ${activeTab === 'desativados' ? 'bg-destructive/5 border-destructive/30' : 'border-border'}`}>
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">
-              Lista de Clientes ({sortedAndFilteredClientes.length})
+            <h3 className={`text-lg font-semibold ${activeTab === 'desativados' ? 'text-destructive' : 'text-foreground'}`}>
+              {activeTab === 'ativos' ? 'Clientes Ativos' : 'Clientes Desativados'} ({sortedAndFilteredClientes.length})
             </h3>
             {clientesSelecionados.length > 0 && canCreateContent && <Button onClick={() => setEdicaoMassaModalOpen(true)} variant="outline" size="sm">
                 <EditIcon className="h-4 w-4 mr-2" />
@@ -418,7 +474,7 @@ export const ClientesView = () => {
             </div> : <Table>
               <TableHeader>
                 <TableRow>
-                  {canCreateContent && <TableHead className="w-12">
+                     {canCreateContent && activeTab === 'ativos' && <TableHead className="w-12">
                       <Checkbox checked={clientesSelecionados.length === sortedAndFilteredClientes.length} onCheckedChange={toggleSelectAll} />
                     </TableHead>}
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('nome')}>
@@ -461,8 +517,8 @@ export const ClientesView = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedAndFilteredClientes.map(cliente => <TableRow key={cliente.id} className="hover:bg-muted/50">
-                    {canCreateContent && <TableCell>
+                {sortedAndFilteredClientes.map(cliente => <TableRow key={cliente.id} className={`hover:bg-muted/50 ${activeTab === 'desativados' ? 'opacity-70' : ''}`}>
+                    {canCreateContent && activeTab === 'ativos' && <TableCell>
                         <Checkbox checked={clientesSelecionados.includes(cliente.id)} onCheckedChange={() => toggleClienteSelection(cliente.id)} />
                       </TableCell>}
                      <TableCell>
@@ -506,10 +562,16 @@ export const ClientesView = () => {
                            {cliente.serie}
                          </Badge> : <span className="text-xs text-muted-foreground">-</span>}
                      </TableCell>
-                    <TableCell>
-                      <Badge className={`${getStatusColor(cliente.status_cliente || cliente.etapa_atual)} text-xs`}>
-                        {getStatusLabel(cliente.status_cliente || cliente.etapa_atual)}
-                      </Badge>
+                     <TableCell>
+                       {activeTab === 'desativados' ? (
+                         <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-xs">
+                           Inativo
+                         </Badge>
+                       ) : (
+                         <Badge className={`${getStatusColor(cliente.status_cliente || cliente.etapa_atual)} text-xs`}>
+                           {getStatusLabel(cliente.status_cliente || cliente.etapa_atual)}
+                         </Badge>
+                       )}
                      </TableCell>
                      
                      {/* Gestor Column */}
@@ -575,57 +637,97 @@ export const ClientesView = () => {
                     })()}
                      </TableCell>
                      
-                      <TableCell>
+                       <TableCell>
                        <div className="flex items-center justify-center space-x-1">
                           
-                         {/* Ícone de Catálogo de Criativos */}
-                         <Button variant="ghost" size="sm" onClick={e => handleCatalogoClick(cliente, e)} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Abrir Catálogo de Criativos">
-                           <Sheet className="h-4 w-4" />
-                         </Button>
- 
-                         {canCreateContent && <Button variant="ghost" size="sm" onClick={() => {
-                        setClienteKickoff({
-                          id: cliente.id,
-                          nome: cliente.nome
-                        });
-                        setKickoffModalOpen(true);
-                      }} className="h-8 w-8 p-0" title="Kickoff">
-                            <span className="text-lg text-blue-500">📄</span>
-                          </Button>}
-                        
-                        {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleEditClick(cliente)} className="h-8 w-8 p-0">
-                            <Edit className="h-4 w-4" />
-                          </Button>}
-                        
-                        <Button variant="ghost" size="sm" onClick={() => {
-                        const fullLink = cliente.link_painel?.startsWith('http') ? cliente.link_painel : `${window.location.origin}${cliente.link_painel}`;
-                        copyToClipboard(fullLink);
-                      }} className="h-8 w-8 p-0">
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        
-                        {cliente.pasta_drive_url && <Button variant="ghost" size="sm" onClick={() => window.open(cliente.pasta_drive_url, '_blank')} className="h-8 w-8 p-0" title="Pasta do Drive">
-                          <span className="text-lg">📁</span>
-                        </Button>}
-                        
-                        {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(cliente)} className="h-8 w-8 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>}
+                         {/* Ações diferentes para ativos vs desativados */}
+                         {activeTab === 'ativos' ? (
+                           <>
+                             {/* Ícone de Catálogo de Criativos */}
+                             <Button variant="ghost" size="sm" onClick={e => handleCatalogoClick(cliente, e)} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Abrir Catálogo de Criativos">
+                               <Sheet className="h-4 w-4" />
+                             </Button>
+     
+                             {canCreateContent && <Button variant="ghost" size="sm" onClick={() => {
+                            setClienteKickoff({
+                              id: cliente.id,
+                              nome: cliente.nome
+                            });
+                            setKickoffModalOpen(true);
+                          }} className="h-8 w-8 p-0" title="Kickoff">
+                                <span className="text-lg text-blue-500">📄</span>
+                              </Button>}
+                            
+                            {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleEditClick(cliente)} className="h-8 w-8 p-0">
+                                <Edit className="h-4 w-4" />
+                              </Button>}
+                            
+                            <Button variant="ghost" size="sm" onClick={() => {
+                            const fullLink = cliente.link_painel?.startsWith('http') ? cliente.link_painel : `${window.location.origin}${cliente.link_painel}`;
+                            copyToClipboard(fullLink);
+                          }} className="h-8 w-8 p-0">
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            
+                            {cliente.pasta_drive_url && <Button variant="ghost" size="sm" onClick={() => window.open(cliente.pasta_drive_url, '_blank')} className="h-8 w-8 p-0" title="Pasta do Drive">
+                              <span className="text-lg">📁</span>
+                            </Button>}
+                            
+                            {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleInativarClick(cliente)} className="h-8 w-8 p-0 text-orange-500 hover:text-orange-600 hover:bg-orange-50" title="Inativar Cliente">
+                                <Pause className="h-4 w-4" />
+                              </Button>}
+                           </>
+                         ) : (
+                           <>
+                             {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleReativarClick(cliente)} className="h-8 w-8 p-0 text-green-500 hover:text-green-600 hover:bg-green-50" title="Reativar Cliente">
+                                 <CheckCircle className="h-4 w-4" />
+                               </Button>}
+                             
+                             {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(cliente)} className="h-8 w-8 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive" title="Apagar Cliente">
+                                 <Trash2 className="h-4 w-4" />
+                               </Button>}
+                           </>
+                         )}
                       </div>
                     </TableCell>
                   </TableRow>)}
               </TableBody>
             </Table>}
-        </div>
-      </Card>
-        </div>
-      </div>
+         </div>
+       </Card>
+         </div>
+       </TabsContent>
+     </Tabs>
 
       {/* Modals */}
       <NovoClienteModal open={modalOpen} onOpenChange={setModalOpen} onSuccess={() => {
       carregarClientes(); // Recarregar lista após criar
     }} />
       
+      <InativarClienteModal 
+        open={inativarModalOpen} 
+        onOpenChange={open => {
+          setInativarModalOpen(open);
+          if (!open) {
+            setClienteToInativar(null);
+          }
+        }} 
+        cliente={clienteToInativar} 
+        onSuccess={handleInativarSuccess} 
+      />
+
+      <ReativarClienteModal 
+        open={reativarModalOpen} 
+        onOpenChange={open => {
+          setReativarModalOpen(open);
+          if (!open) {
+            setClienteToReativar(null);
+          }
+        }} 
+        cliente={clienteToReativar} 
+        onSuccess={handleReativarSuccess} 
+      />
+
       <DeleteClienteModal open={deleteModalOpen} onOpenChange={open => {
       setDeleteModalOpen(open);
       if (!open) {

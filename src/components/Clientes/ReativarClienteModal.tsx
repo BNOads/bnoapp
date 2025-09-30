@@ -9,13 +9,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Trash2, AlertTriangle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
-interface DeleteClienteModalProps {
+interface ReativarClienteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cliente: {
@@ -25,37 +23,25 @@ interface DeleteClienteModalProps {
   onSuccess: () => void;
 }
 
-export const DeleteClienteModal = ({ 
+export const ReativarClienteModal = ({ 
   open, 
   onOpenChange, 
   cliente, 
   onSuccess 
-}: DeleteClienteModalProps) => {
+}: ReativarClienteModalProps) => {
   const [loading, setLoading] = useState(false);
-  const [confirmName, setConfirmName] = useState("");
   const { toast } = useToast();
 
-  const handleDelete = async () => {
-    if (!cliente || confirmName !== cliente.nome) {
-      toast({
-        title: "Nome incorreto",
-        description: "Digite o nome do cliente corretamente para confirmar.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleReativar = async () => {
+    if (!cliente) return;
 
     try {
       setLoading(true);
-      console.log('Iniciando soft delete do cliente:', cliente.id, cliente.nome);
 
-      // Soft delete: marcar como deletado
+      // Reativar cliente
       const { error: updateError } = await supabase
         .from('clientes')
-        .update({ 
-          deleted_at: new Date().toISOString(),
-          is_active: false 
-        })
+        .update({ is_active: true })
         .eq('id', cliente.id);
 
       if (updateError) throw updateError;
@@ -68,26 +54,24 @@ export const DeleteClienteModal = ({
           .insert({
             user_id: user.id,
             cliente_id: cliente.id,
-            acao: 'apagar',
-            motivo: 'Cliente removido via interface'
+            acao: 'reativar',
+            motivo: 'Cliente reativado'
           });
 
         if (auditError) console.error('Erro ao registrar audit:', auditError);
       }
 
-      console.log('Cliente apagado com sucesso (soft delete)');
       toast({
-        title: "Cliente apagado",
-        description: `${cliente.nome} foi removido. É possível restaurar via suporte.`,
+        title: "Cliente reativado",
+        description: `${cliente.nome} voltou para a aba de clientes ativos.`,
       });
 
-      setConfirmName("");
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Erro ao apagar cliente:', error);
+      console.error('Erro ao reativar cliente:', error);
       toast({
-        title: "Erro ao apagar cliente",
+        title: "Erro ao reativar cliente",
         description: error.message,
         variant: "destructive",
       });
@@ -101,49 +85,35 @@ export const DeleteClienteModal = ({
       <AlertDialogContent>
         <AlertDialogHeader>
           <div className="flex items-center space-x-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            <AlertDialogTitle>Apagar Cliente</AlertDialogTitle>
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            <AlertDialogTitle>Reativar Cliente</AlertDialogTitle>
           </div>
           <AlertDialogDescription>
-            Tem certeza que deseja apagar o cliente{" "}
+            Tem certeza que deseja reativar o cliente{" "}
             <span className="font-semibold">{cliente?.nome}</span>?
             <br />
             <br />
-            <span className="text-destructive font-medium">
-              O cliente será removido das listas. É possível restaurar via suporte se necessário.
-            </span>
+            O cliente voltará a aparecer nas telas operacionais.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        
-        <div className="space-y-2">
-          <Label htmlFor="confirmName">
-            Digite <span className="font-semibold">{cliente?.nome}</span> para confirmar:
-          </Label>
-          <Input
-            id="confirmName"
-            placeholder="Nome do cliente"
-            value={confirmName}
-            onChange={(e) => setConfirmName(e.target.value)}
-          />
-        </div>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>
             Cancelar
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleDelete}
-            disabled={loading || confirmName !== cliente?.nome}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={handleReativar}
+            disabled={loading}
+            className="bg-green-500 text-white hover:bg-green-600"
           >
             {loading ? (
               <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Apagando...</span>
+                <span>Reativando...</span>
               </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <Trash2 className="h-4 w-4" />
-                <span>Apagar Cliente</span>
+                <CheckCircle className="h-4 w-4" />
+                <span>Reativar Cliente</span>
               </div>
             )}
           </AlertDialogAction>

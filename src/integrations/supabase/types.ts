@@ -415,12 +415,14 @@ export type Database = {
           cs_id: string | null
           dashboards_looker: Json | null
           data_inicio: string | null
+          deleted_at: string | null
           drive_folder_id: string | null
           drive_sync_error: string | null
           etapa_atual: string | null
           funis_trabalhando: string[] | null
           funnel_status: boolean
           id: string
+          is_active: boolean
           last_drive_sync: string | null
           link_painel: string | null
           nicho: string | null
@@ -448,12 +450,14 @@ export type Database = {
           cs_id?: string | null
           dashboards_looker?: Json | null
           data_inicio?: string | null
+          deleted_at?: string | null
           drive_folder_id?: string | null
           drive_sync_error?: string | null
           etapa_atual?: string | null
           funis_trabalhando?: string[] | null
           funnel_status?: boolean
           id?: string
+          is_active?: boolean
           last_drive_sync?: string | null
           link_painel?: string | null
           nicho?: string | null
@@ -481,12 +485,14 @@ export type Database = {
           cs_id?: string | null
           dashboards_looker?: Json | null
           data_inicio?: string | null
+          deleted_at?: string | null
           drive_folder_id?: string | null
           drive_sync_error?: string | null
           etapa_atual?: string | null
           funis_trabalhando?: string[] | null
           funnel_status?: boolean
           id?: string
+          is_active?: boolean
           last_drive_sync?: string | null
           link_painel?: string | null
           nicho?: string | null
@@ -544,6 +550,41 @@ export type Database = {
             columns: ["traffic_manager_id"]
             isOneToOne: false
             referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clientes_audit_log: {
+        Row: {
+          acao: string
+          cliente_id: string
+          created_at: string
+          id: string
+          motivo: string | null
+          user_id: string
+        }
+        Insert: {
+          acao: string
+          cliente_id: string
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          user_id: string
+        }
+        Update: {
+          acao?: string
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clientes_audit_log_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
         ]
