@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Eye, Edit2, Trash2, Copy, ExternalLink } from "lucide-react";
+import { Plus, Search, Eye, Edit2, Trash2, Copy, ExternalLink, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -21,6 +21,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Referencia {
   id: string;
@@ -32,6 +39,7 @@ interface Referencia {
   public_slug?: string;
   created_by: string;
   link_url?: string;
+  conteudo?: string;
 }
 
 export default function Referencias() {
@@ -42,6 +50,9 @@ export default function Referencias() {
   const [filtroCategoria, setFiltroCategoria] = useState<'todas' | 'criativos' | 'pagina'>('todas');
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; referencia?: Referencia }>({ open: false });
   const [confirmTitle, setConfirmTitle] = useState("");
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -143,6 +154,81 @@ export default function Referencias() {
     }
   };
 
+  const processarImportacaoCSV = async () => {
+    if (!csvFile) return;
+    setImportLoading(true);
+    
+    try {
+      const text = await csvFile.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+
+      // Esperado: titulo,categoria,link_url
+      const referencesData = lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        return {
+          titulo: values[0] || '',
+          categoria: (['criativos', 'pagina'].includes(values[1]) ? values[1] : 'criativos') as 'criativos' | 'pagina',
+          link_url: values[2] || ''
+        };
+      });
+
+      const { data: userData } = await supabase.auth.getUser();
+      
+      for (const refData of referencesData) {
+        if (refData.titulo && refData.link_url) {
+          await supabase.from('referencias_criativos').insert({
+            cliente_id: null,
+            titulo: refData.titulo,
+            categoria: refData.categoria,
+            conteudo: JSON.stringify([]),
+            link_url: refData.link_url,
+            created_by: userData.user?.id
+          });
+        }
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `${referencesData.filter(r => r.titulo && r.link_url).length} referências importadas com sucesso!`
+      });
+
+      setShowImportModal(false);
+      setCsvFile(null);
+      loadReferencias();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Erro ao processar arquivo CSV: " + error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const downloadTemplateCSV = () => {
+    const template = `titulo,categoria,link_url
+"Exemplo Referência de Criativos","criativos","https://example.com/criativo"
+"Exemplo Referência de Página","pagina","https://example.com/pagina"`;
+    
+    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'template_referencias.csv';
+    link.click();
+  };
+
+  const contarBlocos = (referencia: Referencia): number => {
+    try {
+      if (!referencia.conteudo) return 0;
+      const conteudo = JSON.parse(referencia.conteudo);
+      return Array.isArray(conteudo) ? conteudo.length : 0;
+    } catch {
+      return 0;
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto py-8">
@@ -159,10 +245,16 @@ export default function Referencias() {
           <h1 className="text-3xl font-bold">Referências</h1>
           <p className="text-muted-foreground">Gerencie suas referências criativas</p>
         </div>
-        <Button onClick={() => navigate('/referencias/novo')}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Referência
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowImportModal(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Importar CSV
+          </Button>
+          <Button onClick={() => navigate('/referencias/novo')}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Referência
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -207,15 +299,16 @@ export default function Referencias() {
               <TableRow>
                 <TableHead>Título</TableHead>
                 <TableHead>Categoria</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Blocos</TableHead>
                 <TableHead>Criado em</TableHead>
-                <TableHead>Atualizado em</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredReferencias.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     Nenhuma referência encontrada
                   </TableCell>
                 </TableRow>
@@ -229,10 +322,15 @@ export default function Referencias() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {format(new Date(ref.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      <Badge variant={ref.link_url ? "secondary" : "default"}>
+                        Referência
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {contarBlocos(ref)} bloco(s)
                     </TableCell>
                     <TableCell>
-                      {format(new Date(ref.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      {format(new Date(ref.created_at), "dd/MM/yyyy", { locale: ptBR })}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -255,13 +353,6 @@ export default function Referencias() {
                             <Eye className="w-4 h-4" />
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/referencias/${ref.id}`)}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -311,6 +402,39 @@ export default function Referencias() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import CSV Modal */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Importar Referências via CSV</DialogTitle>
+            <DialogDescription>
+              Faça upload de um arquivo CSV com referências externas (título, categoria, link_url)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Input
+                type="file"
+                accept=".csv"
+                onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={downloadTemplateCSV} className="flex-1">
+                Baixar Template CSV
+              </Button>
+              <Button 
+                onClick={processarImportacaoCSV} 
+                disabled={!csvFile || importLoading}
+                className="flex-1"
+              >
+                {importLoading ? "Importando..." : "Importar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
