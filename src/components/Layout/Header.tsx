@@ -28,7 +28,7 @@ export const Header = ({}: HeaderProps) => {
     },
     {
       id: 'colaboradores',
-      label: 'Colaboradores',
+      label: 'Equipe',
       icon: Users,
       path: '/colaboradores'
     },
