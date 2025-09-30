@@ -32,6 +32,7 @@ import DebriefingPublico from "./pages/DebriefingPublico";
 import { MapaMentalPublico } from "./pages/MapaMentalPublico";
 import FunilPublico from "./pages/FunilPublico";
 import CRM from "./pages/CRM";
+import Financeiro from "./pages/Financeiro";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient();
@@ -136,6 +137,7 @@ function App() {
                   </ProtectedRoute>
                 } />
                 <Route path="/crm" element={<CRM />} />
+                <Route path="/financeiro" element={<Financeiro />} />
                 <Route path="/" element={
                   <ProtectedRoute>
                     <Index />

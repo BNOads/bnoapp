@@ -13,3 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 Disallow: /crm
+Disallow: /financeiro
