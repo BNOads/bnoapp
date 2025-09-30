@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Save, Edit2, Eye, Trash2, Copy, ArrowLeft } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Save, Edit2, Eye, Trash2, Copy, ArrowLeft, Share2, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -53,7 +54,9 @@ export default function ReferenciaEdit() {
     conteudo_markdown: "",
     created_at: "",
     updated_at: "",
-    created_by: ""
+    created_by: "",
+    is_public: false,
+    public_slug: ""
   });
 
   const { toast } = useToast();
@@ -93,7 +96,9 @@ export default function ReferenciaEdit() {
         conteudo_markdown: data.conteudo_markdown || "",
         created_at: data.created_at,
         updated_at: data.updated_at,
-        created_by: data.created_by
+        created_by: data.created_by,
+        is_public: data.is_public || false,
+        public_slug: data.public_slug || ""
       });
     } catch (error: any) {
       toast({
@@ -127,7 +132,9 @@ export default function ReferenciaEdit() {
         categoria: formData.categoria,
         conteudo_markdown: formData.conteudo_markdown,
         cliente_id: null,
-        created_by: user.data.user?.id
+        created_by: user.data.user?.id,
+        is_public: formData.is_public,
+        public_slug: formData.is_public ? formData.public_slug : null
       };
 
       let result;
@@ -296,6 +303,17 @@ export default function ReferenciaEdit() {
         </div>
         
         <div className="flex gap-2">
+          {!isNewRef && formData.is_public && formData.public_slug && (
+            <Button
+              variant="default"
+              onClick={handleCopyLink}
+              className="gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              Compartilhar Link Público
+            </Button>
+          )}
+          
           <Button
             onClick={handleSave}
             disabled={saving || !hasChanges}
@@ -324,9 +342,11 @@ export default function ReferenciaEdit() {
                 )}
               </Button>
               
-              <Button variant="outline" onClick={handleCopyLink}>
-                <Copy className="w-4 h-4" />
-              </Button>
+              {!formData.is_public && (
+                <Button variant="outline" onClick={handleCopyLink}>
+                  <Copy className="w-4 h-4" />
+                </Button>
+              )}
               
               <Button variant="outline" onClick={() => setDeleteDialog(true)}>
                 <Trash2 className="w-4 h-4" />
@@ -361,6 +381,84 @@ export default function ReferenciaEdit() {
                 </Badge>
               )}
             </div>
+
+            {/* Seção de Compartilhamento Público */}
+            {!isNewRef && (
+              <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm font-medium">Público</Label>
+                  </div>
+                  <Switch
+                    checked={formData.is_public}
+                    onCheckedChange={(checked) => {
+                      handleFieldChange('is_public', checked);
+                      if (checked && !formData.public_slug) {
+                        // Gerar slug automaticamente se não existir
+                        const slug = formData.titulo
+                          .toLowerCase()
+                          .normalize('NFD')
+                          .replace(/[\u0300-\u036f]/g, '')
+                          .replace(/[^a-z0-9\s-]/g, '')
+                          .replace(/\s+/g, '-')
+                          .trim();
+                        handleFieldChange('public_slug', slug);
+                      }
+                    }}
+                    disabled={mode === 'view'}
+                  />
+                </div>
+                
+                {formData.is_public && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">URL Pública</Label>
+                    {mode === 'edit' ? (
+                      <div className="flex gap-2">
+                        <Input
+                          value={formData.public_slug}
+                          onChange={(e) => handleFieldChange('public_slug', e.target.value)}
+                          placeholder="slug-da-url"
+                          className="text-xs"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const slug = formData.titulo
+                              .toLowerCase()
+                              .normalize('NFD')
+                              .replace(/[\u0300-\u036f]/g, '')
+                              .replace(/[^a-z0-9\s-]/g, '')
+                              .replace(/\s+/g, '-')
+                              .trim();
+                            handleFieldChange('public_slug', slug);
+                          }}
+                        >
+                          ⚡
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-xs break-all p-2 bg-background rounded border">
+                        {window.location.origin}/r/{formData.public_slug}
+                      </p>
+                    )}
+                    {formData.public_slug && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="w-full gap-2"
+                        onClick={handleCopyLink}
+                      >
+                        <Share2 className="h-3 w-3" />
+                        Copiar Link Público
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {!isNewRef && formData.created_at && (
               <>
