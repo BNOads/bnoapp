@@ -40,6 +40,7 @@ interface Referencia {
   created_by: string;
   link_url?: string;
   conteudo?: string;
+  links_externos?: Array<{ titulo: string; url: string }>;
 }
 
 export default function Referencias() {
@@ -70,7 +71,7 @@ export default function Referencias() {
       setLoading(true);
       const { data, error } = await supabase
         .from('referencias_criativos')
-        .select('*')
+        .select('id, titulo, categoria, created_at, updated_at, is_public, public_slug, created_by, link_url, conteudo, links_externos')
         .eq('ativo', true)
         .is('cliente_id', null)
         .order('created_at', { ascending: false });
@@ -229,6 +230,18 @@ export default function Referencias() {
     }
   };
 
+  const obterLinkExterno = (referencia: Referencia): string | null => {
+    if (referencia.link_url) return referencia.link_url;
+    if (referencia.links_externos && referencia.links_externos.length > 0) {
+      return referencia.links_externos[0].url;
+    }
+    return null;
+  };
+
+  const temLinkExterno = (referencia: Referencia): boolean => {
+    return !!obterLinkExterno(referencia);
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto py-8">
@@ -334,11 +347,11 @@ export default function Referencias() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {ref.link_url ? (
+                        {temLinkExterno(ref) ? (
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(ref.link_url, '_blank')}
+                            onClick={() => window.open(obterLinkExterno(ref)!, '_blank')}
                             title="Abrir link externo em nova aba"
                           >
                             <ExternalLink className="w-4 h-4" />
