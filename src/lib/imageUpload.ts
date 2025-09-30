@@ -51,15 +51,32 @@ export async function uploadImage({
   }
 
   try {
-    // Chamar edge function
-    const { data, error } = await supabase.functions.invoke('upload-richtext-image', {
-      body: formData,
-    });
-
-    if (error) {
-      console.error('Erro no upload:', error);
-      throw new Error(error.message || 'Erro ao fazer upload da imagem');
+    // Obter sessão para passar token de autenticação
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      throw new Error('Usuário não autenticado');
     }
+
+    // Fazer chamada HTTP direta para garantir que o token é passado corretamente
+    const response = await fetch(
+      'https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/upload-richtext-image',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Erro no upload:', errorData);
+      throw new Error(errorData.error || `Erro HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
 
     if (!data || !data.url) {
       throw new Error('Resposta inválida do servidor');
