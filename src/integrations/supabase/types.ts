@@ -3820,6 +3820,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      soft_delete_referencia: {
+        Args: { _id: string }
+        Returns: undefined
+      }
       sparsevec_out: {
         Args: { "": unknown }
         Returns: unknown
