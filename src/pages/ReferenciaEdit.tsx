@@ -158,17 +158,30 @@ export default function ReferenciaEdit() {
         result = await supabase
           .from('referencias_criativos')
           .update(dataToSave)
-          .eq('id', id);
+          .eq('id', id)
+          .select()
+          .single();
 
         if (result.error) throw result.error;
+
+        // Atualizar formData com os dados retornados
+        if (result.data) {
+          setFormData({
+            titulo: result.data.titulo,
+            categoria: result.data.categoria as "criativos" | "pagina",
+            conteudo_markdown: result.data.conteudo_markdown || "",
+            created_at: result.data.created_at,
+            updated_at: result.data.updated_at,
+            created_by: result.data.created_by,
+            is_public: result.data.is_public || false,
+            public_slug: result.data.public_slug || ""
+          });
+        }
 
         toast({
           title: "✔ Salvo",
           description: "Referência atualizada!",
         });
-
-        // Recarregar dados
-        await loadReferencia();
       }
 
       setHasChanges(false);
@@ -222,25 +235,37 @@ export default function ReferenciaEdit() {
     }
   };
 
-  const handleCopyLink = async () => {
-    // Recarregar dados para obter o slug atualizado se houver
-    const { data } = await supabase
-      .from('referencias_criativos')
-      .select('public_slug, is_public')
-      .eq('id', id)
-      .single();
-
-    const baseUrl = window.location.origin;
-    const url = data?.public_slug && data?.is_public
-      ? `${baseUrl}/r/${data.public_slug}`
-      : `${baseUrl}/referencias/${id}`;
-    
-    navigator.clipboard.writeText(url);
-    toast({
-      title: "Copiado!",
-      description: "Link copiado para a área de transferência.",
-      duration: 2000
-    });
+  const handleShareToggle = async () => {
+    if (!formData.is_public) {
+      // Tornar público e gerar slug se necessário
+      const slug = formData.public_slug || formData.titulo
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .trim();
+      
+      handleFieldChange('is_public', true);
+      handleFieldChange('public_slug', slug);
+      
+      toast({
+        title: "Atenção",
+        description: "Salve para ativar o compartilhamento público",
+        duration: 3000
+      });
+    } else {
+      // Copiar link público
+      const baseUrl = window.location.origin;
+      const url = `${baseUrl}/r/${formData.public_slug}`;
+      
+      navigator.clipboard.writeText(url);
+      toast({
+        title: "Link copiado!",
+        description: "Link público copiado para a área de transferência.",
+        duration: 2000
+      });
+    }
   };
 
   const handleFieldChange = (field: string, value: any) => {
@@ -303,14 +328,23 @@ export default function ReferenciaEdit() {
         </div>
         
         <div className="flex gap-2">
-          {!isNewRef && formData.is_public && formData.public_slug && (
+          {!isNewRef && (
             <Button
-              variant="default"
-              onClick={handleCopyLink}
+              variant={formData.is_public ? "default" : "outline"}
+              onClick={handleShareToggle}
               className="gap-2"
             >
-              <Share2 className="w-4 h-4" />
-              Compartilhar Link Público
+              {formData.is_public ? (
+                <>
+                  <Globe className="w-4 h-4" />
+                  Link Público
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-4 h-4" />
+                  Compartilhar
+                </>
+              )}
             </Button>
           )}
           
@@ -341,12 +375,6 @@ export default function ReferenciaEdit() {
                   </>
                 )}
               </Button>
-              
-              {!formData.is_public && (
-                <Button variant="outline" onClick={handleCopyLink}>
-                  <Copy className="w-4 h-4" />
-                </Button>
-              )}
               
               <Button variant="outline" onClick={() => setDeleteDialog(true)}>
                 <Trash2 className="w-4 h-4" />
@@ -382,81 +410,18 @@ export default function ReferenciaEdit() {
               )}
             </div>
 
-            {/* Seção de Compartilhamento Público */}
-            {!isNewRef && (
-              <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                    <Label className="text-sm font-medium">Público</Label>
-                  </div>
-                  <Switch
-                    checked={formData.is_public}
-                    onCheckedChange={(checked) => {
-                      handleFieldChange('is_public', checked);
-                      if (checked && !formData.public_slug) {
-                        // Gerar slug automaticamente se não existir
-                        const slug = formData.titulo
-                          .toLowerCase()
-                          .normalize('NFD')
-                          .replace(/[\u0300-\u036f]/g, '')
-                          .replace(/[^a-z0-9\s-]/g, '')
-                          .replace(/\s+/g, '-')
-                          .trim();
-                        handleFieldChange('public_slug', slug);
-                      }
-                    }}
-                    disabled={mode === 'view'}
-                  />
+            {/* Status do Compartilhamento */}
+            {!isNewRef && formData.is_public && (
+              <div className="space-y-3 p-4 border rounded-lg bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <Label className="text-sm font-medium text-green-700 dark:text-green-300">
+                    Público
+                  </Label>
                 </div>
-                
-                {formData.is_public && (
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">URL Pública</Label>
-                    {mode === 'edit' ? (
-                      <div className="flex gap-2">
-                        <Input
-                          value={formData.public_slug}
-                          onChange={(e) => handleFieldChange('public_slug', e.target.value)}
-                          placeholder="slug-da-url"
-                          className="text-xs"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const slug = formData.titulo
-                              .toLowerCase()
-                              .normalize('NFD')
-                              .replace(/[\u0300-\u036f]/g, '')
-                              .replace(/[^a-z0-9\s-]/g, '')
-                              .replace(/\s+/g, '-')
-                              .trim();
-                            handleFieldChange('public_slug', slug);
-                          }}
-                        >
-                          ⚡
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="text-xs break-all p-2 bg-background rounded border">
-                        {window.location.origin}/r/{formData.public_slug}
-                      </p>
-                    )}
-                    {formData.public_slug && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="w-full gap-2"
-                        onClick={handleCopyLink}
-                      >
-                        <Share2 className="h-3 w-3" />
-                        Copiar Link Público
-                      </Button>
-                    )}
-                  </div>
-                )}
+                <p className="text-xs text-green-600 dark:text-green-400 break-all">
+                  {window.location.origin}/r/{formData.public_slug}
+                </p>
               </div>
             )}
 
