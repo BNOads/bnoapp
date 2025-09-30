@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, Plus, Edit2, Trash2, Reply, Maximize2 } from "lucide-react";
+import { MessageSquare, Plus, Edit2, Trash2, Reply, Maximize2, Share2, Copy } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -426,26 +426,61 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
             </div>
           </div>
         
-          {(user?.id === entry.autor_id || isAdmin) && !isModal && (
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => startEdit(entry)}
-                className="h-8 w-8 p-0"
-              >
-                <Edit2 className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setDeleteConfirm(entry.id)}
-                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-1">
+            {/* Botões de compartilhamento (sempre visíveis) */}
+            {!isModal && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const texto = `*${authorInfo.name}* - ${formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: ptBR })}\n\n${entry.texto}`;
+                    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="h-8 w-8 p-0"
+                  title="Compartilhar no WhatsApp"
+                >
+                  <Share2 className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const texto = `${authorInfo.name} - ${formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: ptBR })}\n\n${entry.texto}`;
+                    navigator.clipboard.writeText(texto);
+                    toast({ title: "Copiado!", description: "Conteúdo copiado para a área de transferência" });
+                  }}
+                  className="h-8 w-8 p-0"
+                  title="Copiar conteúdo"
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+            
+            {/* Botões de edição (apenas para autor ou admin) */}
+            {(user?.id === entry.autor_id || isAdmin) && !isModal && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => startEdit(entry)}
+                  className="h-8 w-8 p-0"
+                >
+                  <Edit2 className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeleteConfirm(entry.id)}
+                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {editingEntry === entry.id && !isModal ? (
