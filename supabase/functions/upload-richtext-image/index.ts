@@ -16,15 +16,17 @@ serve(async (req) => {
   }
 
   try {
-    // Criar cliente Supabase com o token do usuário
+    // Verificar se há token de autorização
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('Header de autorização ausente');
-      return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+      console.error('Token de autorização não fornecido');
+      return new Response(JSON.stringify({ error: 'Não autorizado - Token não fornecido' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    console.log('Token recebido, criando cliente Supabase...');
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -36,7 +38,25 @@ serve(async (req) => {
       }
     );
 
-    console.log('Cliente Supabase criado com autenticação');
+    // Verificar autenticação de forma simples
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseClient.auth.getUser();
+
+    if (authError) {
+      console.error('Erro ao verificar usuário:', authError);
+    }
+
+    if (!user) {
+      console.error('Usuário não encontrado. AuthError:', authError);
+      return new Response(JSON.stringify({ error: 'Não autorizado - Usuário não encontrado' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Usuário autenticado:', user.id);
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
@@ -76,11 +96,12 @@ serve(async (req) => {
       fileName: file.name,
       fileType: file.type,
       fileSize: file.size,
+      userId: user.id,
       context,
       entityId
     });
 
-    // Ler imagem para validar dimensões
+    // Ler imagem
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
 
@@ -90,15 +111,14 @@ serve(async (req) => {
     const extension = file.name.split('.').pop() || 'jpg';
     const fileName = `${timestamp}-${randomString}.${extension}`;
 
-    // Construir caminho: uploads/richtext/{context}/{entityId}/{yyyy}/{mm}/{fileName}
-    // Se não houver context/entityId, usar 'general'
+    // Construir caminho: {userId}/{context}/{entityId}/{yyyy}/{mm}/{fileName}
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     
     const filePath = context && entityId
-      ? `${context}/${entityId}/${yyyy}/${mm}/${fileName}`
-      : `general/${yyyy}/${mm}/${fileName}`;
+      ? `${user.id}/${context}/${entityId}/${yyyy}/${mm}/${fileName}`
+      : `${user.id}/general/${yyyy}/${mm}/${fileName}`;
 
     console.log('Fazendo upload para:', filePath);
 

@@ -52,11 +52,18 @@ export async function uploadImage({
 
   try {
     // Obter sessão para passar token de autenticação
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Erro ao obter sessão:', sessionError);
+      throw new Error('Erro ao obter sessão de autenticação');
+    }
     
     if (!session) {
-      throw new Error('Usuário não autenticado');
+      throw new Error('Usuário não autenticado. Faça login para fazer upload de imagens.');
     }
+
+    console.log('Sessão obtida, fazendo upload...');
 
     // Fazer chamada HTTP direta para garantir que o token é passado corretamente
     const response = await fetch(
@@ -70,19 +77,20 @@ export async function uploadImage({
       }
     );
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Erro no upload:', errorData);
-      throw new Error(errorData.error || `Erro HTTP ${response.status}`);
-    }
-
     const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Erro no upload:', data);
+      throw new Error(data.error || `Erro HTTP ${response.status}`);
+    }
 
     if (!data || !data.url) {
       throw new Error('Resposta inválida do servidor');
     }
 
     if (onProgress) onProgress(100);
+
+    console.log('Upload concluído com sucesso:', data.url);
 
     return data as UploadImageResult;
   } catch (error: any) {
