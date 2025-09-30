@@ -968,6 +968,248 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_access_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      crm_activity: {
+        Row: {
+          activity_data: Json | null
+          activity_type: string
+          card_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          activity_data?: Json | null
+          activity_type: string
+          card_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          activity_data?: Json | null
+          activity_type?: string
+          card_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_activity_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "crm_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_cards: {
+        Row: {
+          amount: number | null
+          column_id: string
+          company: string | null
+          converted_client_id: string | null
+          created_at: string
+          created_by: string
+          custom_fields: Json | null
+          description: string | null
+          disqualify_reason: string | null
+          email: string | null
+          id: string
+          instagram: string | null
+          lost_reason: string | null
+          next_action_at: string | null
+          order: number
+          origin: string | null
+          owner_id: string | null
+          phone: string | null
+          segment: string | null
+          tags: Json | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          column_id: string
+          company?: string | null
+          converted_client_id?: string | null
+          created_at?: string
+          created_by: string
+          custom_fields?: Json | null
+          description?: string | null
+          disqualify_reason?: string | null
+          email?: string | null
+          id?: string
+          instagram?: string | null
+          lost_reason?: string | null
+          next_action_at?: string | null
+          order?: number
+          origin?: string | null
+          owner_id?: string | null
+          phone?: string | null
+          segment?: string | null
+          tags?: Json | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          column_id?: string
+          company?: string | null
+          converted_client_id?: string | null
+          created_at?: string
+          created_by?: string
+          custom_fields?: Json | null
+          description?: string | null
+          disqualify_reason?: string | null
+          email?: string | null
+          id?: string
+          instagram?: string | null
+          lost_reason?: string | null
+          next_action_at?: string | null
+          order?: number
+          origin?: string | null
+          owner_id?: string | null
+          phone?: string | null
+          segment?: string | null
+          tags?: Json | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_cards_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "crm_columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_cards_converted_client_id_fkey"
+            columns: ["converted_client_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_columns: {
+        Row: {
+          color: string
+          column_sla_days: number | null
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          order: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          column_sla_days?: number | null
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          order?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          column_sla_days?: number | null
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_custom_fields: {
+        Row: {
+          created_at: string
+          field_name: string
+          field_options: Json | null
+          field_type: string
+          id: string
+          is_required: boolean | null
+          order: number
+        }
+        Insert: {
+          created_at?: string
+          field_name: string
+          field_options?: Json | null
+          field_type: string
+          id?: string
+          is_required?: boolean | null
+          order?: number
+        }
+        Update: {
+          created_at?: string
+          field_name?: string
+          field_options?: Json | null
+          field_type?: string
+          id?: string
+          is_required?: boolean | null
+          order?: number
+        }
+        Relationships: []
+      }
+      crm_templates: {
+        Row: {
+          created_at: string
+          default_fields: Json
+          description: string | null
+          id: string
+          initial_tags: string[] | null
+          name: string
+          required_fields: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          default_fields?: Json
+          description?: string | null
+          id?: string
+          initial_tags?: string[] | null
+          name: string
+          required_fields?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          default_fields?: Json
+          description?: string | null
+          id?: string
+          initial_tags?: string[] | null
+          name?: string
+          required_fields?: string[] | null
+        }
+        Relationships: []
+      }
       debrief_metrics: {
         Row: {
           cliente_id: string | null
