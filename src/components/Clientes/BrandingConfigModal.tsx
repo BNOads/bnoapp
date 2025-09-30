@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
-import { AlertCircle, Upload, RotateCcw, Palette } from 'lucide-react';
+import { AlertCircle, Upload, RotateCcw, Palette, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useBrandingValidation } from '@/hooks/useBrandingValidation';
@@ -28,6 +28,8 @@ export const BrandingConfigModal = ({ open, onOpenChange, cliente, onSuccess }: 
   const { toast } = useToast();
   const { validateColor, normalizeHex, adjustColorForContrast, getContrastRatio } = useBrandingValidation();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     branding_enabled: false,
     branding_logo_url: '',
@@ -79,6 +81,73 @@ export const BrandingConfigModal = ({ open, onOpenChange, cliente, onSuccess }: 
       title: 'Cor ajustada',
       description: 'A cor foi ajustada automaticamente para atender o contraste mínimo.'
     });
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validações
+    if (!['image/png', 'image/svg+xml', 'image/jpeg'].includes(file.type)) {
+      toast({
+        title: 'Formato inválido',
+        description: 'Apenas PNG, SVG ou JPG são aceitos.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (file.size > 1024 * 1024) { // 1MB
+      toast({
+        title: 'Arquivo muito grande',
+        description: 'O logo deve ter no máximo 1MB.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Create unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${cliente.id}-${Date.now()}.${fileExt}`;
+      const filePath = `client-logos/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('client-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('client-assets')
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, branding_logo_url: publicUrl }));
+
+      toast({
+        title: 'Logo enviado!',
+        description: 'O logo foi enviado com sucesso.'
+      });
+    } catch (error: any) {
+      console.error('Erro ao fazer upload:', error);
+      toast({
+        title: 'Erro no upload',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleResetToDefault = () => {
@@ -174,19 +243,36 @@ export const BrandingConfigModal = ({ open, onOpenChange, cliente, onSuccess }: 
             <div className="space-y-4">
               {/* Logo */}
               <div className="space-y-2">
-                <Label htmlFor="logo">Logo URL</Label>
+                <Label htmlFor="logo">Logo</Label>
                 <div className="flex gap-2">
                   <Input
                     id="logo"
                     value={formData.branding_logo_url}
                     onChange={(e) => setFormData(prev => ({ ...prev, branding_logo_url: e.target.value }))}
-                    placeholder="https://exemplo.com/logo.svg"
+                    placeholder="https://exemplo.com/logo.svg ou faça upload"
                   />
-                  <Button type="button" variant="outline" size="icon">
-                    <Upload className="h-4 w-4" />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/svg+xml,image/jpeg"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">PNG ou SVG, máx. 1MB</p>
+                <p className="text-xs text-muted-foreground">PNG, SVG ou JPG, máx. 1MB</p>
               </div>
 
               {/* Cor Primária */}

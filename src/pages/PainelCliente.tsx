@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Share2, Edit2 } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Share2, Edit2, Palette } from "lucide-react";
 import { MessageCircle, ArrowLeft, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,7 @@ import { TarefasListEnhanced } from "@/components/Clientes/TarefasListEnhanced";
 import { LinksImportantesEnhanced } from "@/components/Clientes/LinksImportantesEnhanced";
 import { OrcamentoPorFunil } from "@/components/Clientes/OrcamentoPorFunil";
 import { EditarClienteModal } from "@/components/Clientes/EditarClienteModal";
+import { BrandingConfigModal } from "@/components/Clientes/BrandingConfigModal";
 import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
 import { HistoricoMensagensCliente } from "@/components/Clientes/HistoricoMensagensCliente";
 import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
@@ -21,14 +22,10 @@ import { ClienteBrandingProvider } from "@/components/Clientes/ClienteBrandingPr
 import { ClienteBrandingHeader } from "@/components/Clientes/ClienteBrandingHeader";
 import type { User } from "@supabase/supabase-js";
 const PainelCliente = () => {
-  const {
-    clienteId
-  } = useParams();
+  const { clienteId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('gravacoes');
   const [cliente, setCliente] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +33,7 @@ const PainelCliente = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [brandingModalOpen, setBrandingModalOpen] = useState(false);
   const { canManageBudgets } = useUserPermissions();
   useEffect(() => {
     console.log('=== PAINEL CLIENTE DEBUG ===');
@@ -195,15 +193,26 @@ const PainelCliente = () => {
             
             <div className="flex-shrink-0 flex gap-2">
               {isAuthenticated && canManageBudgets && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setEditModalOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Edit2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Editar Cliente</span>
-                </Button>
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setBrandingModalOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Palette className="h-4 w-4" />
+                    <span className="hidden sm:inline">Branding</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setEditModalOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Editar Cliente</span>
+                  </Button>
+                </>
               )}
               
               <Button 
@@ -237,8 +246,22 @@ const PainelCliente = () => {
           {/* Links e Tarefas - Stack em Mobile, Grid em Desktop */}
           <div className="space-y-4 sm:space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 xl:gap-6 2xl:gap-8">
             <section className="space-y-3 sm:space-y-4 min-w-0">
-              <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
-                <Link2 className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+              <h2 
+                className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1"
+                style={{
+                  color: cliente.branding_enabled && cliente.branding_primary 
+                    ? cliente.branding_primary 
+                    : undefined
+                }}
+              >
+                <Link2 
+                  className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" 
+                  style={{
+                    color: cliente.branding_enabled && cliente.branding_primary 
+                      ? cliente.branding_primary 
+                      : undefined
+                  }}
+                />
                 <span className="truncate">Links Importantes</span>
               </h2>
               <div className="w-full overflow-hidden">
@@ -247,8 +270,22 @@ const PainelCliente = () => {
             </section>
 
             <section className="space-y-3 sm:space-y-4 min-w-0">
-              <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
-                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+              <h2 
+                className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1"
+                style={{
+                  color: cliente.branding_enabled && cliente.branding_primary 
+                    ? cliente.branding_primary 
+                    : undefined
+                }}
+              >
+                <FileText 
+                  className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" 
+                  style={{
+                    color: cliente.branding_enabled && cliente.branding_primary 
+                      ? cliente.branding_primary 
+                      : undefined
+                  }}
+                />
                 <span className="truncate">Tarefas</span>
               </h2>
               <div className="w-full overflow-hidden">
@@ -264,8 +301,22 @@ const PainelCliente = () => {
 
           {/* Gravações - Prioridade Mobile */}
           <section className="space-y-3 sm:space-y-4">
-            <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
-              <Video className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+            <h2 
+              className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1"
+              style={{
+                color: cliente.branding_enabled && cliente.branding_primary 
+                  ? cliente.branding_primary 
+                  : undefined
+              }}
+            >
+              <Video 
+                className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" 
+                style={{
+                  color: cliente.branding_enabled && cliente.branding_primary 
+                    ? cliente.branding_primary 
+                    : undefined
+                }}
+              />
               <span className="truncate">Gravações e Reuniões</span>
             </h2>
             <div className="w-full overflow-hidden">
@@ -289,8 +340,22 @@ const PainelCliente = () => {
 
           {/* Orçamento por Funil - Adaptativo */}
           <section className="space-y-3 sm:space-y-4">
-            <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
-              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0 mx-0" />
+            <h2 
+              className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1"
+              style={{
+                color: cliente.branding_enabled && cliente.branding_primary 
+                  ? cliente.branding_primary 
+                  : undefined
+              }}
+            >
+              <DollarSign 
+                className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 mx-0" 
+                style={{
+                  color: cliente.branding_enabled && cliente.branding_primary 
+                    ? cliente.branding_primary 
+                    : undefined
+                }}
+              />
               <span className="truncate">Orçamento por Funil</span>
             </h2>
             <div className="w-full overflow-hidden">
@@ -300,10 +365,17 @@ const PainelCliente = () => {
         </div>
       </div>
 
-      {/* Modal de Edição */}
+      {/* Modais */}
       <EditarClienteModal
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
+        cliente={cliente}
+        onSuccess={handleEditSuccess}
+      />
+      
+      <BrandingConfigModal
+        open={brandingModalOpen}
+        onOpenChange={setBrandingModalOpen}
         cliente={cliente}
         onSuccess={handleEditSuccess}
       />
