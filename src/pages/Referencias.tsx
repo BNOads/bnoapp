@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Eye, Edit2, Trash2, Copy } from "lucide-react";
+import { Plus, Search, Eye, Edit2, Trash2, Copy, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -31,6 +31,7 @@ interface Referencia {
   is_public: boolean;
   public_slug?: string;
   created_by: string;
+  link_url?: string;
 }
 
 export default function Referencias() {
@@ -235,13 +236,25 @@ export default function Referencias() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/referencias/${ref.id}?mode=view`)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
+                        {ref.link_url ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(ref.link_url, '_blank')}
+                            title="Abrir link externo em nova aba"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/referencias/${ref.id}?mode=view`)}
+                            title="Visualizar referência"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
