@@ -2993,6 +2993,7 @@ export type Database = {
           is_public: boolean | null
           is_template: boolean
           link_publico: string | null
+          link_url: string | null
           links_externos: Json | null
           permissoes_edicao: Json | null
           public_slug: string | null
@@ -3017,6 +3018,7 @@ export type Database = {
           is_public?: boolean | null
           is_template?: boolean
           link_publico?: string | null
+          link_url?: string | null
           links_externos?: Json | null
           permissoes_edicao?: Json | null
           public_slug?: string | null
@@ -3041,6 +3043,7 @@ export type Database = {
           is_public?: boolean | null
           is_template?: boolean
           link_publico?: string | null
+          link_url?: string | null
           links_externos?: Json | null
           permissoes_edicao?: Json | null
           public_slug?: string | null
