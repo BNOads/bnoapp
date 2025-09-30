@@ -64,96 +64,48 @@ export const ReferenciaPublica = () => {
       
       console.log('Carregando referência pública:', { id, slug, token });
       
-      let query = supabase
-        .from('referencias_criativos')
-        .select('*')
-        .eq('ativo', true);
-
+      // Buscar pela public_slug (rota /r/:slug) ou por ID (rotas legacy)
       const identifier = slug || id;
-
-      // Try to find by slug first (more user-friendly URLs)
-      if (identifier && !token) {
-        // First try by public_slug, then fallback to ID
-        const { data: slugData } = await query.eq('public_slug', identifier).maybeSingle();
-        
-        if (slugData && slugData.is_public) {
-          // Found by slug and it's public
-          setReferencia(slugData as ReferenciaCreativo);
-        } else {
-          // Try by ID if slug fails or isn't public
-          const { data: idData } = await query.eq('id', identifier).maybeSingle();
-          
-          if (idData) {
-            // For existing references, allow access if they exist (backward compatibility)
-            // TODO: Remove this fallback after migrating all references
-            setReferencia(idData as ReferenciaCreativo);
-          } else {
-            setError('not_found');
-            return;
-          }
-        }
-      } else if (identifier && token) {
-        // Access via token - valid token grants access regardless of is_public
-        const { data: tokenData } = await query
-          .eq('id', identifier)
-          .eq('public_token', token)
-          .maybeSingle();
-
-        if (!tokenData) {
-          setError('invalid_token');
-          return;
-        }
-        
-        // Preload when token is valid
-        setReferencia(tokenData as ReferenciaCreativo);
-      } else {
+      
+      if (!identifier) {
         setError('not_found');
         return;
       }
 
-      // If we already found the reference in the previous step, get it again if needed
-      let finalData = referencia;
-      if (!finalData) {
-        const finalQuery = identifier && !token 
-          ? query.or(`public_slug.eq.${identifier},id.eq.${identifier}`)
-          : query.eq('id', identifier).eq('public_token', token);
+      const { data, error: fetchError } = await supabase
+        .from('referencias_criativos')
+        .select('*')
+        .eq('ativo', true)
+        .eq('is_public', true)
+        .eq('public_slug', identifier)
+        .maybeSingle();
 
-        const { data, error } = await finalQuery.maybeSingle();
-
-        if (error) {
-          console.error('Erro ao carregar referência:', error);
-          throw error;
-        }
-
-        if (!data) {
-          setError('not_found');
-          return;
-        }
-
-        // For existing references without public fields, allow access (backward compatibility)
-        if (token && data.public_token !== token) {
-          setError('access_denied');
-          return;
-        }
-
-        console.log('Referência carregada:', data);
-        finalData = data as ReferenciaCreativo;
-        setReferencia(finalData);
+      if (fetchError) {
+        console.error('Erro ao carregar referência:', fetchError);
+        throw fetchError;
       }
 
-      // Increment view count
+      if (!data) {
+        setError('not_found');
+        return;
+      }
+
+      console.log('Referência carregada:', data);
+      setReferencia(data as ReferenciaCreativo);
+
+      // Incrementar contador de visualizações
       try {
         await supabase
           .from('referencias_criativos')
-          .update({ view_count: (finalData.view_count || 0) + 1 })
-          .eq('id', finalData.id);
+          .update({ view_count: (data.view_count || 0) + 1 })
+          .eq('id', data.id);
       } catch (viewError) {
         console.warn('Erro ao incrementar visualizações:', viewError);
       }
 
-      // Convert content to editor blocks if version 2+
-      if ((finalData.versao_editor || 1) >= 2 && finalData.conteudo && Array.isArray(finalData.conteudo)) {
-        const convertedBlocks: EditorBlock[] = finalData.conteudo
+      // Converter conteúdo para blocos do editor se versão 2+
+      if ((data.versao_editor || 1) >= 2 && data.conteudo && Array.isArray(data.conteudo)) {
+        const convertedBlocks: EditorBlock[] = data.conteudo
           .map((item: any, index: number) => ({
             id: item.id || `block-${index}`,
             type: item.tipo || 'text',
@@ -170,7 +122,6 @@ export const ReferenciaPublica = () => {
             updated_at: new Date().toISOString()
           }))
           .filter(block => {
-            // Filter out completely empty blocks
             const content = block.content;
             return content.text?.trim() || 
                    content.url?.trim() || 
