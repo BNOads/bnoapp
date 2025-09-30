@@ -1513,6 +1513,27 @@ export type Database = {
           },
         ]
       }
+      finance_aliases_unmapped: {
+        Row: {
+          created_at: string
+          header_original: string
+          id: string
+          sheet_name: string
+        }
+        Insert: {
+          created_at?: string
+          header_original: string
+          id?: string
+          sheet_name: string
+        }
+        Update: {
+          created_at?: string
+          header_original?: string
+          id?: string
+          sheet_name?: string
+        }
+        Relationships: []
+      }
       financeiro_access_sessions: {
         Row: {
           created_at: string | null
@@ -1580,6 +1601,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      financeiro_config: {
+        Row: {
+          aba_clientes_ativos: string
+          aba_movimentos: string
+          aba_resumo_ano_1: string
+          aba_resumo_ano_2: string
+          created_at: string
+          id: number
+          spreadsheet_id: string
+          updated_at: string
+        }
+        Insert: {
+          aba_clientes_ativos?: string
+          aba_movimentos?: string
+          aba_resumo_ano_1?: string
+          aba_resumo_ano_2?: string
+          created_at?: string
+          id?: number
+          spreadsheet_id: string
+          updated_at?: string
+        }
+        Update: {
+          aba_clientes_ativos?: string
+          aba_movimentos?: string
+          aba_resumo_ano_1?: string
+          aba_resumo_ano_2?: string
+          created_at?: string
+          id?: number
+          spreadsheet_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       financeiro_mensal: {
         Row: {
