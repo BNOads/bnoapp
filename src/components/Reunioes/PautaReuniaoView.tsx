@@ -119,7 +119,7 @@ export function PautaReuniaoView() {
   // Realtime collaboration hooks
   const documentId = currentDocument?.id;
   const { presenceUsers, isConnected, updateTypingStatus } = useRealtimePresence(documentId || '');
-  const { broadcastContentUpdate, onSyncEvent, syncStatus, lastSyncTime } = useRealtimeDocument(documentId || '');
+  const { broadcastContentUpdate, broadcastBlockCreate, broadcastBlockDelete, flushPendingUpdates, onSyncEvent, syncStatus, lastSyncTime } = useRealtimeDocument(documentId || '');
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -238,30 +238,47 @@ export function PautaReuniaoView() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, selectedDate.ano]);
 
-  // Add keyboard shortcuts and blur events for autosave
+  // Add keyboard shortcuts, blur events and unload for autosave
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
+        flushPendingUpdates(); // Flush broadcast queue
         saveDocument(false);
       }
     };
+    
+    const handleBlur = () => {
+      // Flush ao perder foco
+      if (currentDocument && blocks.length > 0) {
+        flushPendingUpdates();
+        saveDocument(true);
+      }
+    };
+    
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Flush antes de sair
+      flushPendingUpdates();
+      
       if (saveStatus === 'saving' || autosaveTimeout.current) {
         e.preventDefault();
         e.returnValue = 'Você tem alterações não salvas. Deseja realmente sair?';
       }
     };
+    
     document.addEventListener('keydown', handleKeydown);
+    window.addEventListener('blur', handleBlur);
     window.addEventListener('beforeunload', handleBeforeUnload);
+    
     return () => {
       document.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('blur', handleBlur);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       if (autosaveTimeout.current) {
         clearTimeout(autosaveTimeout.current);
       }
     };
-  }, [saveStatus, autosaveTimeout.current]);
+  }, [saveStatus, autosaveTimeout.current, currentDocument, blocks, flushPendingUpdates]);
 
   // Auto-scroll to selected day in calendar
   useEffect(() => {
@@ -464,10 +481,10 @@ export function PautaReuniaoView() {
     }
   };
   const loadDocuments = async () => {
-    const {
-      data,
-      error
-    } = await supabase.from('reunioes_documentos').select(`
+    // FRESH FETCH - sem cache
+    const { data, error } = await supabase
+      .from('reunioes_documentos')
+      .select(`
         *,
         reunioes_blocos (
           id,
@@ -477,7 +494,11 @@ export function PautaReuniaoView() {
           ordem,
           ancora
         )
-      `).eq('ano', selectedDate.ano).eq('mes', selectedDate.mes).order('dia');
+      `)
+      .eq('ano', selectedDate.ano)
+      .eq('mes', selectedDate.mes)
+      .order('dia');
+
     if (error) throw error;
     const docsMap: {
       [key: string]: MeetingDocument;
@@ -774,6 +795,9 @@ export function PautaReuniaoView() {
     setBlocks(prev => [...prev, newBlock]);
     setNewBlockInCreation(newBlock.id);
 
+    // Broadcast criação de bloco imediatamente
+    broadcastBlockCreate(newBlock.id);
+
     // Focus no título após um breve delay
     setTimeout(() => {
       const titleInput = document.querySelector(`#title-input-${newBlock.id}`) as HTMLInputElement;
@@ -915,10 +939,10 @@ export function PautaReuniaoView() {
     setSaveStatus('saving');
     setHasUnsavedChanges(true);
 
-    // Autosave em 2-3 segundos após parar de digitar
+    // Autosave mais agressivo: 1.5s após parar de digitar
     autosaveTimeout.current = setTimeout(() => {
       saveDocument(true);
-    }, 2500);
+    }, 1500); // Reduzido de 2500ms para 1500ms
   };
 
   const triggerAutosave = () => {
@@ -931,6 +955,9 @@ export function PautaReuniaoView() {
       // Remove block from local state
       const updatedBlocks = blocks.filter(block => block.id !== blockId);
       setBlocks(updatedBlocks);
+
+      // Broadcast delete imediatamente
+      broadcastBlockDelete(blockId);
 
       // Trigger autosave to persist the deletion
       scheduleAutosave();

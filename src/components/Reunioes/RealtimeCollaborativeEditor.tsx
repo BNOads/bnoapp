@@ -61,11 +61,11 @@ export function RealtimeCollaborativeEditor({
       clearTimeout(typingTimeoutRef.current);
     }
 
-    // Debounce content broadcast and stop typing indicator
+    // Broadcast imediato após 150ms (reduzido de 500ms)
     typingTimeoutRef.current = setTimeout(() => {
-      broadcastContentUpdate(blockId, 'content', newContent);
+      broadcastContentUpdate(blockId, 'content', newContent, true); // immediate = true
       updateTypingStatus(false);
-    }, 500);
+    }, 150);
   }, [blockId, onChange, updateTypingStatus, broadcastContentUpdate]);
 
   const handleTitleExtracted = useCallback((titles: string[]) => {

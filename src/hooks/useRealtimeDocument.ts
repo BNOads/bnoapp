@@ -24,9 +24,9 @@ export function useRealtimeDocument(documentId: string) {
   const pendingUpdatesRef = useRef<DocumentSyncEvent[]>([]);
   const updateCallbacksRef = useRef<((event: DocumentSyncEvent) => void)[]>([]);
 
-  // Debounce function for batching updates
+  // Debounce function for batching updates - REDUCED for instant broadcast
   const debounceTimeoutRef = useRef<NodeJS.Timeout>();
-  const DEBOUNCE_DELAY = 300;
+  const DEBOUNCE_DELAY = 100; // Reduzido de 300ms para 100ms para broadcast mais rápido
   const userDataRef = useRef(userData);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export function useRealtimeDocument(documentId: string) {
     };
   }, [documentId, user?.id]);
 
-  const broadcastUpdate = useCallback((event: Omit<DocumentSyncEvent, 'user_id' | 'timestamp'>) => {
+  const broadcastUpdate = useCallback((event: Omit<DocumentSyncEvent, 'user_id' | 'timestamp'>, immediate = false) => {
     if (!channelRef.current || !userData || !user) return;
 
     const syncEvent: DocumentSyncEvent = {
@@ -93,6 +93,23 @@ export function useRealtimeDocument(documentId: string) {
       user_id: user.id,
       timestamp: new Date().toISOString(),
     };
+
+    // Se immediate = true, enviar imediatamente sem debounce
+    if (immediate) {
+      setSyncStatus('syncing');
+      
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'document_sync',
+        payload: syncEvent,
+      });
+
+      console.log('Broadcasted sync event (immediate):', syncEvent);
+      setLastSyncTime(new Date());
+      setSyncStatus('synced');
+      setTimeout(() => setSyncStatus('idle'), 1000);
+      return;
+    }
 
     // Add to pending updates for debouncing
     pendingUpdatesRef.current.push(syncEvent);
@@ -102,7 +119,7 @@ export function useRealtimeDocument(documentId: string) {
       clearTimeout(debounceTimeoutRef.current);
     }
 
-    // Debounce the broadcast
+    // Debounce the broadcast (100ms para broadcast rápido)
     debounceTimeoutRef.current = setTimeout(() => {
       const updates = [...pendingUpdatesRef.current];
       pendingUpdatesRef.current = [];
@@ -121,31 +138,52 @@ export function useRealtimeDocument(documentId: string) {
       });
 
       console.log('Broadcasted sync event:', lastUpdate);
+      setLastSyncTime(new Date());
+      setSyncStatus('synced');
+      setTimeout(() => setSyncStatus('idle'), 1000);
     }, DEBOUNCE_DELAY);
   }, [userData, user]);
 
-  const broadcastContentUpdate = useCallback((blockId: string, field: string, value: any) => {
+  const broadcastContentUpdate = useCallback((blockId: string, field: string, value: any, immediate = false) => {
     broadcastUpdate({
       type: 'content_update',
       block_id: blockId,
       field,
       value,
-    });
+    }, immediate);
   }, [broadcastUpdate]);
 
   const broadcastBlockCreate = useCallback((blockId: string) => {
     broadcastUpdate({
       type: 'block_create',
       block_id: blockId,
-    });
+    }, true); // Criação de bloco sempre imediato
   }, [broadcastUpdate]);
 
   const broadcastBlockDelete = useCallback((blockId: string) => {
     broadcastUpdate({
       type: 'block_delete',
       block_id: blockId,
-    });
+    }, true); // Exclusão de bloco sempre imediato
   }, [broadcastUpdate]);
+
+  // Flush immediate - força envio de tudo que está pendente
+  const flushPendingUpdates = useCallback(() => {
+    if (pendingUpdatesRef.current.length > 0 && channelRef.current) {
+      const updates = [...pendingUpdatesRef.current];
+      pendingUpdatesRef.current = [];
+
+      updates.forEach(update => {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'document_sync',
+          payload: update,
+        });
+      });
+
+      console.log('Flushed pending updates:', updates.length);
+    }
+  }, []);
 
   const onSyncEvent = useCallback((callback: (event: DocumentSyncEvent) => void) => {
     updateCallbacksRef.current.push(callback);
@@ -160,6 +198,7 @@ export function useRealtimeDocument(documentId: string) {
     broadcastContentUpdate,
     broadcastBlockCreate,
     broadcastBlockDelete,
+    flushPendingUpdates,
     onSyncEvent,
     syncStatus,
     lastSyncTime,
