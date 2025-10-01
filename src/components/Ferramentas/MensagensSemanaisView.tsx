@@ -626,7 +626,9 @@ ${mensagem.mensagem}`;
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os gestores</SelectItem>
-                  {colaboradores.map(colaborador => <SelectItem key={colaborador.id} value={colaborador.id}>
+                  {colaboradores
+                    .filter(colaborador => colaborador.id && colaborador.id.trim() !== '')
+                    .map(colaborador => <SelectItem key={colaborador.id} value={colaborador.id}>
                       {colaborador.nome}
                     </SelectItem>)}
                 </SelectContent>
@@ -641,7 +643,9 @@ ${mensagem.mensagem}`;
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os clientes</SelectItem>
-                  {clientes.map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
+                  {clientes
+                    .filter(cliente => cliente.id && cliente.id.trim() !== '')
+                    .map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
                       {cliente.nome}
                     </SelectItem>)}
                 </SelectContent>
@@ -980,7 +984,9 @@ ${mensagem.mensagem}`;
                   <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  {clientes.map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
+                  {clientes
+                    .filter(cliente => cliente.id && cliente.id.trim() !== '')
+                    .map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
                       {cliente.nome}
                     </SelectItem>)}
                 </SelectContent>
@@ -1032,7 +1038,9 @@ ${mensagem.mensagem}`;
                   <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  {clientes.map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
+                  {clientes
+                    .filter(cliente => cliente.id && cliente.id.trim() !== '')
+                    .map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
                       {cliente.nome}
                     </SelectItem>)}
                 </SelectContent>

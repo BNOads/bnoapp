@@ -149,17 +149,19 @@ export const CardModal = ({ isOpen, card, columns, onClose, onSave }: CardModalP
                   <SelectValue placeholder="Selecione a coluna" />
                 </SelectTrigger>
                 <SelectContent>
-                  {columns.map(col => (
-                    <SelectItem key={col.id} value={col.id}>
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: col.color }}
-                        />
-                        {col.name}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {columns
+                    .filter(col => col.id && col.id.trim() !== '')
+                    .map(col => (
+                      <SelectItem key={col.id} value={col.id}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: col.color }}
+                          />
+                          {col.name}
+                        </div>
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

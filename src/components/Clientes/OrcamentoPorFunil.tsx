@@ -397,7 +397,9 @@ export const OrcamentoPorFunil = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos os funis</SelectItem>
-                    {funisUnicos.map(funil => <SelectItem key={funil} value={funil}>
+                    {funisUnicos
+                      .filter(funil => funil && funil.trim() !== '')
+                      .map(funil => <SelectItem key={funil} value={funil}>
                         {funil}
                       </SelectItem>)}
                   </SelectContent>

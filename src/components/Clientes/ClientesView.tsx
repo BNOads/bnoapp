@@ -420,7 +420,9 @@ export const ClientesView = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas categorias</SelectItem>
-                  {categorias.map(categoria => <SelectItem key={categoria} value={categoria}>
+                  {categorias
+                    .filter(categoria => categoria && categoria.trim() !== '')
+                    .map(categoria => <SelectItem key={categoria} value={categoria}>
                       {categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
                     </SelectItem>)}
                 </SelectContent>
@@ -432,7 +434,9 @@ export const ClientesView = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas séries</SelectItem>
-                  {series.map(serie => <SelectItem key={serie} value={serie}>
+                  {series
+                    .filter(serie => serie && serie.trim() !== '')
+                    .map(serie => <SelectItem key={serie} value={serie}>
                       {serie}
                     </SelectItem>)}
                 </SelectContent>

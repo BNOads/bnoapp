@@ -144,11 +144,13 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Não alterar</SelectItem>
-                {clientes.map((cliente) => (
-                  <SelectItem key={cliente.id} value={cliente.id}>
-                    {cliente.nome}
-                  </SelectItem>
-                ))}
+                {clientes
+                  .filter(cliente => cliente.id && cliente.id.trim() !== '')
+                  .map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nome}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
