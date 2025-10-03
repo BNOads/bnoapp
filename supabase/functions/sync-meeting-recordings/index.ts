@@ -16,7 +16,7 @@ async function listDriveFiles(folderId: string, pageToken?: string): Promise<any
   const params = new URLSearchParams({
     key: API_KEY!,
     q: `'${folderId}' in parents and (mimeType contains 'video/' or name contains '.mp4' or name contains '.mov' or name contains '.avi' or name contains '.mkv' or name contains '.webm') and trashed=false`,
-    fields: 'nextPageToken,files(id,name,mimeType,webViewLink,size,modifiedTime,videoMediaMetadata)',
+    fields: 'nextPageToken,files(id,name,mimeType,webViewLink,thumbnailLink,size,modifiedTime,videoMediaMetadata)',
     pageSize: '100',
     orderBy: 'modifiedTime desc'
   });
@@ -213,6 +213,7 @@ serve(async (req) => {
             titulo,
             descricao: `Gravação importada automaticamente do Google Drive: ${recording.name}`,
             url_gravacao: recording.webViewLink,
+            thumbnail_url: recording.thumbnailLink,
             duracao,
             cliente_id: clienteId,
             created_by: createdBy,
