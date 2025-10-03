@@ -34,8 +34,8 @@ export const NovoCriativoExternoModal = ({
   const { toast } = useToast();
 
   const validateUrl = (url: string) => {
-    if (!url) return false;
-    return /^https?:\/\/.+/.test(url);
+    const trimmedUrl = url.trim();
+    return /^https?:\/\/.+/.test(trimmedUrl);
   };
 
   const resetForm = () => {

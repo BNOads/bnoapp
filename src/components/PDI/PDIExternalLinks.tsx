@@ -31,12 +31,8 @@ export function PDIExternalLinks({ pdiId, links, onLinksUpdate, canEdit = false 
   const [loading, setLoading] = useState(false);
 
   const validateUrl = (url: string): boolean => {
-    try {
-      const urlObj = new URL(url);
-      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-    } catch {
-      return false;
-    }
+    const trimmedUrl = url.trim();
+    return /^https?:\/\/.+/.test(trimmedUrl);
   };
 
   const handleOpenModal = (linkIndex?: number) => {

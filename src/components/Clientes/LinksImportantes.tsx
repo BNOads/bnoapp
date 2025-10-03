@@ -204,10 +204,9 @@ export const LinksImportantes = ({ clienteId, isPublicView = false }: LinksImpor
       const user = await supabase.auth.getUser();
       if (!user.data.user) throw new Error('Usuário não autenticado');
 
-      // Validar URL
-      try {
-        new URL(novoLink.url);
-      } catch {
+      // Validar URL - trim and check format
+      const urlTrimmed = novoLink.url.trim();
+      if (!urlTrimmed || !/^https?:\/\/.+/.test(urlTrimmed)) {
         toast({
           title: "Erro",
           description: "Por favor, insira uma URL válida",
@@ -220,6 +219,7 @@ export const LinksImportantes = ({ clienteId, isPublicView = false }: LinksImpor
         .from('links_importantes')
         .insert({
           ...novoLink,
+          url: urlTrimmed,
           cliente_id: clienteId,
           created_by: user.data.user.id,
         });
@@ -250,10 +250,9 @@ export const LinksImportantes = ({ clienteId, isPublicView = false }: LinksImpor
 
   const adicionarDashboard = async () => {
     try {
-      // Validar URL
-      try {
-        new URL(novoDashboard.url);
-      } catch {
+      // Validar URL - trim and check format
+      const urlTrimmed = novoDashboard.url.trim();
+      if (!urlTrimmed || !/^https?:\/\/.+/.test(urlTrimmed)) {
         toast({
           title: "Erro",
           description: "Por favor, insira uma URL válida",
@@ -263,7 +262,7 @@ export const LinksImportantes = ({ clienteId, isPublicView = false }: LinksImpor
       }
 
       const dashboardsAtuais = cliente?.dashboards_looker || [];
-      const novosDashboards = [...dashboardsAtuais, novoDashboard];
+      const novosDashboards = [...dashboardsAtuais, { ...novoDashboard, url: urlTrimmed }];
 
       const { error } = await supabase
         .from('clientes')

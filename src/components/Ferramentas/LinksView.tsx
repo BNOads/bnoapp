@@ -187,10 +187,9 @@ export const LinksView = () => {
       return;
     }
 
-    // Validate URL
-    try {
-      new URL(formData.url);
-    } catch {
+    // Validate URL - trim and check format
+    const urlTrimmed = formData.url.trim();
+    if (!urlTrimmed || !/^https?:\/\/.+/.test(urlTrimmed)) {
       toast({
         title: "Erro",
         description: "URL inválida. Use o formato: https://exemplo.com",
@@ -204,6 +203,7 @@ export const LinksView = () => {
         .from("links_importantes")
         .insert({
           ...formData,
+          url: formData.url.trim(),
           created_by: user.id,
         })
         .select(`
@@ -243,12 +243,23 @@ export const LinksView = () => {
   const handleEdit = async () => {
     if (!editingLink || !formData.titulo || !formData.url || !formData.cliente_id) return;
 
+    // Validate URL - trim and check format
+    const urlTrimmed = formData.url.trim();
+    if (!urlTrimmed || !/^https?:\/\/.+/.test(urlTrimmed)) {
+      toast({
+        title: "Erro",
+        description: "URL inválida. Use o formato: https://exemplo.com",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from("links_importantes")
         .update({
           titulo: formData.titulo,
-          url: formData.url,
+          url: urlTrimmed,
           cliente_id: formData.cliente_id,
           tipo: formData.tipo,
         })

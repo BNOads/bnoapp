@@ -198,10 +198,9 @@ export const LinksImportantesEnhanced = ({
       const user = await supabase.auth.getUser();
       if (!user.data.user) throw new Error('Usuário não autenticado');
 
-      // Validar URL
-      try {
-        new URL(novoLink.url);
-      } catch {
+      // Validar URL - trim and check format
+      const urlTrimmed = novoLink.url.trim();
+      if (!urlTrimmed || !/^https?:\/\/.+/.test(urlTrimmed)) {
         toast({
           title: "Erro",
           description: "Por favor, insira uma URL válida",
@@ -213,6 +212,7 @@ export const LinksImportantesEnhanced = ({
         error
       } = await supabase.from('links_importantes').insert({
         ...novoLink,
+        url: urlTrimmed,
         cliente_id: clienteId,
         created_by: user.data.user.id
       });
@@ -240,10 +240,9 @@ export const LinksImportantesEnhanced = ({
   const editarLink = async () => {
     if (!editingLink) return;
     try {
-      // Validar URL
-      try {
-        new URL(editingLink.url);
-      } catch {
+      // Validar URL - trim and check format
+      const urlTrimmed = editingLink.url.trim();
+      if (!urlTrimmed || !/^https?:\/\/.+/.test(urlTrimmed)) {
         toast({
           title: "Erro",
           description: "Por favor, insira uma URL válida",
@@ -255,7 +254,7 @@ export const LinksImportantesEnhanced = ({
         error
       } = await supabase.from('links_importantes').update({
         titulo: editingLink.titulo,
-        url: editingLink.url,
+        url: urlTrimmed,
         tipo: editingLink.tipo
       }).eq('id', editingLink.id);
       if (error) throw error;
