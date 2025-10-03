@@ -330,7 +330,7 @@ export const OrcamentoPorFunil = ({
       const {
         error
       } = await supabase.from('orcamentos_funil').update({
-        ativo: false
+        active: false
       }).eq('id', orcamento.id);
       if (error) throw error;
       toast({
