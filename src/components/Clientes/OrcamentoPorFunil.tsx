@@ -329,9 +329,7 @@ export const OrcamentoPorFunil = ({
     try {
       const {
         error
-      } = await supabase.from('orcamentos_funil').update({
-        active: false
-      }).eq('id', orcamento.id);
+      } = await supabase.from('orcamentos_funil').delete().eq('id', orcamento.id);
       if (error) throw error;
       toast({
         title: "Sucesso",
