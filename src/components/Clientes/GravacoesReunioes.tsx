@@ -17,6 +17,7 @@ interface Gravacao {
   tags?: string[];
   created_at: string;
   visualizacoes: number;
+  thumbnail_url?: string;
 }
 
 interface GravacoesReunioesProps {
@@ -299,8 +300,21 @@ export const GravacoesReunioes = ({ clienteId, isPublicView = false }: Gravacoes
               <div key={gravacao.id} className="border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors">
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   {/* Thumbnail - Responsivo */}
-                  <div className="w-full sm:w-20 lg:w-24 h-12 sm:h-14 lg:h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-muted-foreground" />
+                  <div className="relative w-full sm:w-20 lg:w-24 h-12 sm:h-14 lg:h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {gravacao.thumbnail_url ? (
+                      <>
+                        <img 
+                          src={gravacao.thumbnail_url} 
+                          alt={gravacao.titulo}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                          <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white drop-shadow-lg" />
+                        </div>
+                      </>
+                    ) : (
+                      <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-muted-foreground" />
+                    )}
                   </div>
                   
                   <div className="flex-1 min-w-0">
