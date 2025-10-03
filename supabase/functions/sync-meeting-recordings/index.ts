@@ -193,12 +193,26 @@ serve(async (req) => {
         // Verificar se a gravação já existe
         const { data: existingGravacao } = await supabase
           .from('gravacoes')
-          .select('id')
+          .select('id, thumbnail_url')
           .eq('url_gravacao', recording.webViewLink)
           .single();
         
         if (existingGravacao) {
-          console.log(`Gravação já existe: ${recording.name}`);
+          // Se existe mas não tem thumbnail, atualizar
+          if (!existingGravacao.thumbnail_url && recording.thumbnailLink) {
+            const { error: updateError } = await supabase
+              .from('gravacoes')
+              .update({ thumbnail_url: recording.thumbnailLink })
+              .eq('id', existingGravacao.id);
+            
+            if (updateError) {
+              console.error(`Erro ao atualizar thumbnail ${recording.name}:`, updateError);
+            } else {
+              console.log(`Thumbnail atualizada: ${recording.name}`);
+            }
+          } else {
+            console.log(`Gravação já existe: ${recording.name}`);
+          }
           continue;
         }
         
