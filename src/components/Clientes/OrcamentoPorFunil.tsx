@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp, Power } from "lucide-react";
+import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp, Power, GripVertical, RotateCcw, CheckCircle } from "lucide-react";
 import { OrcamentoStatusToggle } from "./OrcamentoStatusToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,9 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useSearch } from "@/hooks/useSearch";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 interface OrcamentoFunil {
   id: string;
   nome_funil: string;
@@ -26,7 +29,118 @@ interface OrcamentoFunil {
   observacoes: string;
   created_by: string;
   active: boolean;
+  sort_order: number;
 }
+
+// Componente card draggable
+const SortableOrcamentoCard = ({ 
+  orcamento, 
+  isEditMode, 
+  isPublicView,
+  canManageBudgets,
+  onEdit,
+  onDelete,
+  onHistorico,
+  onStatusChange,
+  formatarMoeda
+}: {
+  orcamento: OrcamentoFunil;
+  isEditMode: boolean;
+  isPublicView: boolean;
+  canManageBudgets: boolean;
+  onEdit: (o: OrcamentoFunil) => void;
+  onDelete: (o: OrcamentoFunil) => void;
+  onHistorico: (o: OrcamentoFunil) => void;
+  onStatusChange: (id: string, status: boolean) => void;
+  formatarMoeda: (v: number) => string;
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: orcamento.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card 
+      ref={setNodeRef}
+      style={style}
+      className={`relative w-full transition-all ${!orcamento.active ? 'opacity-60 grayscale-[0.4]' : ''}`}
+    >
+      <CardHeader className="pb-2 sm:pb-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
+          <div className="flex items-start gap-2 flex-1">
+            {isEditMode && canManageBudgets && !isPublicView && (
+              <div 
+                {...attributes} 
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none mt-1"
+              >
+                <GripVertical className="h-5 w-5 text-muted-foreground" />
+              </div>
+            )}
+            <div className="flex flex-col gap-2 flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <CardTitle className="text-base sm:text-lg font-semibold line-clamp-2 leading-tight">
+                  {orcamento.nome_funil}
+                </CardTitle>
+                {!orcamento.active && (
+                  <Badge variant="secondary" className="text-xs bg-muted text-muted-foreground">
+                    Desativado
+                  </Badge>
+                )}
+              </div>
+              <OrcamentoStatusToggle
+                orcamentoId={orcamento.id}
+                currentStatus={orcamento.active}
+                onStatusChange={(newStatus) => onStatusChange(orcamento.id, newStatus)}
+                disabled={isPublicView || !canManageBudgets}
+              />
+            </div>
+          </div>
+          <div className="flex gap-1 flex-shrink-0 self-end sm:self-start">
+            <Button variant="ghost" size="sm" onClick={() => onHistorico(orcamento)} className="h-7 w-7 p-0 sm:h-8 sm:w-8">
+              <History className="h-3 w-3 sm:h-4 sm:w-4" />
+            </Button>
+            {canManageBudgets && !isPublicView && (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => onEdit(orcamento)} className="h-7 w-7 p-0 sm:h-8 sm:w-8">
+                  <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => onDelete(orcamento)} className="text-destructive hover:text-destructive h-7 w-7 p-0 sm:h-8 sm:w-8">
+                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="space-y-2 sm:space-y-3">
+          <div className={`text-xl sm:text-2xl lg:text-3xl font-bold break-all ${
+            orcamento.active ? 'text-primary' : 'text-muted-foreground'
+          }`}>
+            {formatarMoeda(orcamento.valor_investimento)}
+          </div>
+          
+          <div className="flex items-start gap-2 text-xs sm:text-sm text-muted-foreground">
+            <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
+            <span className="leading-tight">
+              Atualizado em {format(new Date(orcamento.data_atualizacao), "dd/MM/yyyy", { locale: ptBR })}
+            </span>
+          </div>
+          
+          {orcamento.observacoes && (
+            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+              {orcamento.observacoes}
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 interface HistoricoOrcamento {
   id: string;
   valor_anterior: number;
@@ -68,6 +182,7 @@ export const OrcamentoPorFunil = ({
   const [selectedOrcamento, setSelectedOrcamento] = useState<OrcamentoFunil | null>(null);
   const [selectedFunil, setSelectedFunil] = useState<string>("todos");
   const [selectedStatus, setSelectedStatus] = useState<string>("todos");
+  const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
     nome_funil: "",
     valor_investimento: "",
@@ -80,6 +195,15 @@ export const OrcamentoPorFunil = ({
     isAdmin,
     canManageBudgets
   } = useUserPermissions();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 }
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Hook de pesquisa
   const {
@@ -122,6 +246,7 @@ export const OrcamentoPorFunil = ({
         .from('orcamentos_funil')
         .select('*')
         .eq('cliente_id', clienteId)
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -129,6 +254,7 @@ export const OrcamentoPorFunil = ({
       const normalized = (data || []).map((row: any) => ({
         ...row,
         active: row.active ?? row.ativo ?? true,
+        sort_order: row.sort_order ?? 0,
       }));
 
       setOrcamentos(normalized);
@@ -140,6 +266,88 @@ export const OrcamentoPorFunil = ({
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDragEnd = async (event: any) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = orcamentosFiltrados.findIndex(o => o.id === active.id);
+    const newIndex = orcamentosFiltrados.findIndex(o => o.id === over.id);
+    
+    const reordered = arrayMove(orcamentosFiltrados, oldIndex, newIndex);
+    
+    // Atualizar ordem otimista
+    const updates = reordered.map((o, idx) => ({
+      ...o,
+      sort_order: idx
+    }));
+    
+    setOrcamentos(prev => {
+      const newOrcamentos = [...prev];
+      updates.forEach(u => {
+        const index = newOrcamentos.findIndex(o => o.id === u.id);
+        if (index !== -1) {
+          newOrcamentos[index] = u;
+        }
+      });
+      return newOrcamentos;
+    });
+
+    // Salvar no backend com debounce
+    try {
+      const promises = updates.map(o =>
+        supabase
+          .from('orcamentos_funil')
+          .update({ sort_order: o.sort_order })
+          .eq('id', o.id)
+      );
+      
+      await Promise.all(promises);
+      
+      toast({
+        title: "Ordem salva",
+        description: "A ordem dos orçamentos foi atualizada!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar ordem: " + error.message,
+        variant: "destructive",
+      });
+      carregarOrcamentos(); // Rollback
+    }
+  };
+
+  const resetOrder = async () => {
+    try {
+      const updates = orcamentos.map((o, idx) => ({
+        id: o.id,
+        sort_order: idx
+      }));
+      
+      const promises = updates.map(u =>
+        supabase
+          .from('orcamentos_funil')
+          .update({ sort_order: u.sort_order })
+          .eq('id', u.id)
+      );
+      
+      await Promise.all(promises);
+      await carregarOrcamentos();
+      
+      toast({
+        title: "Ordem redefinida",
+        description: "A ordem foi restaurada ao padrão!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Erro ao redefinir ordem: " + error.message,
+        variant: "destructive",
+      });
     }
   };
   const carregarOrcamentosGestores = async () => {
@@ -364,14 +572,35 @@ export const OrcamentoPorFunil = ({
           </p>
         </div>
         <div className="flex flex-col xs:flex-row gap-2 w-full lg:w-auto lg:flex-shrink-0">
-          <Button variant="outline" onClick={exportarCSV} disabled={orcamentos.length === 0} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
-            <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-            <span className="truncate">Exportar CSV</span>
-          </Button>
-          {canManageBudgets && !isPublicView && <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
-              <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="truncate">Novo Orçamento</span>
-            </Button>}
+          {isEditMode ? (
+            <>
+              <Button variant="outline" size="sm" onClick={resetOrder} className="flex-1 lg:flex-none text-xs sm:text-sm">
+                <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="truncate">Redefinir</span>
+              </Button>
+              <Button size="sm" onClick={() => setIsEditMode(false)} className="flex-1 lg:flex-none text-xs sm:text-sm">
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="truncate">Concluir</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              {canManageBudgets && !isPublicView && (
+                <Button variant="outline" size="sm" onClick={() => setIsEditMode(true)} className="flex-1 lg:flex-none text-xs sm:text-sm">
+                  <GripVertical className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  <span className="truncate">Organizar</span>
+                </Button>
+              )}
+              <Button variant="outline" onClick={exportarCSV} disabled={orcamentos.length === 0} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="truncate">Exportar CSV</span>
+              </Button>
+              {canManageBudgets && !isPublicView && <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
+                  <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  <span className="truncate">Novo Orçamento</span>
+                </Button>}
+            </>
+          )}
         </div>
       </div>
 
@@ -419,70 +648,37 @@ export const OrcamentoPorFunil = ({
             </div>
 
             {/* Cards de Orçamentos - Mobile First Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-        {orcamentosFiltrados.map(orcamento => <Card 
-          key={orcamento.id} 
-          className={`relative w-full transition-all ${!orcamento.active ? 'opacity-60 grayscale-[0.4]' : ''}`}
-        >
-            <CardHeader className="pb-2 sm:pb-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <CardTitle className="text-base sm:text-lg font-semibold line-clamp-2 leading-tight">
-                      {orcamento.nome_funil}
-                    </CardTitle>
-                    {!orcamento.active && (
-                      <Badge variant="secondary" className="text-xs bg-muted text-muted-foreground">
-                        Desativado
-                      </Badge>
-                    )}
-                  </div>
-                   <OrcamentoStatusToggle
-                    orcamentoId={orcamento.id}
-                    currentStatus={orcamento.active}
-                    onStatusChange={(newStatus) => handleStatusChange(orcamento.id, newStatus)}
-                    disabled={isPublicView || !canManageBudgets}
-                  />
-                </div>
-                <div className="flex gap-1 flex-shrink-0 self-end sm:self-start">
-                  <Button variant="ghost" size="sm" onClick={() => abrirHistorico(orcamento)} className="h-7 w-7 p-0 sm:h-8 sm:w-8">
-                    <History className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
-                  {canManageBudgets && !isPublicView && <>
-                      <Button variant="ghost" size="sm" onClick={() => abrirEdicao(orcamento)} className="h-7 w-7 p-0 sm:h-8 sm:w-8">
-                        <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => excluirOrcamento(orcamento)} className="text-destructive hover:text-destructive h-7 w-7 p-0 sm:h-8 sm:w-8">
-                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
-                    </>}
-                </div>
+            {isEditMode && orcamentosFiltrados.length > 0 && (
+              <div className="bg-muted/50 border border-border rounded-lg p-4 text-sm text-muted-foreground">
+                <GripVertical className="h-4 w-4 inline mr-2" />
+                Organizando... Arraste os cards para reordenar
               </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-2 sm:space-y-3">
-                <div className={`text-xl sm:text-2xl lg:text-3xl font-bold break-all ${
-                  orcamento.active ? 'text-primary' : 'text-muted-foreground'
-                }`}>
-                  {formatarMoeda(orcamento.valor_investimento)}
+            )}
+            
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={orcamentosFiltrados.map(o => o.id)} strategy={rectSortingStrategy}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+                  {orcamentosFiltrados.map(orcamento => (
+                    <SortableOrcamentoCard
+                      key={orcamento.id}
+                      orcamento={orcamento}
+                      isEditMode={isEditMode}
+                      isPublicView={isPublicView}
+                      canManageBudgets={canManageBudgets}
+                      onEdit={abrirEdicao}
+                      onDelete={excluirOrcamento}
+                      onHistorico={abrirHistorico}
+                      onStatusChange={handleStatusChange}
+                      formatarMoeda={formatarMoeda}
+                    />
+                  ))}
                 </div>
-                
-                <div className="flex items-start gap-2 text-xs sm:text-sm text-muted-foreground">
-                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
-                  <span className="leading-tight">
-                    Atualizado em {format(new Date(orcamento.data_atualizacao), "dd/MM/yyyy", {
-                      locale: ptBR
-                    })}
-                  </span>
-                </div>
-                
-                {orcamento.observacoes && <p className="text-xs sm:text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                    {orcamento.observacoes}
-                  </p>}
-              </div>
-            </CardContent>
-          </Card>)}
-      </div>
+              </SortableContext>
+            </DndContext>
 
       {orcamentos.length === 0 && <Card>
           <CardContent className="py-8 text-center">

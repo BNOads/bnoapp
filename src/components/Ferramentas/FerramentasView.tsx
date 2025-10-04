@@ -6,7 +6,7 @@ import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
 import { PautaReuniaoView } from "@/components/Reunioes/PautaReuniaoView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare } from "lucide-react";
+import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -14,6 +14,11 @@ import { UTMBuilderView } from "./UTMBuilderView";
 import { AcessosLoginsView } from "./AcessosLoginsView";
 import { MensagensSemanaisView } from "./MensagensSemanaisView";
 import { LinksView } from "./LinksView";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 
 interface Tool {
@@ -25,10 +30,60 @@ interface Tool {
   color: string;
 }
 
+// Componente de card draggable
+const SortableToolCard = ({ tool, onSelect, isEditMode }: { tool: Tool; onSelect: (id: string) => void; isEditMode: boolean }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tool.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const Icon = tool.icon;
+
+  return (
+    <Card 
+      ref={setNodeRef}
+      style={style}
+      className={`cursor-pointer hover:shadow-lg transition-all duration-200 group ${!isEditMode && 'hover:scale-[1.02]'}`}
+      onClick={() => !isEditMode && onSelect(tool.id)}
+    >
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3 mb-2">
+          {isEditMode && (
+            <div 
+              {...attributes} 
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-5 w-5 text-muted-foreground" />
+            </div>
+          )}
+          <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-muted transition-colors">
+            <Icon className={`h-6 w-6 ${tool.color}`} />
+          </div>
+        </div>
+        <CardTitle className="text-xl">{tool.title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {tool.description}
+        </p>
+      </CardContent>
+    </Card>
+  );
+};
+
 export const FerramentasView = () => {
   const { toolName } = useParams();
   const navigate = useNavigate();
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [hiddenTools, setHiddenTools] = useState<string[]>([]);
+  const [toolsOrder, setToolsOrder] = useState<string[]>([]);
+  const { toast } = useToast();
 
   const tools: Tool[] = [
     {
@@ -129,6 +184,11 @@ export const FerramentasView = () => {
     },
   ];
 
+  // Carregar preferências do usuário
+  useEffect(() => {
+    loadUserLayout();
+  }, []);
+
   // Handle URL parameter for direct tool access
   useEffect(() => {
     if (toolName && !selectedTool) {
@@ -138,6 +198,115 @@ export const FerramentasView = () => {
       }
     }
   }, [toolName, selectedTool, tools]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 }
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const loadUserLayout = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('user_tools_layout')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        const positions = data.positions as Array<{ tool_key: string; index: number }>;
+        const hidden = data.hidden as string[];
+        
+        if (positions && positions.length > 0) {
+          const orderedIds = positions
+            .sort((a, b) => a.index - b.index)
+            .map(p => p.tool_key);
+          setToolsOrder(orderedIds);
+        } else {
+          setToolsOrder(tools.map(t => t.id));
+        }
+        
+        setHiddenTools(hidden || []);
+      } else {
+        setToolsOrder(tools.map(t => t.id));
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar layout:', error);
+      setToolsOrder(tools.map(t => t.id));
+    }
+  };
+
+  const saveUserLayout = async (newOrder: string[], newHidden: string[]) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const positions = newOrder.map((tool_key, index) => ({ tool_key, index }));
+
+      const { error } = await supabase
+        .from('user_tools_layout')
+        .upsert({
+          user_id: user.id,
+          positions,
+          hidden: newHidden,
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Ordem salva",
+        description: "Suas preferências foram salvas com sucesso!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar preferências: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = toolsOrder.indexOf(active.id);
+    const newIndex = toolsOrder.indexOf(over.id);
+    
+    const newOrder = arrayMove(toolsOrder, oldIndex, newIndex);
+    setToolsOrder(newOrder);
+  };
+
+  const toggleToolVisibility = (toolId: string) => {
+    const newHidden = hiddenTools.includes(toolId)
+      ? hiddenTools.filter(id => id !== toolId)
+      : [...hiddenTools, toolId];
+    
+    setHiddenTools(newHidden);
+  };
+
+  const resetLayout = () => {
+    const defaultOrder = tools.map(t => t.id);
+    setToolsOrder(defaultOrder);
+    setHiddenTools([]);
+    saveUserLayout(defaultOrder, []);
+  };
+
+  const finishEditing = () => {
+    setIsEditMode(false);
+    saveUserLayout(toolsOrder, hiddenTools);
+  };
 
   const handleToolSelect = (toolId: string) => {
     // Redirecionar para /referencias ao invés de usar ferramenta inline
@@ -184,41 +353,106 @@ export const FerramentasView = () => {
     );
   }
 
+  // Ordenar ferramentas de acordo com a ordem salva
+  const orderedTools = toolsOrder.length > 0
+    ? toolsOrder
+        .map(id => tools.find(t => t.id === id))
+        .filter((t): t is Tool => t !== undefined)
+    : tools;
+
+  // Filtrar ferramentas ocultas
+  const visibleTools = orderedTools.filter(t => !hiddenTools.includes(t.id));
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Ferramentas</h1>
-        <p className="text-muted-foreground">
-          Centro de ferramentas para produtividade e criação
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Ferramentas</h1>
+          <p className="text-muted-foreground">
+            Centro de ferramentas para produtividade e criação
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {isEditMode ? (
+            <>
+              <Button variant="outline" size="sm" onClick={resetLayout}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Redefinir
+              </Button>
+              <Button size="sm" onClick={finishEditing}>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Concluir
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setIsEditMode(true)}>
+              <GripVertical className="h-4 w-4 mr-2" />
+              Organizar
+            </Button>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {tools.map((tool) => {
-          const Icon = tool.icon;
-          return (
-            <Card 
-              key={tool.id} 
-              className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group"
-              onClick={() => handleToolSelect(tool.id)}
-            >
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-muted transition-colors">
-                    <Icon className={`h-6 w-6 ${tool.color}`} />
-                  </div>
-                </div>
-                <CardTitle className="text-xl">{tool.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {tool.description}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {isEditMode && hiddenTools.length > 0 && (
+        <Card className="bg-muted/50">
+          <CardHeader>
+            <CardTitle className="text-sm">Ferramentas Ocultas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {hiddenTools.map(toolId => {
+                const tool = tools.find(t => t.id === toolId);
+                if (!tool) return null;
+                return (
+                  <Button
+                    key={toolId}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleToolVisibility(toolId)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    {tool.title}
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={visibleTools.map(t => t.id)} strategy={rectSortingStrategy}>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {visibleTools.map((tool) => (
+              <div key={tool.id} className="relative group">
+                <SortableToolCard 
+                  tool={tool} 
+                  onSelect={handleToolSelect}
+                  isEditMode={isEditMode}
+                />
+                {isEditMode && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleToolVisibility(tool.id);
+                    }}
+                  >
+                    <EyeOff className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 };

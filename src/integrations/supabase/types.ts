@@ -2560,6 +2560,7 @@ export type Database = {
           observacoes: string | null
           periodo_ano: number | null
           periodo_mes: number | null
+          sort_order: number | null
           status_orcamento: string | null
           updated_at: string
           valor_gasto: number | null
@@ -2578,6 +2579,7 @@ export type Database = {
           observacoes?: string | null
           periodo_ano?: number | null
           periodo_mes?: number | null
+          sort_order?: number | null
           status_orcamento?: string | null
           updated_at?: string
           valor_gasto?: number | null
@@ -2596,6 +2598,7 @@ export type Database = {
           observacoes?: string | null
           periodo_ano?: number | null
           periodo_mes?: number | null
+          sort_order?: number | null
           status_orcamento?: string | null
           updated_at?: string
           valor_gasto?: number | null
@@ -3568,6 +3571,27 @@ export type Database = {
           data_obtencao?: string
           id?: string
           pontos_ganhos?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_tools_layout: {
+        Row: {
+          hidden: Json | null
+          positions: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          hidden?: Json | null
+          positions?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          hidden?: Json | null
+          positions?: Json | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
