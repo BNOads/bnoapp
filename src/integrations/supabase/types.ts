@@ -837,6 +837,63 @@ export type Database = {
         }
         Relationships: []
       }
+      creative_downloads_audit: {
+        Row: {
+          batch_size: number | null
+          client_id: string
+          created_at: string | null
+          creative_id: string
+          download_duration_ms: number | null
+          error_message: string | null
+          file_id: string
+          file_name: string
+          file_size: number | null
+          id: string
+          ip_address: unknown | null
+          is_batch: boolean | null
+          mime_type: string | null
+          success: boolean | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          batch_size?: number | null
+          client_id: string
+          created_at?: string | null
+          creative_id: string
+          download_duration_ms?: number | null
+          error_message?: string | null
+          file_id: string
+          file_name: string
+          file_size?: number | null
+          id?: string
+          ip_address?: unknown | null
+          is_batch?: boolean | null
+          mime_type?: string | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          batch_size?: number | null
+          client_id?: string
+          created_at?: string | null
+          creative_id?: string
+          download_duration_ms?: number | null
+          error_message?: string | null
+          file_id?: string
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          ip_address?: unknown | null
+          is_batch?: boolean | null
+          mime_type?: string | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       creatives: {
         Row: {
           activated_at: string | null

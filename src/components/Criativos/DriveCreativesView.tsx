@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2, ChevronUp, ChevronDown, Plus, Trash2, FolderOpen } from "lucide-react";
+import { Search, RefreshCw, FileImage, Video, FileText, File, ExternalLink, Clock, AlertCircle, CheckCircle, Copy, Calendar, ArrowUpDown, Edit2, ChevronUp, ChevronDown, Plus, Trash2, FolderOpen, Download } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -472,6 +472,118 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     setDeleteModalOpen(true);
   };
 
+  // Download functions
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadingBatch, setDownloadingBatch] = useState(false);
+
+  const downloadCreative = async (creative: Creative) => {
+    try {
+      setDownloading(creative.id);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Sessão não encontrada');
+
+      const response = await fetch(
+        `https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/download-creative/${creative.id}/download`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao baixar arquivo');
+      }
+
+      // Criar blob e fazer download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = creative.name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Download iniciado",
+        description: `Baixando ${creative.name}`,
+      });
+    } catch (error: any) {
+      console.error('Erro ao baixar:', error);
+      toast({
+        title: "Erro no download",
+        description: error.message || "Não foi possível baixar o arquivo",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const downloadBatch = async () => {
+    if (selectedCreatives.length === 0) return;
+
+    try {
+      setDownloadingBatch(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Sessão não encontrada');
+
+      toast({
+        title: "Preparando download",
+        description: `Baixando ${selectedCreatives.length} criativos...`,
+      });
+
+      const response = await fetch(
+        `https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/download-creative/batch/download-batch`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ids: selectedCreatives }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao baixar arquivos');
+      }
+
+      // Criar blob e fazer download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `criativos_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Download concluído",
+        description: `${selectedCreatives.length} criativos baixados com sucesso`,
+      });
+      
+      setSelectedCreatives([]);
+    } catch (error: any) {
+      console.error('Erro no download em massa:', error);
+      toast({
+        title: "Erro no download",
+        description: error.message || "Não foi possível baixar os arquivos",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingBatch(false);
+    }
+  };
+
   const confirmDeleteCreative = async () => {
     if (!creativeToDelete) return;
 
@@ -922,6 +1034,25 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           </Button>
           <Button
             size="sm"
+            variant="default"
+            onClick={downloadBatch}
+            disabled={downloadingBatch}
+            className="flex items-center gap-2"
+          >
+            {downloadingBatch ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current" />
+                Baixando...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                Baixar Selecionados ({selectedCreatives.length})
+              </>
+            )}
+          </Button>
+          <Button
+            size="sm"
             variant="outline"
             onClick={() => setSelectedCreatives([])}
           >
@@ -1146,6 +1277,20 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                             title="Copiar link"
                           >
                             <Copy className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => downloadCreative(creative)}
+                            className="h-5 w-5 p-0 action-icon"
+                            title="Baixar"
+                            disabled={downloading === creative.id}
+                          >
+                            {downloading === creative.id ? (
+                              <div className="h-3 w-3 animate-spin rounded-full border-b border-current" />
+                            ) : (
+                              <Download className="h-3 w-3" />
+                            )}
                           </Button>
                           {creative.folder_name && (
                             <Button

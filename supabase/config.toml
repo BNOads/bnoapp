@@ -48,6 +48,12 @@ verify_jwt = true
 [functions.criar-gravacao-automatica]
 verify_jwt = true
 
+[functions.delete-creative]
+verify_jwt = true
+
+[functions.download-creative]
+verify_jwt = true
+
 [functions.drive-creatives]
 verify_jwt = true
 
@@ -64,6 +70,9 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.google-calendar]
+verify_jwt = true
+
+[functions.google-sheets-financeiro]
 verify_jwt = true
 
 [functions.importar-pops-drive]
@@ -100,6 +109,9 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.upload-pauta-media]
+verify_jwt = true
+
+[functions.upload-richtext-image]
 verify_jwt = true
 
 [functions.webhook-novo-cliente]
