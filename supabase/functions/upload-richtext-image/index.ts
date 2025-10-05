@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,28 +28,18 @@ serve(async (req) => {
 
     console.log('Token recebido, criando cliente Supabase...');
 
-    const supabaseClient = createClient(
+    // Criar cliente com service_role para operações no storage
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Verificar autenticação de forma simples
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser();
+    // Validar o JWT do usuário
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
-    if (authError) {
+    if (authError || !user) {
       console.error('Erro ao verificar usuário:', authError);
-    }
-
-    if (!user) {
-      console.error('Usuário não encontrado. AuthError:', authError);
       return new Response(JSON.stringify({ error: 'Não autorizado - Usuário não encontrado' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -122,8 +112,8 @@ serve(async (req) => {
 
     console.log('Fazendo upload para:', filePath);
 
-    // Upload para Storage
-    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+    // Upload para Storage usando admin client
+    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from('richtext-uploads')
       .upload(filePath, uint8Array, {
         contentType: file.type,
@@ -143,7 +133,7 @@ serve(async (req) => {
     }
 
     // Obter URL pública
-    const { data: { publicUrl } } = supabaseClient.storage
+    const { data: { publicUrl } } = supabaseAdmin.storage
       .from('richtext-uploads')
       .getPublicUrl(filePath);
 
