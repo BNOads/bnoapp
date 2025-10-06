@@ -173,27 +173,8 @@ export function MensagensSemanaisView() {
 
       // Aplicar filtros
       if (filtroWeekStart) {
-        // Calcular intervalo da semana em America/Sao_Paulo
-        const TIMEZONE = "America/Sao_Paulo";
-
-        // Parse da data como início da semana em SP
-        const weekStartLocal = toZonedTime(new Date(filtroWeekStart + "T00:00:00"), TIMEZONE);
-        const weekEndLocal = toZonedTime(endOfWeek(weekStartLocal, {
-          weekStartsOn: 1
-        }), TIMEZONE);
-
-        // Definir horários exatos em timezone local
-        const weekStartWithTime = new Date(weekStartLocal);
-        weekStartWithTime.setHours(0, 0, 0, 0);
-        const weekEndWithTime = new Date(weekEndLocal);
-        weekEndWithTime.setHours(23, 59, 59, 999);
-
-        // Converter para UTC para a query
-        const weekStartUTC = fromZonedTime(weekStartWithTime, TIMEZONE);
-        const weekEndUTC = fromZonedTime(weekEndWithTime, TIMEZONE);
-
-        // Aplicar filtro inclusivo
-        query = query.gte("created_at", weekStartUTC.toISOString()).lte("created_at", weekEndUTC.toISOString());
+        // Filtrar pela semana de referência (campo que armazena o início da semana)
+        query = query.eq("semana_referencia", filtroWeekStart);
       }
       if (filtroGestor && filtroGestor !== "all") {
         query = query.eq("gestor_id", filtroGestor);
