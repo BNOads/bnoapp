@@ -101,8 +101,6 @@ export function PautaReuniaoView() {
     mes: new Date().getMonth() + 1,
     dia: undefined
   });
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [clientes, setClientes] = useState<any[]>([]);
   const [documents, setDocuments] = useState<{
     [key: string]: MeetingDocument;
   }>({});
@@ -487,7 +485,7 @@ export function PautaReuniaoView() {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      await Promise.all([loadDocuments(), loadTemplates(), loadClientes()]);
+      await Promise.all([loadDocuments(), loadTemplates()]);
     } catch (error) {
       console.error('Error loading initial data:', error);
       toast({
@@ -499,28 +497,12 @@ export function PautaReuniaoView() {
       setLoading(false);
     }
   };
-
-  const loadClientes = async () => {
-    const { data, error } = await supabase
-      .from('clientes')
-      .select('id, nome')
-      .eq('ativo', true)
-      .order('nome');
-    
-    if (error) {
-      console.error('Error loading clientes:', error);
-      return;
-    }
-    
-    setClientes(data || []);
-  };
   const loadDocuments = async () => {
     // FRESH FETCH - sem cache
-    let query = supabase
+    const { data, error } = await supabase
       .from('reunioes_documentos')
       .select(`
         *,
-        clientes(nome),
         reunioes_blocos (
           id,
           tipo,
@@ -531,16 +513,8 @@ export function PautaReuniaoView() {
         )
       `)
       .eq('ano', selectedDate.ano)
-      .eq('mes', selectedDate.mes);
-
-    // Filtrar por cliente se selecionado
-    if (selectedClientId) {
-      query = query.eq('cliente_id', selectedClientId);
-    }
-
-    query = query.order('dia');
-
-    const { data, error } = await query;
+      .eq('mes', selectedDate.mes)
+      .order('dia');
 
     if (error) throw error;
     const docsMap: {
@@ -550,8 +524,7 @@ export function PautaReuniaoView() {
       const dayKey = doc.dia.toString();
       docsMap[dayKey] = {
         ...doc,
-        blocos: doc.reunioes_blocos?.sort((a, b) => a.ordem - b.ordem) || [],
-        cliente_nome: doc.clientes?.nome || null
+        blocos: doc.reunioes_blocos?.sort((a, b) => a.ordem - b.ordem) || []
       };
     });
     setDocuments(docsMap);
@@ -688,8 +661,7 @@ export function PautaReuniaoView() {
         titulo_reuniao: 'Nova Reunião',
         status: 'rascunho',
         contribuidores: [user?.id],
-        created_by: user?.id,
-        cliente_id: selectedClientId
+        created_by: user?.id
       }).select().single();
       if (docError) throw docError;
 
@@ -1146,23 +1118,6 @@ export function PautaReuniaoView() {
           </div>
         </div>
 
-        {/* Filtro de Cliente */}
-        <div className="mb-2">
-          <Select value={selectedClientId || "all"} onValueChange={(value) => setSelectedClientId(value === "all" ? null : value)}>
-            <SelectTrigger className="h-8 text-sm">
-              <SelectValue placeholder="Todos os clientes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os clientes</SelectItem>
-              {clientes.map((cliente) => (
-                <SelectItem key={cliente.id} value={cliente.id}>
-                  {cliente.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Calendar Navigation */}
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
@@ -1174,30 +1129,36 @@ export function PautaReuniaoView() {
           </Button>
         </div>
         <div className="flex gap-1">
-          <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => {
-          const newDate = selectedDate.mes === 1 ? {
-            ano: selectedDate.ano - 1,
-            mes: 12
-          } : {
-            ano: selectedDate.ano,
-            mes: selectedDate.mes - 1
-          };
-          setSelectedDate(newDate);
-          updateURL(newDate.ano, newDate.mes);
-        }}>
+          <Button variant="outline" size="sm" className="h-7 px-2" onClick={async () => {
+            const newDate = selectedDate.mes === 1 ? {
+              ano: selectedDate.ano - 1,
+              mes: 12,
+              dia: undefined
+            } : {
+              ano: selectedDate.ano,
+              mes: selectedDate.mes - 1,
+              dia: undefined
+            };
+            setSelectedDate(newDate);
+            updateURL(newDate.ano, newDate.mes);
+            await loadDocuments();
+          }}>
             <ChevronLeft className="h-3 w-3" />
           </Button>
-          <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => {
-          const newDate = selectedDate.mes === 12 ? {
-            ano: selectedDate.ano + 1,
-            mes: 1
-          } : {
-            ano: selectedDate.ano,
-            mes: selectedDate.mes + 1
-          };
-          setSelectedDate(newDate);
-          updateURL(newDate.ano, newDate.mes);
-        }}>
+          <Button variant="outline" size="sm" className="h-7 px-2" onClick={async () => {
+            const newDate = selectedDate.mes === 12 ? {
+              ano: selectedDate.ano + 1,
+              mes: 1,
+              dia: undefined
+            } : {
+              ano: selectedDate.ano,
+              mes: selectedDate.mes + 1,
+              dia: undefined
+            };
+            setSelectedDate(newDate);
+            updateURL(newDate.ano, newDate.mes);
+            await loadDocuments();
+          }}>
             <ChevronRight className="h-3 w-3" />
           </Button>
         </div>
@@ -1546,52 +1507,6 @@ export function PautaReuniaoView() {
               </div>
             </div>
             
-            {/* Cliente selector for current document */}
-            {currentDocument && (
-              <div className="flex items-center gap-2">
-                <Label className="text-sm">Cliente:</Label>
-                <Select 
-                  value={currentDocument.cliente_id || "none"} 
-                  onValueChange={async (value) => {
-                    const newClienteId = value === "none" ? null : value;
-                    try {
-                      const { error } = await supabase
-                        .from('reunioes_documentos')
-                        .update({ cliente_id: newClienteId })
-                        .eq('id', currentDocument.id);
-                      
-                      if (error) throw error;
-                      
-                      setCurrentDocument(prev => prev ? { ...prev, cliente_id: newClienteId } : null);
-                      toast({
-                        title: "Cliente atualizado",
-                        description: "O cliente da reunião foi alterado com sucesso"
-                      });
-                    } catch (error) {
-                      console.error('Error updating client:', error);
-                      toast({
-                        title: "Erro",
-                        description: "Erro ao atualizar cliente",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="h-8 w-48">
-                    <SelectValue placeholder="Sem cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sem cliente</SelectItem>
-                    {clientes.map((cliente) => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             <div className="flex items-center gap-2">
               {/* Save Status */}
               <div className="flex items-center gap-2 text-sm">
