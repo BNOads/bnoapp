@@ -262,6 +262,7 @@ export const LancamentosTable = ({
                 <SortableHeader sortKey="tipo_lancamento">Tipo</SortableHeader>
                 <SortableHeader sortKey="investimento_total">Investimento</SortableHeader>
                 <SortableHeader sortKey="data_inicio_captacao">Data Início</SortableHeader>
+                <SortableHeader sortKey="data_inicio_cpl">Início CPL</SortableHeader>
                 <TableHead>Dashboard</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
@@ -358,6 +359,19 @@ export const LancamentosTable = ({
                         {new Date(lancamento.data_inicio_captacao).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
+                  </TableCell>
+
+                  <TableCell>
+                    {lancamento.data_inicio_cpl ? (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">
+                          {new Date(lancamento.data_inicio_cpl).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
                   </TableCell>
 
                   <TableCell>
