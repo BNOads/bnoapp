@@ -7,7 +7,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle, ChevronDown } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
@@ -363,6 +364,32 @@ export const ClientesView = () => {
         return 'bg-muted text-muted-foreground';
     }
   };
+
+  // Função para atualizar série do cliente
+  const handleSerieChange = async (clienteId: string, novaSerie: string) => {
+    try {
+      const { error } = await supabase
+        .from('clientes')
+        .update({ serie: novaSerie })
+        .eq('id', clienteId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Série atualizada",
+        description: "A série do cliente foi atualizada com sucesso.",
+      });
+
+      carregarClientes();
+    } catch (error: any) {
+      console.error('Erro ao atualizar série:', error);
+      toast({
+        title: "Erro ao atualizar série",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
   return <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
@@ -499,12 +526,6 @@ export const ClientesView = () => {
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
                   </TableHead>
-                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status_cliente')}>
-                     <div className="flex items-center">
-                       Status
-                       <ArrowUpDown className="ml-2 h-4 w-4" />
-                     </div>
-                   </TableHead>
                    <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('gestor')}>
                      <div className="flex items-center justify-center">
                        Gestor
@@ -562,19 +583,38 @@ export const ClientesView = () => {
                       </Badge>
                     </TableCell>
                      <TableCell>
-                       {cliente.serie ? <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
-                           {cliente.serie}
-                         </Badge> : <span className="text-xs text-muted-foreground">-</span>}
-                     </TableCell>
-                     <TableCell>
-                       {activeTab === 'desativados' ? (
-                         <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-xs">
-                           Inativo
-                         </Badge>
+                       {canCreateContent && activeTab === 'ativos' ? (
+                         <DropdownMenu>
+                           <DropdownMenuTrigger asChild>
+                             <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                               <Badge className={`${getSerieColor(cliente.serie || 'Serie A')} text-xs cursor-pointer hover:opacity-80 flex items-center gap-1`}>
+                                 {cliente.serie || 'Serie A'}
+                                 <ChevronDown className="h-3 w-3" />
+                               </Badge>
+                             </Button>
+                           </DropdownMenuTrigger>
+                           <DropdownMenuContent align="start" className="bg-background">
+                             {series.map((serie) => (
+                               <DropdownMenuItem
+                                 key={serie}
+                                 onClick={() => handleSerieChange(cliente.id, serie)}
+                                 className={cliente.serie === serie ? 'bg-muted' : ''}
+                               >
+                                 <Badge className={`${getSerieColor(serie)} text-xs w-full justify-center`}>
+                                   {serie}
+                                 </Badge>
+                               </DropdownMenuItem>
+                             ))}
+                           </DropdownMenuContent>
+                         </DropdownMenu>
                        ) : (
-                         <Badge className={`${getStatusColor(cliente.status_cliente || cliente.etapa_atual)} text-xs`}>
-                           {getStatusLabel(cliente.status_cliente || cliente.etapa_atual)}
-                         </Badge>
+                         cliente.serie ? (
+                           <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
+                             {cliente.serie}
+                           </Badge>
+                         ) : (
+                           <span className="text-xs text-muted-foreground">-</span>
+                         )
                        )}
                      </TableCell>
                      
