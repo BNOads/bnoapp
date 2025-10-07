@@ -51,9 +51,10 @@ serve(async (req) => {
       );
     }
 
-    const { message } = await req.json();
+    const { message, conversaId } = await req.json();
     console.log('Mensagem recebida:', message);
     console.log('User ID:', user.id);
+    console.log('Conversa ID:', conversaId);
 
     // Get user profile to check admin status and client association
     const { data: profile } = await supabase
@@ -212,7 +213,34 @@ IMPORTANTE: Use estas transcrições para responder sobre decisões, tarefas, pr
 
 5. **Tempo Real**: Considere a data atual (${new Date().toLocaleDateString('pt-BR')}) para calcular urgências e prazos.`;
 
-    console.log('Enviando requisição para Lovable AI...');
+    // Buscar histórico da conversa se conversaId foi fornecido
+    let conversationHistory: Array<{role: string, content: string}> = [];
+    
+    if (conversaId) {
+      console.log('Carregando histórico da conversa:', conversaId);
+      const { data: messages, error: historyError } = await supabase
+        .from('assistente_mensagens')
+        .select('role, content')
+        .eq('conversa_id', conversaId)
+        .order('created_at', { ascending: true });
+      
+      if (!historyError && messages) {
+        conversationHistory = messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+        console.log(`Histórico carregado: ${conversationHistory.length} mensagens`);
+      }
+    }
+
+    // Construir array de mensagens com histórico completo
+    const allMessages = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory,
+      { role: 'user', content: message }
+    ];
+
+    console.log(`Enviando requisição para Lovable AI com ${allMessages.length} mensagens...`);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -222,10 +250,7 @@ IMPORTANTE: Use estas transcrições para responder sobre decisões, tarefas, pr
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
+        messages: allMessages,
       }),
     });
 

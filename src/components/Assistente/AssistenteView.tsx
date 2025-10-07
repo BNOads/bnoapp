@@ -198,9 +198,12 @@ export const AssistenteView = () => {
       // Salvar mensagem do usuário
       await saveMessage(conversationId, 'user', userMessage);
 
-      // Chamar API do assistente
+      // Chamar API do assistente com o ID da conversa para carregar histórico
       const { data, error } = await supabase.functions.invoke('assistente-chat', {
-        body: { message: userMessage }
+        body: { 
+          message: userMessage,
+          conversaId: conversationId 
+        }
       });
 
       if (error) throw error;
