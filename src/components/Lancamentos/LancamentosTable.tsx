@@ -49,29 +49,19 @@ export const LancamentosTable = ({
   onSort = () => {},
   sortConfig = null
 }: LancamentosTableProps) => {
-  const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
   const [editingLancamento, setEditingLancamento] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchColaboradores();
     fetchClientes();
   }, []);
-
-  const fetchColaboradores = async () => {
-    const { data } = await supabase
-      .from('colaboradores')
-      .select('id, nome')
-      .eq('ativo', true);
-    setColaboradores(data || []);
-  };
 
   const fetchClientes = async () => {
     const { data } = await supabase
       .from('clientes')
-      .select('id, nome')
+      .select('id, nome, primary_gestor_user_id')
       .eq('ativo', true);
     setClientes(data || []);
   };
@@ -129,6 +119,40 @@ export const LancamentosTable = ({
     } else {
       toast({ title: 'Gestor atualizado' });
       onRefresh();
+    }
+  };
+
+  const handleChangeCliente = async (lancamentoId: string, clienteId: string) => {
+    try {
+      // Buscar gestor primário do cliente (user_id)
+      const { data: cliente, error: clienteError } = await supabase
+        .from('clientes')
+        .select('primary_gestor_user_id')
+        .eq('id', clienteId)
+        .maybeSingle();
+      if (clienteError) throw clienteError;
+
+      let gestorColabId: string | null = null;
+      if (cliente?.primary_gestor_user_id) {
+        const { data: colab } = await supabase
+          .from('colaboradores')
+          .select('id')
+          .eq('user_id', cliente.primary_gestor_user_id)
+          .maybeSingle();
+        gestorColabId = colab?.id ?? null;
+      }
+
+      const { error: updateError } = await supabase
+        .from('lancamentos')
+        .update({ cliente_id: clienteId, gestor_responsavel_id: gestorColabId })
+        .eq('id', lancamentoId);
+      if (updateError) throw updateError;
+
+      toast({ title: 'Cliente associado', description: 'Associação realizada com sucesso.' });
+      onRefresh();
+    } catch (e: any) {
+      console.error('Erro ao associar cliente:', e);
+      toast({ title: 'Erro ao associar cliente', description: e.message, variant: 'destructive' });
     }
   };
 
