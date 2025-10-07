@@ -438,6 +438,7 @@ export type Database = {
           primary_cs_user_id: string | null
           primary_gestor_user_id: string | null
           progresso_etapa: number | null
+          slug: string | null
           status_cliente: string | null
           total_acessos: number | null
           traffic_manager_id: string | null
@@ -479,6 +480,7 @@ export type Database = {
           primary_cs_user_id?: string | null
           primary_gestor_user_id?: string | null
           progresso_etapa?: number | null
+          slug?: string | null
           status_cliente?: string | null
           total_acessos?: number | null
           traffic_manager_id?: string | null
@@ -520,6 +522,7 @@ export type Database = {
           primary_cs_user_id?: string | null
           primary_gestor_user_id?: string | null
           progresso_etapa?: number | null
+          slug?: string | null
           status_cliente?: string | null
           total_acessos?: number | null
           traffic_manager_id?: string | null
@@ -3795,6 +3798,10 @@ export type Database = {
       extrair_titulos_reuniao: {
         Args: { conteudo: string }
         Returns: string[]
+      }
+      generate_cliente_slug: {
+        Args: { nome_cliente: string }
+        Returns: string
       }
       generate_initial_password: {
         Args: { email_input: string }

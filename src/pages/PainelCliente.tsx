@@ -72,17 +72,26 @@ const PainelCliente = () => {
   }, [clienteId]);
   const carregarDadosCliente = async () => {
     console.log('=== CARREGAR DADOS CLIENTE ===');
-    console.log('Tentando carregar cliente com ID:', clienteId);
+    console.log('Tentando carregar cliente com ID ou slug:', clienteId);
     try {
       // Use public supabase client for unauthenticated access
       const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
       const publicSupabase = createPublicSupabaseClient();
       
-      console.log('Fazendo query pública para cliente:', clienteId);
-      const { data, error } = await publicSupabase
-        .from('clientes')
-        .select('*')
-        .eq('id', clienteId);
+      // Verificar se clienteId é um UUID ou slug
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clienteId || '');
+      
+      console.log('Fazendo query pública para cliente:', clienteId, 'isUUID:', isUUID);
+      
+      let query = publicSupabase.from('clientes').select('*');
+      
+      if (isUUID) {
+        query = query.eq('id', clienteId);
+      } else {
+        query = query.eq('slug', clienteId);
+      }
+      
+      const { data, error } = await query;
 
       console.log('Query result:', { data, error, count: data?.length });
       
@@ -92,7 +101,7 @@ const PainelCliente = () => {
       }
 
       if (!data || data.length === 0) {
-        console.log('Nenhum cliente encontrado com este ID');
+        console.log('Nenhum cliente encontrado com este ID ou slug');
         setCliente(null);
         setLoading(false);
         return;
@@ -116,7 +125,9 @@ const PainelCliente = () => {
   const handleSharePanel = async () => {
     // Use the current domain instead of hardcoded one
     const currentDomain = window.location.origin;
-    const panelLink = `${currentDomain}/painel/${clienteId}`;
+    // Preferir usar o slug se disponível, senão usar o ID
+    const identifier = cliente?.slug || clienteId;
+    const panelLink = `${currentDomain}/painel/${identifier}`;
     
     try {
       await navigator.clipboard.writeText(panelLink);
