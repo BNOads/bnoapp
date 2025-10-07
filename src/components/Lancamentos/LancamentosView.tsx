@@ -11,6 +11,7 @@ import NovoLancamentoModal from './NovoLancamentoModal';
 import ImportarLancamentosModal from './ImportarLancamentosModal';
 import LancamentosTable from './LancamentosTable';
 import { ImportCSVButton } from './ImportCSVButton';
+import { ImportarLancamentosEspecial } from './ImportarLancamentosEspecial';
 import EdicaoMassaLancamentosModal from './EdicaoMassaLancamentosModal';
 import GanttChart from './GanttChart';
 import DashboardLancamentos from './DashboardLancamentos';
@@ -332,6 +333,7 @@ export const LancamentosView: React.FC = () => {
           </Button>
           
           <ImportCSVButton onImportComplete={handleImportacaoConcluida} />
+          <ImportarLancamentosEspecial onImportComplete={handleImportacaoConcluida} />
           <Button
             onClick={() => setShowNovoModal(true)}
             className="gap-2"
