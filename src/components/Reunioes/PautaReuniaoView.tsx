@@ -580,7 +580,7 @@ export function PautaReuniaoView() {
         setCurrentDocument(docsMap[dayKey]);
         setBlocks(docsMap[dayKey].blocos || []);
       } else {
-        await createOrOpenDocument(day);
+        await createOrOpenDocument(day, undefined, year, month);
       }
     } catch (error) {
       console.error('Error loading documents:', error);
@@ -673,14 +673,18 @@ export function PautaReuniaoView() {
     }, 300);
     return () => clearTimeout(timeoutId);
   }, [searchQuery, selectedDate.ano]);
-  const createOrOpenDocument = async (day: number, templateId?: string) => {
+  const createOrOpenDocument = async (day: number, templateId?: string, yearOverride?: number, monthOverride?: number) => {
     const dayKey = day.toString();
+
+    // Determine year/month to use (avoid stale state)
+    const year = yearOverride ?? selectedDate.ano;
+    const month = monthOverride ?? selectedDate.mes;
 
     // If document exists, just open it
     if (documents[dayKey]) {
       setCurrentDocument(documents[dayKey]);
       setBlocks(documents[dayKey].blocos || []);
-      updateURL(selectedDate.ano, selectedDate.mes, day);
+      updateURL(year, month, day);
       return;
     }
 
@@ -698,14 +702,14 @@ export function PautaReuniaoView() {
         data: doc,
         error: docError
       } = await supabase.from('reunioes_documentos').insert({
-        ano: selectedDate.ano,
-        mes: selectedDate.mes,
+        ano: year,
+        mes: month,
         dia: day,
         titulo_reuniao: 'Nova Reunião',
         status: 'rascunho',
         contribuidores: [user?.id],
         created_by: user?.id
-      }).select().single();
+      }).select().maybeSingle();
       if (docError) throw docError;
 
       // Create initial blocks from template
@@ -745,7 +749,7 @@ export function PautaReuniaoView() {
         setCurrentDocument(newDoc);
         setBlocks([]);
       }
-      updateURL(selectedDate.ano, selectedDate.mes, day);
+      updateURL(year, month, day);
       toast({
         title: "Sucesso",
         description: "Documento criado com sucesso"
