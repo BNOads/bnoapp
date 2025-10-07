@@ -370,7 +370,7 @@ export const ClientesView = () => {
     try {
       const { error } = await supabase
         .from('clientes')
-        .update({ serie: novaSerie })
+        .update({ serie: novaSerie } as any)
         .eq('id', clienteId);
 
       if (error) throw error;
