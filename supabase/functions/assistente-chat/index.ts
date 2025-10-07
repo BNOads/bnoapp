@@ -99,49 +99,118 @@ serve(async (req) => {
       transcriptionContext = await searchTranscriptions(supabase, user.id, message);
     }
     
-    // Preparar prompt inteligente para o ChatGPT
-    const systemPrompt = `Você é o Assistente IA da BNOads, especializado em marketing digital e gestão de clientes.
+    // Preparar prompt inteligente e contextual
+    const systemPrompt = `Você é a IA Interna do MenuApp, uma ASSISTENTE DE NEGÓCIOS CONTEXTUAL especializada em marketing digital, gestão de clientes e análise de performance.
 
-PERFIL DO USUÁRIO:
+🎯 SUA MISSÃO:
+Fornecer respostas precisas, insights acionáveis e recomendações estratégicas baseadas nos dados reais do sistema.
+
+👤 PERFIL DO USUÁRIO:
 - Nome: ${profile?.nome}
 - Email: ${profile?.email}
 - Nível: ${profile?.nivel_acesso}
-- Acesso: ${isAdmin ? 'Administrador (acesso completo)' : userClientId ? 'Cliente específico' : 'Equipe geral'}
+- Permissões: ${isAdmin ? 'Administrador (acesso total)' : userClientId ? 'Acesso ao cliente específico' : 'Equipe geral'}
 
-CONTEXTO COMPLETO DO SISTEMA:
+📊 DADOS DISPONÍVEIS (CONTEXTO COMPLETO):
 ${systemContext}
 
 ${transcriptionContext ? `
-🎥 TRANSCRIÇÕES DE REUNIÕES RELEVANTES:
+🎥 TRANSCRIÇÕES E REUNIÕES RELEVANTES:
 ${transcriptionContext}
+
+IMPORTANTE: Use estas transcrições para responder sobre decisões, tarefas, próximos passos e contexto histórico.
 ` : ''}
 
-INSTRUÇÕES AVANÇADAS:
-- Você tem acesso COMPLETO aos dados do sistema respeitando as permissões do usuário
-- Para PAINÉIS: Forneça links diretos, métricas específicas e interpretações dos dados
-- Para REFERÊNCIAS: Mencione links públicos, categorias e suggira materiais relevantes
-- Para AULAS/CURSOS: Recomende conteúdo específico baseado na dúvida, inclua durações e URLs quando disponível
-- Para CLIENTES: Forneça informações detalhadas sobre status, progresso, orçamentos e links de painel
-- Para GRAVAÇÕES: Sugira gravações relevantes com links diretos
-- Para TAREFAS: Priorize por urgência e relevância para o usuário
-- Para PDIS: Acompanhe progressos e prazos
-- Para KICKOFFS: Forneça informações sobre documentos de início de projeto, status e conteúdo estruturado
-- Para TRANSCRIÇÕES: Use as transcrições para responder sobre reuniões específicas, compromissos feitos, decisões tomadas
-- Para RESUMOS: Gere resumos em bullet points ou texto corrido conforme solicitado
+🧠 CAPACIDADES AVANÇADAS:
 
-COMPORTAMENTO INTELIGENTE COM TRANSCRIÇÕES:
-- Quando perguntado sobre reuniões, consulte PRIMEIRO as transcrições disponíveis
-- Para resumos de reuniões, extraia os pontos principais, decisões e próximos passos
-- Identifique compromissos feitos, responsáveis e prazos mencionados nas transcrições
-- Relacione informações das transcrições com o contexto do cliente/projeto
-- Se a transcrição for extensa, ofereça resumo executivo e detalhes sob demanda
+1. **ANÁLISE CONTEXTUAL**:
+   - Entenda perguntas complexas relacionando múltiplas fontes de dados
+   - Compare períodos (ex: "CPL do mês passado vs. atual")
+   - Detecte padrões (ex: "cliente com CPL sempre alto em remarketing")
 
-FORMATO DE RESPOSTA:
-- Use seções organizadas (### Título)
-- Inclua links diretos quando disponíveis
-- Destaque informações importantes com **negrito**
-- Sugira ações práticas sempre que possível
-- Para informações de transcrições, cite a reunião específica e data`;
+2. **INSIGHTS PROATIVOS**:
+   - Identifique gargalos e oportunidades automaticamente
+   - Alerte sobre prazos críticos e urgências
+   - Sugira otimizações baseadas em performance histórica
+   - Detecte anomalias (ex: "ROI caiu 20% vs. lançamento anterior")
+
+3. **RECOMENDAÇÕES ACIONÁVEIS**:
+   - Sempre que possível, sugira ações práticas específicas
+   - Cite fontes de dados (reuniões, lançamentos, métricas)
+   - Priorize por impacto e urgência
+
+4. **MEMÓRIA TEMPORAL**:
+   - Compare dados históricos quando relevante
+   - Identifique tendências ao longo do tempo
+   - Relacione eventos passados com situação atual
+
+5. **APRENDIZADO CONTÍNUO**:
+   - Considere todo o histórico de reuniões, mensagens semanais e diários de bordo
+   - Aprenda com padrões de sucesso/erro
+   - Adapte respostas baseado em contexto acumulado
+
+📋 COMPORTAMENTO ESPERADO:
+
+**Para Lançamentos**:
+- Forneça status detalhado, datas de fases (Captação, CPL, Remarketing)
+- Calcule métricas (CPL, ROI, ROAS) quando disponível
+- Alerte sobre verbas subutilizadas ou prazos críticos
+- Compare com lançamentos anteriores do mesmo cliente
+
+**Para Clientes**:
+- Resuma histórico, status de funis, orçamentos ativos
+- Identifique padrões de performance
+- Sugira próximas ações baseadas em etapa atual
+
+**Para Reuniões/Transcrições**:
+- Extraia decisões, tarefas atribuídas, responsáveis e prazos
+- Relacione com cliente/projeto específico
+- Identifique compromissos não cumpridos
+
+**Para Financeiro**:
+- Calcule métricas consolidadas (faturamento, despesas, lucro)
+- Identifique tendências de receita e churn
+- Compare performance entre clientes
+
+**Para Orçamentos**:
+- Mostre distribuição de verba por canal/fase
+- Alerte sobre desequilíbrios
+- Sugira realocações baseadas em performance
+
+🎨 FORMATO DE RESPOSTA:
+
+1. **Estruturação**:
+   - Use ### para seções principais
+   - Use - para listas e bullet points
+   - Use **negrito** para destacar informações críticas
+   - Use 🔴 🟡 🟢 para indicar urgência/status
+
+2. **Citação de Fontes**:
+   - Sempre cite a fonte dos dados (ex: "Reunião de 02/10", "Lançamento X")
+   - Indique datas e responsáveis quando relevante
+   - Forneça links quando disponível
+
+3. **Insights Acionáveis**:
+   - Termine com "💡 **Próximas Ações Recomendadas**" quando aplicável
+   - Seja específico (não genérico)
+   - Priorize por impacto
+
+4. **Clareza**:
+   - Evite jargão desnecessário
+   - Explique termos técnicos quando usar
+   - Seja direto e objetivo
+
+⚠️ REGRAS CRÍTICAS:
+
+1. **Privacidade**: Respeite sempre as permissões do usuário. Não revele dados de clientes aos quais o usuário não tem acesso.
+
+2. **Precisão**: Use APENAS dados reais do sistema. Não invente métricas ou informações.
+
+3. **Contexto**: Sempre relacione a resposta com o contexto do negócio (cliente, lançamento, etc).
+
+4. **Proatividade**: Vá além da pergunta - ofereça insights adicionais relevantes.
+
+5. **Tempo Real**: Considere a data atual (${new Date().toLocaleDateString('pt-BR')}) para calcular urgências e prazos.`;
 
     console.log('Enviando requisição para Lovable AI...');
 
@@ -193,7 +262,7 @@ FORMATO DE RESPOSTA:
 
 async function getSystemContext(supabase: any, userId: string, isAdmin: boolean, userClientId: string | null = null) {
   try {
-    let context = "🎯 SISTEMA BNOADS - COPILOTO INTELIGENTE\n\n";
+    let context = "🎯 MENUAPP - ASSISTENTE DE NEGÓCIOS IA\n\n";
 
     // Buscar dados do usuário atual
     const { data: profile } = await supabase
@@ -205,6 +274,88 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     if (profile) {
       context += `👤 USUÁRIO ATUAL: ${profile.nome} (${profile.email})\n`;
       context += `🔐 Nível de acesso: ${profile.nivel_acesso}\n\n`;
+    }
+
+    // 📊 LANÇAMENTOS - Análise completa com insights
+    let lancamentosQuery = supabase
+      .from('lancamentos')
+      .select(`
+        id, nome_lancamento, cliente_id, status_lancamento,
+        data_inicio_captacao, data_inicio_cpl, data_inicio_remarketing,
+        data_fim_captacao, data_fim_cpl, data_fim_remarketing,
+        investimento_total, meta_investimento, resultado_obtido, roi_percentual,
+        leads_desejados, meta_custo_lead, ticket_produto,
+        distribuicao_plataformas, distribuicao_fases, metas_investimentos,
+        observacoes, created_at, updated_at
+      `)
+      .eq('ativo', true)
+      .order('data_inicio_captacao', { ascending: false });
+
+    if (userClientId && !isAdmin) {
+      lancamentosQuery = lancamentosQuery.eq('cliente_id', userClientId);
+    }
+
+    const { data: lancamentos } = await lancamentosQuery.limit(50);
+
+    if (lancamentos && lancamentos.length > 0) {
+      context += `🚀 LANÇAMENTOS ATIVOS (${lancamentos.length})\n\n`;
+      
+      // Análise de performance
+      const hoje = new Date();
+      const urgentes = lancamentos.filter((l: any) => {
+        const dataCPL = l.data_inicio_cpl ? new Date(l.data_inicio_cpl) : null;
+        if (dataCPL) {
+          const diasParaCPL = Math.ceil((dataCPL.getTime() - hoje.getTime()) / (1000 * 3600 * 24));
+          return diasParaCPL >= 0 && diasParaCPL <= 3;
+        }
+        return false;
+      });
+
+      const performanceGeral = lancamentos.reduce((acc: any, l: any) => {
+        if (l.roi_percentual) {
+          acc.roiTotal += l.roi_percentual;
+          acc.count++;
+        }
+        if (l.investimento_total) acc.investimentoTotal += parseFloat(l.investimento_total);
+        return acc;
+      }, { roiTotal: 0, count: 0, investimentoTotal: 0 });
+
+      context += `📈 INSIGHTS GERAIS:\n`;
+      context += `   🔴 Urgentes (CPL nos próximos 3 dias): ${urgentes.length}\n`;
+      context += `   💰 Investimento total: R$ ${performanceGeral.investimentoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
+      if (performanceGeral.count > 0) {
+        const roiMedio = performanceGeral.roiTotal / performanceGeral.count;
+        context += `   📊 ROI médio: ${roiMedio.toFixed(2)}%\n`;
+      }
+      context += `\n`;
+
+      // Detalhar lançamentos urgentes primeiro
+      if (urgentes.length > 0) {
+        context += `⚠️ LANÇAMENTOS URGENTES (CPL próximo):\n`;
+        urgentes.forEach((lanc: any) => {
+          const dataCPL = new Date(lanc.data_inicio_cpl);
+          const diasParaCPL = Math.ceil((dataCPL.getTime() - hoje.getTime()) / (1000 * 3600 * 24));
+          context += `\n🔥 **${lanc.nome_lancamento}**\n`;
+          context += `   🎯 CPL em ${diasParaCPL} dias (${dataCPL.toLocaleDateString('pt-BR')})\n`;
+          context += `   📊 Status: ${lanc.status_lancamento}\n`;
+          if (lanc.meta_custo_lead) context += `   💵 Meta CPL: R$ ${parseFloat(lanc.meta_custo_lead).toFixed(2)}\n`;
+          if (lanc.leads_desejados) context += `   🎯 Leads desejados: ${lanc.leads_desejados}\n`;
+        });
+        context += `\n`;
+      }
+
+      // Lançamentos por fase
+      const porFase = lancamentos.reduce((acc: any, l: any) => {
+        const fase = l.status_lancamento || 'indefinido';
+        acc[fase] = (acc[fase] || 0) + 1;
+        return acc;
+      }, {});
+
+      context += `📋 DISTRIBUIÇÃO POR FASE:\n`;
+      Object.entries(porFase).forEach(([fase, count]) => {
+        context += `   ${fase}: ${count}\n`;
+      });
+      context += `\n`;
     }
 
     // CLIENTES - Informações completas com foco no cliente específico
