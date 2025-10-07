@@ -40,7 +40,14 @@ export function HistoricoMensagensCliente({ clienteId, isPublicView = false }: H
   const carregarHistorico = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Use public client for public view
+      let dbClient = supabase;
+      if (isPublicView) {
+        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        dbClient = createPublicSupabaseClient();
+      }
+
+      const { data, error } = await dbClient
         .from("mensagens_semanais")
         .select(`
           *,
