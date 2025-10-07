@@ -70,7 +70,6 @@ export function MensagensSemanaisView() {
 
   // Estados para nova mensagem
   const [novoClienteId, setNovoClienteId] = useState("");
-  const [novaWeekStart, setNovaWeekStart] = useState<string>("");
   const [novoTexto, setNovoTexto] = useState("");
   const [salvandoNova, setSalvandoNova] = useState(false);
 
@@ -327,14 +326,18 @@ export function MensagensSemanaisView() {
     return <ArrowUpDown className={`h-4 w-4 ${ordenarDirecao === "asc" ? "rotate-180" : ""} text-primary`} />;
   };
   const criarNovaMensagem = async () => {
-    if (!novoClienteId || !novoTexto.trim() || !novaWeekStart) {
+    if (!novoClienteId || !novoTexto.trim()) {
       toast({
         title: "Erro",
-        description: "Selecione um cliente, semana e digite a mensagem",
+        description: "Selecione um cliente e digite a mensagem",
         variant: "destructive"
       });
       return;
     }
+    
+    // Calcular a semana de referência baseada na data atual
+    const currentWeekStart = getCurrentWeekStart();
+    const weekStart = format(currentWeekStart, "yyyy-MM-dd");
     setSalvandoNova(true);
     try {
       const user = await supabase.auth.getUser();
@@ -369,7 +372,7 @@ export function MensagensSemanaisView() {
         cliente_id: novoClienteId,
         gestor_id: colaborador.id,
         cs_id: cliente?.cs_id || null,
-        semana_referencia: novaWeekStart,
+        semana_referencia: weekStart,
         mensagem: novoTexto.trim(),
         created_by: user.data.user.id,
         enviado_gestor_em: agora,
@@ -386,7 +389,6 @@ export function MensagensSemanaisView() {
       // Limpar formulário e fechar modal
       setNovoClienteId("");
       setNovoTexto("");
-      setNovaWeekStart("");
       setModalNovaMensagem(false);
 
       // Recarregar mensagens
@@ -972,13 +974,6 @@ ${mensagem.mensagem}`;
                     </SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="nova-semana">Semana de Referência</Label>
-              <WeekPicker value={novaWeekStart} onChange={weekStart => {
-              setNovaWeekStart(weekStart);
-            }} placeholder="Selecionar semana" />
             </div>
 
             <div>
