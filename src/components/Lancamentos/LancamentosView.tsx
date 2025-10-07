@@ -270,11 +270,12 @@ export const LancamentosView: React.FC = () => {
   };
 
 
+  // Stats sempre com base em TODOS os lançamentos, não nos filtrados
   const stats = {
-    total: lancamentosFiltrados.length,
-    ativos: lancamentosFiltrados.filter(l => ['em_captacao', 'cpl', 'remarketing'].includes(l.status_lancamento)).length,
-    investimentoTotal: lancamentosFiltrados.reduce((sum, l) => sum + Number(l.investimento_total), 0),
-    finalizados: lancamentosFiltrados.filter(l => l.status_lancamento === 'finalizado').length
+    total: lancamentos.length,
+    ativos: lancamentos.filter(l => ['em_captacao', 'cpl', 'remarketing'].includes(l.status_lancamento)).length,
+    investimentoTotal: lancamentos.reduce((sum, l) => sum + Number(l.investimento_total), 0),
+    finalizados: lancamentos.filter(l => l.status_lancamento === 'finalizado').length
   };
 
   return (
