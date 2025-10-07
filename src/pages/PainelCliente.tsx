@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Helmet } from "react-helmet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -178,6 +179,24 @@ const PainelCliente = () => {
   
   return (
     <ClienteBrandingProvider cliente={cliente}>
+      <Helmet>
+        <title>{`${cliente.nome} - Painel BNOads`}</title>
+        <meta name="description" content={`Painel de gestão personalizado para ${cliente.nome} - Sistema BNOads`} />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={`${cliente.nome} - Painel BNOads`} />
+        <meta property="og:description" content={`Painel de gestão personalizado para ${cliente.nome} - Sistema BNOads`} />
+        <meta property="og:image" content={`${window.location.origin}/bnoads-logo-share.png`} />
+        <meta property="og:url" content={window.location.href} />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${cliente.nome} - Painel BNOads`} />
+        <meta name="twitter:description" content={`Painel de gestão personalizado para ${cliente.nome} - Sistema BNOads`} />
+        <meta name="twitter:image" content={`${window.location.origin}/bnoads-logo-share.png`} />
+      </Helmet>
+      
       <div 
         className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border"
         style={{
