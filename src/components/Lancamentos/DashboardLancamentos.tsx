@@ -16,7 +16,8 @@ interface Lancamento {
   meta_investimento?: number;
   resultado_obtido?: number;
   roi_percentual?: number;
-  colaboradores?: {
+  gestor?: {
+    id: string;
     nome: string;
     avatar_url?: string;
   };
@@ -105,7 +106,7 @@ const DashboardLancamentos: React.FC<DashboardLancamentosProps> = ({
     const gestoresMap = new Map();
     
     lancamentos.forEach(l => {
-      const nomeGestor = l.colaboradores?.nome || 'N/A';
+      const nomeGestor = l.gestor?.nome || 'N/A';
       if (!gestoresMap.has(nomeGestor)) {
         gestoresMap.set(nomeGestor, {
           nome: nomeGestor,
