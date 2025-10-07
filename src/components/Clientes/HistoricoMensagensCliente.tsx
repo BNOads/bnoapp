@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { History, Eye } from "lucide-react";
+import { History, Eye, Copy, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -32,6 +32,7 @@ export function HistoricoMensagensCliente({ clienteId, isPublicView = false }: H
   const [mensagens, setMensagens] = useState<MensagemHistorico[]>([]);
   const [loading, setLoading] = useState(true);
   const [mensagemSelecionada, setMensagemSelecionada] = useState<MensagemHistorico | null>(null);
+  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     carregarHistorico();
@@ -86,6 +87,18 @@ export function HistoricoMensagensCliente({ clienteId, isPublicView = false }: H
   const previewMensagem = (mensagem: string) => {
     if (mensagem.length <= 150) return mensagem;
     return mensagem.substring(0, 150) + "...";
+  };
+
+  const copiarMensagem = async () => {
+    if (!mensagemSelecionada) return;
+    
+    try {
+      await navigator.clipboard.writeText(mensagemSelecionada.mensagem);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch (error) {
+      console.error("Erro ao copiar mensagem:", error);
+    }
   };
 
   return (
@@ -177,7 +190,7 @@ export function HistoricoMensagensCliente({ clienteId, isPublicView = false }: H
 
       {/* Modal de Visualização */}
       <Dialog open={!!mensagemSelecionada} onOpenChange={() => setMensagemSelecionada(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>
               Mensagem Semanal - {mensagemSelecionada && format(new Date(mensagemSelecionada.semana_referencia), "dd/MM/yyyy", { locale: ptBR })}
@@ -185,71 +198,95 @@ export function HistoricoMensagensCliente({ clienteId, isPublicView = false }: H
           </DialogHeader>
           
           {mensagemSelecionada && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Gestor:</span> {mensagemSelecionada.gestor_nome}
+            <div className="space-y-4 overflow-y-auto pr-2">
+              {!isPublicView && (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Gestor:</span> {mensagemSelecionada.gestor_nome}
+                  </div>
+                  <div>
+                    <span className="font-medium">CS:</span> {mensagemSelecionada.cs_nome}
+                  </div>
+                  <div>
+                    <span className="font-medium">Status:</span>
+                    <Badge 
+                      variant={mensagemSelecionada.enviado ? "default" : "destructive"}
+                      className={`ml-2 ${mensagemSelecionada.enviado ? "bg-green-100 text-green-800" : ""}`}
+                    >
+                      {mensagemSelecionada.enviado ? "✅ Enviado" : "❌ Pendente"}
+                    </Badge>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium">CS:</span> {mensagemSelecionada.cs_nome}
-                </div>
-                <div>
-                  <span className="font-medium">Status:</span>
-                  <Badge 
-                    variant={mensagemSelecionada.enviado ? "default" : "destructive"}
-                    className={`ml-2 ${mensagemSelecionada.enviado ? "bg-green-100 text-green-800" : ""}`}
-                  >
-                    {mensagemSelecionada.enviado ? "✅ Enviado" : "❌ Pendente"}
-                  </Badge>
-                </div>
-              </div>
+              )}
               
               <div>
-                <h4 className="font-medium mb-2">Mensagem:</h4>
-                <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium">Mensagem:</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copiarMensagem}
+                    className="gap-2"
+                  >
+                    {copiado ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        Copiar
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className={`bg-muted p-4 rounded-lg whitespace-pre-wrap overflow-y-auto ${isPublicView ? 'text-sm leading-relaxed max-h-[50vh]' : ''}`}>
                   {mensagemSelecionada.mensagem}
                 </div>
               </div>
 
-              {/* Timeline de Envios */}
-              <div>
-                <h4 className="font-medium mb-3">Timeline de Envios:</h4>
-                <div className="space-y-3">
-                  {mensagemSelecionada.enviado_gestor_em && (
-                    <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                      <div className="flex-shrink-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">1</div>
-                      <div>
-                        <div className="font-medium text-blue-800">Mensagem criada/atualizada pelo Gestor</div>
-                        <div className="text-sm text-blue-600">
-                          {format(new Date(mensagemSelecionada.enviado_gestor_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {/* Timeline de Envios - Only for internal view */}
+              {!isPublicView && (
+                <div>
+                  <h4 className="font-medium mb-3">Timeline de Envios:</h4>
+                  <div className="space-y-3">
+                    {mensagemSelecionada.enviado_gestor_em && (
+                      <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                        <div className="flex-shrink-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">1</div>
+                        <div>
+                          <div className="font-medium text-blue-800">Mensagem criada/atualizada pelo Gestor</div>
+                          <div className="text-sm text-blue-600">
+                            {format(new Date(mensagemSelecionada.enviado_gestor_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  
-                  {mensagemSelecionada.enviado_cs_em && (
-                    <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
-                      <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">2</div>
-                      <div>
-                        <div className="font-medium text-green-800">Mensagem enviada para o cliente pela CS</div>
-                        <div className="text-sm text-green-600">
-                          {format(new Date(mensagemSelecionada.enviado_cs_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    )}
+                    
+                    {mensagemSelecionada.enviado_cs_em && (
+                      <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+                        <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">2</div>
+                        <div>
+                          <div className="font-medium text-green-800">Mensagem enviada para o cliente pela CS</div>
+                          <div className="text-sm text-green-600">
+                            {format(new Date(mensagemSelecionada.enviado_cs_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  
-                  {(!mensagemSelecionada.enviado_cs_em && mensagemSelecionada.enviado_gestor_em) && (
-                    <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
-                      <div className="flex-shrink-0 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-white text-xs font-bold">⏳</div>
-                      <div>
-                        <div className="font-medium text-yellow-800">Aguardando envio pela CS</div>
-                        <div className="text-sm text-yellow-600">Mensagem pronta para ser enviada ao cliente</div>
+                    )}
+                    
+                    {(!mensagemSelecionada.enviado_cs_em && mensagemSelecionada.enviado_gestor_em) && (
+                      <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+                        <div className="flex-shrink-0 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-white text-xs font-bold">⏳</div>
+                        <div>
+                          <div className="font-medium text-yellow-800">Aguardando envio pela CS</div>
+                          <div className="text-sm text-yellow-600">Mensagem pronta para ser enviada ao cliente</div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </DialogContent>
