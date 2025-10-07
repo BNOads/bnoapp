@@ -230,32 +230,6 @@ export const LancamentosView: React.FC = () => {
     setShowExclusaoMassaModal(false);
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Gestão de Lançamentos</h1>
-            <p className="text-muted-foreground">
-              Gerencie todos os lançamentos e campanhas da sua equipe
-            </p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <div className="animate-pulse space-y-2">
-                  <div className="h-4 bg-muted rounded w-3/4"></div>
-                  <div className="h-8 bg-muted rounded w-1/2"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   const getNestedValue = (obj: any, path: string) => {
     return path.split('.').reduce((current, key) => current?.[key], obj) || '';
@@ -321,6 +295,34 @@ export const LancamentosView: React.FC = () => {
     list.sort((a, b) => b.totalInvestimento - a.totalInvestimento);
     return list;
   }, [lancamentosFiltrados, clienteGestorMap, gestorInfoMap]);
+
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Gestão de Lançamentos</h1>
+            <p className="text-muted-foreground">
+              Gerencie todos os lançamentos e campanhas da sua equipe
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-8 bg-muted rounded w-1/2"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
