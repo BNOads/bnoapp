@@ -262,8 +262,8 @@ export const LancamentosView: React.FC = () => {
     });
   }
 
-  // Agrupamento por gestor - HOOK useMemo deve vir antes de funções regulares
-  const gestoresAggregados = useMemo(() => {
+  // Agrupamento por gestor - cálculo derivado sem hooks para evitar ordem variável de hooks
+  const gestoresAggregados = (() => {
     const acc: Record<string, { 
       totalInvestimento: number; 
       lancamentos: Array<{ nome: string; cliente_nome: string; investimento: number }> 
@@ -294,7 +294,7 @@ export const LancamentosView: React.FC = () => {
 
     list.sort((a, b) => b.totalInvestimento - a.totalInvestimento);
     return list;
-  }, [lancamentosFiltrados, clienteGestorMap, gestorInfoMap]);
+  })();
 
 
   if (loading) {
