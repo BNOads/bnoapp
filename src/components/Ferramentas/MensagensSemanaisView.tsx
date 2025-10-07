@@ -171,19 +171,10 @@ export function MensagensSemanaisView() {
         });
       }
 
-      // Aplicar filtros - CORRIGIDO: filtrar por created_at na semana selecionada
+      // Aplicar filtros
       if (filtroWeekStart) {
-        // Calcular início e fim da semana (segunda a domingo) em America/Sao_Paulo
-        const weekStartDate = toZonedTime(new Date(filtroWeekStart), TIMEZONE);
-        const weekStart = startOfWeek(weekStartDate, { weekStartsOn: 1 });
-        const weekEnd = endOfWeek(weekStartDate, { weekStartsOn: 1 });
-        
-        // Converter para ISO strings para o filtro
-        const startISO = fromZonedTime(weekStart, TIMEZONE).toISOString();
-        const endISO = fromZonedTime(weekEnd, TIMEZONE).toISOString();
-        
-        // Filtrar por created_at dentro do intervalo da semana
-        query = query.gte("created_at", startISO).lte("created_at", endISO);
+        // Filtrar pela semana de referência (campo que armazena o início da semana)
+        query = query.eq("semana_referencia", filtroWeekStart);
       }
       if (filtroGestor && filtroGestor !== "all") {
         query = query.eq("gestor_id", filtroGestor);

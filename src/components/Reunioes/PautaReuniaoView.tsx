@@ -1140,15 +1140,10 @@ export function PautaReuniaoView() {
               dia: undefined
             };
             setSelectedDate(newDate);
-            setCurrentDocument(null);
-            setBlocks([]);
             updateURL(newDate.ano, newDate.mes);
             await loadDocuments();
           }}>
             <ChevronLeft className="h-3 w-3" />
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 flex-1 text-xs" onClick={navigateToToday}>
-            Hoje
           </Button>
           <Button variant="outline" size="sm" className="h-7 px-2" onClick={async () => {
             const newDate = selectedDate.mes === 12 ? {
@@ -1161,8 +1156,6 @@ export function PautaReuniaoView() {
               dia: undefined
             };
             setSelectedDate(newDate);
-            setCurrentDocument(null);
-            setBlocks([]);
             updateURL(newDate.ano, newDate.mes);
             await loadDocuments();
           }}>
