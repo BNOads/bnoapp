@@ -126,7 +126,7 @@ export function HistoricoMensagensCliente({ clienteId, isPublicView = false }: H
                     <TableHead>Mensagem</TableHead>
                     {!isPublicView && <TableHead>Gestor</TableHead>}
                     {!isPublicView && <TableHead>CS</TableHead>}
-                    {!isPublicView && <TableHead>Timeline</TableHead>}
+                    {!isPublicView && <TableHead>Linha do Tempo</TableHead>}
                     {!isPublicView && <TableHead>Status</TableHead>}
                     <TableHead>Ações</TableHead>
                   </TableRow>
@@ -249,7 +249,7 @@ export function HistoricoMensagensCliente({ clienteId, isPublicView = false }: H
               {/* Timeline de Envios - Only for internal view */}
               {!isPublicView && (
                 <div>
-                  <h4 className="font-medium mb-3">Timeline de Envios:</h4>
+                  <h4 className="font-medium mb-3">Linha do Tempo de Envios:</h4>
                   <div className="space-y-3">
                     {mensagemSelecionada.enviado_gestor_em && (
                       <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
