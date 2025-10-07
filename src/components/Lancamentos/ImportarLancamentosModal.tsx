@@ -138,6 +138,14 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
         throw new Error('Usuário não autenticado');
       }
 
+      // Buscar clientes para identificação automática
+      const { data: clientesData } = await supabase
+        .from('clientes')
+        .select('id, nome, slug, aliases, primary_gestor_user_id')
+        .eq('ativo', true);
+
+      const clientes = clientesData || [];
+
       let sucessos = 0;
       const erros: string[] = [];
 
@@ -160,10 +168,31 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
             throw new Error(`Linha ${index + 2}: Data de início inválida`);
           }
 
+          // Identificar cliente automaticamente pelo nome do lançamento
+          const nomeNormalizado = item.nome_lancamento.toLowerCase().trim();
+          const clienteEncontrado = clientes.find(cliente => {
+            // Verificar pelo slug
+            if (cliente.slug && nomeNormalizado.includes(cliente.slug.toLowerCase())) {
+              return true;
+            }
+            
+            // Verificar pelos aliases
+            if (cliente.aliases && Array.isArray(cliente.aliases)) {
+              return cliente.aliases.some(alias => 
+                nomeNormalizado.includes(alias.toLowerCase())
+              );
+            }
+            
+            // Verificar pelo nome do cliente
+            return nomeNormalizado.includes(cliente.nome.toLowerCase());
+          });
+
           // Preparar dados para inserção
           const lancamentoData = {
             nome_lancamento: item.nome_lancamento.trim(),
             descricao: item.descricao?.trim() || null,
+            cliente_id: clienteEncontrado?.id || null,
+            gestor_responsavel_id: clienteEncontrado?.primary_gestor_user_id || null,
             tipo_lancamento: item.tipo_lancamento.toLowerCase(),
             status_lancamento: 'em_captacao',
             data_inicio_captacao: dataInicio.toISOString().split('T')[0],

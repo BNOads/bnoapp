@@ -23,6 +23,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     nome_lancamento: '',
     descricao: '',
     cliente_id: '',
+    gestor_responsavel_id: '',
     status_lancamento: 'em_captacao' as const,
     tipo_lancamento: '',
     data_inicio_captacao: '',
@@ -34,7 +35,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     observacoes: ''
   });
   
-  const [clientes, setClientes] = useState<Array<{id: string, nome: string}>>([]);
+  const [clientes, setClientes] = useState<Array<{id: string, nome: string, slug: string, aliases: string[], primary_gestor_user_id: string | null}>>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -48,7 +49,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     try {
       const { data, error } = await supabase
         .from('clientes')
-        .select('id, nome')
+        .select('id, nome, slug, aliases, primary_gestor_user_id')
         .eq('ativo', true)
         .order('nome');
 
@@ -59,11 +60,49 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     }
   };
 
+  // Função para identificar cliente pelo nome do lançamento
+  const identificarCliente = (nomeLancamento: string) => {
+    if (!nomeLancamento) return;
+    
+    const nomeNormalizado = nomeLancamento.toLowerCase().trim();
+    
+    // Procurar cliente pelo slug ou aliases
+    const clienteEncontrado = clientes.find(cliente => {
+      // Verificar pelo slug
+      if (cliente.slug && nomeNormalizado.includes(cliente.slug.toLowerCase())) {
+        return true;
+      }
+      
+      // Verificar pelos aliases
+      if (cliente.aliases && Array.isArray(cliente.aliases)) {
+        return cliente.aliases.some(alias => 
+          nomeNormalizado.includes(alias.toLowerCase())
+        );
+      }
+      
+      // Verificar pelo nome do cliente
+      return nomeNormalizado.includes(cliente.nome.toLowerCase());
+    });
+
+    if (clienteEncontrado) {
+      setFormData(prev => ({
+        ...prev,
+        cliente_id: clienteEncontrado.id,
+        gestor_responsavel_id: clienteEncontrado.primary_gestor_user_id || ''
+      }));
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+
+    // Quando o nome do lançamento muda, tentar identificar o cliente
+    if (field === 'nome_lancamento') {
+      identificarCliente(value);
+    }
   };
 
   const resetForm = () => {
@@ -71,6 +110,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
       nome_lancamento: '',
       descricao: '',
       cliente_id: '',
+      gestor_responsavel_id: '',
       status_lancamento: 'em_captacao' as const,
       tipo_lancamento: '',
       data_inicio_captacao: '',
@@ -97,6 +137,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
         nome_lancamento: formData.nome_lancamento,
         descricao: formData.descricao || null,
         cliente_id: formData.cliente_id || null,
+        gestor_responsavel_id: formData.gestor_responsavel_id || null,
         status_lancamento: formData.status_lancamento as any,
         tipo_lancamento: formData.tipo_lancamento as any,
         data_inicio_captacao: formData.data_inicio_captacao,

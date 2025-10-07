@@ -57,6 +57,7 @@ export const LancamentosView: React.FC = () => {
   const [showEdicaoMassaModal, setShowEdicaoMassaModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('lista');
+  const [statusTab, setStatusTab] = useState<'ativos' | 'finalizados'>('ativos');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
@@ -104,13 +105,19 @@ export const LancamentosView: React.FC = () => {
         .from('lancamentos')
         .select(`
           *,
-          clientes:cliente_id (nome),
+          clientes:cliente_id (nome, slug, aliases),
           gestor:gestor_responsavel_id (id, nome)
         `)
-        .eq('ativo', true)
-        .order('updated_at', { ascending: false });
+        .eq('ativo', true);
 
-      // Aplicar filtros
+      // Filtrar por status de acordo com a aba ativa
+      if (statusTab === 'ativos') {
+        query = query.in('status_lancamento', ['em_captacao', 'cpl', 'remarketing', 'pausado']);
+      } else {
+        query = query.eq('status_lancamento', 'finalizado');
+      }
+
+      // Aplicar filtros adicionais
       if (filtros.status && filtros.status !== 'all') {
         query = query.eq('status_lancamento', filtros.status as any);
       }
@@ -120,6 +127,8 @@ export const LancamentosView: React.FC = () => {
       if (filtros.cliente && filtros.cliente !== 'all') {
         query = query.eq('cliente_id', filtros.cliente);
       }
+
+      query = query.order('updated_at', { ascending: false });
 
       const { data, error } = await query;
 
@@ -158,7 +167,7 @@ export const LancamentosView: React.FC = () => {
 
   useEffect(() => {
     fetchLancamentos();
-  }, [filtros, searchTerm]);
+  }, [filtros, searchTerm, statusTab]);
 
   const handleLancamentoCriado = () => {
     fetchLancamentos();
@@ -367,16 +376,24 @@ export const LancamentosView: React.FC = () => {
         </Card>
       </div>
 
-      {/* Tabs de Visualização */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      {/* Tabs de Status (Ativos/Finalizados) */}
+      <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as 'ativos' | 'finalizados')}>
         <TabsList>
-          <TabsTrigger value="lista">Lista</TabsTrigger>
-          <TabsTrigger value="gantt">Gantt</TabsTrigger>
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="ativos">Lançamentos Ativos</TabsTrigger>
+          <TabsTrigger value="finalizados">Lançamentos Finalizados</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="lista" className="space-y-4">
-          <LancamentosTable 
+        <TabsContent value={statusTab} className="space-y-4">
+          {/* Tabs de Visualização */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="lista">Lista</TabsTrigger>
+              <TabsTrigger value="gantt">Gantt</TabsTrigger>
+              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="lista" className="space-y-4">
+              <LancamentosTable
             lancamentos={lancamentosFiltrados}
             onRefresh={fetchLancamentos}
             statusColors={statusColors}
@@ -400,12 +417,14 @@ export const LancamentosView: React.FC = () => {
           />
         </TabsContent>
 
-        <TabsContent value="dashboard" className="space-y-4">
-          <DashboardLancamentos 
-            lancamentos={lancamentosFiltrados}
-            statusLabels={statusLabels}
-            tipoLabels={tipoLabels}
-          />
+            <TabsContent value="dashboard" className="space-y-4">
+              <DashboardLancamentos 
+                lancamentos={lancamentosFiltrados}
+                statusLabels={statusLabels}
+                tipoLabels={tipoLabels}
+              />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
 
