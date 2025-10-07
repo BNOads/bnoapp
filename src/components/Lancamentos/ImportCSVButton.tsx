@@ -71,5 +71,15 @@ export const ImportCSVButton = ({
       });
     }
   };
-  return;
+  
+  return (
+    <Button
+      variant="outline"
+      onClick={handleImportCSV}
+      className="gap-2"
+    >
+      <Upload className="h-4 w-4" />
+      Importar CSV
+    </Button>
+  );
 };

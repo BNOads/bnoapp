@@ -142,7 +142,12 @@ export const LancamentosView: React.FC = () => {
         return;
       }
 
-      setLancamentos((data as any) || []);
+      // Remove duplicatas baseado no ID
+      const uniqueLancamentos = Array.from(
+        new Map((data || []).map((item: any) => [item.id, item])).values()
+      );
+
+      setLancamentos(uniqueLancamentos as any);
     } catch (error) {
       console.error('Erro ao buscar lançamentos:', error);
       toast({
