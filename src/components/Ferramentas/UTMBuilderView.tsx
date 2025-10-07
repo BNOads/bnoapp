@@ -225,10 +225,10 @@ export const UTMBuilderView = () => {
 
   // Generate bulk UTMs
   const generateBulkUTMs = () => {
-    if (!bulkUTM.url || !bulkUTM.campaign || !bulkUTM.term) {
+    if (!bulkUTM.url) {
       toast({
-        title: "Campos obrigatórios",
-        description: "Preencha URL, Campaign e Term",
+        title: "Campo obrigatório",
+        description: "Preencha a URL",
         variant: "destructive"
       });
       return;
@@ -244,8 +244,14 @@ export const UTMBuilderView = () => {
         // Add UTM parameters
         params.set("utm_source", normalizeParam(source));
         params.set("utm_medium", normalizeParam(medium));
-        params.set("utm_campaign", normalizeParam(bulkUTM.campaign));
-        params.set("utm_term", normalizeParam(bulkUTM.term));
+        
+        if (bulkUTM.campaign) {
+          params.set("utm_campaign", normalizeParam(bulkUTM.campaign));
+        }
+        
+        if (bulkUTM.term) {
+          params.set("utm_term", normalizeParam(bulkUTM.term));
+        }
         
         if (bulkUTM.content) {
           params.set("utm_content", normalizeParam(bulkUTM.content));
@@ -263,8 +269,8 @@ export const UTMBuilderView = () => {
           const sck = generateSckParam(
             source,
             medium,
-            bulkUTM.campaign,
-            bulkUTM.term,
+            bulkUTM.campaign || '',
+            bulkUTM.term || '',
             bulkUTM.content || ''
           );
           if (sck) params.set("sck", sck);
@@ -273,8 +279,8 @@ export const UTMBuilderView = () => {
         results.push({
           source,
           medium,
-          campaign: bulkUTM.campaign,
-          term: bulkUTM.term,
+          campaign: bulkUTM.campaign || '',
+          term: bulkUTM.term || '',
           content: bulkUTM.content || '',
           url: baseUrl + params.toString()
         });
