@@ -360,13 +360,7 @@ export function PautaReuniaoView() {
       await loadDocumentsForDate(newYear, newMonth, daysInNewMonth);
     } else {
       setSelectedDate(prev => ({ ...prev, dia: newDay }));
-      const dayKey = newDay.toString();
-      if (documents[dayKey]) {
-        setCurrentDocument(documents[dayKey]);
-        setBlocks(documents[dayKey].blocos || []);
-      } else {
-        await createOrOpenDocument(newDay);
-      }
+      await createOrOpenDocument(newDay, undefined, selectedDate.ano, selectedDate.mes);
       updateURL(selectedDate.ano, selectedDate.mes, newDay);
     }
   };
@@ -527,7 +521,7 @@ export function PautaReuniaoView() {
       
       if (hasUrlParams) {
         // URL completa = criar automaticamente para qualquer data
-        await createOrOpenDocument(selectedDate.dia);
+        await createOrOpenDocument(selectedDate.dia, undefined, selectedDate.ano, selectedDate.mes);
       } else {
         // Mesmo sem URL completa, permitir visualização vazia para seleção manual
         setCurrentDocument(null);
@@ -682,7 +676,7 @@ export function PautaReuniaoView() {
       return;
     }
 
-    // Create new document
+    // Create or open document (server-side check to avoid duplicates)
     try {
       setSaving(true);
       let initialBlocks: any[] = [];
@@ -692,19 +686,57 @@ export function PautaReuniaoView() {
           initialBlocks = template.blocos_template;
         }
       }
-      const {
-        data: doc,
-        error: docError
-      } = await supabase.from('reunioes_documentos').insert({
-        ano: year,
-        mes: month,
-        dia: day,
-        titulo_reuniao: 'Nova Reunião',
-        status: 'rascunho',
-        contribuidores: [user?.id],
-        created_by: user?.id
-      }).select().maybeSingle();
-      if (docError) throw docError;
+
+      // Check if document already exists on server for this date
+      const { data: existingDoc, error: fetchExistingError } = await supabase
+        .from('reunioes_documentos')
+        .select(`
+          *,
+          reunioes_blocos (
+            id,
+            tipo,
+            titulo,
+            conteudo,
+            ordem,
+            ancora
+          )
+        `)
+        .eq('ano', year)
+        .eq('mes', month)
+        .eq('dia', day)
+        .maybeSingle();
+
+      if (fetchExistingError) {
+        console.warn('Fetch existing doc error (non-fatal):', fetchExistingError);
+      }
+
+      if (existingDoc) {
+        const docWithBlocks = {
+          ...existingDoc,
+          blocos: existingDoc.reunioes_blocos?.sort((a, b) => a.ordem - b.ordem) || []
+        } as any;
+
+        setDocuments(prev => ({ ...prev, [dayKey]: docWithBlocks }));
+        setCurrentDocument(docWithBlocks);
+        setBlocks(docWithBlocks.blocos || []);
+        updateURL(year, month, day);
+        return;
+      }
+
+      // Create new document
+      const { data: doc, error: docError } = await supabase
+        .from('reunioes_documentos')
+        .insert({
+          ano: year,
+          mes: month,
+          dia: day,
+          titulo_reuniao: 'Nova Reunião',
+          status: 'rascunho',
+          contribuidores: [user?.id],
+          created_by: user?.id
+        })
+        .select()
+        .single();
 
       // Create initial blocks from template
       if (initialBlocks.length > 0) {
@@ -1709,12 +1741,12 @@ export function PautaReuniaoView() {
                           const today = new Date();
                           const selectedDateObj = new Date(selectedDate.ano, selectedDate.mes - 1, selectedDate.dia);
                           const todayObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                          return selectedDateObj >= todayObj && (
-                            <Button onClick={() => createOrOpenDocument(selectedDate.dia!)} className="mt-2">
-                              <Plus className="h-4 w-4 mr-2" />
-                              Nova Pauta
-                            </Button>
-                          );
+                           return selectedDateObj >= todayObj && (
+                             <Button onClick={() => createOrOpenDocument(selectedDate.dia!, undefined, selectedDate.ano, selectedDate.mes)} className="mt-2">
+                               <Plus className="h-4 w-4 mr-2" />
+                               Nova Pauta
+                             </Button>
+                           );
                         })()}
                       </>
                     ) : (
