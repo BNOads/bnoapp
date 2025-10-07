@@ -79,21 +79,17 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
   };
 
   // Função para identificar cliente pelo nome do lançamento
-  const identificarCliente = (nomeLancamento: string) => {
+  const identificarCliente = async (nomeLancamento: string) => {
     if (!nomeLancamento || clientes.length === 0) {
-      console.log('⚠️ Não há clientes carregados ou nome vazio');
       return;
     }
     
     const nomeNormalizado = nomeLancamento.toLowerCase().trim();
-    console.log('🔍 Buscando cliente para:', nomeNormalizado);
-    console.log('📋 Clientes disponíveis:', clientes.map(c => ({ nome: c.nome, slug: c.slug, aliases: c.aliases })));
     
     // Procurar cliente pelo slug, aliases ou nome
     const clienteEncontrado = clientes.find(cliente => {
       // Verificar pelo slug
       if (cliente.slug && nomeNormalizado.includes(cliente.slug.toLowerCase())) {
-        console.log('✅ Cliente encontrado pelo slug:', cliente.slug);
         return true;
       }
       
@@ -103,7 +99,6 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
           nomeNormalizado.includes(alias.toLowerCase())
         );
         if (encontrouAlias) {
-          console.log('✅ Cliente encontrado por alias:', cliente.aliases);
           return true;
         }
       }
@@ -111,7 +106,6 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
       // Verificar pelo nome do cliente
       const nomeCliente = cliente.nome.toLowerCase();
       if (nomeNormalizado.includes(nomeCliente)) {
-        console.log('✅ Cliente encontrado pelo nome:', cliente.nome);
         return true;
       }
       
@@ -119,21 +113,31 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     });
 
     if (clienteEncontrado) {
-      console.log('🎯 Cliente identificado:', clienteEncontrado.nome);
-      console.log('👤 Gestor:', clienteEncontrado.primary_gestor_user_id);
+      let gestorId = '';
+      
+      // Buscar colaborador.id baseado no user_id do gestor primário
+      if (clienteEncontrado.primary_gestor_user_id) {
+        const { data: gestor } = await supabase
+          .from('colaboradores')
+          .select('id, nome')
+          .eq('user_id', clienteEncontrado.primary_gestor_user_id)
+          .maybeSingle();
+        
+        if (gestor) {
+          gestorId = gestor.id;
+        }
+      }
       
       setFormData(prev => ({
         ...prev,
         cliente_id: clienteEncontrado.id,
-        gestor_responsavel_id: clienteEncontrado.primary_gestor_user_id || ''
+        gestor_responsavel_id: gestorId
       }));
 
       toast({
         title: "Cliente identificado!",
-        description: `Associado ao cliente: ${clienteEncontrado.nome}`,
+        description: `${clienteEncontrado.nome}${gestorId ? ' → Gestor associado ✓' : ''}`,
       });
-    } else {
-      console.log('❌ Nenhum cliente encontrado para:', nomeNormalizado);
     }
   };
 
@@ -244,7 +248,11 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cliente_id">Cliente {formData.cliente_id && '✅'}</Label>
+              <Label htmlFor="cliente_id">
+                Cliente *
+                {formData.cliente_id && ' ✅'}
+                {formData.gestor_responsavel_id && ' → Gestor associado ✓'}
+              </Label>
               <Select
                 value={formData.cliente_id}
                 onValueChange={async (value) => {
