@@ -288,16 +288,7 @@ export const LancamentosView: React.FC = () => {
     });
   }
 
-  const handleSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-
-  // Agrupamento por gestor
+  // Agrupamento por gestor - HOOK useMemo deve vir antes de funções regulares
   const gestoresAggregados = useMemo(() => {
     const acc: Record<string, { 
       totalInvestimento: number; 
@@ -330,6 +321,14 @@ export const LancamentosView: React.FC = () => {
     list.sort((a, b) => b.totalInvestimento - a.totalInvestimento);
     return list;
   }, [lancamentosFiltrados, clienteGestorMap, gestorInfoMap]);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   // Stats sempre com base em TODOS os lançamentos, não nos filtrados
   const stats = {
