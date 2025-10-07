@@ -390,13 +390,7 @@ export function PautaReuniaoView() {
       await loadDocumentsForDate(newYear, newMonth, 1);
     } else {
       setSelectedDate(prev => ({ ...prev, dia: newDay }));
-      const dayKey = newDay.toString();
-      if (documents[dayKey]) {
-        setCurrentDocument(documents[dayKey]);
-        setBlocks(documents[dayKey].blocos || []);
-      } else {
-        await createOrOpenDocument(newDay);
-      }
+      await createOrOpenDocument(newDay, undefined, selectedDate.ano, selectedDate.mes);
       updateURL(selectedDate.ano, selectedDate.mes, newDay);
     }
   };
@@ -420,7 +414,7 @@ export function PautaReuniaoView() {
         setCurrentDocument(documents[dayKey]);
         setBlocks(documents[dayKey].blocos || []);
       } else {
-        await createOrOpenDocument(currentDay);
+        await createOrOpenDocument(currentDay, undefined, currentYear, currentMonth);
       }
     }
     
@@ -1333,16 +1327,7 @@ export function PautaReuniaoView() {
                 ...prev,
                 dia: day
               }));
-              
-              // Se já existe documento, apenas abrir
-              if (hasDocument) {
-                setCurrentDocument(hasDocument);
-                setBlocks(hasDocument.blocos || []);
-                updateURL(selectedDate.ano, selectedDate.mes, day);
-              } else {
-                // Se não existe, criar automaticamente para qualquer data
-                await createOrOpenDocument(day);
-              }
+              await createOrOpenDocument(day, undefined, selectedDate.ano, selectedDate.mes);
             }}>
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-mono ${isSelected ? 'font-bold' : ''}`}>
