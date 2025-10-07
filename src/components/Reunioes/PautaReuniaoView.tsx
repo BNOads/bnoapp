@@ -20,9 +20,6 @@ import { useAuth } from "@/components/Auth/AuthContext";
 import { EnviarSlackModal } from "./EnviarSlackModal";
 import { RealtimePresenceIndicator } from "./RealtimePresenceIndicator";
 import { RealtimeSyncStatus } from "./RealtimeSyncStatus";
-import { RealtimeCollaborativeEditor } from "./RealtimeCollaborativeEditor";
-import { useRealtimePresence } from "@/hooks/useRealtimePresence";
-import { useRealtimeDocument } from "@/hooks/useRealtimeDocument";
 interface MeetingDocument {
   id: string;
   ano: number;
@@ -119,10 +116,7 @@ export function PautaReuniaoView() {
   const [minimizedBlocks, setMinimizedBlocks] = useState<Set<string>>(new Set());
   const [showSlackModal, setShowSlackModal] = useState(false);
 
-  // Realtime collaboration hooks
-  const documentId = currentDocument?.id;
-  const { presenceUsers, isConnected, updateTypingStatus } = useRealtimePresence(documentId || '');
-  const { broadcastContentUpdate, broadcastBlockCreate, broadcastBlockDelete, flushPendingUpdates, onSyncEvent, syncStatus, lastSyncTime } = useRealtimeDocument(documentId || '');
+  // Removed realtime collaboration for better performance and stability
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -260,23 +254,17 @@ export function PautaReuniaoView() {
     const handleKeydown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        flushPendingUpdates(); // Flush broadcast queue
         saveDocument(false);
       }
     };
     
     const handleBlur = () => {
-      // Flush ao perder foco
       if (currentDocument && blocks.length > 0) {
-        flushPendingUpdates();
         saveDocument(true);
       }
     };
     
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Flush antes de sair
-      flushPendingUpdates();
-      
       if (saveStatus === 'saving' || autosaveTimeout.current) {
         e.preventDefault();
         e.returnValue = 'Você tem alterações não salvas. Deseja realmente sair?';
@@ -295,7 +283,7 @@ export function PautaReuniaoView() {
         clearTimeout(autosaveTimeout.current);
       }
     };
-  }, [saveStatus, autosaveTimeout.current, currentDocument, blocks, flushPendingUpdates]);
+  }, [saveStatus, autosaveTimeout.current, currentDocument, blocks]);
 
   // Auto-scroll to selected day in calendar
   useEffect(() => {
@@ -366,9 +354,12 @@ export function PautaReuniaoView() {
       const newYear = selectedDate.mes === 1 ? selectedDate.ano - 1 : selectedDate.ano;
       const daysInNewMonth = getDaysInMonth(newYear, newMonth);
       
-      setSelectedDate({ ano: newYear, mes: newMonth, dia: daysInNewMonth });
-      await loadDocuments();
+      const newDate = { ano: newYear, mes: newMonth, dia: daysInNewMonth };
+      setSelectedDate(newDate);
       updateURL(newYear, newMonth, daysInNewMonth);
+      
+      // Reload documents for the new month
+      await loadDocumentsForDate(newYear, newMonth, daysInNewMonth);
     } else {
       setSelectedDate(prev => ({ ...prev, dia: newDay }));
       const dayKey = newDay.toString();
@@ -393,9 +384,12 @@ export function PautaReuniaoView() {
       const newMonth = selectedDate.mes === 12 ? 1 : selectedDate.mes + 1;
       const newYear = selectedDate.mes === 12 ? selectedDate.ano + 1 : selectedDate.ano;
       
-      setSelectedDate({ ano: newYear, mes: newMonth, dia: 1 });
-      await loadDocuments();
+      const newDate = { ano: newYear, mes: newMonth, dia: 1 };
+      setSelectedDate(newDate);
       updateURL(newYear, newMonth, 1);
+      
+      // Reload documents for the new month
+      await loadDocumentsForDate(newYear, newMonth, 1);
     } else {
       setSelectedDate(prev => ({ ...prev, dia: newDay }));
       const dayKey = newDay.toString();
@@ -415,21 +409,22 @@ export function PautaReuniaoView() {
     const currentMonth = today.getMonth() + 1;
     const currentDay = today.getDate();
     
-    setSelectedDate({ ano: currentYear, mes: currentMonth, dia: currentDay });
+    const newDate = { ano: currentYear, mes: currentMonth, dia: currentDay };
+    setSelectedDate(newDate);
+    updateURL(currentYear, currentMonth, currentDay);
     
     // Reload documents if month/year changed
     if (currentYear !== selectedDate.ano || currentMonth !== selectedDate.mes) {
-      await loadDocuments();
-    }
-    
-    const dayKey = currentDay.toString();
-    if (documents[dayKey]) {
-      setCurrentDocument(documents[dayKey]);
-      setBlocks(documents[dayKey].blocos || []);
+      await loadDocumentsForDate(currentYear, currentMonth, currentDay);
     } else {
-      await createOrOpenDocument(currentDay);
+      const dayKey = currentDay.toString();
+      if (documents[dayKey]) {
+        setCurrentDocument(documents[dayKey]);
+        setBlocks(documents[dayKey].blocos || []);
+      } else {
+        await createOrOpenDocument(currentDay);
+      }
     }
-    updateURL(currentYear, currentMonth, currentDay);
     
     toast({
       title: "📅 Hoje",
@@ -546,6 +541,56 @@ export function PautaReuniaoView() {
         setCurrentDocument(null);
         setBlocks([]);
       }
+    }
+  };
+
+  // Helper function to load documents for a specific date
+  const loadDocumentsForDate = async (year: number, month: number, day: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('reunioes_documentos')
+        .select(`
+          *,
+          reunioes_blocos (
+            id,
+            tipo,
+            titulo,
+            conteudo,
+            ordem,
+            ancora
+          )
+        `)
+        .eq('ano', year)
+        .eq('mes', month)
+        .order('dia');
+
+      if (error) throw error;
+
+      const docsMap: { [key: string]: MeetingDocument } = {};
+      data?.forEach(doc => {
+        const dayKey = doc.dia.toString();
+        docsMap[dayKey] = {
+          ...doc,
+          blocos: doc.reunioes_blocos?.sort((a, b) => a.ordem - b.ordem) || []
+        };
+      });
+      setDocuments(docsMap);
+
+      // Load the specific day
+      const dayKey = day.toString();
+      if (docsMap[dayKey]) {
+        setCurrentDocument(docsMap[dayKey]);
+        setBlocks(docsMap[dayKey].blocos || []);
+      } else {
+        await createOrOpenDocument(day);
+      }
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar documentos",
+        variant: "destructive"
+      });
     }
   };
   const loadTemplates = async () => {
@@ -803,9 +848,6 @@ export function PautaReuniaoView() {
     setBlocks(prev => [...prev, newBlock]);
     setNewBlockInCreation(newBlock.id);
 
-    // Broadcast criação de bloco imediatamente
-    broadcastBlockCreate(newBlock.id);
-
     // Focus no título após um breve delay
     setTimeout(() => {
       const titleInput = document.querySelector(`#title-input-${newBlock.id}`) as HTMLInputElement;
@@ -963,9 +1005,6 @@ export function PautaReuniaoView() {
       // Remove block from local state
       const updatedBlocks = blocks.filter(block => block.id !== blockId);
       setBlocks(updatedBlocks);
-
-      // Broadcast delete imediatamente
-      broadcastBlockDelete(blockId);
 
       // Trigger autosave to persist the deletion
       scheduleAutosave();
@@ -1130,34 +1169,86 @@ export function PautaReuniaoView() {
         </div>
         <div className="flex gap-1">
           <Button variant="outline" size="sm" className="h-7 px-2" onClick={async () => {
-            const newDate = selectedDate.mes === 1 ? {
-              ano: selectedDate.ano - 1,
-              mes: 12,
-              dia: undefined
-            } : {
-              ano: selectedDate.ano,
-              mes: selectedDate.mes - 1,
-              dia: undefined
-            };
+            const newMonth = selectedDate.mes === 1 ? 12 : selectedDate.mes - 1;
+            const newYear = selectedDate.mes === 1 ? selectedDate.ano - 1 : selectedDate.ano;
+            const newDate = { ano: newYear, mes: newMonth, dia: undefined };
+            
             setSelectedDate(newDate);
-            updateURL(newDate.ano, newDate.mes);
-            await loadDocuments();
+            updateURL(newYear, newMonth);
+            
+            // Load documents for new month
+            const { data, error } = await supabase
+              .from('reunioes_documentos')
+              .select(`
+                *,
+                reunioes_blocos (
+                  id,
+                  tipo,
+                  titulo,
+                  conteudo,
+                  ordem,
+                  ancora
+                )
+              `)
+              .eq('ano', newYear)
+              .eq('mes', newMonth)
+              .order('dia');
+
+            if (!error && data) {
+              const docsMap: { [key: string]: MeetingDocument } = {};
+              data.forEach(doc => {
+                const dayKey = doc.dia.toString();
+                docsMap[dayKey] = {
+                  ...doc,
+                  blocos: doc.reunioes_blocos?.sort((a, b) => a.ordem - b.ordem) || []
+                };
+              });
+              setDocuments(docsMap);
+              setCurrentDocument(null);
+              setBlocks([]);
+            }
           }}>
             <ChevronLeft className="h-3 w-3" />
           </Button>
           <Button variant="outline" size="sm" className="h-7 px-2" onClick={async () => {
-            const newDate = selectedDate.mes === 12 ? {
-              ano: selectedDate.ano + 1,
-              mes: 1,
-              dia: undefined
-            } : {
-              ano: selectedDate.ano,
-              mes: selectedDate.mes + 1,
-              dia: undefined
-            };
+            const newMonth = selectedDate.mes === 12 ? 1 : selectedDate.mes + 1;
+            const newYear = selectedDate.mes === 12 ? selectedDate.ano + 1 : selectedDate.ano;
+            const newDate = { ano: newYear, mes: newMonth, dia: undefined };
+            
             setSelectedDate(newDate);
-            updateURL(newDate.ano, newDate.mes);
-            await loadDocuments();
+            updateURL(newYear, newMonth);
+            
+            // Load documents for new month
+            const { data, error } = await supabase
+              .from('reunioes_documentos')
+              .select(`
+                *,
+                reunioes_blocos (
+                  id,
+                  tipo,
+                  titulo,
+                  conteudo,
+                  ordem,
+                  ancora
+                )
+              `)
+              .eq('ano', newYear)
+              .eq('mes', newMonth)
+              .order('dia');
+
+            if (!error && data) {
+              const docsMap: { [key: string]: MeetingDocument } = {};
+              data.forEach(doc => {
+                const dayKey = doc.dia.toString();
+                docsMap[dayKey] = {
+                  ...doc,
+                  blocos: doc.reunioes_blocos?.sort((a, b) => a.ordem - b.ordem) || []
+                };
+              });
+              setDocuments(docsMap);
+              setCurrentDocument(null);
+              setBlocks([]);
+            }
           }}>
             <ChevronRight className="h-3 w-3" />
           </Button>
@@ -1465,13 +1556,12 @@ export function PautaReuniaoView() {
             </Button>
           </div>;
       default:
-        return <RealtimeCollaborativeEditor
-          documentId={documentId}
-          blockId={block.id}
+        return <WYSIWYGEditor
           content={block.conteudo.texto || ''}
           onChange={content => handleBlockContentChange(block.id, content)}
+          onTitleExtracted={() => {}}
           placeholder="Digite o conteúdo da pauta..."
-          className="min-h-[120px]"
+          showToolbar={true}
         />;
     }
   };
@@ -1538,22 +1628,6 @@ export function PautaReuniaoView() {
                 </Button>}
             </div>
             
-            {/* Realtime Collaboration Status */}
-            {currentDocument && documentId && (
-              <div className="flex items-center justify-between">
-                <RealtimePresenceIndicator 
-                  presenceUsers={presenceUsers}
-                  isConnected={isConnected}
-                  currentUserName={userData?.nome}
-                />
-                <RealtimeSyncStatus
-                  syncStatus={syncStatus}
-                  saveStatus={saveStatus}
-                  lastSyncTime={lastSyncTime}
-                  lastSaveTime={lastSaved}
-                />
-              </div>
-            )}
           </div>
 
           {/* Content */}
