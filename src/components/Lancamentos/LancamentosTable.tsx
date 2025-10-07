@@ -258,12 +258,11 @@ export const LancamentosTable = ({
                 </TableHead>
                 <SortableHeader sortKey="nome_lancamento">Lançamento</SortableHeader>
                 <SortableHeader sortKey="clientes.nome">Cliente</SortableHeader>
-                <TableHead>Gestor</TableHead>
-                <TableHead>Dashboard</TableHead>
                 <SortableHeader sortKey="status_lancamento">Status</SortableHeader>
                 <SortableHeader sortKey="tipo_lancamento">Tipo</SortableHeader>
                 <SortableHeader sortKey="investimento_total">Investimento</SortableHeader>
                 <SortableHeader sortKey="data_inicio_captacao">Data Início</SortableHeader>
+                <TableHead>Dashboard</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -315,40 +314,6 @@ export const LancamentosTable = ({
                   </TableCell>
 
                   <TableCell>
-                    {lancamento.gestor ? (
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={lancamento.gestor.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {lancamento.gestor.nome?.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{lancamento.gestor.nome}</span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">Sem gestor</span>
-                    )}
-                  </TableCell>
-
-                  <TableCell>
-                    {lancamento.link_dashboard ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8"
-                        asChild
-                      >
-                        <a href={lancamento.link_dashboard.startsWith('http') ? lancamento.link_dashboard : `https://${lancamento.link_dashboard}`} target="_blank" rel="noopener noreferrer">
-                          <BarChart3 className="h-4 w-4 mr-1" />
-                          Abrir
-                        </a>
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-
-                  <TableCell>
                     <Badge variant="secondary" className={`${statusColors[lancamento.status_lancamento]} text-white`}>
                       {statusLabels[lancamento.status_lancamento]}
                     </Badge>
@@ -393,6 +358,24 @@ export const LancamentosTable = ({
                         {new Date(lancamento.data_inicio_captacao).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
+                  </TableCell>
+
+                  <TableCell>
+                    {lancamento.link_dashboard ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8"
+                        asChild
+                      >
+                        <a href={lancamento.link_dashboard.startsWith('http') ? lancamento.link_dashboard : `https://${lancamento.link_dashboard}`} target="_blank" rel="noopener noreferrer">
+                          <BarChart3 className="h-4 w-4 mr-1" />
+                          Abrir
+                        </a>
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
                   </TableCell>
 
                   <TableCell>
