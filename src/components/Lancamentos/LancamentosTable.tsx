@@ -255,7 +255,6 @@ export const LancamentosTable = ({
                 </TableHead>
                 <SortableHeader sortKey="nome_lancamento">Lançamento</SortableHeader>
                 <SortableHeader sortKey="clientes.nome">Cliente</SortableHeader>
-                <TableHead>Gestor</TableHead>
                 <SortableHeader sortKey="status_lancamento">Status</SortableHeader>
                 <SortableHeader sortKey="tipo_lancamento">Tipo</SortableHeader>
                 <SortableHeader sortKey="investimento_total">Investimento</SortableHeader>
@@ -289,28 +288,22 @@ export const LancamentosTable = ({
                   </TableCell>
                   
                   <TableCell>
-                    {lancamento.clientes?.nome ? (
-                      <div className="flex items-center gap-2">
-                        <Building className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{lancamento.clientes.nome}</span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">Cliente não definido</span>
-                    )}
-                  </TableCell>
-
-                  <TableCell>
                     <Select
-                      value={lancamento.gestor?.id ?? lancamento.gestor_responsavel_id ?? 'none'}
-                      onValueChange={(value) => handleChangeGestor(lancamento.id, value === 'none' ? null : value)}
+                      value={lancamento.cliente_id ?? 'none'}
+                      onValueChange={(value) => {
+                        if (value === 'none') return;
+                        handleChangeCliente(lancamento.id, value);
+                      }}
                     >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Selecionar gestor" />
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Selecionar cliente" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Sem gestor</SelectItem>
-                        {colaboradores.map((col) => (
-                          <SelectItem key={col.id} value={col.id}>{col.nome}</SelectItem>
+                        <SelectItem value="none">Sem cliente</SelectItem>
+                        {clientes.map((cliente) => (
+                          <SelectItem key={cliente.id} value={cliente.id}>
+                            {cliente.nome}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
