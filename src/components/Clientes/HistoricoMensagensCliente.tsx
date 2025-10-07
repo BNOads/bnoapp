@@ -111,7 +111,7 @@ export function HistoricoMensagensCliente({ clienteId, isPublicView = false }: H
                   <TableRow>
                     <TableHead>Semana</TableHead>
                     <TableHead>Mensagem</TableHead>
-                    <TableHead>Gestor</TableHead>
+                    {!isPublicView && <TableHead>Gestor</TableHead>}
                     {!isPublicView && <TableHead>CS</TableHead>}
                     {!isPublicView && <TableHead>Timeline</TableHead>}
                     {!isPublicView && <TableHead>Status</TableHead>}
@@ -129,7 +129,7 @@ export function HistoricoMensagensCliente({ clienteId, isPublicView = false }: H
                           {previewMensagem(mensagem.mensagem)}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{mensagem.gestor_nome}</TableCell>
+                      {!isPublicView && <TableCell className="text-sm">{mensagem.gestor_nome}</TableCell>}
                       {!isPublicView && <TableCell className="text-sm">{mensagem.cs_nome}</TableCell>}
                       {!isPublicView && (
                         <TableCell>
