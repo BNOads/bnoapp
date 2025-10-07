@@ -6,12 +6,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, BarChart3, Calendar, FileText, Import, Filter, Search, X, Edit, Trash2 } from 'lucide-react';
+import { Plus, BarChart3, FileText, Filter, Search, X, Edit, Trash2 } from 'lucide-react';
 import NovoLancamentoModal from './NovoLancamentoModal';
-import ImportarLancamentosModal from './ImportarLancamentosModal';
+
 import LancamentosTable from './LancamentosTable';
-import { ImportCSVButton } from './ImportCSVButton';
-import { ImportarLancamentosEspecial } from './ImportarLancamentosEspecial';
+
+
 import EdicaoMassaLancamentosModal from './EdicaoMassaLancamentosModal';
 import ExclusaoMassaModal from './ExclusaoMassaModal';
 import GanttChart from './GanttChart';
@@ -55,7 +55,7 @@ export const LancamentosView: React.FC = () => {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNovoModal, setShowNovoModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  
   const [showEdicaoMassaModal, setShowEdicaoMassaModal] = useState(false);
   const [showExclusaoMassaModal, setShowExclusaoMassaModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -190,14 +190,6 @@ export const LancamentosView: React.FC = () => {
     });
   };
 
-  const handleImportacaoConcluida = () => {
-    fetchLancamentos();
-    setShowImportModal(false);
-    toast({
-      title: "Importação concluída",
-      description: "Os lançamentos foram importados com sucesso.",
-    });
-  };
 
   const handleEdicaoMassaConcluida = () => {
     fetchLancamentos();
@@ -341,17 +333,7 @@ export const LancamentosView: React.FC = () => {
             <Filter className="h-4 w-4" />
             Filtros
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowImportModal(true)}
-            className="gap-2"
-          >
-            <Import className="h-4 w-4" />
-            Importar
-          </Button>
           
-          <ImportCSVButton onImportComplete={handleImportacaoConcluida} />
-          <ImportarLancamentosEspecial onImportComplete={handleImportacaoConcluida} />
           <Button
             onClick={() => setShowNovoModal(true)}
             className="gap-2"
@@ -464,11 +446,6 @@ export const LancamentosView: React.FC = () => {
         onLancamentoCriado={handleLancamentoCriado}
       />
 
-      <ImportarLancamentosModal
-        open={showImportModal}
-        onOpenChange={setShowImportModal}
-        onImportacaoConcluida={handleImportacaoConcluida}
-      />
 
       <EdicaoMassaLancamentosModal
         open={showEdicaoMassaModal}
