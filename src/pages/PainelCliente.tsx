@@ -276,7 +276,7 @@ const PainelCliente = () => {
                 <span className="truncate">Links Importantes</span>
               </h2>
               <div className="w-full overflow-hidden">
-               <LinksImportantesEnhanced clienteId={clienteId} isPublicView={!isAuthenticated} />
+               <LinksImportantesEnhanced clienteId={cliente.id} isPublicView={!isAuthenticated} />
               </div>
             </section>
 
@@ -300,12 +300,12 @@ const PainelCliente = () => {
                 <span className="truncate">Tarefas</span>
               </h2>
               <div className="w-full overflow-hidden">
-                <TarefasListEnhanced clienteId={clienteId} tipo="cliente" isPublicView={!isAuthenticated} />
+                <TarefasListEnhanced clienteId={cliente.id} tipo="cliente" isPublicView={!isAuthenticated} />
               </div>
               
               {/* Diário de Bordo - Positioned below tasks on the right side */}
               <div className="mt-6">
-                <DiarioBordo clienteId={clienteId} />
+                <DiarioBordo clienteId={cliente.id} />
               </div>
             </section>
           </div>
@@ -331,7 +331,7 @@ const PainelCliente = () => {
               <span className="truncate">Gravações e Reuniões</span>
             </h2>
             <div className="w-full overflow-hidden">
-              <GravacoesReunioes clienteId={clienteId} isPublicView={!isAuthenticated} />
+              <GravacoesReunioes clienteId={cliente.id} isPublicView={!isAuthenticated} />
             </div>
           </section>
 
@@ -340,11 +340,11 @@ const PainelCliente = () => {
             <section className="space-y-3 sm:space-y-4">
               <div className="w-full overflow-hidden space-y-4">
                 <MensagemSemanal 
-                  clienteId={clienteId!} 
+                  clienteId={cliente.id} 
                   gestorId={cliente.primary_gestor_user_id}
                   csId={cliente.cs_id}
                 />
-                <HistoricoMensagensCliente clienteId={clienteId!} />
+                <HistoricoMensagensCliente clienteId={cliente.id} />
               </div>
             </section>
           )}
@@ -370,7 +370,7 @@ const PainelCliente = () => {
               <span className="truncate">Orçamento por Funil</span>
             </h2>
             <div className="w-full overflow-hidden">
-              <OrcamentoPorFunil clienteId={clienteId} isPublicView={!isAuthenticated} showGestorValues={false} />
+              <OrcamentoPorFunil clienteId={cliente.id} isPublicView={!isAuthenticated} showGestorValues={false} />
             </div>
           </section>
         </div>
