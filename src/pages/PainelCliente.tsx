@@ -335,19 +335,19 @@ const PainelCliente = () => {
             </div>
           </section>
 
-          {/* Mensagem Semanal - Apenas para Usuários Autenticados */}
-          {isAuthenticated && (
-            <section className="space-y-3 sm:space-y-4">
-              <div className="w-full overflow-hidden space-y-4">
+          {/* Mensagem Semanal e Histórico */}
+          <section className="space-y-3 sm:space-y-4">
+            <div className="w-full overflow-hidden space-y-4">
+              {isAuthenticated && (
                 <MensagemSemanal 
                   clienteId={cliente.id} 
                   gestorId={cliente.primary_gestor_user_id}
                   csId={cliente.cs_id}
                 />
-                <HistoricoMensagensCliente clienteId={cliente.id} />
-              </div>
-            </section>
-          )}
+              )}
+              <HistoricoMensagensCliente clienteId={cliente.id} isPublicView={!isAuthenticated} />
+            </div>
+          </section>
 
           {/* Orçamento por Funil - Adaptativo */}
           <section className="space-y-3 sm:space-y-4">

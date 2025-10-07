@@ -25,9 +25,10 @@ interface MensagemHistorico {
 
 interface HistoricoMensagensClienteProps {
   clienteId: string;
+  isPublicView?: boolean;
 }
 
-export function HistoricoMensagensCliente({ clienteId }: HistoricoMensagensClienteProps) {
+export function HistoricoMensagensCliente({ clienteId, isPublicView = false }: HistoricoMensagensClienteProps) {
   const [mensagens, setMensagens] = useState<MensagemHistorico[]>([]);
   const [loading, setLoading] = useState(true);
   const [mensagemSelecionada, setMensagemSelecionada] = useState<MensagemHistorico | null>(null);
@@ -104,9 +105,9 @@ export function HistoricoMensagensCliente({ clienteId }: HistoricoMensagensClien
                     <TableHead>Semana</TableHead>
                     <TableHead>Mensagem</TableHead>
                     <TableHead>Gestor</TableHead>
-                    <TableHead>CS</TableHead>
-                    <TableHead>Timeline</TableHead>
-                    <TableHead>Status</TableHead>
+                    {!isPublicView && <TableHead>CS</TableHead>}
+                    {!isPublicView && <TableHead>Timeline</TableHead>}
+                    {!isPublicView && <TableHead>Status</TableHead>}
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -122,29 +123,33 @@ export function HistoricoMensagensCliente({ clienteId }: HistoricoMensagensClien
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">{mensagem.gestor_nome}</TableCell>
-                      <TableCell className="text-sm">{mensagem.cs_nome}</TableCell>
-                      <TableCell>
-                        <div className="text-xs space-y-1">
-                          {mensagem.enviado_gestor_em && (
-                            <div className="text-blue-600">
-                              ✅ {format(new Date(mensagem.enviado_gestor_em), "dd/MM HH:mm", { locale: ptBR })}
-                            </div>
-                          )}
-                          {mensagem.enviado_cs_em && (
-                            <div className="text-green-600">
-                              📤 {format(new Date(mensagem.enviado_cs_em), "dd/MM HH:mm", { locale: ptBR })}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={mensagem.enviado ? "default" : "destructive"}
-                          className={mensagem.enviado ? "bg-green-100 text-green-800" : ""}
-                        >
-                          {mensagem.enviado ? "✅ Enviado" : "❌ Pendente"}
-                        </Badge>
-                      </TableCell>
+                      {!isPublicView && <TableCell className="text-sm">{mensagem.cs_nome}</TableCell>}
+                      {!isPublicView && (
+                        <TableCell>
+                          <div className="text-xs space-y-1">
+                            {mensagem.enviado_gestor_em && (
+                              <div className="text-blue-600">
+                                ✅ {format(new Date(mensagem.enviado_gestor_em), "dd/MM HH:mm", { locale: ptBR })}
+                              </div>
+                            )}
+                            {mensagem.enviado_cs_em && (
+                              <div className="text-green-600">
+                                📤 {format(new Date(mensagem.enviado_cs_em), "dd/MM HH:mm", { locale: ptBR })}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+                      {!isPublicView && (
+                        <TableCell>
+                          <Badge 
+                            variant={mensagem.enviado ? "default" : "destructive"}
+                            className={mensagem.enviado ? "bg-green-100 text-green-800" : ""}
+                          >
+                            {mensagem.enviado ? "✅ Enviado" : "❌ Pendente"}
+                          </Badge>
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Button
                           variant="outline"
