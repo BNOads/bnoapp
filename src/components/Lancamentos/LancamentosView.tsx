@@ -6,13 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, BarChart3, Calendar, FileText, Import, Filter, Search, X, Edit } from 'lucide-react';
+import { Plus, BarChart3, Calendar, FileText, Import, Filter, Search, X, Edit, Trash2 } from 'lucide-react';
 import NovoLancamentoModal from './NovoLancamentoModal';
 import ImportarLancamentosModal from './ImportarLancamentosModal';
 import LancamentosTable from './LancamentosTable';
 import { ImportCSVButton } from './ImportCSVButton';
 import { ImportarLancamentosEspecial } from './ImportarLancamentosEspecial';
 import EdicaoMassaLancamentosModal from './EdicaoMassaLancamentosModal';
+import ExclusaoMassaModal from './ExclusaoMassaModal';
 import GanttChart from './GanttChart';
 import DashboardLancamentos from './DashboardLancamentos';
 
@@ -56,6 +57,7 @@ export const LancamentosView: React.FC = () => {
   const [showNovoModal, setShowNovoModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showEdicaoMassaModal, setShowEdicaoMassaModal] = useState(false);
+  const [showExclusaoMassaModal, setShowExclusaoMassaModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('lista');
   const [statusTab, setStatusTab] = useState<'ativos' | 'finalizados'>('ativos');
@@ -203,6 +205,12 @@ export const LancamentosView: React.FC = () => {
     setShowEdicaoMassaModal(false);
   };
 
+  const handleExclusaoMassaConcluida = () => {
+    fetchLancamentos();
+    setSelectedIds([]);
+    setShowExclusaoMassaModal(false);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -306,14 +314,24 @@ export const LancamentosView: React.FC = () => {
             )}
           </div>
           {selectedIds.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => setShowEdicaoMassaModal(true)}
-              className="gap-2"
-            >
-              <Edit className="h-4 w-4" />
-              Editar Selecionados ({selectedIds.length})
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setShowEdicaoMassaModal(true)}
+                className="gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Editar Selecionados ({selectedIds.length})
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setShowExclusaoMassaModal(true)}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Excluir Selecionados ({selectedIds.length})
+              </Button>
+            </>
           )}
           <Button
             variant={showFilters ? "default" : "outline"}
@@ -457,6 +475,14 @@ export const LancamentosView: React.FC = () => {
         onOpenChange={setShowEdicaoMassaModal}
         selectedIds={selectedIds}
         onEdicaoCompleta={handleEdicaoMassaConcluida}
+      />
+
+      <ExclusaoMassaModal
+        open={showExclusaoMassaModal}
+        onOpenChange={setShowExclusaoMassaModal}
+        selectedIds={selectedIds}
+        lancamentos={lancamentosFiltrados}
+        onExclusaoCompleta={handleExclusaoMassaConcluida}
       />
     </div>
   );
