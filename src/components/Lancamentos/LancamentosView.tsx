@@ -142,17 +142,7 @@ export const LancamentosView: React.FC = () => {
         return;
       }
 
-      const lista = (data as any) || [];
-      // Remover duplicados por nome, mantendo o mais recente (updated_at)
-      const map = new Map<string, any>();
-      for (const item of lista) {
-        const key = (item.nome_lancamento || '').trim().toLowerCase();
-        const prev = map.get(key);
-        if (!prev || new Date(item.updated_at) > new Date(prev.updated_at)) {
-          map.set(key, item);
-        }
-      }
-      setLancamentos(Array.from(map.values()));
+      setLancamentos((data as any) || []);
     } catch (error) {
       console.error('Erro ao buscar lançamentos:', error);
       toast({
