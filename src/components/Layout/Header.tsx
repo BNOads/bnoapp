@@ -1,4 +1,4 @@
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, Star } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, Star, HardDriveDownload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -6,10 +6,12 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import bnoadsLogo from "@/assets/bnoads-logo-new.png";
 import NotificationBell from "@/components/Notifications/NotificationBell";
 import CreateNotificationModal from "@/components/Notifications/CreateNotificationModal";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { CacheBypassToggle } from "@/components/ui/CacheBypassToggle";
 interface HeaderProps {}
 
 export const Header = ({}: HeaderProps) => {
@@ -140,6 +142,23 @@ export const Header = ({}: HeaderProps) => {
 
             {/* Notification Bell */}
             <NotificationBell />
+
+            {/* Cache Bypass Toggle (DEV) */}
+            {isAdmin && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="p-2" title="Configurar Cache">
+                    <HardDriveDownload className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Configuração de Cache</DialogTitle>
+                  </DialogHeader>
+                  <CacheBypassToggle />
+                </DialogContent>
+              </Dialog>
+            )}
 
             {/* Favorite Star Button */}
             <Button

@@ -35,7 +35,17 @@ import { MapaMentalPublico } from "./pages/MapaMentalPublico";
 import FunilPublico from "./pages/FunilPublico";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0,
+      gcTime: 0,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
+    },
+  },
+});
 
 function App() {
   return (
