@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, BarChart3, FileText, Filter, Search, X, Edit, Trash2 } from 'lucide-react';
+import { Plus, BarChart3, FileText, Filter, Search, X, Edit, Trash2, TrendingUp, Target } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import NovoLancamentoModal from './NovoLancamentoModal';
 
 import LancamentosTable from './LancamentosTable';
@@ -71,6 +72,8 @@ export const LancamentosView: React.FC = () => {
     tipo: 'all',
     cliente: 'all'
   });
+  const [clienteGestorMap, setClienteGestorMap] = useState<Record<string, string | null>>({});
+  const [gestorInfoMap, setGestorInfoMap] = useState<Record<string, { nome: string; avatar_url?: string }>>({});
   
   const { toast } = useToast();
 
@@ -163,6 +166,30 @@ export const LancamentosView: React.FC = () => {
         }
       }
       const uniqueLancamentos = Array.from(byCompositeMap.values());
+
+      // Buscar mapeamento de clientes -> gestores
+      const clienteIds = Array.from(new Set(uniqueLancamentos.map((l: any) => l.cliente_id).filter(Boolean)));
+      const { data: clientesData } = await supabase
+        .from('clientes')
+        .select('id, primary_gestor_user_id')
+        .in('id', clienteIds.length > 0 ? clienteIds : ['00000000-0000-0000-0000-000000000000']);
+
+      const clienteMap: Record<string, string | null> = {};
+      clientesData?.forEach((c) => { clienteMap[c.id] = c.primary_gestor_user_id || null; });
+      setClienteGestorMap(clienteMap);
+
+      // Buscar informações dos gestores
+      const gestorUserIds = Array.from(new Set(Object.values(clienteMap).filter(Boolean) as string[]));
+      const { data: colaboradoresData } = await supabase
+        .from('colaboradores')
+        .select('user_id, nome, avatar_url')
+        .in('user_id', gestorUserIds.length > 0 ? gestorUserIds : ['00000000-0000-0000-0000-000000000000']);
+
+      const gestorMap: Record<string, { nome: string; avatar_url?: string }> = {};
+      colaboradoresData?.forEach((col) => { 
+        gestorMap[col.user_id] = { nome: col.nome, avatar_url: col.avatar_url || undefined }; 
+      });
+      setGestorInfoMap(gestorMap);
 
       setLancamentos(uniqueLancamentos as any);
     } catch (error) {
@@ -270,12 +297,53 @@ export const LancamentosView: React.FC = () => {
   };
 
 
+  // Agrupamento por gestor
+  const gestoresAggregados = useMemo(() => {
+    const acc: Record<string, { 
+      totalInvestimento: number; 
+      lancamentos: Array<{ nome: string; cliente_nome: string; investimento: number }> 
+    }> = {};
+
+    for (const l of lancamentosFiltrados) {
+      const gestorUserId = l.cliente_id ? clienteGestorMap[l.cliente_id] : null;
+      if (!gestorUserId) continue;
+      
+      if (!acc[gestorUserId]) {
+        acc[gestorUserId] = { totalInvestimento: 0, lancamentos: [] };
+      }
+      acc[gestorUserId].totalInvestimento += Number(l.investimento_total) || 0;
+      acc[gestorUserId].lancamentos.push({ 
+        nome: l.nome_lancamento, 
+        cliente_nome: l.clientes?.nome || '', 
+        investimento: Number(l.investimento_total) || 0 
+      });
+    }
+
+    const list = Object.entries(acc).map(([gestorUserId, data]) => ({
+      gestorUserId,
+      gestorNome: gestorInfoMap[gestorUserId]?.nome || 'Gestor sem nome',
+      avatar_url: gestorInfoMap[gestorUserId]?.avatar_url,
+      totalInvestimento: data.totalInvestimento,
+      lancamentos: data.lancamentos
+    }));
+
+    list.sort((a, b) => b.totalInvestimento - a.totalInvestimento);
+    return list;
+  }, [lancamentosFiltrados, clienteGestorMap, gestorInfoMap]);
+
   // Stats sempre com base em TODOS os lançamentos, não nos filtrados
   const stats = {
     total: lancamentos.length,
     ativos: lancamentos.filter(l => ['em_captacao', 'cpl', 'remarketing'].includes(l.status_lancamento)).length,
     investimentoTotal: lancamentos.reduce((sum, l) => sum + Number(l.investimento_total), 0),
     finalizados: lancamentos.filter(l => l.status_lancamento === 'finalizado').length
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
   };
 
   return (
@@ -388,6 +456,74 @@ export const LancamentosView: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Seção de Lançamentos por Gestor */}
+      {gestoresAggregados.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Lançamentos por Gestor
+            </CardTitle>
+            <CardDescription>
+              Investimento total agrupado por gestor responsável
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {gestoresAggregados.map((gestor) => (
+                <Card key={gestor.gestorUserId} className="border-l-4 border-l-primary">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={gestor.avatar_url} />
+                          <AvatarFallback>
+                            {gestor.gestorNome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <h3 className="font-semibold">{gestor.gestorNome}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {gestor.lancamentos.length} {gestor.lancamentos.length === 1 ? 'lançamento' : 'lançamentos'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-2">
+                          <Target className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-muted-foreground">Total Investido</span>
+                        </div>
+                        <p className="text-2xl font-bold text-primary">
+                          {formatCurrency(gestor.totalInvestimento)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {gestor.lancamentos.slice(0, 3).map((lanc, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
+                          <div className="flex-1">
+                            <span className="font-medium">{lanc.nome}</span>
+                            {lanc.cliente_nome && (
+                              <span className="text-muted-foreground ml-2">• {lanc.cliente_nome}</span>
+                            )}
+                          </div>
+                          <span className="font-semibold ml-4">{formatCurrency(lanc.investimento)}</span>
+                        </div>
+                      ))}
+                      {gestor.lancamentos.length > 3 && (
+                        <p className="text-xs text-muted-foreground text-center pt-1">
+                          +{gestor.lancamentos.length - 3} mais {gestor.lancamentos.length - 3 === 1 ? 'lançamento' : 'lançamentos'}
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabs de Status (Ativos/Finalizados) */}
       <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as 'ativos' | 'finalizados')}>
