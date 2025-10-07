@@ -262,7 +262,7 @@ IMPORTANTE: Use estas transcrições para responder sobre decisões, tarefas, pr
 
 async function getSystemContext(supabase: any, userId: string, isAdmin: boolean, userClientId: string | null = null) {
   try {
-    let context = "🎯 MENUAPP - ASSISTENTE DE NEGÓCIOS IA\n\n";
+    let context = "🎯 SISTEMA BNOADS - COPILOTO INTELIGENTE\n\n";
 
     // Buscar dados do usuário atual
     const { data: profile } = await supabase
@@ -274,88 +274,6 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     if (profile) {
       context += `👤 USUÁRIO ATUAL: ${profile.nome} (${profile.email})\n`;
       context += `🔐 Nível de acesso: ${profile.nivel_acesso}\n\n`;
-    }
-
-    // 📊 LANÇAMENTOS - Análise completa com insights
-    let lancamentosQuery = supabase
-      .from('lancamentos')
-      .select(`
-        id, nome_lancamento, cliente_id, status_lancamento,
-        data_inicio_captacao, data_inicio_cpl, data_inicio_remarketing,
-        data_fim_captacao, data_fim_cpl, data_fim_remarketing,
-        investimento_total, meta_investimento, resultado_obtido, roi_percentual,
-        leads_desejados, meta_custo_lead, ticket_produto,
-        distribuicao_plataformas, distribuicao_fases, metas_investimentos,
-        observacoes, created_at, updated_at
-      `)
-      .eq('ativo', true)
-      .order('data_inicio_captacao', { ascending: false });
-
-    if (userClientId && !isAdmin) {
-      lancamentosQuery = lancamentosQuery.eq('cliente_id', userClientId);
-    }
-
-    const { data: lancamentos } = await lancamentosQuery.limit(50);
-
-    if (lancamentos && lancamentos.length > 0) {
-      context += `🚀 LANÇAMENTOS ATIVOS (${lancamentos.length})\n\n`;
-      
-      // Análise de performance
-      const hoje = new Date();
-      const urgentes = lancamentos.filter((l: any) => {
-        const dataCPL = l.data_inicio_cpl ? new Date(l.data_inicio_cpl) : null;
-        if (dataCPL) {
-          const diasParaCPL = Math.ceil((dataCPL.getTime() - hoje.getTime()) / (1000 * 3600 * 24));
-          return diasParaCPL >= 0 && diasParaCPL <= 3;
-        }
-        return false;
-      });
-
-      const performanceGeral = lancamentos.reduce((acc: any, l: any) => {
-        if (l.roi_percentual) {
-          acc.roiTotal += l.roi_percentual;
-          acc.count++;
-        }
-        if (l.investimento_total) acc.investimentoTotal += parseFloat(l.investimento_total);
-        return acc;
-      }, { roiTotal: 0, count: 0, investimentoTotal: 0 });
-
-      context += `📈 INSIGHTS GERAIS:\n`;
-      context += `   🔴 Urgentes (CPL nos próximos 3 dias): ${urgentes.length}\n`;
-      context += `   💰 Investimento total: R$ ${performanceGeral.investimentoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
-      if (performanceGeral.count > 0) {
-        const roiMedio = performanceGeral.roiTotal / performanceGeral.count;
-        context += `   📊 ROI médio: ${roiMedio.toFixed(2)}%\n`;
-      }
-      context += `\n`;
-
-      // Detalhar lançamentos urgentes primeiro
-      if (urgentes.length > 0) {
-        context += `⚠️ LANÇAMENTOS URGENTES (CPL próximo):\n`;
-        urgentes.forEach((lanc: any) => {
-          const dataCPL = new Date(lanc.data_inicio_cpl);
-          const diasParaCPL = Math.ceil((dataCPL.getTime() - hoje.getTime()) / (1000 * 3600 * 24));
-          context += `\n🔥 **${lanc.nome_lancamento}**\n`;
-          context += `   🎯 CPL em ${diasParaCPL} dias (${dataCPL.toLocaleDateString('pt-BR')})\n`;
-          context += `   📊 Status: ${lanc.status_lancamento}\n`;
-          if (lanc.meta_custo_lead) context += `   💵 Meta CPL: R$ ${parseFloat(lanc.meta_custo_lead).toFixed(2)}\n`;
-          if (lanc.leads_desejados) context += `   🎯 Leads desejados: ${lanc.leads_desejados}\n`;
-        });
-        context += `\n`;
-      }
-
-      // Lançamentos por fase
-      const porFase = lancamentos.reduce((acc: any, l: any) => {
-        const fase = l.status_lancamento || 'indefinido';
-        acc[fase] = (acc[fase] || 0) + 1;
-        return acc;
-      }, {});
-
-      context += `📋 DISTRIBUIÇÃO POR FASE:\n`;
-      Object.entries(porFase).forEach(([fase, count]) => {
-        context += `   ${fase}: ${count}\n`;
-      });
-      context += `\n`;
     }
 
     // CLIENTES - Informações completas com foco no cliente específico
