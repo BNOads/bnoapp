@@ -18,8 +18,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { EnviarSlackModal } from "./EnviarSlackModal";
-import { RealtimePresenceIndicator } from "./RealtimePresenceIndicator";
-import { RealtimeSyncStatus } from "./RealtimeSyncStatus";
 interface MeetingDocument {
   id: string;
   ano: number;
