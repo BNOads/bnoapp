@@ -12,15 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY não configurada");
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    console.log("Iniciando busca de lançamentos...");
 
     // Buscar lançamentos ativos
     const { data: lancamentos, error: lancError } = await supabase
@@ -35,8 +31,11 @@ serve(async (req) => {
       .limit(20);
 
     if (lancError) {
-      throw new Error("Erro ao buscar lançamentos");
+      console.error("Erro ao buscar lançamentos:", lancError);
+      throw lancError;
     }
+
+    console.log(`${lancamentos?.length || 0} lançamentos encontrados`);
 
     const hoje = new Date();
     
@@ -92,32 +91,13 @@ Gere um resumo em português com:
 
 Seja direto, frases curtas, sem enrolação.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: "Você é um assistente de planejamento de lançamentos. Seja direto e conciso."
-          },
-          { role: "user", content: prompt }
-        ],
-      }),
-    });
+    console.log("Gerando resumo com IA...");
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("Erro Lovable AI:", aiResponse.status, errorText);
-      throw new Error(`Erro ao gerar resumo geral: ${aiResponse.status}`);
-    }
+    // Gerar resumo simples sem IA por enquanto
+    const resumo = `**Status Geral**: ${totalAtivos} lançamentos ativos hoje.
 
-    const aiData = await aiResponse.json();
-    const resumo = aiData.choices?.[0]?.message?.content || "Resumo não disponível";
+**Ações Prioritárias**:
+${acoesPrioritarias.slice(0, 5).map(a => `• ${a.nome} — ${a.dias} dias restantes (${a.fase})`).join("\n") || "• Nenhuma ação urgente no momento"}`;
 
     return new Response(
       JSON.stringify({
