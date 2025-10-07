@@ -319,34 +319,104 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
       context += `\n`;
     }
 
-    // ORÇAMENTOS POR FUNIL - Dados específicos do cliente ou gerais
+    // 💰 ORÇAMENTOS POR FUNIL - Investimentos ativos detalhados
     let orcamentosQuery = supabase
       .from('orcamentos_funil')
       .select(`
         id, nome_funil, valor_investimento, cliente_id, 
-        observacoes, ativo, data_atualizacao
+        observacoes, ativo, active, data_atualizacao, created_at
       `)
-      .eq('ativo', true);
+      .eq('ativo', true)
+      .eq('active', true);
 
     if (userClientId && !isAdmin) {
       orcamentosQuery = orcamentosQuery.eq('cliente_id', userClientId);
     }
 
-    const { data: orcamentos } = await orcamentosQuery.limit(20);
+    const { data: orcamentos } = await orcamentosQuery.limit(50);
 
     if (orcamentos && orcamentos.length > 0) {
-      const totalInvestimento = orcamentos.reduce((sum: number, orc: any) => sum + (parseFloat(orc.valor_investimento) || 0), 0);
-      context += `💰 ORÇAMENTOS POR FUNIL (${orcamentos.length} ativos)\n`;
-      context += `💎 **Total investimento: R$ ${totalInvestimento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}**\n\n`;
+      // Agrupar por cliente para análise
+      const orcamentosPorCliente = orcamentos.reduce((acc: any, orc: any) => {
+        const clienteId = orc.cliente_id;
+        if (!acc[clienteId]) {
+          acc[clienteId] = { total: 0, funis: [] };
+        }
+        acc[clienteId].total += parseFloat(orc.valor_investimento) || 0;
+        acc[clienteId].funis.push(orc);
+        return acc;
+      }, {});
+
+      const totalGeral = orcamentos.reduce((sum: number, orc: any) => sum + (parseFloat(orc.valor_investimento) || 0), 0);
       
-      orcamentos.forEach((orc: any) => {
-        const clienteNome = clientes?.find((c: any) => c.id === orc.cliente_id)?.nome || 'Cliente não encontrado';
-        context += `🎯 **${orc.nome_funil}** (${clienteNome})\n`;
-        context += `   💵 Valor: R$ ${parseFloat(orc.valor_investimento).toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
-        context += `   📅 Atualizado: ${new Date(orc.data_atualizacao).toLocaleDateString('pt-BR')}\n`;
-        if (orc.observacoes) context += `   📝 Obs: ${orc.observacoes.substring(0, 100)}...\n`;
+      context += `💰 ORÇAMENTOS POR FUNIL ATIVOS (${orcamentos.length} funis | Total: R$ ${totalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2})})\n\n`;
+      
+      // Detalhar por cliente
+      for (const [clienteId, dados] of Object.entries(orcamentosPorCliente) as any) {
+        const clienteNome = clientes?.find((c: any) => c.id === clienteId)?.nome || 'Cliente não encontrado';
+        context += `📌 **${clienteNome}**\n`;
+        context += `   💵 Total investindo: R$ ${dados.total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
+        context += `   🎯 Funis ativos (${dados.funis.length}):\n`;
+        
+        dados.funis.forEach((orc: any) => {
+          const percentual = ((parseFloat(orc.valor_investimento) / dados.total) * 100).toFixed(1);
+          context += `      • ${orc.nome_funil}: R$ ${parseFloat(orc.valor_investimento).toLocaleString('pt-BR', {minimumFractionDigits: 2})} (${percentual}%)`;
+          if (orc.observacoes) context += ` - ${orc.observacoes}`;
+          context += `\n`;
+        });
         context += `\n`;
-      });
+      }
+    }
+
+    // 📨 MENSAGENS SEMANAIS - Histórico de performance com métricas
+    let mensagensQuery = supabase
+      .from('mensagens_semanais')
+      .select('id, cliente_id, semana_referencia, mensagem, enviado, created_at, updated_at')
+      .order('semana_referencia', { ascending: false });
+
+    if (userClientId && !isAdmin) {
+      mensagensQuery = mensagensQuery.eq('cliente_id', userClientId);
+    }
+
+    const { data: mensagens } = await mensagensQuery.limit(60);
+
+    if (mensagens && mensagens.length > 0) {
+      // Agrupar por cliente e pegar últimas 3-4 mensagens de cada
+      const mensagensPorCliente = mensagens.reduce((acc: any, msg: any) => {
+        const clienteId = msg.cliente_id;
+        if (!acc[clienteId]) {
+          acc[clienteId] = [];
+        }
+        if (acc[clienteId].length < 4) {
+          acc[clienteId].push(msg);
+        }
+        return acc;
+      }, {});
+
+      context += `📨 MENSAGENS SEMANAIS COM MÉTRICAS (Histórico recente de ${Object.keys(mensagensPorCliente).length} clientes)\n\n`;
+      
+      for (const [clienteId, msgs] of Object.entries(mensagensPorCliente) as any) {
+        const clienteNome = clientes?.find((c: any) => c.id === clienteId)?.nome || 'Cliente não encontrado';
+        context += `📌 **${clienteNome}**\n`;
+        
+        msgs.forEach((msg: any) => {
+          const data = new Date(msg.semana_referencia).toLocaleDateString('pt-BR');
+          context += `   📅 Semana ${data}:\n`;
+          
+          // Extrair métricas da mensagem (ROI, ROAS, CPL, CPA, vendas, leads, etc)
+          const metricas = extrairMetricasDaMensagem(msg.mensagem);
+          if (metricas.length > 0) {
+            context += `      📊 **Métricas detectadas**: ${metricas.join(' | ')}\n`;
+          }
+          
+          // Resumo da mensagem (primeiras 200 caracteres, limpando quebras de linha)
+          if (msg.mensagem) {
+            const resumo = msg.mensagem.substring(0, 200).replace(/\n+/g, ' ').trim();
+            context += `      💬 "${resumo}${msg.mensagem.length > 200 ? '...' : ''}"\n`;
+          }
+          context += `\n`;
+        });
+      }
     }
 
     // TREINAMENTOS E AULAS - Catálogo completo
@@ -564,6 +634,7 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     context += `├── 🎨 Referências: ${referencias?.length || 0}\n`;
     context += `├── 🎥 Gravações: ${gravacoes?.length || 0}\n`;
     context += `├── 💰 Orçamentos: ${orcamentos?.length || 0}\n`;
+    context += `├── 📨 Mensagens semanais: ${mensagens?.length || 0}\n`;
     context += `├── ✅ Tarefas ativas: ${tarefas?.length || 0}\n`;
     context += `├── 🚀 Kickoffs: ${kickoffs?.length || 0}\n`;
     context += `└── 🎯 PDIs: ${pdis?.length || 0}\n\n`;
@@ -580,6 +651,41 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     console.error('Erro ao buscar contexto do sistema:', error);
     return "❌ Erro ao carregar informações do sistema. Dados filtrados por permissões de usuário.";
   }
+}
+
+// Função auxiliar para extrair métricas de mensagens semanais
+function extrairMetricasDaMensagem(mensagem: string): string[] {
+  if (!mensagem) return [];
+  
+  const metricas: string[] = [];
+  const texto = mensagem.toLowerCase();
+  
+  // Padrões de métricas comuns em mensagens semanais
+  const padroes = [
+    { regex: /roas[:\s]+([0-9,.]+)/i, nome: 'ROAS' },
+    { regex: /roi[:\s]+([0-9,.]+)%?/i, nome: 'ROI' },
+    { regex: /cpl[:\s]+r?\$?\s*([0-9,.]+)/i, nome: 'CPL' },
+    { regex: /cpa[:\s]+r?\$?\s*([0-9,.]+)/i, nome: 'CPA' },
+    { regex: /ctr[:\s]+([0-9,.]+)%/i, nome: 'CTR' },
+    { regex: /cpc[:\s]+r?\$?\s*([0-9,.]+)/i, nome: 'CPC' },
+    { regex: /cpm[:\s]+r?\$?\s*([0-9,.]+)/i, nome: 'CPM' },
+    { regex: /([0-9]+)\s*vendas?/i, nome: 'Vendas' },
+    { regex: /([0-9]+)\s*leads?/i, nome: 'Leads' },
+    { regex: /([0-9]+)\s*conversões?/i, nome: 'Conversões' },
+    { regex: /investimento[:\s]+r?\$?\s*([0-9,.]+)/i, nome: 'Investimento' },
+    { regex: /faturamento[:\s]+r?\$?\s*([0-9,.]+)/i, nome: 'Faturamento' },
+    { regex: /ticket\s*médio[:\s]+r?\$?\s*([0-9,.]+)/i, nome: 'Ticket Médio' },
+    { regex: /conversão[:\s]+([0-9,.]+)%/i, nome: 'Taxa Conversão' },
+  ];
+  
+  padroes.forEach(({ regex, nome }) => {
+    const match = texto.match(regex);
+    if (match && match[1]) {
+      metricas.push(`${nome}: ${match[1]}`);
+    }
+  });
+  
+  return metricas;
 }
 
 // Função para detectar se a consulta é sobre transcrições ou reuniões
