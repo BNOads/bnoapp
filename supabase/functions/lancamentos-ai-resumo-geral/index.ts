@@ -55,16 +55,31 @@ serve(async (req) => {
         porStatus[status]++;
       }
 
-      // Calcular dias restantes
+      // Calcular dias restantes da fase atual
       const dataFim = new Date(lanc.data_fim_captacao || lanc.data_fechamento || hoje);
       const diasRestantes = Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Adicionar a prioritários se <5 dias
+      // CRÍTICO: Verificar início da CPL (revelação da oferta - momento crítico!)
+      if (lanc.data_inicio_cpl) {
+        const dataInicioCPL = new Date(lanc.data_inicio_cpl);
+        const diasAteCPL = Math.ceil((dataInicioCPL.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // CPL começa hoje ou nos próximos 3 dias = URGENTE
+        if (diasAteCPL >= 0 && diasAteCPL <= 3) {
+          acoesPrioritarias.push({
+            nome: lanc.nome_lancamento,
+            dias: diasAteCPL,
+            fase: diasAteCPL === 0 ? "🔴 CPL HOJE!" : `CPL em ${diasAteCPL}d`
+          });
+        }
+      }
+
+      // Adicionar a prioritários se fim da fase <5 dias
       if (diasRestantes > 0 && diasRestantes <= 5) {
         acoesPrioritarias.push({
           nome: lanc.nome_lancamento,
           dias: diasRestantes,
-          fase: status
+          fase: `Fim ${status} em ${diasRestantes}d`
         });
       }
     });
