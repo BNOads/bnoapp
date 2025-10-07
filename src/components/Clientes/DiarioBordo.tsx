@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import bnoadsLogoImg from "@/assets/bnoads-logo-new.png";
+import bnoadsLogoImg from "/lovable-uploads/aa058792-aa89-40ce-8f0d-8f6e8c759294.png";
 
 interface DiarioBordoEntry {
   id: string;
@@ -500,9 +500,33 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
             </div>
           </div>
         ) : (
-          <p className="text-sm whitespace-pre-wrap leading-relaxed">
-            {entry.texto}
-          </p>
+          <div className="text-sm whitespace-pre-wrap leading-relaxed">
+            {entry.texto.split('\n').map((line, lineIndex) => {
+              const urlRegex = /(https?:\/\/[^\s]+)/g;
+              const parts = line.split(urlRegex);
+              
+              return (
+                <p key={lineIndex} className="mb-2 last:mb-0">
+                  {parts.map((part, partIndex) => {
+                    if (part.match(urlRegex)) {
+                      return (
+                        <a
+                          key={partIndex}
+                          href={part}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary underline hover:text-primary/80 transition-colors"
+                        >
+                          {part}
+                        </a>
+                      );
+                    }
+                    return part;
+                  })}
+                </p>
+              );
+            })}
+          </div>
         )}
 
         <div className="flex items-center justify-between pt-2">

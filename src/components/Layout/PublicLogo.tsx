@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
-import bnoadsLogo from "@/assets/bnoads-logo-new.png";
+const bnoadsLogo = "/lovable-uploads/aa058792-aa89-40ce-8f0d-8f6e8c759294.png";
 
 interface PublicLogoProps {
   className?: string;
