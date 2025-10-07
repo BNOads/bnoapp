@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -18,8 +18,8 @@ serve(async (req) => {
   try {
     console.log('Assistente chat function called');
     
-    if (!openAIApiKey) {
-      throw new Error('OPENAI_API_KEY não configurada');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY não configurada');
     }
 
     // Get JWT from Authorization header
@@ -143,34 +143,32 @@ FORMATO DE RESPOSTA:
 - Sugira ações práticas sempre que possível
 - Para informações de transcrições, cite a reunião específica e data`;
 
-    console.log('Enviando requisição para OpenAI...');
+    console.log('Enviando requisição para Lovable AI...');
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini', // Usar modelo que sabemos que funciona
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
         ],
-        max_tokens: 1500, // Usar max_tokens em vez de max_completion_tokens
-        temperature: 0.3,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('Erro da OpenAI Status:', response.status);
-      console.error('Erro da OpenAI Body:', errorData);
-      throw new Error(`Erro da OpenAI: ${response.status} - ${errorData}`);
+      console.error('Erro da Lovable AI Status:', response.status);
+      console.error('Erro da Lovable AI Body:', errorData);
+      throw new Error(`Erro da Lovable AI: ${response.status} - ${errorData}`);
     }
 
     const data = await response.json();
-    console.log('Resposta da OpenAI recebida');
+    console.log('Resposta da Lovable AI recebida');
 
     const assistantResponse = data.choices[0].message.content;
 
