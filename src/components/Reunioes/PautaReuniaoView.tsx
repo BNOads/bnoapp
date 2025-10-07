@@ -1391,39 +1391,23 @@ export function PautaReuniaoView() {
       </CardContent>
     </Card>;
   const renderTableOfContents = () => {
-    // Create array with document title as first item, then blocks
-    const allItems = [];
+    // Índice deve listar apenas as pautas (blocos com título), começando em 1
+    const items = blocks
+      .filter(block => block.titulo && block.titulo.trim())
+      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
 
-    // Add document header as first item if it has a title
-    if (currentDocument?.titulo_reuniao?.trim()) {
-      allItems.push({
-        id: 'document-header',
-        titulo: currentDocument.titulo_reuniao,
-        ordem: -1
-      });
-    }
+    if (items.length === 0) return null;
 
-    // Add blocks with titles
-    const sortedBlocks = blocks.filter(block => block.titulo && block.titulo.trim()).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-    allItems.push(...sortedBlocks);
-    if (allItems.length === 0) return null;
     const scrollToItem = (itemId: string) => {
-      if (itemId === 'document-header') {
-        // Scroll to document header
-        window.scrollTo({
-          top: 0,
-          behavior: 'smooth'
+      const element = document.getElementById(`block-${itemId}`);
+      if (element) {
+        element.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
         });
-      } else {
-        const element = document.getElementById(`block-${itemId}`);
-        if (element) {
-          element.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          });
-        }
       }
     };
+
     return <Card className="w-56 h-fit">
         <CardHeader className="pb-2 px-3 pt-3">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -1437,19 +1421,27 @@ export function PautaReuniaoView() {
         <CardContent className="p-0">
           <ScrollArea className="h-72">
             <div className="space-y-0.5 px-3 pb-3">
-              {allItems.map((item, index) => <button key={item.id} onClick={() => scrollToItem(item.id)} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2">
+              {items.map((item, index) => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToItem(item.id)}
+                  className="w-full text-left px-2 py-1 text-xs rounded hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2"
+                >
                   <span className="text-xs text-muted-foreground font-mono w-4">
                     {index + 1}
                   </span>
                   <span className="truncate text-xs">
                     {item.titulo || 'Sem título'}
                   </span>
-                </button>)}
-              
-              {allItems.length === 0 && <p className="text-xs text-muted-foreground px-2 py-3 text-center">
+                </button>
+              ))}
+
+              {items.length === 0 && (
+                <p className="text-xs text-muted-foreground px-2 py-3 text-center">
                   Nenhum item com título encontrado
-                </p>}
-              
+                </p>
+              )}
+
               <div className="mt-3 pt-2 border-t text-xs text-muted-foreground px-2">
                 <p className="text-xs">Atalhos: J/K para navegar</p>
               </div>
@@ -1458,7 +1450,6 @@ export function PautaReuniaoView() {
         </CardContent>
       </Card>;
   };
-
   const renderBlockContent = (block: MeetingBlock) => {
     switch (block.tipo) {
       case 'participantes':
