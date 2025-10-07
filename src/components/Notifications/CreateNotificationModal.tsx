@@ -27,7 +27,8 @@ export default function CreateNotificationModal({ onSuccess }: CreateNotificatio
     tipo: 'info',
     prioridade: 'normal',
     data_inicio: '',
-    data_fim: '',
+    recorrencia_tipo: null as string | null,
+    recorrencia_intervalo: null as number | null,
     destinatarios: ['all']
   });
 
@@ -38,7 +39,8 @@ export default function CreateNotificationModal({ onSuccess }: CreateNotificatio
       tipo: 'info',
       prioridade: 'normal',
       data_inicio: '',
-      data_fim: '',
+      recorrencia_tipo: null,
+      recorrencia_intervalo: null,
       destinatarios: ['all']
     });
   };
@@ -62,10 +64,11 @@ export default function CreateNotificationModal({ onSuccess }: CreateNotificatio
         prioridade: formData.prioridade,
         destinatarios: formData.destinatarios,
         data_inicio: formData.data_inicio || new Date().toISOString(),
-        data_fim: formData.data_fim || null,
+        recorrencia_tipo: formData.recorrencia_tipo,
+        recorrencia_intervalo: formData.recorrencia_intervalo,
         created_by: user.id,
         ativo: true
-      };
+      } as any;
 
       const { error } = await supabase
         .from('avisos')
@@ -276,16 +279,72 @@ export default function CreateNotificationModal({ onSuccess }: CreateNotificatio
                 </div>
 
                 <div>
-                  <Label htmlFor="data_fim">Data/Hora de Expiração (opcional)</Label>
-                  <Input
-                    id="data_fim"
-                    type="datetime-local"
-                    value={formData.data_fim}
-                    onChange={(e) => setFormData(prev => ({ ...prev, data_fim: e.target.value }))}
-                    min={formData.data_inicio || format(new Date(), "yyyy-MM-dd'T'HH:mm")}
-                  />
+                  <Label htmlFor="recorrencia">Recorrência</Label>
+                  <Select 
+                    value={formData.recorrencia_tipo || 'nenhuma'} 
+                    onValueChange={(value) => {
+                      if (value === 'nenhuma') {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          recorrencia_tipo: null,
+                          recorrencia_intervalo: null
+                        }));
+                      } else if (value === 'diaria') {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          recorrencia_tipo: 'diaria',
+                          recorrencia_intervalo: 1
+                        }));
+                      } else if (value === 'semanal') {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          recorrencia_tipo: 'semanal',
+                          recorrencia_intervalo: 7
+                        }));
+                      } else if (value === 'mensal') {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          recorrencia_tipo: 'mensal',
+                          recorrencia_intervalo: 30
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhuma">
+                        <div className="flex items-center gap-2">
+                          <span>📌</span>
+                          Nenhuma (aviso único)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="diaria">
+                        <div className="flex items-center gap-2">
+                          <span>📅</span>
+                          Diária (a cada 1 dia)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="semanal">
+                        <div className="flex items-center gap-2">
+                          <span>📆</span>
+                          Semanal (a cada 7 dias)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="mensal">
+                        <div className="flex items-center gap-2">
+                          <span>🗓️</span>
+                          Mensal (a cada 30 dias)
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Após essa data, a notificação não será mais exibida
+                    {formData.recorrencia_tipo 
+                      ? `Notificação será exibida repetidamente a cada ${formData.recorrencia_intervalo} dia(s)` 
+                      : 'Aviso será exibido apenas uma vez'
+                    }
                   </p>
                 </div>
               </div>
@@ -361,7 +420,7 @@ export default function CreateNotificationModal({ onSuccess }: CreateNotificatio
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                     {formData.conteudo || 'Conteúdo da mensagem...'}
                   </p>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
                     <span className={getPriorityColor(formData.prioridade)}>
                       Prioridade: {formData.prioridade}
                     </span>
@@ -372,6 +431,14 @@ export default function CreateNotificationModal({ onSuccess }: CreateNotificatio
                         'Envio imediato'
                       }
                     </span>
+                    {formData.recorrencia_tipo && (
+                      <>
+                        <span>•</span>
+                        <span className="text-blue-600">
+                          Recorrência: {formData.recorrencia_tipo} (a cada {formData.recorrencia_intervalo} dia(s))
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </CardContent>

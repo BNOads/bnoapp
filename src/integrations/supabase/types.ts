@@ -227,6 +227,8 @@ export type Database = {
           destinatarios: string[] | null
           id: string
           prioridade: string
+          recorrencia_intervalo: number | null
+          recorrencia_tipo: string | null
           tipo: string
           titulo: string
           updated_at: string
@@ -242,6 +244,8 @@ export type Database = {
           destinatarios?: string[] | null
           id?: string
           prioridade?: string
+          recorrencia_intervalo?: number | null
+          recorrencia_tipo?: string | null
           tipo?: string
           titulo: string
           updated_at?: string
@@ -257,6 +261,8 @@ export type Database = {
           destinatarios?: string[] | null
           id?: string
           prioridade?: string
+          recorrencia_intervalo?: number | null
+          recorrencia_tipo?: string | null
           tipo?: string
           titulo?: string
           updated_at?: string
