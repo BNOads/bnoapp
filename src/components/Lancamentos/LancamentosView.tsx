@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, BarChart3, FileText, Filter, Search, X, Edit, Trash2, TrendingUp, Target } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import NovoLancamentoModal from './NovoLancamentoModal';
+import { PainelIAResumo } from './PainelIAResumo';
 
 import LancamentosTable from './LancamentosTable';
 
@@ -457,6 +458,9 @@ export const LancamentosView: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Painel IA Resumo Geral */}
+      <PainelIAResumo />
 
       {/* Seção de Lançamentos por Gestor */}
       {gestoresAggregados.length > 0 && (

@@ -56,6 +56,59 @@ export type Database = {
         }
         Relationships: []
       }
+      alerts: {
+        Row: {
+          created_at: string
+          data: Json | null
+          first_seen_at: string
+          id: string
+          lancamento_id: string | null
+          last_seen_at: string
+          message: string
+          rule: string
+          severity: Database["public"]["Enums"]["alert_severity"]
+          status: Database["public"]["Enums"]["alert_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          first_seen_at?: string
+          id?: string
+          lancamento_id?: string | null
+          last_seen_at?: string
+          message: string
+          rule: string
+          severity?: Database["public"]["Enums"]["alert_severity"]
+          status?: Database["public"]["Enums"]["alert_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          first_seen_at?: string
+          id?: string
+          lancamento_id?: string | null
+          last_seen_at?: string
+          message?: string
+          rule?: string
+          severity?: Database["public"]["Enums"]["alert_severity"]
+          status?: Database["public"]["Enums"]["alert_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistente_conversas: {
         Row: {
           ativo: boolean
@@ -3661,6 +3714,44 @@ export type Database = {
           },
         ]
       }
+      user_alerts: {
+        Row: {
+          alert_id: string
+          channel: Database["public"]["Enums"]["delivery_channel"]
+          created_at: string
+          delivered_at: string
+          id: string
+          is_read: boolean
+          user_id: string
+        }
+        Insert: {
+          alert_id: string
+          channel?: Database["public"]["Enums"]["delivery_channel"]
+          created_at?: string
+          delivered_at?: string
+          id?: string
+          is_read?: boolean
+          user_id: string
+        }
+        Update: {
+          alert_id?: string
+          channel?: Database["public"]["Enums"]["delivery_channel"]
+          created_at?: string
+          delivered_at?: string
+          id?: string
+          is_read?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_alerts_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_conquistas: {
         Row: {
           conquista_id: string
@@ -4008,7 +4099,10 @@ export type Database = {
       }
     }
     Enums: {
+      alert_severity: "info" | "warn" | "urgent"
+      alert_status: "open" | "closed"
       categoria_cliente: "negocio_local" | "infoproduto"
+      delivery_channel: "inapp" | "email" | "slack"
       estado_civil:
         | "solteiro"
         | "casado"
@@ -4194,7 +4288,10 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      alert_severity: ["info", "warn", "urgent"],
+      alert_status: ["open", "closed"],
       categoria_cliente: ["negocio_local", "infoproduto"],
+      delivery_channel: ["inapp", "email", "slack"],
       estado_civil: [
         "solteiro",
         "casado",
