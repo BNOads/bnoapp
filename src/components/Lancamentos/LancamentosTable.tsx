@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ChevronUp, ChevronDown, ChevronsUpDown, BarChart3 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -259,6 +259,7 @@ export const LancamentosTable = ({
                 <SortableHeader sortKey="nome_lancamento">Lançamento</SortableHeader>
                 <SortableHeader sortKey="clientes.nome">Cliente</SortableHeader>
                 <TableHead>Gestor</TableHead>
+                <TableHead>Dashboard</TableHead>
                 <SortableHeader sortKey="status_lancamento">Status</SortableHeader>
                 <SortableHeader sortKey="tipo_lancamento">Tipo</SortableHeader>
                 <SortableHeader sortKey="investimento_total">Investimento</SortableHeader>
@@ -326,6 +327,24 @@ export const LancamentosTable = ({
                       </div>
                     ) : (
                       <span className="text-muted-foreground text-sm">Sem gestor</span>
+                    )}
+                  </TableCell>
+
+                  <TableCell>
+                    {lancamento.link_dashboard ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8"
+                        asChild
+                      >
+                        <a href={lancamento.link_dashboard.startsWith('http') ? lancamento.link_dashboard : `https://${lancamento.link_dashboard}`} target="_blank" rel="noopener noreferrer">
+                          <BarChart3 className="h-4 w-4 mr-1" />
+                          Abrir
+                        </a>
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
                     )}
                   </TableCell>
 

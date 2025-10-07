@@ -49,12 +49,30 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     try {
       const { data, error } = await supabase
         .from('clientes')
-        .select('id, nome, slug, aliases, primary_gestor_user_id')
+        .select(`
+          id, 
+          nome, 
+          slug, 
+          aliases,
+          client_roles!inner(user_id, role, is_primary)
+        `)
         .eq('ativo', true)
         .order('nome');
 
       if (error) throw error;
-      setClientes(data || []);
+      
+      // Processar clientes para extrair gestor primário
+      const clientesComGestor = (data || []).map(cliente => {
+        const gestorRole = (cliente as any).client_roles?.find(
+          (r: any) => r.role === 'gestor' && r.is_primary
+        );
+        return {
+          ...cliente,
+          primary_gestor_user_id: gestorRole?.user_id || null
+        };
+      });
+      
+      setClientes(clientesComGestor);
     } catch (error) {
       console.error('Erro ao buscar clientes:', error);
     }
@@ -229,12 +247,20 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
               <Label htmlFor="cliente_id">Cliente {formData.cliente_id && '✅'}</Label>
               <Select
                 value={formData.cliente_id}
-                onValueChange={(value) => {
+                onValueChange={async (value) => {
                   handleInputChange('cliente_id', value);
-                  // Ao selecionar manualmente, também atualizar o gestor
+                  // Ao selecionar manualmente, buscar o gestor via colaboradores
                   const clienteSelecionado = clientes.find(c => c.id === value);
                   if (clienteSelecionado?.primary_gestor_user_id) {
-                    handleInputChange('gestor_responsavel_id', clienteSelecionado.primary_gestor_user_id);
+                    const { data: gestor } = await supabase
+                      .from('colaboradores')
+                      .select('id')
+                      .eq('user_id', clienteSelecionado.primary_gestor_user_id)
+                      .maybeSingle();
+                    
+                    if (gestor) {
+                      handleInputChange('gestor_responsavel_id', gestor.id);
+                    }
                   }
                 }}
               >

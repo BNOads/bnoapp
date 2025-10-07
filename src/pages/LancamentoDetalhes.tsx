@@ -88,6 +88,7 @@ export default function LancamentoDetalhes() {
   const [lancamento, setLancamento] = useState<Lancamento | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [editingTab, setEditingTab] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas' | 'metas'>('calendario');
   const [ganttView, setGanttView] = useState(false);
@@ -539,7 +540,7 @@ export default function LancamentoDetalhes() {
                         {fase.charAt(0).toUpperCase() + fase.slice(1)}
                       </TableCell>
                        <TableCell>
-                        {editing ? (
+                        {editingTab === 'verbas' ? (
                           <div className="flex items-center gap-2">
                             <Input
                               type="number"
@@ -640,7 +641,7 @@ export default function LancamentoDetalhes() {
                         {canal.replace('_', ' ').toUpperCase()}
                       </TableCell>
                        <TableCell>
-                        {editing ? (
+                        {editingTab === 'verbas' ? (
                           <div className="flex items-center gap-2">
                             <Input
                               type="number"
@@ -765,17 +766,24 @@ export default function LancamentoDetalhes() {
         </div>
         
         <div className="flex gap-2">
-          {editing ? (
+          {editingTab === activeView ? (
             <>
               <Button 
                 variant="outline" 
-                onClick={() => setEditing(false)}
+                onClick={() => {
+                  setEditingTab(null);
+                  setEditing(false);
+                }}
                 disabled={saving}
               >
                 Cancelar
               </Button>
               <Button 
-                onClick={handleSave}
+                onClick={async () => {
+                  await handleSave();
+                  setEditingTab(null);
+                  setEditing(false);
+                }}
                 disabled={saving}
               >
                 <Save className="h-4 w-4 mr-2" />
@@ -783,9 +791,12 @@ export default function LancamentoDetalhes() {
               </Button>
             </>
           ) : (
-            <Button onClick={() => setEditing(true)}>
+            <Button onClick={() => {
+              setEditingTab(activeView);
+              setEditing(true);
+            }}>
               <Edit className="h-4 w-4 mr-2" />
-              Editar
+              Editar {activeView === 'calendario' ? 'Cronograma' : activeView === 'metas' ? 'Metas' : activeView === 'informacoes' ? 'Informações' : 'Verbas'}
             </Button>
           )}
         </div>
@@ -823,11 +834,18 @@ export default function LancamentoDetalhes() {
               setLancamento(prev => prev ? { ...prev, link_dashboard: url } : null);
             }}
           />
-          <GanttChartAvancado
-            lancamento={lancamento}
-            onUpdateDates={handleUpdateDates}
-          />
-          <LinksUteis lancamentoId={lancamento.id} />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <GanttChartAvancado
+                lancamento={lancamento}
+                onUpdateDates={handleUpdateDates}
+              />
+            </div>
+            <div>
+              <LinksUteis lancamentoId={lancamento.id} />
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="metas" className="space-y-6">
@@ -854,7 +872,7 @@ export default function LancamentoDetalhes() {
               <CardContent className="space-y-4">
                 <div>
                   <Label>Nome do Lançamento</Label>
-                  {editing ? (
+                  {editingTab === 'informacoes' ? (
                     <Input
                       value={lancamento.nome_lancamento}
                       onChange={(e) => setLancamento({
@@ -869,7 +887,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Promessa</Label>
-                  {editing ? (
+                  {editingTab === 'informacoes' ? (
                     <Textarea
                       value={lancamento.promessa || ''}
                       onChange={(e) => setLancamento({
