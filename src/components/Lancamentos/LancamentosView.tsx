@@ -383,6 +383,15 @@ export const LancamentosView: React.FC = () => {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Desativados</span>
+            </div>
+            <div className="text-2xl font-bold text-red-600">{stats.desativados}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-muted-foreground">Investimento Total</span>
             </div>
             <div className="text-2xl font-bold text-green-600">
@@ -397,15 +406,6 @@ export const LancamentosView: React.FC = () => {
               <span className="text-sm font-medium text-muted-foreground">Finalizados</span>
             </div>
             <div className="text-2xl font-bold text-green-600">{stats.finalizados}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Desativados</span>
-            </div>
-            <div className="text-2xl font-bold text-red-600">{stats.desativados}</div>
           </CardContent>
         </Card>
       </div>
