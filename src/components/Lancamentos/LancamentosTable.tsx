@@ -255,6 +255,7 @@ export const LancamentosTable = ({
                 </TableHead>
                 <SortableHeader sortKey="nome_lancamento">Lançamento</SortableHeader>
                 <SortableHeader sortKey="clientes.nome">Cliente</SortableHeader>
+                <TableHead>Gestor</TableHead>
                 <SortableHeader sortKey="status_lancamento">Status</SortableHeader>
                 <SortableHeader sortKey="tipo_lancamento">Tipo</SortableHeader>
                 <SortableHeader sortKey="investimento_total">Investimento</SortableHeader>
@@ -307,6 +308,22 @@ export const LancamentosTable = ({
                         ))}
                       </SelectContent>
                     </Select>
+                  </TableCell>
+
+                  <TableCell>
+                    {lancamento.gestor ? (
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={lancamento.gestor.avatar_url || undefined} />
+                          <AvatarFallback>
+                            {lancamento.gestor.nome?.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm">{lancamento.gestor.nome}</span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">Sem gestor</span>
+                    )}
                   </TableCell>
 
                   <TableCell>
