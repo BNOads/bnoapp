@@ -62,34 +62,60 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
 
   // Função para identificar cliente pelo nome do lançamento
   const identificarCliente = (nomeLancamento: string) => {
-    if (!nomeLancamento) return;
+    if (!nomeLancamento || clientes.length === 0) {
+      console.log('⚠️ Não há clientes carregados ou nome vazio');
+      return;
+    }
     
     const nomeNormalizado = nomeLancamento.toLowerCase().trim();
+    console.log('🔍 Buscando cliente para:', nomeNormalizado);
+    console.log('📋 Clientes disponíveis:', clientes.map(c => ({ nome: c.nome, slug: c.slug, aliases: c.aliases })));
     
-    // Procurar cliente pelo slug ou aliases
+    // Procurar cliente pelo slug, aliases ou nome
     const clienteEncontrado = clientes.find(cliente => {
       // Verificar pelo slug
       if (cliente.slug && nomeNormalizado.includes(cliente.slug.toLowerCase())) {
+        console.log('✅ Cliente encontrado pelo slug:', cliente.slug);
         return true;
       }
       
       // Verificar pelos aliases
       if (cliente.aliases && Array.isArray(cliente.aliases)) {
-        return cliente.aliases.some(alias => 
+        const encontrouAlias = cliente.aliases.some(alias => 
           nomeNormalizado.includes(alias.toLowerCase())
         );
+        if (encontrouAlias) {
+          console.log('✅ Cliente encontrado por alias:', cliente.aliases);
+          return true;
+        }
       }
       
       // Verificar pelo nome do cliente
-      return nomeNormalizado.includes(cliente.nome.toLowerCase());
+      const nomeCliente = cliente.nome.toLowerCase();
+      if (nomeNormalizado.includes(nomeCliente)) {
+        console.log('✅ Cliente encontrado pelo nome:', cliente.nome);
+        return true;
+      }
+      
+      return false;
     });
 
     if (clienteEncontrado) {
+      console.log('🎯 Cliente identificado:', clienteEncontrado.nome);
+      console.log('👤 Gestor:', clienteEncontrado.primary_gestor_user_id);
+      
       setFormData(prev => ({
         ...prev,
         cliente_id: clienteEncontrado.id,
         gestor_responsavel_id: clienteEncontrado.primary_gestor_user_id || ''
       }));
+
+      toast({
+        title: "Cliente identificado!",
+        description: `Associado ao cliente: ${clienteEncontrado.nome}`,
+      });
+    } else {
+      console.log('❌ Nenhum cliente encontrado para:', nomeNormalizado);
     }
   };
 
@@ -200,10 +226,17 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cliente_id">Cliente</Label>
+              <Label htmlFor="cliente_id">Cliente {formData.cliente_id && '✅'}</Label>
               <Select
                 value={formData.cliente_id}
-                onValueChange={(value) => handleInputChange('cliente_id', value)}
+                onValueChange={(value) => {
+                  handleInputChange('cliente_id', value);
+                  // Ao selecionar manualmente, também atualizar o gestor
+                  const clienteSelecionado = clientes.find(c => c.id === value);
+                  if (clienteSelecionado?.primary_gestor_user_id) {
+                    handleInputChange('gestor_responsavel_id', clienteSelecionado.primary_gestor_user_id);
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o cliente" />
