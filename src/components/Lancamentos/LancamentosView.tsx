@@ -55,7 +55,6 @@ export const LancamentosView: React.FC = () => {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNovoModal, setShowNovoModal] = useState(false);
-  
   const [showEdicaoMassaModal, setShowEdicaoMassaModal] = useState(false);
   const [showExclusaoMassaModal, setShowExclusaoMassaModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -72,6 +71,7 @@ export const LancamentosView: React.FC = () => {
     tipo: 'all',
     cliente: 'all'
   });
+  const [desativados, setDesativados] = useState(0);
   const { toast } = useToast();
 
   const statusColors = {
@@ -181,6 +181,18 @@ export const LancamentosView: React.FC = () => {
     fetchLancamentos();
   }, [filtros, searchTerm, statusTab]);
 
+  // Buscar total de desativados
+  useEffect(() => {
+    const fetchDesativados = async () => {
+      const { count } = await supabase
+        .from('lancamentos')
+        .select('*', { count: 'exact', head: true })
+        .eq('ativo', false);
+      setDesativados(count || 0);
+    };
+    fetchDesativados();
+  }, []);
+
   const handleLancamentoCriado = () => {
     fetchLancamentos();
     setShowNovoModal(false);
@@ -269,19 +281,6 @@ export const LancamentosView: React.FC = () => {
     setSortConfig({ key, direction });
   };
 
-  const [desativados, setDesativados] = useState(0);
-
-  // Buscar total de desativados
-  useEffect(() => {
-    const fetchDesativados = async () => {
-      const { count } = await supabase
-        .from('lancamentos')
-        .select('*', { count: 'exact', head: true })
-        .eq('ativo', false);
-      setDesativados(count || 0);
-    };
-    fetchDesativados();
-  }, []);
 
   const stats = {
     total: lancamentosFiltrados.length,
