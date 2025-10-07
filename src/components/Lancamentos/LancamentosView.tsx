@@ -96,6 +96,8 @@ export const LancamentosView: React.FC = () => {
     'perpetuo': 'Perpétuo',
     'flash': 'Flash',
     'evento': 'Evento',
+    'tradicional': 'Lançamento Tradicional',
+    'captacao_simples': 'Captação simples',
     'outro': 'Outro'
   };
 
@@ -142,10 +144,22 @@ export const LancamentosView: React.FC = () => {
         return;
       }
 
-      // Remove duplicatas baseado no ID
-      const uniqueLancamentos = Array.from(
-        new Map((data || []).map((item: any) => [item.id, item])).values()
-      );
+      // Remove duplicatas baseado no ID e também por chave composta (nome + cliente + data_inicio)
+      const byId = Array.from(new Map((data || []).map((item: any) => [item.id, item])).values());
+      const byCompositeMap = new Map<string, any>();
+      for (const item of byId) {
+        const key = `${item.nome_lancamento}|${item.cliente_id ?? ''}|${item.data_inicio_captacao}`;
+        const existing = byCompositeMap.get(key);
+        if (!existing) {
+          byCompositeMap.set(key, item);
+        } else {
+          // manter o mais recente pelo updated_at
+          const prev = new Date(existing.updated_at || existing.created_at).getTime();
+          const curr = new Date(item.updated_at || item.created_at).getTime();
+          if (curr > prev) byCompositeMap.set(key, item);
+        }
+      }
+      const uniqueLancamentos = Array.from(byCompositeMap.values());
 
       setLancamentos(uniqueLancamentos as any);
     } catch (error) {

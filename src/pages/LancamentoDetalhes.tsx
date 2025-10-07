@@ -830,11 +830,15 @@ export default function LancamentoDetalhes() {
                       })}
                       className="w-full p-2 border rounded-md"
                     >
-                      <option value="webinar">Webinar</option>
-                      <option value="workshop">Workshop</option>
-                      <option value="curso">Curso</option>
-                      <option value="mentoria">Mentoria</option>
+                      <option value="semente">Semente</option>
+                      <option value="interno">Interno</option>
+                      <option value="externo">Externo</option>
+                      <option value="perpetuo">Perpétuo</option>
+                      <option value="flash">Flash</option>
                       <option value="evento">Evento</option>
+                      <option value="tradicional">Lançamento Tradicional</option>
+                      <option value="captacao_simples">Captação simples</option>
+                      <option value="outro">Outro</option>
                     </select>
                   ) : (
                     <p className="text-sm text-muted-foreground">

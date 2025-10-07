@@ -193,6 +193,8 @@ const EdicaoMassaLancamentosModal: React.FC<EdicaoMassaLancamentosModalProps> = 
                 <SelectItem value="perpetuo">Perpétuo</SelectItem>
                 <SelectItem value="flash">Flash</SelectItem>
                 <SelectItem value="evento">Evento</SelectItem>
+                <SelectItem value="tradicional">Lançamento Tradicional</SelectItem>
+                <SelectItem value="captacao_simples">Captação simples</SelectItem>
                 <SelectItem value="outro">Outro</SelectItem>
               </SelectContent>
             </Select>

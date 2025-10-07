@@ -4024,6 +4024,8 @@ export type Database = {
         | "flash"
         | "evento"
         | "outro"
+        | "tradicional"
+        | "captacao_simples"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4215,6 +4217,8 @@ export const Constants = {
         "flash",
         "evento",
         "outro",
+        "tradicional",
+        "captacao_simples",
       ],
     },
   },
