@@ -269,11 +269,26 @@ export const LancamentosView: React.FC = () => {
     setSortConfig({ key, direction });
   };
 
+  const [desativados, setDesativados] = useState(0);
+
+  // Buscar total de desativados
+  useEffect(() => {
+    const fetchDesativados = async () => {
+      const { count } = await supabase
+        .from('lancamentos')
+        .select('*', { count: 'exact', head: true })
+        .eq('ativo', false);
+      setDesativados(count || 0);
+    };
+    fetchDesativados();
+  }, []);
+
   const stats = {
     total: lancamentosFiltrados.length,
     ativos: lancamentosFiltrados.filter(l => ['em_captacao', 'cpl', 'remarketing'].includes(l.status_lancamento)).length,
     investimentoTotal: lancamentosFiltrados.reduce((sum, l) => sum + Number(l.investimento_total), 0),
-    finalizados: lancamentosFiltrados.filter(l => l.status_lancamento === 'finalizado').length
+    finalizados: lancamentosFiltrados.filter(l => l.status_lancamento === 'finalizado').length,
+    desativados
   };
 
   return (
@@ -345,7 +360,7 @@ export const LancamentosView: React.FC = () => {
       </div>
 
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-2">
@@ -383,6 +398,15 @@ export const LancamentosView: React.FC = () => {
               <span className="text-sm font-medium text-muted-foreground">Finalizados</span>
             </div>
             <div className="text-2xl font-bold text-green-600">{stats.finalizados}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Desativados</span>
+            </div>
+            <div className="text-2xl font-bold text-red-600">{stats.desativados}</div>
           </CardContent>
         </Card>
       </div>
