@@ -438,6 +438,7 @@ export type Database = {
           primary_cs_user_id: string | null
           primary_gestor_user_id: string | null
           progresso_etapa: number | null
+          serie: string | null
           slug: string | null
           status_cliente: string | null
           total_acessos: number | null
@@ -480,6 +481,7 @@ export type Database = {
           primary_cs_user_id?: string | null
           primary_gestor_user_id?: string | null
           progresso_etapa?: number | null
+          serie?: string | null
           slug?: string | null
           status_cliente?: string | null
           total_acessos?: number | null
@@ -522,6 +524,7 @@ export type Database = {
           primary_cs_user_id?: string | null
           primary_gestor_user_id?: string | null
           progresso_etapa?: number | null
+          serie?: string | null
           slug?: string | null
           status_cliente?: string | null
           total_acessos?: number | null
