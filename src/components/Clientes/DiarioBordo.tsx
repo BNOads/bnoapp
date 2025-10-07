@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import bnoadsLogo from "@/assets/bnoads-logo.png";
+import bnoadsLogoImg from "@/assets/bnoads-logo-new.png";
 
 interface DiarioBordoEntry {
   id: string;
@@ -390,7 +390,7 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
     if (isPublicAccess) {
       return {
         name: "EQUIPE BNOads",
-        avatar: bnoadsLogo
+        avatar: bnoadsLogoImg
       };
     }
     return {

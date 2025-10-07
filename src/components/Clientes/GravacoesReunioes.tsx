@@ -307,13 +307,25 @@ export const GravacoesReunioes = ({ clienteId, isPublicView = false }: Gravacoes
                           src={gravacao.thumbnail_url} 
                           alt={gravacao.titulo}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback para ícone se a imagem falhar ao carregar
+                            e.currentTarget.style.display = 'none';
+                            if (e.currentTarget.nextElementSibling) {
+                              (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+                            }
+                          }}
                         />
+                        <div className="absolute inset-0 bg-black/20 items-center justify-center hidden">
+                          <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white drop-shadow-lg" />
+                        </div>
                         <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                           <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white drop-shadow-lg" />
                         </div>
                       </>
                     ) : (
-                      <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-muted-foreground" />
+                      <div className="flex items-center justify-center w-full h-full bg-muted">
+                        <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-muted-foreground" />
+                      </div>
                     )}
                   </div>
                   
