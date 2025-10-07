@@ -33,7 +33,6 @@ interface HistoricoMensagensClienteProps {
 
 interface ResumoInteligente {
   panorama: string;
-  mudancas: string;
   alertas: string;
   proximos_passos: string;
 }
@@ -174,11 +173,6 @@ export function HistoricoMensagensCliente({ clienteId, clienteNome, isPublicView
 
 📈 PANORAMA GERAL
 ${resumo.panorama}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🔎 PRINCIPAIS MUDANÇAS SEMANA A SEMANA
-${resumo.mudancas}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -456,19 +450,16 @@ Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                 <h3 className="font-semibold text-blue-900 flex items-center gap-2 mb-3">
                   📊 PANORAMA GERAL
                 </h3>
-                <div className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
-                  {resumo.panorama}
-                </div>
-              </div>
-
-              {/* Principais Mudanças */}
-              <div className="p-4 bg-purple-50 rounded-lg border-l-4 border-purple-500">
-                <h3 className="font-semibold text-purple-900 flex items-center gap-2 mb-3">
-                  🔎 PRINCIPAIS MUDANÇAS SEMANA A SEMANA
-                </h3>
-                <div className="text-sm text-purple-800 whitespace-pre-wrap leading-relaxed">
-                  {resumo.mudancas}
-                </div>
+                <div 
+                  className="text-sm text-blue-800 leading-relaxed prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ 
+                    __html: resumo.panorama
+                      .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                      .replace(/\n/g, '<br />')
+                  }}
+                />
               </div>
 
               {/* Alertas */}
@@ -476,9 +467,16 @@ Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                 <h3 className="font-semibold text-yellow-900 flex items-center gap-2 mb-3">
                   ⚠️ ALERTAS
                 </h3>
-                <div className="text-sm text-yellow-800 whitespace-pre-wrap leading-relaxed">
-                  {resumo.alertas}
-                </div>
+                <div 
+                  className="text-sm text-yellow-800 leading-relaxed prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ 
+                    __html: resumo.alertas
+                      .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                      .replace(/\n/g, '<br />')
+                  }}
+                />
               </div>
 
               {/* Próximos Passos */}
@@ -486,9 +484,16 @@ Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                 <h3 className="font-semibold text-green-900 flex items-center gap-2 mb-3">
                   🚀 PRÓXIMOS PASSOS RECOMENDADOS
                 </h3>
-                <div className="text-sm text-green-800 whitespace-pre-wrap leading-relaxed">
-                  {resumo.proximos_passos}
-                </div>
+                <div 
+                  className="text-sm text-green-800 leading-relaxed prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ 
+                    __html: resumo.proximos_passos
+                      .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                      .replace(/\n/g, '<br />')
+                  }}
+                />
               </div>
 
               {/* Rodapé */}
