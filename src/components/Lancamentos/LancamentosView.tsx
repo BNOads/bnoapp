@@ -460,70 +460,54 @@ export const LancamentosView: React.FC = () => {
 
       {/* Seção de Lançamentos por Gestor */}
       {gestoresAggregados.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Lançamentos por Gestor
-            </CardTitle>
-            <CardDescription>
-              Investimento total agrupado por gestor responsável
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {gestoresAggregados.map((gestor) => (
-                <Card key={gestor.gestorUserId} className="border-l-4 border-l-primary">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={gestor.avatar_url} />
-                          <AvatarFallback>
-                            {gestor.gestorNome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-semibold">{gestor.gestorNome}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {gestor.lancamentos.length} {gestor.lancamentos.length === 1 ? 'lançamento' : 'lançamentos'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-2">
-                          <Target className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium text-muted-foreground">Total Investido</span>
-                        </div>
-                        <p className="text-2xl font-bold text-primary">
-                          {formatCurrency(gestor.totalInvestimento)}
-                        </p>
-                      </div>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            <h2 className="text-xl font-semibold">Lançamentos por Gestor</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {gestoresAggregados.map((gestor) => (
+              <Card key={gestor.gestorUserId}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Avatar>
+                      <AvatarImage src={gestor.avatar_url} />
+                      <AvatarFallback>
+                        {gestor.gestorNome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{gestor.gestorNome}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Previsto {formatCurrency(gestor.totalInvestimento)}
+                      </p>
                     </div>
-                    <div className="space-y-2">
-                      {gestor.lancamentos.slice(0, 3).map((lanc, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
-                          <div className="flex-1">
-                            <span className="font-medium">{lanc.nome}</span>
-                            {lanc.cliente_nome && (
-                              <span className="text-muted-foreground ml-2">• {lanc.cliente_nome}</span>
-                            )}
-                          </div>
-                          <span className="font-semibold ml-4">{formatCurrency(lanc.investimento)}</span>
+                  </div>
+                  <div className="space-y-3">
+                    {gestor.lancamentos.slice(0, 5).map((lanc, idx) => (
+                      <div key={idx} className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{lanc.nome}</p>
+                          {lanc.cliente_nome && (
+                            <p className="text-xs text-muted-foreground uppercase">{lanc.cliente_nome}</p>
+                          )}
                         </div>
-                      ))}
-                      {gestor.lancamentos.length > 3 && (
-                        <p className="text-xs text-muted-foreground text-center pt-1">
-                          +{gestor.lancamentos.length - 3} mais {gestor.lancamentos.length - 3 === 1 ? 'lançamento' : 'lançamentos'}
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                        <span className="font-semibold text-sm ml-3 whitespace-nowrap">
+                          {formatCurrency(lanc.investimento)}
+                        </span>
+                      </div>
+                    ))}
+                    {gestor.lancamentos.length > 5 && (
+                      <p className="text-xs text-muted-foreground">
+                        +{gestor.lancamentos.length - 5} {gestor.lancamentos.length - 5 === 1 ? 'lançamento adicional' : 'lançamentos adicionais'}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Tabs de Status (Ativos/Finalizados) */}
