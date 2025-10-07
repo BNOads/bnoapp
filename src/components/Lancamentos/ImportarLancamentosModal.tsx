@@ -157,7 +157,7 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
           }
 
           // Validar tipo de lançamento
-          const tiposValidos = ['semente', 'interno', 'externo', 'perpetuo', 'flash', 'evento', 'outro'];
+          const tiposValidos = ['semente', 'interno', 'externo', 'perpetuo', 'flash', 'evento', 'tradicional', 'captacao_simples', 'outro'];
           if (!tiposValidos.includes(item.tipo_lancamento.toLowerCase())) {
             throw new Error(`Linha ${index + 2}: Tipo "${item.tipo_lancamento}" inválido`);
           }
@@ -205,12 +205,28 @@ const ImportarLancamentosModal: React.FC<ImportarLancamentosModalProps> = ({
             created_by: userData.user.id
           };
 
-          const { error } = await supabase
+          const { data: existente } = await supabase
             .from('lancamentos')
-            .insert([lancamentoData as any]);
+            .select('id, updated_at')
+            .eq('nome_lancamento', lancamentoData.nome_lancamento)
+            .eq('cliente_id', lancamentoData.cliente_id)
+            .eq('data_inicio_captacao', lancamentoData.data_inicio_captacao)
+            .maybeSingle();
 
-          if (error) throw error;
+          if (existente?.id) {
+            const { error: updErr } = await supabase
+              .from('lancamentos')
+              .update(lancamentoData as any)
+              .eq('id', existente.id);
+            if (updErr) throw updErr;
+          } else {
+            const { error: insErr } = await supabase
+              .from('lancamentos')
+              .insert([lancamentoData as any]);
+            if (insErr) throw insErr;
+          }
           sucessos++;
+
 
         } catch (error: any) {
           erros.push(error.message);

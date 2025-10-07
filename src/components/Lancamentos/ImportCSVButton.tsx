@@ -32,9 +32,10 @@ export const ImportCSVButton = ({
           const values = lines[i].split(',').map(val => val.trim().replace(/"/g, ''));
           if (values[0] && values[2]) {
             // Only import if we have name and start date
+            const tipo = (values[1] || 'outro').toLowerCase();
             const lancamentoData = {
-              nome_lancamento: values[0],
-              tipo_lancamento: values[1] || 'outro',
+              nome_lancamento: values[0].trim(),
+              tipo_lancamento: tipo,
               data_inicio_captacao: values[2],
               investimento_total: parseFloat(values[3]) || 0,
               descricao: values[4] || null,
@@ -44,11 +45,29 @@ export const ImportCSVButton = ({
               observacoes: values[8] || null,
               status_lancamento: 'em_captacao',
               created_by: userData.user.id
-            };
-            const {
-              error
-            } = await supabase.from('lancamentos').insert([lancamentoData as any]);
-            if (error) throw error;
+            } as any;
+
+            // Verificar duplicata por (nome, data_inicio, cliente_id nulo)
+            const { data: existente } = await supabase
+              .from('lancamentos')
+              .select('id, updated_at')
+              .eq('nome_lancamento', lancamentoData.nome_lancamento)
+              .is('cliente_id', null)
+              .eq('data_inicio_captacao', lancamentoData.data_inicio_captacao)
+              .maybeSingle();
+
+            if (existente?.id) {
+              const { error: updErr } = await supabase
+                .from('lancamentos')
+                .update(lancamentoData)
+                .eq('id', existente.id);
+              if (updErr) throw updErr;
+            } else {
+              const { error: insErr } = await supabase
+                .from('lancamentos')
+                .insert([lancamentoData]);
+              if (insErr) throw insErr;
+            }
             successCount++;
           }
         } catch (error: any) {
