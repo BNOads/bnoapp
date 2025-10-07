@@ -2208,6 +2208,47 @@ export type Database = {
           },
         ]
       }
+      lancamento_links: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          criado_por: string
+          id: string
+          lancamento_id: string
+          nome: string
+          ordem: number
+          url: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          criado_por: string
+          id?: string
+          lancamento_id: string
+          nome: string
+          ordem?: number
+          url: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string
+          id?: string
+          lancamento_id?: string
+          nome?: string
+          ordem?: number
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lancamento_links_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lancamentos: {
         Row: {
           ativo: boolean

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import EditarLancamentoModal from './EditarLancamentoModal';
@@ -335,9 +336,26 @@ export const LancamentosTable = ({
                   </TableCell>
 
                   <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {tipoLabels[lancamento.tipo_lancamento]}
-                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Badge 
+                            className={`
+                              ${lancamento.tipo_lancamento === 'tradicional' ? 'bg-[#2563EB] text-white hover:bg-[#2563EB]/90' : ''}
+                              ${lancamento.tipo_lancamento === 'captacao_simples' ? 'bg-[#F59E0B] text-white hover:bg-[#F59E0B]/90' : ''}
+                              ${lancamento.tipo_lancamento === 'semente' ? 'bg-[#7C3AED] text-white hover:bg-[#7C3AED]/90' : ''}
+                              ${lancamento.tipo_lancamento === 'perpetuo' ? 'bg-[#16A34A] text-white hover:bg-[#16A34A]/90' : ''}
+                              ${!['tradicional', 'captacao_simples', 'semente', 'perpetuo'].includes(lancamento.tipo_lancamento) ? 'bg-[#9CA3AF] text-white hover:bg-[#9CA3AF]/90' : ''}
+                            `}
+                          >
+                            {tipoLabels[lancamento.tipo_lancamento]}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Tipo do Lançamento: {tipoLabels[lancamento.tipo_lancamento]}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </TableCell>
 
                   <TableCell>

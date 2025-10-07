@@ -9,12 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator } from "lucide-react";
+import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Target } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import * as XLSX from 'xlsx';
 import GanttChartAvancado from "@/components/Lancamentos/GanttChartAvancado";
+import MetasAcelerometro from "@/components/Lancamentos/MetasAcelerometro";
+import LinksUteis from "@/components/Lancamentos/LinksUteis";
+import DashboardField from "@/components/Lancamentos/DashboardField";
 
 interface VerbaFase {
   captacao: { percentual: number; dias: number };
@@ -67,6 +70,8 @@ interface Lancamento {
   created_by: string;
   created_at: string;
   updated_at: string;
+  link_dashboard: string | null;
+  resultado_obtido: number | null;
   clientes?: { 
     nome: string; 
     primary_gestor_user_id?: string;
@@ -84,7 +89,7 @@ export default function LancamentoDetalhes() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas'>('calendario');
+  const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas' | 'metas'>('calendario');
   const [ganttView, setGanttView] = useState(false);
   const [availableClients, setAvailableClients] = useState<any[]>([]);
 
@@ -464,8 +469,8 @@ export default function LancamentoDetalhes() {
       outras_fontes: { percentual: 10 } 
     };
 
-    const totalPercentualVerbas = Object.values(verbas as any).reduce((sum: number, fase: any) => sum + (fase?.percentual || 0), 0);
-    const totalPercentualCanais = Object.values(canais as any).reduce((sum: number, canal: any) => sum + (canal?.percentual || 0), 0);
+    const totalPercentualVerbas = Number(Object.values(verbas as any).reduce((sum: number, fase: any) => sum + (fase?.percentual || 0), 0));
+    const totalPercentualCanais = Number(Object.values(canais as any).reduce((sum: number, canal: any) => sum + (canal?.percentual || 0), 0));
 
     return (
       <div className="space-y-6">
@@ -478,13 +483,34 @@ export default function LancamentoDetalhes() {
           </Button>
         </div>
 
+        {/* Alerta de validação */}
+        {totalPercentualVerbas > 100 && (
+          <Card className="border-destructive bg-destructive/10">
+            <CardContent className="p-4">
+              <p className="text-sm text-destructive font-medium">
+                ⚠️ Atenção: A soma das porcentagens de verbas está acima de 100% (Total: {totalPercentualVerbas.toFixed(1)}%)
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {totalPercentualCanais > 100 && (
+          <Card className="border-destructive bg-destructive/10">
+            <CardContent className="p-4">
+              <p className="text-sm text-destructive font-medium">
+                ⚠️ Atenção: A soma das porcentagens de canais está acima de 100% (Total: {totalPercentualCanais.toFixed(1)}%)
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tabela de Verbas por Fase */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calculator className="h-5 w-5" />
               Distribuição por Fase
-              <Badge variant={totalPercentualVerbas === 100 ? "default" : "destructive"}>
+              <Badge variant={totalPercentualVerbas === 100 ? "default" : totalPercentualVerbas > 100 ? "destructive" : "secondary"}>
                 Total: {Number(totalPercentualVerbas)}%
               </Badge>
             </CardTitle>
@@ -512,25 +538,57 @@ export default function LancamentoDetalhes() {
                       <TableCell className="font-medium">
                         {fase.charAt(0).toUpperCase() + fase.slice(1)}
                       </TableCell>
-                      <TableCell>
+                       <TableCell>
                         {editing ? (
-                          <Input
-                            type="number"
-                            value={percentual}
-                            onChange={(e) => {
-                              const novasVerbas = { ...(verbas as any) };
-                              if (novasVerbas[fase]) {
-                                novasVerbas[fase].percentual = Number(e.target.value);
-                              }
-                              setLancamento({
-                                ...lancamento,
-                                verba_por_fase: novasVerbas
-                              });
-                            }}
-                            className="w-20"
-                          />
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={percentual}
+                              onChange={(e) => {
+                                const novasVerbas = { ...(verbas as any) };
+                                if (novasVerbas[fase]) {
+                                  novasVerbas[fase].percentual = Number(e.target.value);
+                                }
+                                setLancamento({
+                                  ...lancamento,
+                                  verba_por_fase: novasVerbas
+                                });
+                              }}
+                              className="w-20"
+                            />
+                            <div 
+                              className="h-2 rounded-full" 
+                              style={{ 
+                                width: '60px', 
+                                background: `linear-gradient(90deg, ${
+                                  fase === 'captacao' ? '#2563EB' : 
+                                  fase === 'aquecimento' ? '#7C3AED' :
+                                  fase === 'evento' ? '#10B981' :
+                                  fase === 'lembrete' ? '#F59E0B' :
+                                  fase === 'impulsionar' ? '#EF4444' :
+                                  '#8B5CF6'
+                                } ${percentual}%, #E5E7EB ${percentual}%)`
+                              }}
+                            />
+                          </div>
                         ) : (
-                          <span>{percentual}%</span>
+                          <div className="flex items-center gap-2">
+                            <span>{percentual}%</span>
+                            <div 
+                              className="h-2 rounded-full" 
+                              style={{ 
+                                width: '60px', 
+                                background: `linear-gradient(90deg, ${
+                                  fase === 'captacao' ? '#2563EB' : 
+                                  fase === 'aquecimento' ? '#7C3AED' :
+                                  fase === 'evento' ? '#10B981' :
+                                  fase === 'lembrete' ? '#F59E0B' :
+                                  fase === 'impulsionar' ? '#EF4444' :
+                                  '#8B5CF6'
+                                } ${percentual}%, #E5E7EB ${percentual}%)`
+                              }}
+                            />
+                          </div>
                         )}
                       </TableCell>
                       <TableCell>
@@ -581,25 +639,51 @@ export default function LancamentoDetalhes() {
                       <TableCell className="font-medium">
                         {canal.replace('_', ' ').toUpperCase()}
                       </TableCell>
-                      <TableCell>
+                       <TableCell>
                         {editing ? (
-                          <Input
-                            type="number"
-                            value={percentual}
-                            onChange={(e) => {
-                              const novosCanais = { ...(canais as any) };
-                              if (novosCanais[canal]) {
-                                novosCanais[canal].percentual = Number(e.target.value);
-                              }
-                              setLancamento({
-                                ...lancamento,
-                                distribuicao_canais: novosCanais
-                              });
-                            }}
-                            className="w-20"
-                          />
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={percentual}
+                              onChange={(e) => {
+                                const novosCanais = { ...(canais as any) };
+                                if (novosCanais[canal]) {
+                                  novosCanais[canal].percentual = Number(e.target.value);
+                                }
+                                setLancamento({
+                                  ...lancamento,
+                                  distribuicao_canais: novosCanais
+                                });
+                              }}
+                              className="w-20"
+                            />
+                            <div 
+                              className="h-2 rounded-full" 
+                              style={{ 
+                                width: '60px', 
+                                background: `linear-gradient(90deg, ${
+                                  canal === 'meta_ads' ? '#1877F2' : 
+                                  canal === 'google_ads' ? '#4285F4' :
+                                  '#8B5CF6'
+                                } ${percentual}%, #E5E7EB ${percentual}%)`
+                              }}
+                            />
+                          </div>
                         ) : (
-                          <span>{percentual}%</span>
+                          <div className="flex items-center gap-2">
+                            <span>{percentual}%</span>
+                            <div 
+                              className="h-2 rounded-full" 
+                              style={{ 
+                                width: '60px', 
+                                background: `linear-gradient(90deg, ${
+                                  canal === 'meta_ads' ? '#1877F2' : 
+                                  canal === 'google_ads' ? '#4285F4' :
+                                  '#8B5CF6'
+                                } ${percentual}%, #E5E7EB ${percentual}%)`
+                              }}
+                            />
+                          </div>
                         )}
                       </TableCell>
                       <TableCell>
@@ -714,6 +798,10 @@ export default function LancamentoDetalhes() {
             <Calendar className="h-4 w-4" />
             Cronograma
           </TabsTrigger>
+          <TabsTrigger value="metas" className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Metas
+          </TabsTrigger>
           <TabsTrigger value="informacoes" className="flex items-center gap-2">
             <CalendarClock className="h-4 w-4" />
             Informações
@@ -725,9 +813,33 @@ export default function LancamentoDetalhes() {
         </TabsList>
 
         <TabsContent value="calendario" className="space-y-6">
+          <DashboardField 
+            value={lancamento.link_dashboard || ''} 
+            onSave={async (url) => {
+              await supabase
+                .from('lancamentos')
+                .update({ link_dashboard: url })
+                .eq('id', lancamento.id);
+              setLancamento(prev => prev ? { ...prev, link_dashboard: url } : null);
+            }}
+          />
           <GanttChartAvancado
             lancamento={lancamento}
             onUpdateDates={handleUpdateDates}
+          />
+          <LinksUteis lancamentoId={lancamento.id} />
+        </TabsContent>
+
+        <TabsContent value="metas" className="space-y-6">
+          <MetasAcelerometro 
+            kpis={[
+              { label: 'Faturamento', valorAtual: lancamento.resultado_obtido || 0, meta: lancamento.investimento_total * 3, formato: 'moeda' },
+              { label: 'Leads', valorAtual: 500, meta: lancamento.leads_desejados || 1000, formato: 'numero' },
+              { label: 'CPL', valorAtual: 45, meta: lancamento.meta_custo_lead || 30, formato: 'moeda', invertido: true },
+              { label: 'ROAS', valorAtual: 2.5, meta: 3.0, formato: 'numero' },
+              { label: 'Vendas', valorAtual: 50, meta: 100, formato: 'numero' },
+              { label: 'Taxa de Conversão', valorAtual: 8.5, meta: 10, formato: 'percentual' }
+            ]}
           />
         </TabsContent>
 
