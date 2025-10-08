@@ -120,19 +120,15 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
       if (selectedType && selectedType !== "todos") params.append('type', selectedType);
       if (searchTerm) params.append('q', searchTerm);
       
-      // Fazer chamada HTTP direta para a edge function
-      const response = await fetch(`https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/drive-creatives/${clienteId}?${params}`, {
-        headers: {
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiZG9vc2NmcnJrd2Z1dGtkamhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTQwODIsImV4cCI6MjA3MTUzMDA4Mn0.yd988Fotgc9LIZi83NlGDTaeB4f8BNgr9TYJgye0Cqw`,
-          'Content-Type': 'application/json'
+      // Usar o client do Supabase ao invés de fetch direto
+      const { data, error } = await supabase.functions.invoke(
+        `drive-creatives/${clienteId}?${params.toString()}`,
+        {
+          method: 'GET'
         }
-      });
+      );
       
-      if (!response.ok) {
-        throw new Error('Erro ao carregar criativos');
-      }
-      
-      const data = await response.json();
+      if (error) throw error;
       
       setCreatives(data.creatives || []);
       setPagination(data.pagination);
@@ -143,7 +139,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
       console.error('Erro ao carregar criativos:', error);
       toast({
         title: "Erro",
-        description: "Erro ao carregar criativos do Google Drive",
+        description: error.message || "Erro ao carregar criativos do Google Drive",
         variant: "destructive",
       });
     } finally {
