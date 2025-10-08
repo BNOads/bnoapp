@@ -20,7 +20,6 @@ export const TarefasView = () => {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">📋 Tarefas</h1>
         <div className="flex gap-2">
           <div className="flex gap-1 border rounded-lg p-1">
             <Button

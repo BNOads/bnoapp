@@ -16,9 +16,10 @@ interface Tarefa {
   descricao: string;
   status: string;
   prioridade: string;
-  tipo: string;
+  eh_tarefa_bnoapp: boolean;
   data_vencimento: string;
   created_at: string;
+  responsavel_id?: string;
 }
 
 interface TarefasListProps {
@@ -63,14 +64,14 @@ export const TarefasList = ({ clienteId, tipo, isPublicView = false }: TarefasLi
       }
       
       const { data, error } = await clientInstance
-        .from('tarefas')
+        .from('tarefas' as any)
         .select('*')
         .eq('cliente_id', clienteId)
-        .eq('tipo', tipo)
+        .eq('eh_tarefa_bnoapp', tipo === 'equipe')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTarefas(data || []);
+      setTarefas((data as any) || []);
     } catch (error) {
       console.error('Erro ao carregar tarefas:', error);
       toast({
@@ -89,11 +90,11 @@ export const TarefasList = ({ clienteId, tipo, isPublicView = false }: TarefasLi
       if (!user.data.user) throw new Error('Usuário não autenticado');
 
       const { error } = await supabase
-        .from('tarefas')
+        .from('tarefas' as any)
         .insert({
           ...novaTarefa,
           cliente_id: clienteId,
-          tipo,
+          eh_tarefa_bnoapp: tipo === 'equipe',
           created_by: user.data.user.id,
         });
 
@@ -124,10 +125,10 @@ export const TarefasList = ({ clienteId, tipo, isPublicView = false }: TarefasLi
 
   const atualizarStatus = async (tarefaId: string, novoStatus: string) => {
     try {
-      const { error } = await supabase
-        .from('tarefas')
-        .update({ status: novoStatus })
-        .eq('id', tarefaId);
+    const { error } = await supabase
+      .from('tarefas' as any)
+      .update({ status: novoStatus as any })
+      .eq('id', tarefaId);
 
       if (error) throw error;
 

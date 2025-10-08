@@ -109,6 +109,54 @@ export type Database = {
           },
         ]
       }
+      anexos_tarefas: {
+        Row: {
+          created_at: string
+          id: string
+          nome_arquivo: string
+          tamanho_arquivo: number | null
+          tarefa_id: string
+          tipo_arquivo: string | null
+          uploaded_by: string
+          url_arquivo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome_arquivo: string
+          tamanho_arquivo?: number | null
+          tarefa_id: string
+          tipo_arquivo?: string | null
+          uploaded_by: string
+          url_arquivo: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome_arquivo?: string
+          tamanho_arquivo?: number | null
+          tarefa_id?: string
+          tipo_arquivo?: string | null
+          uploaded_by?: string
+          url_arquivo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anexos_tarefas_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anexos_tarefas_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistente_conversas: {
         Row: {
           ativo: boolean
@@ -862,6 +910,45 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      comentarios_tarefas: {
+        Row: {
+          autor_id: string
+          comentario: string
+          created_at: string
+          id: string
+          tarefa_id: string
+        }
+        Insert: {
+          autor_id: string
+          comentario: string
+          created_at?: string
+          id?: string
+          tarefa_id: string
+        }
+        Update: {
+          autor_id?: string
+          comentario?: string
+          created_at?: string
+          id?: string
+          tarefa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comentarios_tarefas_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comentarios_tarefas_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conquistas: {
         Row: {
@@ -3560,52 +3647,84 @@ export type Database = {
         }
         Relationships: []
       }
+      subtarefas: {
+        Row: {
+          concluida: boolean
+          created_at: string
+          id: string
+          ordem: number
+          tarefa_id: string
+          titulo: string
+        }
+        Insert: {
+          concluida?: boolean
+          created_at?: string
+          id?: string
+          ordem?: number
+          tarefa_id: string
+          titulo: string
+        }
+        Update: {
+          concluida?: boolean
+          created_at?: string
+          id?: string
+          ordem?: number
+          tarefa_id?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subtarefas_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tarefas: {
         Row: {
-          atribuido_para: string | null
           cliente_id: string | null
-          concluida_por: string | null
           created_at: string
           created_by: string
-          data_conclusao: string | null
-          data_vencimento: string | null
+          data_vencimento: string
           descricao: string | null
+          eh_tarefa_bnoapp: boolean
           id: string
-          prioridade: string
-          status: string
-          tipo: string
+          prioridade: Database["public"]["Enums"]["prioridade_tarefa"]
+          recorrencia: Database["public"]["Enums"]["recorrencia_tarefa"]
+          responsavel_id: string | null
+          status: Database["public"]["Enums"]["status_tarefa"]
           titulo: string
           updated_at: string
         }
         Insert: {
-          atribuido_para?: string | null
           cliente_id?: string | null
-          concluida_por?: string | null
           created_at?: string
           created_by: string
-          data_conclusao?: string | null
-          data_vencimento?: string | null
+          data_vencimento: string
           descricao?: string | null
+          eh_tarefa_bnoapp?: boolean
           id?: string
-          prioridade?: string
-          status?: string
-          tipo?: string
+          prioridade?: Database["public"]["Enums"]["prioridade_tarefa"]
+          recorrencia?: Database["public"]["Enums"]["recorrencia_tarefa"]
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["status_tarefa"]
           titulo: string
           updated_at?: string
         }
         Update: {
-          atribuido_para?: string | null
           cliente_id?: string | null
-          concluida_por?: string | null
           created_at?: string
           created_by?: string
-          data_conclusao?: string | null
-          data_vencimento?: string | null
+          data_vencimento?: string
           descricao?: string | null
+          eh_tarefa_bnoapp?: boolean
           id?: string
-          prioridade?: string
-          status?: string
-          tipo?: string
+          prioridade?: Database["public"]["Enums"]["prioridade_tarefa"]
+          recorrencia?: Database["public"]["Enums"]["recorrencia_tarefa"]
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["status_tarefa"]
           titulo?: string
           updated_at?: string
         }
@@ -3615,6 +3734,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
             referencedColumns: ["id"]
           },
         ]
@@ -4126,6 +4252,8 @@ export type Database = {
         | "editor_video"
         | "gestor_projetos"
         | "dono"
+      prioridade_tarefa: "copa_mundo" | "libertadores" | "brasileirao"
+      recorrencia_tarefa: "nenhuma" | "diaria" | "semanal" | "mensal"
       status_documento_reuniao:
         | "rascunho"
         | "pauta_criada"
@@ -4139,6 +4267,7 @@ export type Database = {
         | "pausado"
         | "cancelado"
       status_orcamento_enum: "ativo" | "pausado" | "concluido" | "cancelado"
+      status_tarefa: "pendente" | "em_andamento" | "concluida" | "adiada"
       tipo_acesso_dados:
         | "leitura_propria"
         | "leitura_limitada"
@@ -4318,6 +4447,8 @@ export const Constants = {
         "gestor_projetos",
         "dono",
       ],
+      prioridade_tarefa: ["copa_mundo", "libertadores", "brasileirao"],
+      recorrencia_tarefa: ["nenhuma", "diaria", "semanal", "mensal"],
       status_documento_reuniao: [
         "rascunho",
         "pauta_criada",
@@ -4333,6 +4464,7 @@ export const Constants = {
         "cancelado",
       ],
       status_orcamento_enum: ["ativo", "pausado", "concluido", "cancelado"],
+      status_tarefa: ["pendente", "em_andamento", "concluida", "adiada"],
       tipo_acesso_dados: [
         "leitura_propria",
         "leitura_limitada",

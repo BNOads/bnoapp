@@ -17,11 +17,12 @@ interface Tarefa {
   descricao: string;
   status: string;
   prioridade: string;
-  tipo: string;
+  eh_tarefa_bnoapp: boolean;
   data_vencimento: string;
   created_at: string;
   data_conclusao?: string;
   concluida_por?: string;
+  responsavel_id?: string;
 }
 interface TarefasListProps {
   clienteId: string;
@@ -115,13 +116,13 @@ export const TarefasListEnhanced = ({
       const {
         data,
         error
-      } = await clientInstance.from('tarefas').select('*').eq('cliente_id', clienteId).eq('tipo', tipo).order('created_at', {
+      } = await clientInstance.from('tarefas' as any).select('*').eq('cliente_id', clienteId).eq('eh_tarefa_bnoapp', tipo === 'equipe').order('created_at', {
         ascending: false
       });
       if (error) throw error;
-      const allTarefas = data || [];
+      const allTarefas = (data as any) || [];
       setTarefas(allTarefas);
-      setTarefasConcluidas(allTarefas.filter(t => t.status === 'concluida'));
+      setTarefasConcluidas(allTarefas.filter((t: any) => t.status === 'concluida'));
     } catch (error) {
       console.error('Erro ao carregar tarefas:', error);
       toast({
@@ -139,10 +140,10 @@ export const TarefasListEnhanced = ({
       if (!user.data.user) throw new Error('Usuário não autenticado');
       const {
         error
-      } = await supabase.from('tarefas').insert({
+      } = await supabase.from('tarefas' as any).insert({
         ...novaTarefa,
         cliente_id: clienteId,
-        tipo,
+        eh_tarefa_bnoapp: tipo === 'equipe',
         created_by: user.data.user.id
       });
       if (error) throw error;
