@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, User, Users, Calendar, DollarSign, Target, Megaphone } from "lucide-react";
+import { FileText, User, Users, Calendar, DollarSign, Target, Megaphone, CalendarDays } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface InformacoesBasicasProps {
   lancamento: {
@@ -14,6 +16,17 @@ interface InformacoesBasicasProps {
     ticket_produto: number | null;
     leads_desejados: number | null;
     meta_custo_lead: number | null;
+    data_inicio_captacao: string;
+    data_fim_captacao: string | null;
+    data_inicio_aquecimento: string | null;
+    data_fim_aquecimento: string | null;
+    data_inicio_cpl: string | null;
+    data_fim_cpl: string | null;
+    data_inicio_lembrete: string | null;
+    data_fim_lembrete: string | null;
+    data_inicio_carrinho: string | null;
+    data_fim_carrinho: string | null;
+    data_fechamento: string | null;
     clientes?: { nome: string } | null;
     gestor?: { nome: string } | null;
   };
@@ -141,6 +154,82 @@ export default function InformacoesBasicas({ lancamento }: InformacoesBasicasPro
             value={lancamento.publico_alvo}
           />
         )}
+
+        {/* Datas do Lançamento */}
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Datas do Lançamento
+          </div>
+          <div className="space-y-2">
+            {lancamento.data_inicio_captacao && (
+              <div className="flex justify-between items-center p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                <span className="text-xs text-muted-foreground">Início Captação</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_inicio_captacao), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+            {lancamento.data_fim_captacao && (
+              <div className="flex justify-between items-center p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                <span className="text-xs text-muted-foreground">Fim Captação</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_fim_captacao), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+            {lancamento.data_inicio_aquecimento && (
+              <div className="flex justify-between items-center p-2 rounded bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+                <span className="text-xs text-muted-foreground">Início Aquecimento</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_inicio_aquecimento), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+            {lancamento.data_fim_aquecimento && (
+              <div className="flex justify-between items-center p-2 rounded bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+                <span className="text-xs text-muted-foreground">Fim Aquecimento</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_fim_aquecimento), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+            {lancamento.data_inicio_cpl && (
+              <div className="flex justify-between items-center p-2 rounded bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                <span className="text-xs text-muted-foreground">Início CPL</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_inicio_cpl), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+            {lancamento.data_fim_cpl && (
+              <div className="flex justify-between items-center p-2 rounded bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                <span className="text-xs text-muted-foreground">Fim CPL</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_fim_cpl), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+            {lancamento.data_inicio_lembrete && (
+              <div className="flex justify-between items-center p-2 rounded bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
+                <span className="text-xs text-muted-foreground">Início Lembrete</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_inicio_lembrete), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+            {lancamento.data_fim_lembrete && (
+              <div className="flex justify-between items-center p-2 rounded bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
+                <span className="text-xs text-muted-foreground">Fim Lembrete</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_fim_lembrete), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+            {lancamento.data_inicio_carrinho && (
+              <div className="flex justify-between items-center p-2 rounded bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                <span className="text-xs text-muted-foreground">Início Carrinho</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_inicio_carrinho), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+            {lancamento.data_fim_carrinho && (
+              <div className="flex justify-between items-center p-2 rounded bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                <span className="text-xs text-muted-foreground">Fim Carrinho</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_fim_carrinho), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+            {lancamento.data_fechamento && (
+              <div className="flex justify-between items-center p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                <span className="text-xs text-muted-foreground">Data Fechamento</span>
+                <span className="text-xs font-medium">{format(parseISO(lancamento.data_fechamento), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Observações */}
         {lancamento.observacoes && (
