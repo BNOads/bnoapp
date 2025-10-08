@@ -55,6 +55,7 @@ export default function VerbaDestaque({
     }).format(valor);
   };
   const percentualUsado = metaInvestimento ? investimentoTotal / metaInvestimento * 100 : 0;
+  
   return <Card className="overflow-hidden border-2">
       <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 p-6 text-white">
         <div className="flex items-center gap-3 mb-2">
@@ -71,6 +72,22 @@ export default function VerbaDestaque({
           </div>}
       </div>
 
-      
+      <CardContent className="p-6">
+        <h3 className="text-sm font-semibold mb-4 text-muted-foreground">Distribuição por Etapa</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {Object.entries(verbasPorFase).map(([fase, dados]: [string, any]) => {
+            const valor = investimentoTotal * ((dados?.percentual || 0) / 100);
+            return (
+              <div key={fase} className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded ${fasesCores[fase as keyof typeof fasesCores]}`}></div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium truncate">{fasesNomes[fase as keyof typeof fasesNomes]}</div>
+                  <div className="text-xs text-muted-foreground">{formatarMoeda(valor)} ({dados?.percentual || 0}%)</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
     </Card>;
 }
