@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TarefaDetalhes } from "./TarefaDetalhes";
+import type { Tarefa } from "@/types/tarefas";
 
 interface TarefasListaProps {
   tipo: "ativas" | "concluidas";
@@ -13,9 +14,9 @@ interface TarefasListaProps {
 }
 
 export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
-  const [tarefas, setTarefas] = useState<any[]>([]);
+  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tarefaSelecionada, setTarefaSelecionada] = useState<any>(null);
+  const [tarefaSelecionada, setTarefaSelecionada] = useState<Tarefa | null>(null);
 
   useEffect(() => {
     loadTarefas();
@@ -24,7 +25,7 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
   const loadTarefas = async () => {
     setLoading(true);
     let query = supabase
-      .from("tarefas")
+      .from("tarefas" as any)
       .select(`
         *,
         cliente:clientes(nome),
@@ -64,7 +65,7 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
     if (error) {
       console.error("Erro ao carregar tarefas:", error);
     } else if (data) {
-      setTarefas(data);
+      setTarefas(data as unknown as Tarefa[]);
     }
     setLoading(false);
   };
@@ -94,7 +95,7 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
 
   const concluirTarefa = async (tarefaId: string) => {
     await supabase
-      .from("tarefas")
+      .from("tarefas" as any)
       .update({ 
         status: "concluida", 
         concluida_em: new Date().toISOString() 

@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import type { Tarefa } from "@/types/tarefas";
 
 export const MinhasTarefasWidget = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [tarefas, setTarefas] = useState<any[]>([]);
+  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export const MinhasTarefasWidget = () => {
     if (!colaborador) return;
 
     const { data } = await supabase
-      .from("tarefas")
+      .from("tarefas" as any)
       .select(`
         *,
         cliente:clientes(nome),
@@ -42,13 +42,13 @@ export const MinhasTarefasWidget = () => {
       .order("data_vencimento", { ascending: true })
       .limit(10);
 
-    if (data) setTarefas(data);
+    if (data) setTarefas(data as unknown as Tarefa[]);
     setLoading(false);
   };
 
   const concluirTarefa = async (tarefaId: string) => {
     await supabase
-      .from("tarefas")
+      .from("tarefas" as any)
       .update({ status: "concluida", concluida_em: new Date().toISOString() })
       .eq("id", tarefaId);
     loadMinhasTarefas();

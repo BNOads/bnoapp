@@ -81,7 +81,7 @@ export const NovaTarefaModal = ({ open, onOpenChange }: NovaTarefaModalProps) =>
       tarefaData.cliente_id = formData.cliente_id;
     }
 
-    const { error } = await supabase.from("tarefas").insert(tarefaData);
+    const { error } = await supabase.from("tarefas" as any).insert(tarefaData);
 
     if (error) {
       toast.error("Erro ao criar tarefa");

@@ -12,9 +12,10 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { Plus, Trash2, Send } from "lucide-react";
+import type { Tarefa, Subtarefa, ComentarioTarefa } from "@/types/tarefas";
 
 interface TarefaDetalhesProps {
-  tarefa: any;
+  tarefa: Tarefa;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
@@ -22,8 +23,8 @@ interface TarefaDetalhesProps {
 
 export const TarefaDetalhes = ({ tarefa, open, onOpenChange, onUpdate }: TarefaDetalhesProps) => {
   const { user } = useAuth();
-  const [subtarefas, setSubtarefas] = useState<any[]>([]);
-  const [comentarios, setComentarios] = useState<any[]>([]);
+  const [subtarefas, setSubtarefas] = useState<Subtarefa[]>([]);
+  const [comentarios, setComentarios] = useState<ComentarioTarefa[]>([]);
   const [novaSubtarefa, setNovaSubtarefa] = useState("");
   const [novoComentario, setNovoComentario] = useState("");
 
@@ -36,29 +37,29 @@ export const TarefaDetalhes = ({ tarefa, open, onOpenChange, onUpdate }: TarefaD
 
   const loadSubtarefas = async () => {
     const { data } = await supabase
-      .from("subtarefas")
+      .from("subtarefas" as any)
       .select("*")
       .eq("tarefa_id", tarefa.id)
       .order("ordem");
-    if (data) setSubtarefas(data);
+    if (data) setSubtarefas(data as unknown as Subtarefa[]);
   };
 
   const loadComentarios = async () => {
     const { data } = await supabase
-      .from("comentarios_tarefas")
+      .from("comentarios_tarefas" as any)
       .select(`
         *,
         autor:colaboradores!comentarios_tarefas_autor_id_fkey(nome, avatar_url)
       `)
       .eq("tarefa_id", tarefa.id)
       .order("created_at", { ascending: false });
-    if (data) setComentarios(data);
+    if (data) setComentarios(data as unknown as ComentarioTarefa[]);
   };
 
   const adicionarSubtarefa = async () => {
     if (!novaSubtarefa.trim()) return;
 
-    const { error } = await supabase.from("subtarefas").insert({
+    const { error } = await supabase.from("subtarefas" as any).insert({
       tarefa_id: tarefa.id,
       titulo: novaSubtarefa,
       ordem: subtarefas.length,
@@ -73,21 +74,21 @@ export const TarefaDetalhes = ({ tarefa, open, onOpenChange, onUpdate }: TarefaD
 
   const toggleSubtarefa = async (id: string, concluida: boolean) => {
     await supabase
-      .from("subtarefas")
+      .from("subtarefas" as any)
       .update({ concluida: !concluida })
       .eq("id", id);
     loadSubtarefas();
   };
 
   const deletarSubtarefa = async (id: string) => {
-    await supabase.from("subtarefas").delete().eq("id", id);
+    await supabase.from("subtarefas" as any).delete().eq("id", id);
     loadSubtarefas();
   };
 
   const adicionarComentario = async () => {
     if (!novoComentario.trim()) return;
 
-    const { error } = await supabase.from("comentarios_tarefas").insert({
+    const { error } = await supabase.from("comentarios_tarefas" as any).insert({
       tarefa_id: tarefa.id,
       autor_id: user?.id,
       conteudo: novoComentario,
