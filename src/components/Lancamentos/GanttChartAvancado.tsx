@@ -443,37 +443,42 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
 
                   return (
                     <div key={fase.nome} className="flex items-center gap-4">
-                      <div className="w-24 text-sm font-medium">{fase.nome}</div>
+                      <div className="w-24 text-sm font-medium flex-shrink-0">{fase.nome}</div>
                       
-                      <div className="flex-1 relative h-8">
-                        {dataInicio && dataFim && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div
-                                className={`absolute h-6 rounded ${fase.cor} opacity-80 hover:opacity-100 cursor-pointer transition-opacity flex items-center justify-center group`}
-                                style={{ 
-                                  left: `${posicao}%`,
-                                  width: `${largura}%`,
-                                  minWidth: '40px'
-                                }}
-                                onClick={() => handleEditPhase(fase)}
-                              >
-                                <Edit className="h-3 w-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="text-sm">
-                                <div className="font-medium">{fase.nome}</div>
-                                <div>Início: {format(parseISO(dataInicio), 'dd/MM/yyyy', { locale: ptBR })}</div>
-                                <div>Fim: {format(parseISO(dataFim), 'dd/MM/yyyy', { locale: ptBR })}</div>
-                                <div>Duração: {dias} dias</div>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
+                      <div className="flex-1 overflow-x-auto">
+                        <div 
+                          className="relative h-8"
+                          style={{ width: `${pontosNoTempo.length * cellWidth}px`, minWidth: '100%' }}
+                        >
+                          {dataInicio && dataFim && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={`absolute h-6 rounded ${fase.cor} opacity-80 hover:opacity-100 cursor-pointer transition-opacity flex items-center justify-center group`}
+                                  style={{ 
+                                    left: `${posicao}%`,
+                                    width: `${largura}%`,
+                                    minWidth: '40px'
+                                  }}
+                                  onClick={() => handleEditPhase(fase)}
+                                >
+                                  <Edit className="h-3 w-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="text-sm">
+                                  <div className="font-medium">{fase.nome}</div>
+                                  <div>Início: {format(parseISO(dataInicio), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                                  <div>Fim: {format(parseISO(dataFim), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                                  <div>Duração: {dias} dias</div>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="w-16 text-xs text-muted-foreground text-right">
+                      <div className="w-16 text-xs text-muted-foreground text-right flex-shrink-0">
                         {dias > 0 ? `${dias}d` : '-'}
                       </div>
                     </div>
