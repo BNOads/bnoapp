@@ -80,7 +80,25 @@ export function DashboardView() {
     try {
       setLoadingPdis(true);
 
-      // Buscar PDIs ativos
+      // Buscar o colaborador_id do usuário atual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoadingPdis(false);
+        return;
+      }
+
+      const { data: colaboradorData } = await supabase
+        .from('colaboradores')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!colaboradorData) {
+        setLoadingPdis(false);
+        return;
+      }
+
+      // Buscar PDIs ativos do colaborador
       const {
         data: pdisAtivos,
         error: errorAtivos
@@ -95,12 +113,15 @@ export function DashboardView() {
               titulo
             )
           )
-        `).eq('status', 'ativo').order('data_limite', {
-        ascending: true
-      });
+        `)
+        .eq('colaborador_id', colaboradorData.id)
+        .eq('status', 'ativo')
+        .order('data_limite', {
+          ascending: true
+        });
       if (errorAtivos) throw errorAtivos;
 
-      // Buscar PDIs finalizados
+      // Buscar PDIs finalizados do colaborador
       const {
         data: pdisCompletos,
         error: errorCompletos
@@ -115,9 +136,12 @@ export function DashboardView() {
               titulo
             )
           )
-        `).eq('status', 'concluido').order('updated_at', {
-        ascending: false
-      }).limit(5);
+        `)
+        .eq('colaborador_id', colaboradorData.id)
+        .eq('status', 'concluido')
+        .order('updated_at', {
+          ascending: false
+        }).limit(5);
       if (errorCompletos) throw errorCompletos;
       const formatarPdis = (data: any[]) => (data || []).map(pdi => ({
         ...pdi,
