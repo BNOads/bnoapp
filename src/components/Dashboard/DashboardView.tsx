@@ -87,13 +87,21 @@ export function DashboardView() {
         return;
       }
 
-      const { data: colaboradorData } = await supabase
+      const { data: colaboradorData, error: colaboradorError } = await supabase
         .from('colaboradores')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
+      if (colaboradorError) {
+        console.error('Erro ao buscar colaborador:', colaboradorError);
+      }
+
+      // Se não encontrou colaborador, não mostra PDIs (apenas para admins que não têm registro de colaborador)
       if (!colaboradorData) {
+        setPdis([]);
+        setPdisFinalizados([]);
+        setAllPdis([]);
         setLoadingPdis(false);
         return;
       }
