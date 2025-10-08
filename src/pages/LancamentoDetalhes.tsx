@@ -773,21 +773,23 @@ export default function LancamentoDetalhes() {
         </TabsList>
 
         <TabsContent value="calendario" className="space-y-6">
-          {/* 1. Verba em Destaque */}
-          <VerbaDestaque investimentoTotal={lancamento.investimento_total} metaInvestimento={lancamento.meta_investimento} verbasPorFase={lancamento.verba_por_fase || {}} />
+          {/* 1. Verba em Destaque + Timer CPL lado a lado */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <VerbaDestaque investimentoTotal={lancamento.investimento_total} metaInvestimento={lancamento.meta_investimento} verbasPorFase={lancamento.verba_por_fase || {}} />
+            <TimerCPL dataInicioCaptacao={lancamento.data_inicio_captacao} dataFimCaptacao={lancamento.data_fim_captacao} dataInicioAquecimento={lancamento.data_inicio_aquecimento} dataInicioCPL={lancamento.data_inicio_cpl} dataInicioCarrinho={lancamento.data_inicio_carrinho} dataFechamento={lancamento.data_fechamento} />
+          </div>
 
-          {/* 2. Timer CPL e Datas-Chave */}
-          <TimerCPL dataInicioCaptacao={lancamento.data_inicio_captacao} dataFimCaptacao={lancamento.data_fim_captacao} dataInicioAquecimento={lancamento.data_inicio_aquecimento} dataInicioCPL={lancamento.data_inicio_cpl} dataInicioCarrinho={lancamento.data_inicio_carrinho} dataFechamento={lancamento.data_fechamento} />
-
-          {/* 3. Layout com Informações + Cronograma */}
+          {/* 2. Layout com Informações + Cronograma */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 3a. Informações Básicas */}
+            {/* 2a. Informações Básicas */}
             <div>
               <InformacoesBasicas lancamento={lancamento} />
             </div>
 
-            {/* 3b. Cronograma */}
+            {/* 2b. Cronograma + Links */}
             <div className="lg:col-span-2 space-y-6">
+              <LinksUteis lancamentoId={lancamento.id} />
+              
               <GanttChartAvancado lancamento={lancamento} onUpdateDates={handleUpdateDates} />
               
               <DashboardField value={lancamento.link_dashboard || ''} onSave={async url => {
@@ -799,8 +801,6 @@ export default function LancamentoDetalhes() {
                 link_dashboard: url
               } : null);
             }} />
-              
-              <LinksUteis lancamentoId={lancamento.id} />
             </div>
           </div>
         </TabsContent>
