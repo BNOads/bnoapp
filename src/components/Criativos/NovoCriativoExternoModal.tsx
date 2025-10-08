@@ -28,7 +28,8 @@ export const NovoCriativoExternoModal = ({
     tipo: '',
     nomenclatura: '',
     observacao: '',
-    pagina_destino: ''
+    pagina_destino: '',
+    pasta_externa: ''
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -45,7 +46,8 @@ export const NovoCriativoExternoModal = ({
       tipo: '',
       nomenclatura: '',
       observacao: '',
-      pagina_destino: ''
+      pagina_destino: '',
+      pasta_externa: ''
     });
   };
 
@@ -109,8 +111,8 @@ export const NovoCriativoExternoModal = ({
           thumbnail_link: null,
           file_size: null,
           modified_time: new Date().toISOString(),
-          folder_name: 'Externos',
-          folder_path: 'Externos',
+          folder_name: formData.pasta_externa || 'Externo',
+          folder_path: formData.pasta_externa || 'Externo',
           parent_folder_id: 'external_folder',
           nomenclatura_trafego: formData.nomenclatura || null,
           observacao_personalizada: formData.observacao || null,
@@ -205,6 +207,38 @@ export const NovoCriativoExternoModal = ({
                 <SelectItem value="outro">Outro</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="pasta_externa">Pasta do Criativo</Label>
+            <Select value={formData.pasta_externa} onValueChange={(value) => setFormData({ ...formData, pasta_externa: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a pasta" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="C1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span>C1</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="C2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                    <span>C2</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="Lancamento">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                    <span>Lançamento</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Escolha em qual pasta categorizar este criativo externo
+            </p>
           </div>
 
           <div className="space-y-2">

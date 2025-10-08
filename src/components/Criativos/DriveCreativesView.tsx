@@ -1222,7 +1222,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('name') && (
+                   {isColumnVisible('name') && (
                     <TableCell className="font-medium">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2 lg:gap-3">
@@ -1236,17 +1236,24 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                               }}
                             />
                           )}
-                          <span 
-                            className="text-xs lg:text-sm font-medium" 
-                            title={creative.name}
-                            style={{ 
-                              wordWrap: 'break-word', 
-                              wordBreak: 'break-word',
-                              lineHeight: '1.2'
-                            }}
-                          >
-                            {creative.name}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {!creative.file_id && (
+                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-500/30 text-xs">
+                                Externo
+                              </Badge>
+                            )}
+                            <span 
+                              className="text-xs lg:text-sm font-medium" 
+                              title={creative.name}
+                              style={{ 
+                                wordWrap: 'break-word', 
+                                wordBreak: 'break-word',
+                                lineHeight: '1.2'
+                              }}
+                            >
+                              {creative.name}
+                            </span>
+                          </div>
                         </div>
                         
                         {/* Actions under the name */}
@@ -1316,17 +1323,38 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('pasta') && (
-                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                      <span 
-                        className="truncate" 
-                        title={creative.folder_path || creative.folder_name}
-                        style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
-                      >
-                        {creative.folder_name || 'Raiz'}
-                      </span>
+                   {isColumnVisible('pasta') && (
+                    <TableCell className="hidden md:table-cell text-sm">
+                      {creative.file_id ? (
+                        <span 
+                          className="truncate text-muted-foreground" 
+                          title={creative.folder_path || creative.folder_name}
+                          style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
+                        >
+                          {creative.folder_name || 'Raiz'}
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${
+                            creative.folder_name === 'C1' ? 'bg-blue-500' :
+                            creative.folder_name === 'C2' ? 'bg-purple-500' :
+                            creative.folder_name === 'Lancamento' ? 'bg-orange-500' :
+                            'bg-gray-400'
+                          }`}></div>
+                          <span 
+                            className={`font-medium ${
+                              creative.folder_name === 'C1' ? 'text-blue-600' :
+                              creative.folder_name === 'C2' ? 'text-purple-600' :
+                              creative.folder_name === 'Lancamento' ? 'text-orange-600' :
+                              'text-muted-foreground'
+                            }`}
+                          >
+                            {creative.folder_name || 'Externo'}
+                          </span>
+                        </div>
+                      )}
                     </TableCell>
-                  )}
+                   )}
                   {isColumnVisible('date') && (
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                       <div>
