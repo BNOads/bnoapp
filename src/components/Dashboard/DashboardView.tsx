@@ -8,6 +8,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
 import { PDICard } from "@/components/PDI/PDICard";
+import { PDIEquipeCard } from "@/components/Dashboard/PDIEquipeCard";
 import { useRecentTabs } from "@/hooks/useRecentTabs";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,10 +23,13 @@ export function DashboardView() {
   const [pdis, setPdis] = useState<any[]>([]);
   const [pdisFinalizados, setPdisFinalizados] = useState<any[]>([]);
   const [allPdis, setAllPdis] = useState<any[]>([]);
+  const [pdisEquipe, setPdisEquipe] = useState<any[]>([]);
   const [loadingPdis, setLoadingPdis] = useState(true);
+  const [loadingPdisEquipe, setLoadingPdisEquipe] = useState(true);
   const [editingFavorite, setEditingFavorite] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [pdiFilter, setPdiFilter] = useState<'todos' | 'ativos' | 'finalizados'>('todos');
+  const [pdiEquipeFilter, setPdiEquipeFilter] = useState<'todos' | 'ativos' | 'finalizados'>('todos');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedBgColor, setSelectedBgColor] = useState(() => {
     return localStorage.getItem('dashboard-header-color') || 'gradient-primary';
@@ -144,8 +148,72 @@ export function DashboardView() {
       setLoadingPdis(false);
     }
   };
+  
+  const carregarPdisEquipe = async () => {
+    if (!isAdmin) {
+      setLoadingPdisEquipe(false);
+      return;
+    }
+    
+    try {
+      setLoadingPdisEquipe(true);
+
+      // Buscar todos os PDIs com informações do colaborador
+      const { data, error } = await supabase
+        .from('pdis')
+        .select(`
+          *,
+          colaboradores!pdis_colaborador_id_fkey (
+            nome,
+            avatar_url
+          ),
+          pdi_aulas (
+            id,
+            concluida
+          )
+        `)
+        .order('data_limite', { ascending: true });
+
+      if (error) throw error;
+
+      const formatarPdisEquipe = (data || []).map(pdi => {
+        const totalAulas = (pdi.pdi_aulas?.length || 0) + (Array.isArray(pdi.aulas_externas) ? pdi.aulas_externas.length : 0);
+        const aulasConcluidas = (pdi.pdi_aulas?.filter((a: any) => a.concluida).length || 0) + 
+          (Array.isArray(pdi.aulas_externas) ? pdi.aulas_externas.filter((a: any) => a.concluida).length : 0);
+        const progresso = totalAulas > 0 ? (aulasConcluidas / totalAulas) * 100 : 0;
+
+        return {
+          id: pdi.id,
+          titulo: pdi.titulo,
+          descricao: pdi.descricao,
+          data_limite: pdi.data_limite,
+          status: pdi.status,
+          colaborador: {
+            nome: pdi.colaboradores?.nome || 'Colaborador',
+            avatar_url: pdi.colaboradores?.avatar_url
+          },
+          progresso,
+          total_aulas: totalAulas,
+          aulas_concluidas: aulasConcluidas
+        };
+      });
+
+      setPdisEquipe(formatarPdisEquipe);
+    } catch (error) {
+      console.error('Erro ao carregar PDIs da equipe:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar PDIs da equipe",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingPdisEquipe(false);
+    }
+  };
+  
   useEffect(() => {
     carregarPdis();
+    carregarPdisEquipe();
   }, []);
   const handleViewPdiDetails = (pdiId: string) => {
     navigate(`/pdi/${pdiId}`);
@@ -351,6 +419,102 @@ export function DashboardView() {
           })()
         }
       </section>
+
+      {/* PDIs da Equipe Section - Apenas para Admins */}
+      {isAdmin && (
+        <section className="space-y-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h3 className="text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
+                <Users className="h-6 w-6 flex-shrink-0" />
+                <span className="truncate">PDIs da Equipe</span>
+              </h3>
+              <p className="text-muted-foreground mt-1">
+                Acompanhe o desenvolvimento de todos os colaboradores
+              </p>
+            </div>
+          </div>
+          
+          {/* Filter Buttons */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={pdiEquipeFilter === 'todos' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPdiEquipeFilter('todos')}
+              className="flex items-center gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              Todos
+            </Button>
+            <Button
+              variant={pdiEquipeFilter === 'ativos' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPdiEquipeFilter('ativos')}
+              className="flex items-center gap-2"
+            >
+              <Clock className="h-4 w-4" />
+              Ativos
+            </Button>
+            <Button
+              variant={pdiEquipeFilter === 'finalizados' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPdiEquipeFilter('finalizados')}
+              className="flex items-center gap-2"
+            >
+              <CheckCircle className="h-4 w-4" />
+              Finalizados
+            </Button>
+          </div>
+
+          {loadingPdisEquipe ? 
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div> 
+          : pdisEquipe.length === 0 ? 
+            <Card className="p-8 text-center">
+              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h4 className="text-lg font-semibold text-foreground mb-2">
+                Nenhum PDI encontrado
+              </h4>
+              <p className="text-muted-foreground">
+                Não há PDIs criados para a equipe no momento.
+              </p>
+            </Card> 
+          : (() => {
+              const filteredPdisEquipe = pdisEquipe.filter(pdi => {
+                if (pdiEquipeFilter === 'ativos') return pdi.status !== 'concluido';
+                if (pdiEquipeFilter === 'finalizados') return pdi.status === 'concluido';
+                return true; // todos
+              });
+              
+              return filteredPdisEquipe.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h4 className="text-lg font-semibold text-foreground mb-2">
+                    {pdiEquipeFilter === 'todos' ? 'Nenhum PDI encontrado' : 
+                     pdiEquipeFilter === 'ativos' ? 'Nenhum PDI ativo' : 
+                     'Nenhum PDI finalizado'}
+                  </h4>
+                  <p className="text-muted-foreground">
+                    {pdiEquipeFilter === 'todos' ? 'Não há PDIs criados no momento.' :
+                     pdiEquipeFilter === 'ativos' ? 'Não há PDIs ativos no momento.' :
+                     'Não há PDIs finalizados no momento.'}
+                  </p>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {filteredPdisEquipe.map(pdi => (
+                    <PDIEquipeCard 
+                      key={pdi.id} 
+                      pdi={pdi}
+                    />
+                  ))}
+                </div>
+              );
+            })()
+          }
+        </section>
+      )}
 
       {/* View Only Badge */}
       {!canCreateContent && <ViewOnlyBadge />}
