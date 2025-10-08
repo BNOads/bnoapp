@@ -90,37 +90,17 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
       return { dataInicio: new Date(), dataFim: new Date(), pontosNoTempo: [] };
     }
 
-    const todasDatas = [
-      lancamento.data_inicio_captacao,
-      lancamento.data_fim_captacao,
-      lancamento.data_inicio_aquecimento,
-      lancamento.data_fim_aquecimento,
-      lancamento.data_inicio_cpl,
-      lancamento.data_fim_cpl,
-      lancamento.data_inicio_lembrete,
-      lancamento.data_fim_lembrete,
-      lancamento.data_inicio_carrinho,
-      lancamento.data_fim_carrinho,
-      lancamento.data_fechamento
-    ].filter(Boolean).map(d => parseISO(d));
-
-    const minData = new Date(Math.min(...todasDatas.map(d => d.getTime())));
-    const maxData = new Date(Math.max(...todasDatas.map(d => d.getTime())));
+    // Usar a data de início da captação como referência
+    const inicioCaptacao = parseISO(lancamento.data_inicio_captacao);
     
-    // Adicionar margem
-    const inicio = addDays(minData, -7);
-    const fim = addDays(maxData, 7);
+    // Mostrar os próximos 7 dias a partir do início da captação
+    const inicio = startOfDay(inicioCaptacao);
+    const fim = addDays(inicio, 6); // 7 dias no total (dia 0 + 6 dias)
 
     const pontos: Date[] = [];
     let atual = inicio;
 
-    // Alinhar início conforme a escala selecionada
-    if (escalaVisao === 'semana') {
-      atual = startOfWeek(inicio, { weekStartsOn: 1 });
-    } else if (escalaVisao === 'mes') {
-      atual = startOfMonth(inicio);
-    }
-
+    // Para visualização de dia, mostrar cada dia
     while (atual <= fim) {
       pontos.push(new Date(atual));
       
@@ -425,19 +405,25 @@ export default function GanttChartAvancado({ lancamento, onUpdateDates }: GanttC
                     ))}
                   </div>
 
-                  {/* Timeline base */}
-                  <div
-                    className="relative h-2 bg-muted rounded mb-4"
-                    style={{ width: `${pontosNoTempo.length * cellWidth}px` }}
-                  >
-                    {/* Linha do "hoje" - só mostrar se estiver no intervalo */}
+                  {/* Timeline base com linha do "hoje" */}
+                  <div className="relative">
+                    <div
+                      className="relative h-2 bg-muted rounded mb-4"
+                      style={{ width: `${pontosNoTempo.length * cellWidth}px` }}
+                    >
+                    </div>
+                    
+                    {/* Linha do "hoje" - estende até embaixo */}
                     {posicaoHojePx >= 0 && (
                       <div
-                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
-                        style={{ left: `${posicaoHojePx}px` }}
+                        className="absolute top-0 w-0.5 bg-red-500 z-10"
+                        style={{ 
+                          left: `${posicaoHojePx}px`,
+                          height: 'calc(100% + 300px)' // Estende para baixo cobrindo as fases
+                        }}
                       >
                         <div className="absolute -top-1 -left-2 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
-                        <div className="absolute -bottom-6 -left-4 text-xs text-red-500 font-medium">
+                        <div className="absolute top-6 -left-4 text-xs text-red-500 font-medium">
                           Hoje
                         </div>
                       </div>
