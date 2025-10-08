@@ -41,12 +41,6 @@ export const Header = ({}: HeaderProps) => {
       path: '/clientes'
     },
     {
-      id: 'tarefas',
-      label: 'Tarefas',
-      icon: CheckSquare,
-      path: '/tarefas'
-    },
-    {
       id: 'assistente',
       label: 'Assistente',
       icon: MessageCircle,
