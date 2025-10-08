@@ -756,7 +756,7 @@ export default function LancamentoDetalhes() {
         <TabsList>
           <TabsTrigger value="calendario" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Cronograma
+            Visão geral
           </TabsTrigger>
           <TabsTrigger value="metas" className="flex items-center gap-2">
             <Target className="h-4 w-4" />
