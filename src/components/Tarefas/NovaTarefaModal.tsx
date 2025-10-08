@@ -66,15 +66,23 @@ export const NovaTarefaModal = ({ open, onOpenChange }: NovaTarefaModalProps) =>
     e.preventDefault();
     setLoading(true);
 
+    // Garantir usuário autenticado para satisfazer RLS (created_by = auth.uid())
+    if (!user?.id) {
+      toast.error("Você precisa estar autenticado.");
+      setLoading(false);
+      return;
+    }
+
     const tarefaData: any = {
       titulo: formData.titulo,
       descricao: formData.descricao,
-      responsavel_id: formData.responsavel_id,
+      responsavel_id: formData.responsavel_id || null,
       data_vencimento: formData.data_vencimento.toISOString().split('T')[0],
       prioridade: formData.prioridade,
       recorrencia: formData.recorrencia,
       eh_tarefa_bnoapp: formData.eh_tarefa_bnoapp,
       status: "pendente",
+      created_by: user.id,
     };
 
     if (!formData.eh_tarefa_bnoapp && formData.cliente_id) {
