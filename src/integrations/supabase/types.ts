@@ -2971,8 +2971,44 @@ export type Database = {
           },
         ]
       }
+      pdi_comentarios: {
+        Row: {
+          comentario: string
+          created_at: string
+          id: string
+          pdi_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comentario: string
+          created_at?: string
+          id?: string
+          pdi_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comentario?: string
+          created_at?: string
+          id?: string
+          pdi_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdi_comentarios_pdi_id_fkey"
+            columns: ["pdi_id"]
+            isOneToOne: false
+            referencedRelation: "pdis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pdis: {
         Row: {
+          acessos_ids: string[] | null
           aulas_externas: Json | null
           colaborador_id: string
           created_at: string
@@ -2986,6 +3022,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          acessos_ids?: string[] | null
           aulas_externas?: Json | null
           colaborador_id: string
           created_at?: string
@@ -2999,6 +3036,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          acessos_ids?: string[] | null
           aulas_externas?: Json | null
           colaborador_id?: string
           created_at?: string

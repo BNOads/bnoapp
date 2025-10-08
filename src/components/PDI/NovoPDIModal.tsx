@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CalendarDays, BookOpen, Search, ChevronLeft, ChevronRight, Plus, ExternalLink, X } from "lucide-react";
+import { CalendarDays, BookOpen, Search, ChevronLeft, ChevronRight, Plus, ExternalLink, X, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,6 +40,14 @@ interface AulaExterna {
   descricao: string;
   url: string;
   duracao: number;
+  concluida?: boolean;
+}
+
+interface AcessoLogin {
+  id: string;
+  nome_acesso: string;
+  categoria: string;
+  link_acesso: string | null;
 }
 
 export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProps) {
@@ -47,6 +55,7 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
   const [loading, setLoading] = useState(false);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [aulas, setAulas] = useState<Aula[]>([]);
+  const [acessos, setAcessos] = useState<AcessoLogin[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentAulaIndex, setCurrentAulaIndex] = useState(0);
   
@@ -56,7 +65,8 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
     colaborador_id: "",
     data_limite: "",
     aulas_selecionadas: [] as string[],
-    aulas_externas: [] as AulaExterna[]
+    aulas_externas: [] as AulaExterna[],
+    acessos_ids: [] as string[]
   });
 
   const [aulaExterna, setAulaExterna] = useState({
@@ -105,6 +115,17 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
 
       if (aulasData) {
         setAulas(aulasData);
+      }
+
+      // Carregar acessos e logins
+      const { data: acessosData } = await supabase
+        .from('acessos_logins')
+        .select('id, nome_acesso, categoria, link_acesso')
+        .eq('ativo', true)
+        .order('nome_acesso');
+
+      if (acessosData) {
+        setAcessos(acessosData);
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -155,7 +176,8 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
           descricao: formData.descricao,
           colaborador_id: formData.colaborador_id,
           data_limite: formData.data_limite,
-          aulas_externas: formData.aulas_externas as any,
+          aulas_externas: formData.aulas_externas.map(a => ({ ...a, concluida: false })) as any,
+          acessos_ids: formData.acessos_ids,
           created_by: (await supabase.auth.getUser()).data.user?.id
         })
         .select()
@@ -189,7 +211,8 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
         colaborador_id: "",
         data_limite: "",
         aulas_selecionadas: [],
-        aulas_externas: []
+        aulas_externas: [],
+        acessos_ids: []
       });
       setAulaExterna({
         titulo: "",
@@ -290,7 +313,7 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Criar Novo PDI</DialogTitle>
             <DialogDescription>
@@ -349,6 +372,49 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
                 value={formData.data_limite}
                 onChange={(e) => setFormData(prev => ({ ...prev, data_limite: e.target.value }))}
               />
+            </div>
+
+            {/* Acessos e Logins */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                Acessos Necessários
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Selecione os acessos que serão necessários para este PDI
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 border rounded-md bg-muted/30">
+                {acessos.map((acesso) => (
+                  <div key={acesso.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`acesso-${acesso.id}`}
+                      checked={formData.acessos_ids.includes(acesso.id)}
+                      onCheckedChange={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          acessos_ids: prev.acessos_ids.includes(acesso.id)
+                            ? prev.acessos_ids.filter(id => id !== acesso.id)
+                            : [...prev.acessos_ids, acesso.id]
+                        }));
+                      }}
+                    />
+                    <label
+                      htmlFor={`acesso-${acesso.id}`}
+                      className="flex-1 text-sm cursor-pointer"
+                    >
+                      <span className="font-medium">{acesso.nome_acesso}</span>
+                      <span className="text-xs text-muted-foreground ml-2">({acesso.categoria})</span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              {formData.acessos_ids.length > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  {formData.acessos_ids.length} acesso(s) selecionado(s)
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -488,12 +554,12 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
               )}
               
               <p className="text-sm text-muted-foreground">
-                {formData.aulas_selecionadas.length} aulas internas + {formData.aulas_externas.length} aulas externas selecionadas
+                {formData.aulas_selecionadas.length} aulas internas + {formData.aulas_externas.length} aulas externas + {formData.acessos_ids.length} acessos selecionados
               </p>
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={loading}>
@@ -506,54 +572,55 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
 
       {/* Modal para Adicionar Aula Externa */}
       <Dialog open={showAulaExternaForm} onOpenChange={setShowAulaExternaForm}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Adicionar Aula Externa</DialogTitle>
             <DialogDescription>
-              Adicione uma aula externa ao PDI
+              Adicione uma aula ou recurso externo ao PDI
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="titulo-externa">Título *</Label>
+              <Label htmlFor="titulo_externa">Título *</Label>
               <Input
-                id="titulo-externa"
+                id="titulo_externa"
                 value={aulaExterna.titulo}
                 onChange={(e) => setAulaExterna(prev => ({ ...prev, titulo: e.target.value }))}
-                placeholder="Ex: Curso de Google Ads"
+                placeholder="Ex: Curso de Google Ads Avançado"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="url-externa">URL *</Label>
+              <Label htmlFor="url_externa">URL *</Label>
               <Input
-                id="url-externa"
+                id="url_externa"
+                type="url"
                 value={aulaExterna.url}
                 onChange={(e) => setAulaExterna(prev => ({ ...prev, url: e.target.value }))}
-                placeholder="https://exemplo.com/curso"
+                placeholder="https://..."
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="descricao-externa">Descrição</Label>
+              <Label htmlFor="descricao_externa">Descrição</Label>
               <Textarea
-                id="descricao-externa"
+                id="descricao_externa"
                 value={aulaExterna.descricao}
                 onChange={(e) => setAulaExterna(prev => ({ ...prev, descricao: e.target.value }))}
-                placeholder="Descreva o conteúdo da aula"
-                rows={3}
+                placeholder="Descrição opcional"
+                rows={2}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="duracao-externa">Duração (minutos)</Label>
+              <Label htmlFor="duracao_externa">Duração (minutos)</Label>
               <Input
-                id="duracao-externa"
+                id="duracao_externa"
                 type="number"
-                min="1"
                 value={aulaExterna.duracao}
                 onChange={(e) => setAulaExterna(prev => ({ ...prev, duracao: parseInt(e.target.value) || 30 }))}
+                min="1"
               />
             </div>
           </div>
@@ -563,7 +630,7 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
               Cancelar
             </Button>
             <Button type="button" onClick={adicionarAulaExterna}>
-              Adicionar Aula
+              Adicionar
             </Button>
           </DialogFooter>
         </DialogContent>
