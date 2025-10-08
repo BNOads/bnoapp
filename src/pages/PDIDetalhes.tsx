@@ -143,7 +143,7 @@ export default function PDIDetalhes() {
           concluida: a.concluida,
           data_conclusao: a.data_conclusao
         })) || [],
-        aulas_externas: Array.isArray(pdiData.aulas_externas) ? pdiData.aulas_externas as AulaExterna[] : [],
+        aulas_externas: Array.isArray(pdiData.aulas_externas) ? pdiData.aulas_externas as unknown as AulaExterna[] : [],
         links_externos: Array.isArray(pdiData.links_externos) ? pdiData.links_externos : [],
         acessos: acessosData
       };
