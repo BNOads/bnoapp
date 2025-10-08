@@ -7,10 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Check } from "lucide-react";
 import { TarefaDetalhes } from "./TarefaDetalhes";
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Tarefa } from "@/types/tarefas";
 
@@ -23,11 +23,22 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [loading, setLoading] = useState(true);
   const [tarefaSelecionada, setTarefaSelecionada] = useState<Tarefa | null>(null);
-  const { toast } = useToast();
+  const [colaboradores, setColaboradores] = useState<any[]>([]);
 
   useEffect(() => {
     loadTarefas();
+    loadColaboradores();
   }, [tipo, filtros]);
+
+  const loadColaboradores = async () => {
+    const { data } = await supabase
+      .from("colaboradores" as any)
+      .select("id, nome, avatar_url")
+      .eq("ativo", true)
+      .order("nome");
+    
+    if (data) setColaboradores(data);
+  };
 
   const loadTarefas = async () => {
     setLoading(true);
@@ -118,21 +129,14 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
         .update({ data_vencimento: novaData.toISOString().split('T')[0] })
         .eq("id", tarefaId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro ao atualizar data:", error);
+        return;
+      }
 
-      toast({
-        title: "Data atualizada",
-        description: "Data de vencimento alterada com sucesso",
-      });
-
-      loadTarefas();
+      await loadTarefas();
     } catch (error) {
       console.error("Erro ao atualizar data:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar a data",
-        variant: "destructive",
-      });
     }
   };
 
@@ -143,21 +147,32 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
         .update({ prioridade: novaPrioridade })
         .eq("id", tarefaId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro ao atualizar prioridade:", error);
+        return;
+      }
 
-      toast({
-        title: "Prioridade atualizada",
-        description: "Prioridade alterada com sucesso",
-      });
-
-      loadTarefas();
+      await loadTarefas();
     } catch (error) {
       console.error("Erro ao atualizar prioridade:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar a prioridade",
-        variant: "destructive",
-      });
+    }
+  };
+
+  const atualizarResponsavel = async (tarefaId: string, novoResponsavelId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from("tarefas" as any)
+        .update({ responsavel_id: novoResponsavelId })
+        .eq("id", tarefaId);
+
+      if (error) {
+        console.error("Erro ao atualizar responsável:", error);
+        return;
+      }
+
+      await loadTarefas();
+    } catch (error) {
+      console.error("Erro ao atualizar responsável:", error);
     }
   };
 
@@ -211,11 +226,11 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
             {/* Header da tabela */}
             <div className="grid grid-cols-12 gap-3 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
               <div className="col-span-1"></div>
-              <div className="col-span-4">Nome</div>
+              <div className="col-span-3">Nome</div>
               <div className="col-span-2">Prioridade ↓↑</div>
               <div className="col-span-2">Data de vencimento ↓↑</div>
               <div className="col-span-2">Responsável</div>
-              <div className="col-span-1"></div>
+              <div className="col-span-2"></div>
             </div>
 
             <div className="space-y-1">
@@ -239,7 +254,7 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
 
                       {/* Nome */}
                       <div 
-                        className="col-span-4 cursor-pointer"
+                        className="col-span-3 cursor-pointer"
                         onClick={() => setTarefaSelecionada(tarefa)}
                       >
                         <h4 className="font-medium">{tarefa.titulo}</h4>
@@ -303,27 +318,77 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
                       </div>
 
                       {/* Responsável */}
-                      <div className="col-span-2 text-sm text-muted-foreground">
-                        {tarefa.responsavel && (
-                          <div className="flex items-center gap-2">
-                            {tarefa.responsavel.avatar_url ? (
-                              <img 
-                                src={tarefa.responsavel.avatar_url} 
-                                alt={tarefa.responsavel.nome}
-                                className="w-6 h-6 rounded-full"
-                              />
-                            ) : (
-                              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs">
-                                {tarefa.responsavel.nome.charAt(0)}
-                              </div>
-                            )}
-                            <span>{tarefa.responsavel.nome}</span>
-                          </div>
-                        )}
+                      <div className="col-span-2">
+                        <Select
+                          value={tarefa.responsavel_id || "sem_responsavel"}
+                          onValueChange={(value) => 
+                            atualizarResponsavel(tarefa.id, value === "sem_responsavel" ? null : value)
+                          }
+                        >
+                          <SelectTrigger 
+                            className="h-9 border-0 hover:bg-muted"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <SelectValue>
+                              {tarefa.responsavel ? (
+                                <div className="flex items-center gap-2">
+                                  {tarefa.responsavel.avatar_url ? (
+                                    <img 
+                                      src={tarefa.responsavel.avatar_url} 
+                                      alt={tarefa.responsavel.nome}
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                  ) : (
+                                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-xs">
+                                      {tarefa.responsavel.nome.charAt(0)}
+                                    </div>
+                                  )}
+                                  <span className="text-sm">{tarefa.responsavel.nome}</span>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">Sem responsável</span>
+                              )}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sem_responsavel">Sem responsável</SelectItem>
+                            {colaboradores.map((colab) => (
+                              <SelectItem key={colab.id} value={colab.id}>
+                                <div className="flex items-center gap-2">
+                                  {colab.avatar_url ? (
+                                    <img 
+                                      src={colab.avatar_url} 
+                                      alt={colab.nome}
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                  ) : (
+                                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-xs">
+                                      {colab.nome.charAt(0)}
+                                    </div>
+                                  )}
+                                  <span>{colab.nome}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
-                      {/* Ações */}
-                      <div className="col-span-1"></div>
+                      {/* Botão Concluir */}
+                      <div className="col-span-2 flex justify-end">
+                        <Button
+                          size="sm"
+                          variant={tarefa.status === "concluida" ? "secondary" : "default"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            concluirTarefa(tarefa.id);
+                          }}
+                          className="gap-2"
+                        >
+                          <Check className="h-4 w-4" />
+                          {tarefa.status === "concluida" ? "Concluída" : "Concluir"}
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 );
