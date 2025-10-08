@@ -18,6 +18,9 @@ import GanttChartAvancado from "@/components/Lancamentos/GanttChartAvancado";
 import MetasAcelerometro from "@/components/Lancamentos/MetasAcelerometro";
 import LinksUteis from "@/components/Lancamentos/LinksUteis";
 import DashboardField from "@/components/Lancamentos/DashboardField";
+import VerbaDestaque from "@/components/Lancamentos/VerbaDestaque";
+import TimerCPL from "@/components/Lancamentos/TimerCPL";
+import InformacoesBasicas from "@/components/Lancamentos/InformacoesBasicas";
 
 interface VerbaFase {
   captacao: { percentual: number; dias: number };
@@ -57,6 +60,7 @@ interface Lancamento {
   investimento_total: number;
   publico_alvo: string | null;
   meta_custo_lead: number | null;
+  meta_investimento: number | null;
   distribuicao_plataformas: any;
   distribuicao_fases: any;
   metas_investimentos: any;
@@ -824,25 +828,48 @@ export default function LancamentoDetalhes() {
         </TabsList>
 
         <TabsContent value="calendario" className="space-y-6">
-          <DashboardField 
-            value={lancamento.link_dashboard || ''} 
-            onSave={async (url) => {
-              await supabase
-                .from('lancamentos')
-                .update({ link_dashboard: url })
-                .eq('id', lancamento.id);
-              setLancamento(prev => prev ? { ...prev, link_dashboard: url } : null);
-            }}
+          {/* 1. Verba em Destaque */}
+          <VerbaDestaque 
+            investimentoTotal={lancamento.investimento_total}
+            metaInvestimento={lancamento.meta_investimento}
+            verbasPorFase={lancamento.verba_por_fase || {}}
           />
-          
+
+          {/* 2. Timer CPL e Datas-Chave */}
+          <TimerCPL 
+            dataInicioCaptacao={lancamento.data_inicio_captacao}
+            dataFimCaptacao={lancamento.data_fim_captacao}
+            dataInicioAquecimento={lancamento.data_inicio_aquecimento}
+            dataInicioCPL={lancamento.data_inicio_cpl}
+            dataInicioCarrinho={lancamento.data_inicio_carrinho}
+            dataFechamento={lancamento.data_fechamento}
+          />
+
+          {/* 3. Layout com Informações + Cronograma */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
+            {/* 3a. Informações Básicas */}
+            <div>
+              <InformacoesBasicas lancamento={lancamento} />
+            </div>
+
+            {/* 3b. Cronograma */}
+            <div className="lg:col-span-2 space-y-6">
               <GanttChartAvancado
                 lancamento={lancamento}
                 onUpdateDates={handleUpdateDates}
               />
-            </div>
-            <div>
+              
+              <DashboardField 
+                value={lancamento.link_dashboard || ''} 
+                onSave={async (url) => {
+                  await supabase
+                    .from('lancamentos')
+                    .update({ link_dashboard: url })
+                    .eq('id', lancamento.id);
+                  setLancamento(prev => prev ? { ...prev, link_dashboard: url } : null);
+                }}
+              />
+              
               <LinksUteis lancamentoId={lancamento.id} />
             </div>
           </div>
