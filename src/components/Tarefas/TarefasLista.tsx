@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
 import { TarefaDetalhes } from "./TarefaDetalhes";
@@ -165,14 +164,35 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
   const getPrioridadeConfig = (prioridade: string) => {
     switch (prioridade) {
       case "copa_mundo":
-        return { icon: "🔴", label: "Urgente", color: "text-red-600" };
+        return { 
+          label: "copa do mundo", 
+          className: "bg-red-100 text-red-700 hover:bg-red-100 border-red-200" 
+        };
       case "libertadores":
-        return { icon: "🟠", label: "Alta", color: "text-orange-600" };
+        return { 
+          label: "libertadores", 
+          className: "bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200" 
+        };
       case "brasileirao":
-        return { icon: "🔵", label: "Normal", color: "text-blue-600" };
+        return { 
+          label: "brasileirão", 
+          className: "bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200" 
+        };
       default:
-        return { icon: "", label: "Sem prioridade", color: "text-gray-600" };
+        return { 
+          label: "sem prioridade", 
+          className: "bg-gray-100 text-gray-700 hover:bg-gray-100 border-gray-200" 
+        };
     }
+  };
+
+  const handlePrioridadeClick = async (tarefaId: string, prioridadeAtual: string) => {
+    // Ciclar entre as prioridades: copa_mundo -> libertadores -> brasileirao -> copa_mundo
+    const proximaPrioridade = 
+      prioridadeAtual === "copa_mundo" ? "libertadores" :
+      prioridadeAtual === "libertadores" ? "brasileirao" : "copa_mundo";
+    
+    await atualizarPrioridade(tarefaId, proximaPrioridade);
   };
 
   if (loading) return <div>Carregando tarefas...</div>;
@@ -236,33 +256,19 @@ export const TarefasLista = ({ tipo, filtros }: TarefasListaProps) => {
 
                       {/* Prioridade */}
                       <div className="col-span-2">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className={cn("w-full justify-start font-normal", prioridadeConfig.color)}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <span className="mr-2">{prioridadeConfig.icon}</span>
-                              {prioridadeConfig.label}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-48 p-0" align="start">
-                            <Select
-                              value={tarefa.prioridade}
-                              onValueChange={(value) => atualizarPrioridade(tarefa.id, value)}
-                            >
-                              <SelectTrigger className="border-0">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="copa_mundo">🔴 Urgente</SelectItem>
-                                <SelectItem value="libertadores">🟠 Alta</SelectItem>
-                                <SelectItem value="brasileirao">🔵 Normal</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </PopoverContent>
-                        </Popover>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "cursor-pointer px-3 py-1 rounded-md",
+                            prioridadeConfig.className
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePrioridadeClick(tarefa.id, tarefa.prioridade);
+                          }}
+                        >
+                          {prioridadeConfig.label}
+                        </Badge>
                       </div>
 
                       {/* Data de vencimento */}
