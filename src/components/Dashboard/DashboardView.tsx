@@ -245,8 +245,14 @@ export function DashboardView() {
   
   useEffect(() => {
     carregarPdis();
-    carregarPdisEquipe();
   }, []);
+
+  // Recarrega PDIs da equipe quando a permissão de admin estiver disponível
+  useEffect(() => {
+    if (isAdmin) {
+      carregarPdisEquipe();
+    }
+  }, [isAdmin]);
   const handleViewPdiDetails = (pdiId: string) => {
     navigate(`/pdi/${pdiId}`);
   };
