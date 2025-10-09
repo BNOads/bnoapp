@@ -827,6 +827,7 @@ function detectTranscriptionQuery(message: string): boolean {
     'o que foi dito', 'que foi decidido', 'próximos passos',
     'proximos passos', 'ação', 'prazo', 'deadline', 'pendência',
     'qual foi a', 'quando foi', 'anotações', 'anotacoes', 'documento',
+    'tratado', 'mencionado', 'falado', 'discutido', 'conversamos',
     // Nomes de clientes comuns para detectar perguntas específicas
     'cliente', 'jucinones', 'paloma', 'gislene', 'isquierdo', 'mateco'
   ];

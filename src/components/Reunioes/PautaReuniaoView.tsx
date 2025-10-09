@@ -1081,11 +1081,26 @@ export function PautaReuniaoView() {
         contribuidores.push(currentUserId);
       }
       
+      // Concatenar conteúdo de todos os blocos em texto plano para busca
+      const conteudoTexto = blocks
+        .map(block => {
+          let text = '';
+          if (block.titulo) text += `## ${block.titulo}\n\n`;
+          if (block.conteudo) {
+            // Remover HTML tags e converter para texto puro
+            const plainText = block.conteudo.replace(/<[^>]*>/g, '').trim();
+            text += `${plainText}\n\n`;
+          }
+          return text;
+        })
+        .join('');
+
       const updatePayload = {
         titulo_reuniao: currentDocument.titulo_reuniao || 'Reunião',
         participantes: currentDocument.participantes ?? [],
         contribuidores: contribuidores.length > 0 ? contribuidores : (currentUserId ? [currentUserId] : []),
-        ultima_atualizacao: new Date().toISOString()
+        ultima_atualizacao: new Date().toISOString(),
+        conteudo_texto: conteudoTexto
       };
       console.info('Updating reunioes_documentos with', updatePayload);
       const {
