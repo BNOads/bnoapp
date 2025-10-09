@@ -1086,10 +1086,17 @@ export function PautaReuniaoView() {
       setSaving(true);
 
       // Update document
+      // Garantir que o usuário atual esteja sempre nos contribuidores
+      const contribuidores = currentDocument.contribuidores || [];
+      const currentUserId = user?.id;
+      if (currentUserId && !contribuidores.includes(currentUserId)) {
+        contribuidores.push(currentUserId);
+      }
+      
       const updatePayload = {
         titulo_reuniao: currentDocument.titulo_reuniao || 'Reunião',
         participantes: currentDocument.participantes ?? [],
-        contribuidores: currentDocument.contribuidores ?? (user?.id ? [user.id] : []),
+        contribuidores: contribuidores.length > 0 ? contribuidores : (currentUserId ? [currentUserId] : []),
         ultima_atualizacao: new Date().toISOString()
       };
       console.info('Updating reunioes_documentos with', updatePayload);
