@@ -151,8 +151,12 @@ export function PautaReuniaoView() {
   };
   const autosaveTimeout = useRef<NodeJS.Timeout>();
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const isNavigatingMonths = useRef(false);
 
   useEffect(() => {
+    // Se está navegando manualmente entre meses, não interferir
+    if (isNavigatingMonths.current) return;
+    
     // Parse URL parameters and auto-navigate to today or last selected day
     const yearParam = searchParams.get('ano');
     const monthParam = searchParams.get('mes');
@@ -1197,6 +1201,8 @@ export function PautaReuniaoView() {
         </div>
         <div className="flex gap-1">
           <Button variant="outline" size="sm" className="h-7 px-2" onClick={async () => {
+            isNavigatingMonths.current = true;
+            
             const newMonth = selectedDate.mes === 1 ? 12 : selectedDate.mes - 1;
             const newYear = selectedDate.mes === 1 ? selectedDate.ano - 1 : selectedDate.ano;
             const newDate = { ano: newYear, mes: newMonth, dia: undefined };
@@ -1204,6 +1210,12 @@ export function PautaReuniaoView() {
             setSelectedDate(newDate);
             updateURL(newYear, newMonth);
             
+            // Salvar mês atual no localStorage (sem dia)
+            localStorage.setItem('pauta-last-date', JSON.stringify({
+              ano: newYear,
+              mes: newMonth
+            }));
+            
             // Load documents for new month
             const { data, error } = await supabase
               .from('reunioes_documentos')
@@ -1235,10 +1247,17 @@ export function PautaReuniaoView() {
               setCurrentDocument(null);
               setBlocks([]);
             }
+            
+            // Liberar flag após carregar
+            setTimeout(() => {
+              isNavigatingMonths.current = false;
+            }, 500);
           }}>
             <ChevronLeft className="h-3 w-3" />
           </Button>
           <Button variant="outline" size="sm" className="h-7 px-2" onClick={async () => {
+            isNavigatingMonths.current = true;
+            
             const newMonth = selectedDate.mes === 12 ? 1 : selectedDate.mes + 1;
             const newYear = selectedDate.mes === 12 ? selectedDate.ano + 1 : selectedDate.ano;
             const newDate = { ano: newYear, mes: newMonth, dia: undefined };
@@ -1246,6 +1265,12 @@ export function PautaReuniaoView() {
             setSelectedDate(newDate);
             updateURL(newYear, newMonth);
             
+            // Salvar mês atual no localStorage (sem dia)
+            localStorage.setItem('pauta-last-date', JSON.stringify({
+              ano: newYear,
+              mes: newMonth
+            }));
+            
             // Load documents for new month
             const { data, error } = await supabase
               .from('reunioes_documentos')
@@ -1277,6 +1302,11 @@ export function PautaReuniaoView() {
               setCurrentDocument(null);
               setBlocks([]);
             }
+            
+            // Liberar flag após carregar
+            setTimeout(() => {
+              isNavigatingMonths.current = false;
+            }, 500);
           }}>
             <ChevronRight className="h-3 w-3" />
           </Button>
