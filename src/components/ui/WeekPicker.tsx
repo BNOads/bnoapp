@@ -86,6 +86,18 @@ export function WeekPicker({
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
+    // Only handle keyboard shortcuts when WeekPicker popover is open
+    // Don't capture keys globally to avoid interfering with text inputs
+    const activeElement = document.activeElement;
+    const isTyping = activeElement?.tagName === 'INPUT' || 
+                     activeElement?.tagName === 'TEXTAREA' ||
+                     activeElement?.getAttribute('contenteditable') === 'true';
+    
+    // Don't handle shortcuts if user is typing in a text field
+    if (isTyping) {
+      return;
+    }
+
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       navigateWeek("prev");
