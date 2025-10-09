@@ -543,9 +543,30 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
       context += `📋 DOCUMENTOS DE REUNIÕES (${reunioesDocumentos.length} recentes - últimos 60 dias)\n\n`;
       
       reunioesDocumentos.forEach((doc: any) => {
-        const clienteReunioes = doc.cliente_id 
-          ? clientes?.find((c: any) => c.id === doc.cliente_id)?.nome 
-          : 'Reuniões gerais';
+        // Tentar identificar cliente pelos aliases se não houver cliente_id definido
+        let clienteReunioes = 'Reuniões gerais';
+        
+        if (doc.cliente_id) {
+          const clienteEncontrado = clientes?.find((c: any) => c.id === doc.cliente_id);
+          if (clienteEncontrado) {
+            clienteReunioes = clienteEncontrado.nome;
+          }
+        } else {
+          // Buscar no título por aliases de clientes
+          const clienteEncontrado = clientes?.find((c: any) => {
+            const nomeUpper = c.nome.toUpperCase();
+            const tituloUpper = doc.titulo_reuniao.toUpperCase();
+            if (tituloUpper.includes(nomeUpper)) return true;
+            if (c.aliases && Array.isArray(c.aliases)) {
+              return c.aliases.some((alias: string) => tituloUpper.includes(alias.toUpperCase()));
+            }
+            return false;
+          });
+          
+          if (clienteEncontrado) {
+            clienteReunioes = clienteEncontrado.nome;
+          }
+        }
         
         const dataReuniao = `${String(doc.dia).padStart(2, '0')}/${String(doc.mes).padStart(2, '0')}/${doc.ano}`;
         context += `📅 **${dataReuniao}** - ${doc.titulo_reuniao} (${clienteReunioes})\n`;
@@ -586,9 +607,33 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     if (gravacoes && gravacoes.length > 0) {
       context += `🎥 GRAVAÇÕES DE REUNIÕES (${gravacoes.length} recentes)\n\n`;
       gravacoes.forEach((grav: any) => {
-        const clienteGrav = clientes?.find((c: any) => c.id === grav.cliente_id);
+        // Tentar identificar cliente pelos aliases se não houver cliente_id definido
+        let clienteNome = null;
+        
+        if (grav.cliente_id) {
+          const clienteEncontrado = clientes?.find((c: any) => c.id === grav.cliente_id);
+          if (clienteEncontrado) {
+            clienteNome = clienteEncontrado.nome;
+          }
+        } else {
+          // Buscar no título por aliases de clientes
+          const clienteEncontrado = clientes?.find((c: any) => {
+            const nomeUpper = c.nome.toUpperCase();
+            const tituloUpper = grav.titulo.toUpperCase();
+            if (tituloUpper.includes(nomeUpper)) return true;
+            if (c.aliases && Array.isArray(c.aliases)) {
+              return c.aliases.some((alias: string) => tituloUpper.includes(alias.toUpperCase()));
+            }
+            return false;
+          });
+          
+          if (clienteEncontrado) {
+            clienteNome = clienteEncontrado.nome;
+          }
+        }
+        
         context += `📹 **${grav.titulo}**`;
-        if (clienteGrav) context += ` (${clienteGrav.nome})`;
+        if (clienteNome) context += ` (${clienteNome})`;
         context += `\n`;
         context += `   📅 ${new Date(grav.created_at).toLocaleDateString('pt-BR')}\n`;
         
