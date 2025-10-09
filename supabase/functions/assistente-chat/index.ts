@@ -523,113 +523,81 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
       });
     }
 
-    // DOCUMENTOS DE REUNIÕES - Pautas e anotações com conteúdo completo
+    // DOCUMENTOS DE REUNIÕES - Pautas e anotações (últimas 15 mais importantes)
     let reunioesDocsQuery = supabase
       .from('reunioes_documentos')
       .select(`
         id, ano, mes, dia, titulo_reuniao, conteudo_texto, 
-        cliente_id, status, created_at, updated_at, participantes
+        cliente_id, status, created_at, participantes
       `)
-      .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()) // Últimos 90 dias
+      .gte('created_at', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()) // Últimos 60 dias
       .order('created_at', { ascending: false });
 
     if (userClientId && !isAdmin) {
       reunioesDocsQuery = reunioesDocsQuery.eq('cliente_id', userClientId);
     }
 
-    const { data: reunioesDocumentos } = await reunioesDocsQuery.limit(30);
+    const { data: reunioesDocumentos } = await reunioesDocsQuery.limit(15);
 
     if (reunioesDocumentos && reunioesDocumentos.length > 0) {
-      // Agrupar por cliente para melhor organização
-      const reunioesPorCliente = reunioesDocumentos.reduce((acc: any, doc: any) => {
-        const clienteId = doc.cliente_id || 'sem-cliente';
-        if (!acc[clienteId]) {
-          acc[clienteId] = [];
-        }
-        if (acc[clienteId].length < 5) { // Últimas 5 reuniões por cliente
-          acc[clienteId].push(doc);
-        }
-        return acc;
-      }, {});
-
-      context += `📋 DOCUMENTOS DE REUNIÕES (${reunioesDocumentos.length} recentes - últimos 90 dias)\n\n`;
+      context += `📋 DOCUMENTOS DE REUNIÕES (${reunioesDocumentos.length} recentes - últimos 60 dias)\n\n`;
       
-      for (const [clienteId, docs] of Object.entries(reunioesPorCliente) as any) {
-        const clienteReunioes = clienteId !== 'sem-cliente' 
-          ? clientes?.find((c: any) => c.id === clienteId)?.nome 
+      reunioesDocumentos.forEach((doc: any) => {
+        const clienteReunioes = doc.cliente_id 
+          ? clientes?.find((c: any) => c.id === doc.cliente_id)?.nome 
           : 'Reuniões gerais';
         
-        context += `📌 **${clienteReunioes}**\n`;
+        const dataReuniao = `${String(doc.dia).padStart(2, '0')}/${String(doc.mes).padStart(2, '0')}/${doc.ano}`;
+        context += `📅 **${dataReuniao}** - ${doc.titulo_reuniao} (${clienteReunioes})\n`;
         
-        docs.forEach((doc: any) => {
-          const dataReuniao = `${String(doc.dia).padStart(2, '0')}/${String(doc.mes).padStart(2, '0')}/${doc.ano}`;
-          context += `   📅 **${dataReuniao}** - ${doc.titulo_reuniao}\n`;
-          context += `   📊 Status: ${doc.status}\n`;
+        if (doc.participantes && doc.participantes.length > 0) {
+          context += `   👥 Participantes: ${doc.participantes.slice(0, 3).join(', ')}${doc.participantes.length > 3 ? '...' : ''}\n`;
+        }
+        
+        // Incluir apenas resumo do conteúdo (primeiros 200 caracteres)
+        if (doc.conteudo_texto && doc.conteudo_texto.length > 0) {
+          const conteudoLimpo = doc.conteudo_texto
+            .replace(/<[^>]*>/g, '') // Remove HTML tags
+            .substring(0, 200); // Primeiros 200 caracteres
           
-          if (doc.participantes && doc.participantes.length > 0) {
-            context += `   👥 Participantes: ${doc.participantes.join(', ')}\n`;
-          }
-          
-          // Incluir conteúdo completo da reunião para análise da IA
-          if (doc.conteudo_texto && doc.conteudo_texto.length > 0) {
-            // Extrair partes importantes do conteúdo markdown
-            const conteudoLimpo = doc.conteudo_texto
-              .replace(/<[^>]*>/g, '') // Remove HTML tags
-              .substring(0, 800); // Primeiros 800 caracteres
-            
-            context += `   📝 Anotações:\n`;
-            context += `      ${conteudoLimpo}${doc.conteudo_texto.length > 800 ? '...' : ''}\n`;
-          }
-          
-          context += `\n`;
-        });
-      }
+          context += `   📝 ${conteudoLimpo}...\n`;
+        }
+        
+        context += `\n`;
+      });
     }
 
-    // GRAVAÇÕES DE REUNIÕES - Últimas gravações com transcrições
+    // GRAVAÇÕES DE REUNIÕES - Últimas gravações com transcrições (reduzido para 10)
     let gravacoesQuery = supabase
       .from('gravacoes')
       .select(`
-        id, titulo, cliente_id, url_gravacao, duracao,
-        visualizacoes, tags, thumbnail_url, created_at, descricao,
-        transcricao, resumo_ia, palavras_chave
+        id, titulo, cliente_id, url_gravacao, created_at,
+        resumo_ia, palavras_chave
       `)
-      .gte('created_at', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()) // Últimos 60 dias
+      .gte('created_at', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString())
       .order('created_at', { ascending: false });
 
     if (userClientId && !isAdmin) {
       gravacoesQuery = gravacoesQuery.eq('cliente_id', userClientId);
     }
 
-    const { data: gravacoes } = await gravacoesQuery.limit(20);
+    const { data: gravacoes } = await gravacoesQuery.limit(10);
 
     if (gravacoes && gravacoes.length > 0) {
-      context += `🎥 GRAVAÇÕES DE REUNIÕES (${gravacoes.length} recentes - últimos 60 dias)\n\n`;
+      context += `🎥 GRAVAÇÕES DE REUNIÕES (${gravacoes.length} recentes)\n\n`;
       gravacoes.forEach((grav: any) => {
         const clienteGrav = clientes?.find((c: any) => c.id === grav.cliente_id);
-        context += `📹 **${grav.titulo}**\n`;
-        if (clienteGrav) context += `   👤 Cliente: ${clienteGrav.nome}\n`;
-        context += `   ⏱️ Duração: ${grav.duracao || 'N/A'} min\n`;
-        context += `   👁️ Views: ${grav.visualizacoes || 0}\n`;
-        context += `   🔗 URL: ${grav.url_gravacao}\n`;
-        context += `   📅 Data: ${new Date(grav.created_at).toLocaleDateString('pt-BR')}\n`;
-        if (grav.tags) context += `   🏷️ Tags: ${grav.tags.join(', ')}\n`;
-        if (grav.descricao) context += `   📄 Desc: ${grav.descricao.substring(0, 100)}...\n`;
+        context += `📹 **${grav.titulo}**`;
+        if (clienteGrav) context += ` (${clienteGrav.nome})`;
+        context += `\n`;
+        context += `   📅 ${new Date(grav.created_at).toLocaleDateString('pt-BR')}\n`;
         
-        // Adicionar resumo da IA se disponível
         if (grav.resumo_ia) {
-          context += `   🤖 Resumo IA: ${grav.resumo_ia.substring(0, 200)}...\n`;
+          context += `   🤖 ${grav.resumo_ia.substring(0, 150)}...\n`;
         }
         
-        // Adicionar palavras-chave se disponíveis
         if (grav.palavras_chave && grav.palavras_chave.length > 0) {
-          context += `   🔑 Palavras-chave: ${grav.palavras_chave.join(', ')}\n`;
-        }
-        
-        // Adicionar trecho da transcrição se disponível
-        if (grav.transcricao && grav.transcricao.length > 50) {
-          const transcricaoTrecho = grav.transcricao.substring(0, 300);
-          context += `   📝 Transcrição (início): "${transcricaoTrecho}${grav.transcricao.length > 300 ? '...' : ''}"\n`;
+          context += `   🔑 ${grav.palavras_chave.slice(0, 5).join(', ')}\n`;
         }
         
         context += `\n`;
