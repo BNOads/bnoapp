@@ -120,15 +120,26 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
       if (selectedType && selectedType !== "todos") params.append('type', selectedType);
       if (searchTerm) params.append('q', searchTerm);
       
-      // Usar o client do Supabase ao invés de fetch direto
-      const { data, error } = await supabase.functions.invoke(
-        `drive-creatives/${clienteId}?${params.toString()}`,
-        {
-          method: 'GET'
-        }
-      );
+      // Chamar edge function usando URL completa
+      const url = `https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/drive-creatives/${clienteId}?${params.toString()}`;
       
-      if (error) throw error;
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiZG9vc2NmcnJrd2Z1dGtkamhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTQwODIsImV4cCI6MjA3MTUzMDA4Mn0.yd988Fotgc9LIZi83NlGDTaeB4f8BNgr9TYJgye0Cqw',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
       
       setCreatives(data.creatives || []);
       setPagination(data.pagination);
