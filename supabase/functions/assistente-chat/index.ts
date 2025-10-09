@@ -163,10 +163,13 @@ IMPORTANTE: Use estas transcrições para responder sobre decisões, tarefas, pr
 - Identifique padrões de performance
 - Sugira próximas ações baseadas em etapa atual
 
-**Para Reuniões/Transcrições**:
-- Extraia decisões, tarefas atribuídas, responsáveis e prazos
-- Relacione com cliente/projeto específico
-- Identifique compromissos não cumpridos
+**Para Reuniões/Transcrições/Documentos de Reunião**:
+- Analise tanto as GRAVAÇÕES quanto os DOCUMENTOS DE REUNIÕES (pautas)
+- Extraia decisões, tarefas atribuídas, responsáveis e prazos mencionados
+- Relacione com cliente/projeto específico sempre que possível
+- Identifique compromissos não cumpridos comparando com tarefas atuais
+- Use o conteúdo completo das anotações para responder perguntas detalhadas
+- Cite a data específica da reunião ao referenciar informações
 
 **Para Financeiro**:
 - Calcule métricas consolidadas (faturamento, despesas, lucro)
@@ -520,19 +523,88 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
       });
     }
 
-    // GRAVAÇÕES DE REUNIÕES - Últimas gravações
-    const { data: gravacoes } = await supabase
+    // DOCUMENTOS DE REUNIÕES - Pautas e anotações com conteúdo completo
+    let reunioesDocsQuery = supabase
+      .from('reunioes_documentos')
+      .select(`
+        id, ano, mes, dia, titulo_reuniao, conteudo_texto, 
+        cliente_id, status, created_at, updated_at, participantes
+      `)
+      .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()) // Últimos 90 dias
+      .order('created_at', { ascending: false });
+
+    if (userClientId && !isAdmin) {
+      reunioesDocsQuery = reunioesDocsQuery.eq('cliente_id', userClientId);
+    }
+
+    const { data: reunioesDocumentos } = await reunioesDocsQuery.limit(30);
+
+    if (reunioesDocumentos && reunioesDocumentos.length > 0) {
+      // Agrupar por cliente para melhor organização
+      const reunioesPorCliente = reunioesDocumentos.reduce((acc: any, doc: any) => {
+        const clienteId = doc.cliente_id || 'sem-cliente';
+        if (!acc[clienteId]) {
+          acc[clienteId] = [];
+        }
+        if (acc[clienteId].length < 5) { // Últimas 5 reuniões por cliente
+          acc[clienteId].push(doc);
+        }
+        return acc;
+      }, {});
+
+      context += `📋 DOCUMENTOS DE REUNIÕES (${reunioesDocumentos.length} recentes - últimos 90 dias)\n\n`;
+      
+      for (const [clienteId, docs] of Object.entries(reunioesPorCliente) as any) {
+        const clienteReunioes = clienteId !== 'sem-cliente' 
+          ? clientes?.find((c: any) => c.id === clienteId)?.nome 
+          : 'Reuniões gerais';
+        
+        context += `📌 **${clienteReunioes}**\n`;
+        
+        docs.forEach((doc: any) => {
+          const dataReuniao = `${String(doc.dia).padStart(2, '0')}/${String(doc.mes).padStart(2, '0')}/${doc.ano}`;
+          context += `   📅 **${dataReuniao}** - ${doc.titulo_reuniao}\n`;
+          context += `   📊 Status: ${doc.status}\n`;
+          
+          if (doc.participantes && doc.participantes.length > 0) {
+            context += `   👥 Participantes: ${doc.participantes.join(', ')}\n`;
+          }
+          
+          // Incluir conteúdo completo da reunião para análise da IA
+          if (doc.conteudo_texto && doc.conteudo_texto.length > 0) {
+            // Extrair partes importantes do conteúdo markdown
+            const conteudoLimpo = doc.conteudo_texto
+              .replace(/<[^>]*>/g, '') // Remove HTML tags
+              .substring(0, 800); // Primeiros 800 caracteres
+            
+            context += `   📝 Anotações:\n`;
+            context += `      ${conteudoLimpo}${doc.conteudo_texto.length > 800 ? '...' : ''}\n`;
+          }
+          
+          context += `\n`;
+        });
+      }
+    }
+
+    // GRAVAÇÕES DE REUNIÕES - Últimas gravações com transcrições
+    let gravacoesQuery = supabase
       .from('gravacoes')
       .select(`
         id, titulo, cliente_id, url_gravacao, duracao,
-        visualizacoes, tags, thumbnail_url, created_at, descricao
+        visualizacoes, tags, thumbnail_url, created_at, descricao,
+        transcricao, resumo_ia, palavras_chave
       `)
       .gte('created_at', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()) // Últimos 60 dias
-      .order('created_at', { ascending: false })
-      .limit(20);
+      .order('created_at', { ascending: false });
+
+    if (userClientId && !isAdmin) {
+      gravacoesQuery = gravacoesQuery.eq('cliente_id', userClientId);
+    }
+
+    const { data: gravacoes } = await gravacoesQuery.limit(20);
 
     if (gravacoes && gravacoes.length > 0) {
-      context += `🎥 GRAVAÇÕES DE REUNIÕES (${gravacoes.length} recentes)\n\n`;
+      context += `🎥 GRAVAÇÕES DE REUNIÕES (${gravacoes.length} recentes - últimos 60 dias)\n\n`;
       gravacoes.forEach((grav: any) => {
         const clienteGrav = clientes?.find((c: any) => c.id === grav.cliente_id);
         context += `📹 **${grav.titulo}**\n`;
@@ -543,6 +615,23 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
         context += `   📅 Data: ${new Date(grav.created_at).toLocaleDateString('pt-BR')}\n`;
         if (grav.tags) context += `   🏷️ Tags: ${grav.tags.join(', ')}\n`;
         if (grav.descricao) context += `   📄 Desc: ${grav.descricao.substring(0, 100)}...\n`;
+        
+        // Adicionar resumo da IA se disponível
+        if (grav.resumo_ia) {
+          context += `   🤖 Resumo IA: ${grav.resumo_ia.substring(0, 200)}...\n`;
+        }
+        
+        // Adicionar palavras-chave se disponíveis
+        if (grav.palavras_chave && grav.palavras_chave.length > 0) {
+          context += `   🔑 Palavras-chave: ${grav.palavras_chave.join(', ')}\n`;
+        }
+        
+        // Adicionar trecho da transcrição se disponível
+        if (grav.transcricao && grav.transcricao.length > 50) {
+          const transcricaoTrecho = grav.transcricao.substring(0, 300);
+          context += `   📝 Transcrição (início): "${transcricaoTrecho}${grav.transcricao.length > 300 ? '...' : ''}"\n`;
+        }
+        
         context += `\n`;
       });
     }
@@ -657,6 +746,7 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     context += `├── 🎓 Treinamentos: ${treinamentos?.length || 0}\n`;
     context += `├── 📚 Aulas: ${aulas?.length || 0}\n`;
     context += `├── 🎨 Referências: ${referencias?.length || 0}\n`;
+    context += `├── 📋 Documentos de reuniões: ${reunioesDocumentos?.length || 0}\n`;
     context += `├── 🎥 Gravações: ${gravacoes?.length || 0}\n`;
     context += `├── 💰 Orçamentos: ${orcamentos?.length || 0}\n`;
     context += `├── 📨 Mensagens semanais: ${mensagens?.length || 0}\n`;
@@ -716,14 +806,16 @@ function extrairMetricasDaMensagem(mensagem: string): string[] {
 // Função para detectar se a consulta é sobre transcrições ou reuniões
 function detectTranscriptionQuery(message: string): boolean {
   const transcriptionKeywords = [
-    'reunião', 'reuniões', 'meeting', 'encontro', 'call',
+    'reunião', 'reuniões', 'meeting', 'encontro', 'call', 'pauta',
     'transcrição', 'transcricao', 'ata', 'gravação', 'gravacao',
     'resumo', 'resumir', 'prometemos', 'compromisso', 'acordo',
     'decidimos', 'combinamos', 'falamos sobre', 'discutimos',
-    'pra paloma', 'para paloma', 'com paloma', 'mateco', 'cliente',
-    'última reunião', 'ultima reunião', 'reunião passada',
+    'última reunião', 'ultima reunião', 'reunião passada', 'reunião com',
     'o que foi dito', 'que foi decidido', 'próximos passos',
-    'proximos passos', 'ação', 'prazo', 'deadline'
+    'proximos passos', 'ação', 'prazo', 'deadline', 'pendência',
+    'qual foi a', 'quando foi', 'anotações', 'anotacoes', 'documento',
+    // Nomes de clientes comuns para detectar perguntas específicas
+    'cliente', 'jucinones', 'paloma', 'gislene', 'isquierdo', 'mateco'
   ];
   
   const messageLower = message.toLowerCase();
