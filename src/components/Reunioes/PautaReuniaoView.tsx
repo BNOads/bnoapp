@@ -167,32 +167,20 @@ export function PautaReuniaoView() {
     const currentDay = today.getDate();
 
     if (yearParam && monthParam && dayParam) {
-      // URL tem todos os parâmetros: validar se não é mês anterior distante
+      // URL tem todos os parâmetros: usar diretamente
       const paramYear = parseInt(yearParam);
       const paramMonth = parseInt(monthParam);
       const selectedDay = parseInt(dayParam);
-      const paramDate = new Date(paramYear, paramMonth - 1, selectedDay);
-      const daysDiffParams = Math.floor((today.getTime() - paramDate.getTime()) / (1000 * 60 * 60 * 24));
-      const sameMonthParams = (paramYear === currentYear && paramMonth === currentMonth);
-
-      if (!sameMonthParams && daysDiffParams > 7) {
-        // Se os parâmetros são de mês anterior e antigos, priorizar hoje
-        setSelectedDate({ ano: currentYear, mes: currentMonth, dia: currentDay });
-        updateURL(currentYear, currentMonth, currentDay);
-        localStorage.setItem('pauta-last-date', JSON.stringify({
-          ano: currentYear,
-          mes: currentMonth,
-          dia: currentDay
-        }));
-      } else {
-        setSelectedDate({ ano: paramYear, mes: paramMonth, dia: selectedDay });
-        // Persistir no localStorage
-        localStorage.setItem('pauta-last-date', JSON.stringify({
-          ano: paramYear,
-          mes: paramMonth,
-          dia: selectedDay
-        }));
-      }
+      
+      // Sempre respeitar a URL, independente do mês/ano
+      setSelectedDate({ ano: paramYear, mes: paramMonth, dia: selectedDay });
+      
+      // Persistir no localStorage
+      localStorage.setItem('pauta-last-date', JSON.stringify({
+        ano: paramYear,
+        mes: paramMonth,
+        dia: selectedDay
+      }));
     } else {
       // Tentar carregar último dia do localStorage
       try {
