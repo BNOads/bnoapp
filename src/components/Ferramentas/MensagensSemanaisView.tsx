@@ -743,19 +743,11 @@ ${mensagem.mensagem}`;
                             {/* Desktop: Botões lado a lado */}
                             <div className="hidden md:flex items-center gap-2">
                               {podeEditar(mensagem) && <>
-                                  <Button variant="outline" size="sm" onClick={() => iniciarEdicao(mensagem)} title="Editar mensagem">
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => copiarMensagem(mensagem)} title="Copiar mensagem">
-                                    <Copy className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => setMensagemExcluindo(mensagem)} title="Excluir mensagem" className="text-red-600 hover:text-red-700">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  
+                                  
+                                  
                                 </>}
-                              {!podeEditar(mensagem) && <Button variant="outline" size="sm" onClick={() => copiarMensagem(mensagem)} title="Copiar mensagem">
-                                  <Copy className="h-4 w-4" />
-                                </Button>}
+                              {!podeEditar(mensagem)}
                             </div>
 
                             {/* Mobile: Menu dropdown */}
