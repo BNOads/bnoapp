@@ -269,9 +269,11 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           }
           break;
         case 'status':
-          const statusA = getCurrentStatus(a);
-          const statusB = getCurrentStatus(b);
-          comparison = statusA.localeCompare(statusB);
+          const statusA = getCurrentStatus(a) || 'subir';
+          const statusB = getCurrentStatus(b) || 'subir';
+          // Ordem de prioridade: erro, subir, ativo, inativo
+          const statusOrder = { 'erro': 0, 'subir': 1, 'ativo': 2, 'inativo': 3 };
+          comparison = statusOrder[statusA] - statusOrder[statusB];
           break;
       }
       
@@ -379,6 +381,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   };
 
   const getCurrentStatus = (creative: Creative): 'subir' | 'ativo' | 'inativo' | 'erro' => {
+    if (!creative) return 'subir';
     return creative.status || (creative.is_active ? 'ativo' : 'subir');
   };
 
