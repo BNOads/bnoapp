@@ -546,7 +546,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
       });
 
       const response = await fetch(
-        `https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/download-creative/batch/download-batch`,
+        `https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/download-creative/download-batch`,
         {
           method: 'POST',
           headers: {
