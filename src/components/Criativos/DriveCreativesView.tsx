@@ -272,8 +272,8 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           const statusA = getCurrentStatus(a) || 'subir';
           const statusB = getCurrentStatus(b) || 'subir';
           // Ordem de prioridade: erro, subir, ativo, inativo
-          const statusOrder = { 'erro': 0, 'subir': 1, 'ativo': 2, 'inativo': 3 };
-          comparison = statusOrder[statusA] - statusOrder[statusB];
+          const orderMap: Record<string, number> = { 'erro': 0, 'subir': 1, 'ativo': 2, 'inativo': 3 };
+          comparison = (orderMap[statusA] ?? 1) - (orderMap[statusB] ?? 1);
           break;
       }
       
