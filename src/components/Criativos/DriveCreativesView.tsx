@@ -218,6 +218,13 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     return folders;
   };
 
+  // Helpers de status para ordenação
+  const STATUS_ORDER: Record<'erro' | 'subir' | 'ativo' | 'inativo', number> = { erro: 0, subir: 1, ativo: 2, inativo: 3 };
+  function getCurrentStatus(creative: Creative): 'subir' | 'ativo' | 'inativo' | 'erro' {
+    if (!creative) return 'subir';
+    return (creative.status as any) || (creative.is_active ? 'ativo' : 'subir');
+  }
+
   // Filtrar e ordenar criativos
   const getFilteredAndSortedCreatives = () => {
     let filtered = selectedFolder === 'todas' 
@@ -271,9 +278,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
         case 'status':
           const statusA = getCurrentStatus(a) || 'subir';
           const statusB = getCurrentStatus(b) || 'subir';
-          // Ordem de prioridade: erro, subir, ativo, inativo
-          const orderMap: Record<string, number> = { 'erro': 0, 'subir': 1, 'ativo': 2, 'inativo': 3 };
-          comparison = (orderMap[statusA] ?? 1) - (orderMap[statusB] ?? 1);
+          comparison = (STATUS_ORDER[statusA] ?? 1) - (STATUS_ORDER[statusB] ?? 1);
           break;
       }
       
@@ -380,10 +385,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     }
   };
 
-  const getCurrentStatus = (creative: Creative): 'subir' | 'ativo' | 'inativo' | 'erro' => {
-    if (!creative) return 'subir';
-    return creative.status || (creative.is_active ? 'ativo' : 'subir');
-  };
+  // getCurrentStatus movido para antes da função de ordenação para evitar TDZ
 
   // Funções de seleção em massa
   const handleSelectAll = (checked: boolean) => {
