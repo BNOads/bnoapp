@@ -1087,8 +1087,12 @@ export function PautaReuniaoView() {
           let text = '';
           if (block.titulo) text += `## ${block.titulo}\n\n`;
           if (block.conteudo) {
+            // Extrair texto do conteúdo (pode ser string ou objeto com propriedade texto)
+            const conteudoStr = typeof block.conteudo === 'string' 
+              ? block.conteudo 
+              : (block.conteudo.texto || '');
             // Remover HTML tags e converter para texto puro
-            const plainText = block.conteudo.replace(/<[^>]*>/g, '').trim();
+            const plainText = conteudoStr.replace(/<[^>]*>/g, '').trim();
             text += `${plainText}\n\n`;
           }
           return text;
