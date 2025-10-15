@@ -33,8 +33,8 @@ interface HistoricoMensagensClienteProps {
 
 interface ResumoInteligente {
   panorama: string;
-  alertas: string;
-  proximos_passos: string;
+  alertas: string | string[];
+  proximos_passos: string | string[];
 }
 
 export function HistoricoMensagensCliente({ clienteId, clienteNome, isPublicView = false }: HistoricoMensagensClienteProps) {
@@ -177,12 +177,12 @@ ${resumo.panorama}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ⚠️ ALERTAS
-${resumo.alertas}
+${Array.isArray(resumo.alertas) ? resumo.alertas.join('\n') : resumo.alertas}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🚀 PRÓXIMOS PASSOS RECOMENDADOS
-${resumo.proximos_passos}
+${Array.isArray(resumo.proximos_passos) ? resumo.proximos_passos.join('\n') : resumo.proximos_passos}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
@@ -470,7 +470,7 @@ Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                 <div 
                   className="text-sm text-yellow-800 leading-relaxed prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ 
-                    __html: resumo.alertas
+                    __html: (Array.isArray(resumo.alertas) ? resumo.alertas.join('\n\n') : resumo.alertas)
                       .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
                       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                       .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -487,7 +487,7 @@ Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                 <div 
                   className="text-sm text-green-800 leading-relaxed prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ 
-                    __html: resumo.proximos_passos
+                    __html: (Array.isArray(resumo.proximos_passos) ? resumo.proximos_passos.join('\n\n') : resumo.proximos_passos)
                       .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
                       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                       .replace(/\*(.*?)\*/g, '<em>$1</em>')
