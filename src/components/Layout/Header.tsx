@@ -58,12 +58,6 @@ export const Header = ({}: HeaderProps) => {
       icon: Rocket,
       path: '/ferramentas'
     },
-    {
-      id: 'gamificacao',
-      label: 'Desafio',
-      icon: Trophy,
-      path: '/gamificacao'
-    }
   ];
 
   const getActiveTab = () => {

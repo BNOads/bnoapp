@@ -13,10 +13,11 @@ import { useRecentTabs } from "@/hooks/useRecentTabs";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { DesafioAtual } from "@/components/Gamificacao/DesafioAtual";
 
 export function DashboardView() {
   const navigate = useNavigate();
-  const { canCreateContent, isAdmin } = useUserPermissions();
+  const { canCreateContent, isAdmin, isMaster } = useUserPermissions();
   const { recentTabs } = useRecentTabs();
   const { favorites, toggleCurrentPageFavorite, isCurrentPageFavorite, renameFavorite } = useFavoriteTabs();
   const [showOrcamentos, setShowOrcamentos] = useState(false);
@@ -361,6 +362,9 @@ export function DashboardView() {
           </Button>
         </div>
       </div>
+
+      {/* Desafio Atual Section */}
+      <DesafioAtual isAdmin={isAdmin || isMaster} />
 
       {/* PDI Section */}
       <section className="space-y-6">
