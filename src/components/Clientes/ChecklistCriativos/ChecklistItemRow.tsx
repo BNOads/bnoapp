@@ -140,9 +140,9 @@ export const ChecklistItemRow = ({ item, onUpdate, isAuthenticated }: ChecklistI
           {item.referencias && Array.isArray(item.referencias) && item.referencias.length > 0 && (
             <div className="flex items-center gap-2 mt-2">
               <Button
-                variant="link"
+                variant="default"
                 size="sm"
-                className="h-auto p-0 text-xs"
+                className="h-8 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={() => {
                   toast({
                     title: "Referências",
@@ -150,7 +150,7 @@ export const ChecklistItemRow = ({ item, onUpdate, isAuthenticated }: ChecklistI
                   });
                 }}
               >
-                <Link2 className="h-3 w-3 mr-1" />
+                <Link2 className="h-4 w-4" />
                 Ver Referências ({item.referencias.length})
               </Button>
             </div>

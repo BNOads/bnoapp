@@ -30,7 +30,7 @@ interface ChecklistCardProps {
 }
 
 export const ChecklistCard = ({ checklist, onUpdate, isPublicView, isAuthenticated }: ChecklistCardProps) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(isPublicView); // Expandido por padrão na visualização pública
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [responsavelNome, setResponsavelNome] = useState<string>("");
