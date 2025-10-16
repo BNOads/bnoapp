@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X, Filter, Settings } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X, Filter, Settings, Trophy, ArrowRight } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
@@ -363,8 +363,29 @@ export function DashboardView() {
         </div>
       </div>
 
-      {/* Desafio Atual Section */}
-      <DesafioAtual isAdmin={isAdmin || isMaster} />
+      {/* Desafio do Mês Section */}
+      <section className="space-y-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
+              <Trophy className="h-6 w-6 flex-shrink-0 text-yellow-600" />
+              <span className="truncate">Desafio do Mês</span>
+            </h3>
+            <p className="text-muted-foreground mt-1">
+              Participe dos desafios e suba no ranking!
+            </p>
+          </div>
+          <Button
+            onClick={() => navigate('/gamificacao')}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            Ver Ranking Completo
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <DesafioAtual isAdmin={isAdmin || isMaster} />
+      </section>
 
       {/* PDI Section */}
       <section className="space-y-6">
