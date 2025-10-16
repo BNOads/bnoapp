@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, ChevronRight, Edit, Trash2, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Edit, Trash2, Plus, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Checklist, ChecklistItem } from "./ChecklistCriativosView";
@@ -32,12 +32,20 @@ interface ChecklistCardProps {
 export const ChecklistCard = ({ checklist, onUpdate, isPublicView, isAuthenticated }: ChecklistCardProps) => {
   const [expanded, setExpanded] = useState(isPublicView); // Expandido por padrão na visualização pública
   const [items, setItems] = useState<ChecklistItem[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [responsavelNome, setResponsavelNome] = useState<string>("");
   const [showItemModal, setShowItemModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
+
+  const ITEMS_PER_PAGE = 3;
+  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+  const paginatedItems = items.slice(
+    currentPage * ITEMS_PER_PAGE,
+    (currentPage + 1) * ITEMS_PER_PAGE
+  );
 
   useEffect(() => {
     if (expanded) {
@@ -212,14 +220,47 @@ export const ChecklistCard = ({ checklist, onUpdate, isPublicView, isAuthenticat
                   Nenhum item adicionado ainda
                 </div>
               ) : (
-                items.map((item) => (
-                  <ChecklistItemRow
-                    key={item.id}
-                    item={item}
-                    onUpdate={loadItems}
-                    isAuthenticated={isAuthenticated}
-                  />
-                ))
+                <>
+                  <div className="space-y-3">
+                    {paginatedItems.map((item) => (
+                      <ChecklistItemRow
+                        key={item.id}
+                        item={item}
+                        onUpdate={() => {
+                          loadItems();
+                          onUpdate();
+                        }}
+                        isAuthenticated={isAuthenticated}
+                      />
+                    ))}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-3 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                        disabled={currentPage === 0}
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        Anterior
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Página {currentPage + 1} de {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                        disabled={currentPage === totalPages - 1}
+                      >
+                        Próxima
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
