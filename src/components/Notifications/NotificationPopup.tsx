@@ -24,6 +24,11 @@ export default function NotificationPopup() {
   const [currentNotification, setCurrentNotification] = useState<Notification | null>(null);
   const [checkedNotifications, setCheckedNotifications] = useState<Set<string>>(new Set());
 
+  // Não exibir notificações se o usuário não estiver logado
+  if (!user?.id) {
+    return null;
+  }
+
   // Verificar novas notificações
   const checkForNewNotifications = async () => {
     if (!user?.id) return;
