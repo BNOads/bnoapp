@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ExternalLink } from "lucide-react";
 
 interface NovoItemModalProps {
   open: boolean;
@@ -20,8 +21,31 @@ export const NovoItemModal = ({ open, onOpenChange, checklistId, onSuccess }: No
   const [tipo, setTipo] = useState("");
   const [formato, setFormato] = useState("");
   const [especificacoes, setEspecificacoes] = useState("");
+  const [referencias, setReferencias] = useState<string[]>([]);
+  const [referenciasDisponiveis, setReferenciasDisponiveis] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (open) {
+      loadReferencias();
+    }
+  }, [open]);
+
+  const loadReferencias = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('referencias_criativos')
+        .select('id, titulo, link_url')
+        .eq('ativo', true)
+        .order('titulo');
+
+      if (error) throw error;
+      setReferenciasDisponiveis(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar referências:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +81,7 @@ export const NovoItemModal = ({ open, onOpenChange, checklistId, onSuccess }: No
           formato: formato.trim() || null,
           especificacoes: especificacoes.trim() || null,
           ordem: nextOrdem,
-          referencias: []
+          referencias: referencias
         });
 
       if (error) throw error;
@@ -71,6 +95,7 @@ export const NovoItemModal = ({ open, onOpenChange, checklistId, onSuccess }: No
       setTipo("");
       setFormato("");
       setEspecificacoes("");
+      setReferencias([]);
       onSuccess();
     } catch (error) {
       console.error('Erro ao criar item:', error);
@@ -136,6 +161,56 @@ export const NovoItemModal = ({ open, onOpenChange, checklistId, onSuccess }: No
               placeholder="Ex: Atenção Arquitetos de SP e RJ"
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Referências (opcional)</Label>
+            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
+              {referenciasDisponiveis.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  Nenhuma referência disponível
+                </p>
+              ) : (
+                referenciasDisponiveis.map((ref) => (
+                  <label
+                    key={ref.id}
+                    className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={referencias.includes(ref.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setReferencias([...referencias, ref.id]);
+                        } else {
+                          setReferencias(referencias.filter(id => id !== ref.id));
+                        }
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{ref.titulo}</p>
+                      {ref.link_url && (
+                        <a
+                          href={ref.link_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Ver referência <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+            {referencias.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {referencias.length} {referencias.length === 1 ? 'referência selecionada' : 'referências selecionadas'}
+              </p>
+            )}
           </div>
 
           <div className="flex gap-2">

@@ -189,6 +189,18 @@ export const ChecklistCard = ({ checklist, onUpdate, isPublicView, isAuthenticat
             <Progress value={checklist.progresso_percentual} className="h-2" />
           </div>
 
+          {isAuthenticated && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowItemModal(true)}
+              className="w-full mt-3"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Item
+            </Button>
+          )}
+
           {expanded && (
             <div className="mt-4 pt-4 border-t space-y-3">
               {loading ? (
@@ -208,18 +220,6 @@ export const ChecklistCard = ({ checklist, onUpdate, isPublicView, isAuthenticat
                     isAuthenticated={isAuthenticated}
                   />
                 ))
-              )}
-
-              {isAuthenticated && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowItemModal(true)}
-                  className="w-full mt-2"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Item
-                </Button>
               )}
             </div>
           )}
