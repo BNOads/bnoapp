@@ -36,11 +36,6 @@ export default function NotificationBell() {
   const [activeTab, setActiveTab] = useState("all");
   const [isOpen, setIsOpen] = useState(false);
 
-  // Não exibir sino de notificações se o usuário não estiver logado
-  if (!user?.id) {
-    return null;
-  }
-
   // Carregar notificações
   const loadNotifications = async () => {
     if (!user?.id) return;
@@ -227,6 +222,11 @@ export default function NotificationBell() {
       default: return '📢';
     }
   };
+
+  // Não exibir sino de notificações se o usuário não estiver logado
+  if (!user?.id) {
+    return null;
+  }
 
   return (
     <>
