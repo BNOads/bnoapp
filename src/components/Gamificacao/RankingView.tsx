@@ -51,17 +51,42 @@ export const RankingView = () => {
       setDesafioAtual(desafio);
 
       // Buscar ranking do desafio
-      const { data, error } = await supabase
+      const { data: rankingData, error: rankingError } = await supabase
         .from('gamificacao_ranking')
-        .select(`
-          *,
-          colaborador:colaboradores(nome, avatar_url)
-        `)
+        .select('*')
         .eq('desafio_id', desafio.id)
         .order('posicao', { ascending: true });
 
-      if (error) throw error;
-      setRanking(data as any || []);
+      if (rankingError) throw rankingError;
+
+      if (!rankingData || rankingData.length === 0) {
+        setRanking([]);
+        setLoading(false);
+        return;
+      }
+
+      // Buscar dados dos colaboradores
+      const colaboradorIds = rankingData.map(r => r.colaborador_id);
+      const { data: colaboradores, error: colaboradoresError } = await supabase
+        .from('colaboradores')
+        .select('id, nome, avatar_url')
+        .in('id', colaboradorIds);
+
+      if (colaboradoresError) throw colaboradoresError;
+
+      // Combinar os dados
+      const rankingCompleto = rankingData.map(r => {
+        const colaborador = colaboradores?.find(c => c.id === r.colaborador_id);
+        return {
+          ...r,
+          colaborador: {
+            nome: colaborador?.nome || 'Colaborador',
+            avatar_url: colaborador?.avatar_url || ''
+          }
+        };
+      });
+
+      setRanking(rankingCompleto);
     } catch (error) {
       console.error('Erro ao carregar ranking:', error);
       toast({
