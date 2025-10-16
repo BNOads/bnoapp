@@ -234,9 +234,19 @@ export const FerramentasView = () => {
         const hidden = data.hidden as string[];
         
         if (positions && positions.length > 0) {
-          const orderedIds = positions
-            .sort((a, b) => a.index - b.index)
-            .map(p => p.tool_key);
+          // Pegar IDs salvos
+          const savedIds = positions.map(p => p.tool_key);
+          
+          // Adicionar novos cards que não estavam salvos (como "desafio")
+          const allToolIds = tools.map(t => t.id);
+          const newTools = allToolIds.filter(id => !savedIds.includes(id));
+          
+          // Criar ordem completa: salvos primeiro, depois novos
+          const orderedIds = [
+            ...positions.sort((a, b) => a.index - b.index).map(p => p.tool_key),
+            ...newTools
+          ];
+          
           setToolsOrder(orderedIds);
         } else {
           setToolsOrder(tools.map(t => t.id));
