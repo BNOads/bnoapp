@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface NovoItemModalProps {
   open: boolean;
@@ -19,16 +20,26 @@ interface NovoItemModalProps {
 export const NovoItemModal = ({ open, onOpenChange, checklistId, onSuccess }: NovoItemModalProps) => {
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState("");
+  const [quantidade, setQuantidade] = useState("1");
   const [formato, setFormato] = useState("");
   const [especificacoes, setEspecificacoes] = useState("");
   const [referencias, setReferencias] = useState<string[]>([]);
   const [referenciasDisponiveis, setReferenciasDisponiveis] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  const ITEMS_PER_PAGE = 2;
+  const totalPages = Math.ceil(referenciasDisponiveis.length / ITEMS_PER_PAGE);
+  const paginatedReferencias = referenciasDisponiveis.slice(
+    currentPage * ITEMS_PER_PAGE,
+    (currentPage + 1) * ITEMS_PER_PAGE
+  );
 
   useEffect(() => {
     if (open) {
       loadReferencias();
+      setCurrentPage(0);
     }
   }, [open]);
 
@@ -93,9 +104,11 @@ export const NovoItemModal = ({ open, onOpenChange, checklistId, onSuccess }: No
       
       setTitulo("");
       setTipo("");
+      setQuantidade("1");
       setFormato("");
       setEspecificacoes("");
       setReferencias([]);
+      setCurrentPage(0);
       onSuccess();
     } catch (error) {
       console.error('Erro ao criar item:', error);
@@ -143,13 +156,45 @@ export const NovoItemModal = ({ open, onOpenChange, checklistId, onSuccess }: No
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="formato">Formato</Label>
-            <Input
-              id="formato"
-              value={formato}
-              onChange={(e) => setFormato(e.target.value)}
-              placeholder="Ex: 1x1 e 9x16 (Feed e Stories)"
-            />
+            <Label htmlFor="quantidade">Quantidade *</Label>
+            <Select value={quantidade} onValueChange={setQuantidade} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a quantidade" />
+              </SelectTrigger>
+              <SelectContent>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                  <SelectItem key={num} value={num.toString()}>
+                    {num} {num === 1 ? 'criativo' : 'criativos'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Formato</Label>
+            <RadioGroup value={formato} onValueChange={setFormato}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="1x1" id="formato-1x1" />
+                <Label htmlFor="formato-1x1" className="font-normal cursor-pointer">1x1 (Feed)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="9x16" id="formato-9x16" />
+                <Label htmlFor="formato-9x16" className="font-normal cursor-pointer">9x16 (Stories)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="1x1,9x16" id="formato-ambos" />
+                <Label htmlFor="formato-ambos" className="font-normal cursor-pointer">1x1 e 9x16 (Feed e Stories)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="16x9" id="formato-16x9" />
+                <Label htmlFor="formato-16x9" className="font-normal cursor-pointer">16x9 (Landscape)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="outro" id="formato-outro" />
+                <Label htmlFor="formato-outro" className="font-normal cursor-pointer">Outro</Label>
+              </div>
+            </RadioGroup>
           </div>
 
           <div className="space-y-2">
@@ -165,45 +210,75 @@ export const NovoItemModal = ({ open, onOpenChange, checklistId, onSuccess }: No
 
           <div className="space-y-2">
             <Label>Referências (opcional)</Label>
-            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
+            <div className="border rounded-md p-2">
               {referenciasDisponiveis.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-2">
                   Nenhuma referência disponível
                 </p>
               ) : (
-                referenciasDisponiveis.map((ref) => (
-                  <label
-                    key={ref.id}
-                    className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={referencias.includes(ref.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setReferencias([...referencias, ref.id]);
-                        } else {
-                          setReferencias(referencias.filter(id => id !== ref.id));
-                        }
-                      }}
-                      className="rounded border-gray-300"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{ref.titulo}</p>
-                      {ref.link_url && (
-                        <a
-                          href={ref.link_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline flex items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Ver referência <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
+                <>
+                  <div className="space-y-2 min-h-[120px]">
+                    {paginatedReferencias.map((ref) => (
+                      <label
+                        key={ref.id}
+                        className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={referencias.includes(ref.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setReferencias([...referencias, ref.id]);
+                            } else {
+                              setReferencias(referencias.filter(id => id !== ref.id));
+                            }
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{ref.titulo}</p>
+                          {ref.link_url && (
+                            <a
+                              href={ref.link_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Ver referência <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                        disabled={currentPage === 0}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Página {currentPage + 1} de {totalPages}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                        disabled={currentPage === totalPages - 1}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
                     </div>
-                  </label>
-                ))
+                  )}
+                </>
               )}
             </div>
             {referencias.length > 0 && (
