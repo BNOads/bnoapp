@@ -18,6 +18,7 @@ import { BrandingConfigModal } from "@/components/Clientes/BrandingConfigModal";
 import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
 import { HistoricoMensagensCliente } from "@/components/Clientes/HistoricoMensagensCliente";
 import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
+import { ChecklistCriativosView } from "@/components/Clientes/ChecklistCriativos/ChecklistCriativosView";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ClienteBrandingProvider } from "@/components/Clientes/ClienteBrandingProvider";
 import { ClienteBrandingHeader } from "@/components/Clientes/ClienteBrandingHeader";
@@ -322,7 +323,12 @@ const PainelCliente = () => {
                 <TarefasListEnhanced clienteId={cliente.id} tipo="cliente" isPublicView={!isAuthenticated} />
               </div>
               
-              {/* Diário de Bordo - Positioned below tasks on the right side */}
+              {/* Checklist de Criativos - Below tasks */}
+              <div className="mt-6">
+                <ChecklistCriativosView clienteId={cliente.id} isPublicView={!isAuthenticated} />
+              </div>
+              
+              {/* Diário de Bordo - Positioned below checklist on the right side */}
               <div className="mt-6">
                 <DiarioBordo clienteId={cliente.id} />
               </div>

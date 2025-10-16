@@ -426,6 +426,100 @@ export type Database = {
           },
         ]
       }
+      checklist_criativos: {
+        Row: {
+          ativo: boolean
+          cliente_id: string
+          created_at: string
+          created_by: string
+          funil: string
+          id: string
+          progresso_percentual: number | null
+          responsavel_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cliente_id: string
+          created_at?: string
+          created_by: string
+          funil: string
+          id?: string
+          progresso_percentual?: number | null
+          responsavel_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cliente_id?: string
+          created_at?: string
+          created_by?: string
+          funil?: string
+          id?: string
+          progresso_percentual?: number | null
+          responsavel_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_criativos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_criativos_itens: {
+        Row: {
+          checklist_id: string
+          concluido: boolean
+          created_at: string
+          especificacoes: string | null
+          formato: string | null
+          id: string
+          ordem: number
+          referencias: Json | null
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          checklist_id: string
+          concluido?: boolean
+          created_at?: string
+          especificacoes?: string | null
+          formato?: string | null
+          id?: string
+          ordem?: number
+          referencias?: Json | null
+          tipo: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          checklist_id?: string
+          concluido?: boolean
+          created_at?: string
+          especificacoes?: string | null
+          formato?: string | null
+          id?: string
+          ordem?: number
+          referencias?: Json | null
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_criativos_itens_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_criativos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clickup_user_mappings: {
         Row: {
           clickup_email: string
@@ -4207,7 +4301,7 @@ export type Database = {
       }
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: string
+        Returns: unknown
       }
       migrate_reference_content_to_markdown: {
         Args: Record<PropertyKey, never>
