@@ -18,14 +18,18 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
   const [funil, setFunil] = useState("");
   const [responsavelId, setResponsavelId] = useState("");
   const [colaboradores, setColaboradores] = useState<any[]>([]);
+  const [funis, setFunis] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
       loadColaboradores();
+      loadFunis();
+      setFunil("");
+      setResponsavelId("");
     }
-  }, [open]);
+  }, [open, clienteId]);
 
   const loadColaboradores = async () => {
     try {
@@ -42,12 +46,31 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
     }
   };
 
+  const loadFunis = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orcamentos_funil')
+        .select('nome_funil')
+        .eq('cliente_id', clienteId)
+        .eq('active', true)
+        .order('nome_funil');
+
+      if (error) throw error;
+      
+      // Extrair nomes únicos dos funis
+      const nomesUnicos = Array.from(new Set((data || []).map(item => item.nome_funil)));
+      setFunis(nomesUnicos);
+    } catch (error) {
+      console.error('Erro ao carregar funis:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!funil.trim()) {
+    if (!funil) {
       toast({
         title: "Erro",
-        description: "Por favor, preencha o nome do funil",
+        description: "Por favor, selecione um funil",
         variant: "destructive"
       });
       return;
@@ -62,7 +85,7 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
         .from('checklist_criativos')
         .insert({
           cliente_id: clienteId,
-          funil: funil.trim(),
+          funil: funil,
           responsavel_id: responsavelId || null,
           created_by: user.data.user.id
         });
@@ -97,14 +120,19 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="funil">Nome do Funil *</Label>
-            <Input
-              id="funil"
-              value={funil}
-              onChange={(e) => setFunil(e.target.value)}
-              placeholder="Ex: CPL Outubro, Lançamento Black Week"
-              required
-            />
+            <Label htmlFor="funil">Funil *</Label>
+            <Select value={funil} onValueChange={setFunil} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um funil" />
+              </SelectTrigger>
+              <SelectContent>
+                {funis.map((nome) => (
+                  <SelectItem key={nome} value={nome}>
+                    {nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
