@@ -63,12 +63,21 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
       const user = await supabase.auth.getUser();
       if (!user.data.user) throw new Error('Usuário não autenticado');
 
+      // Buscar o id do colaborador baseado no user_id
+      const { data: colaborador, error: colaboradorError } = await supabase
+        .from('colaboradores')
+        .select('id')
+        .eq('user_id', user.data.user.id)
+        .single();
+
+      if (colaboradorError) throw colaboradorError;
+
       const { error } = await supabase
         .from('checklist_criativos')
         .insert({
           cliente_id: clienteId,
           funil: funil,
-          responsavel_id: user.data.user.id,
+          responsavel_id: colaborador.id,
           created_by: user.data.user.id
         });
 
