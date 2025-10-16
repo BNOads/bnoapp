@@ -53,7 +53,7 @@ export const ChecklistCard = ({ checklist, onUpdate, isPublicView, isAuthenticat
       const { data, error } = await supabase
         .from('colaboradores')
         .select('nome')
-        .eq('id', checklist.responsavel_id)
+        .eq('user_id', checklist.responsavel_id)
         .single();
 
       if (error) throw error;

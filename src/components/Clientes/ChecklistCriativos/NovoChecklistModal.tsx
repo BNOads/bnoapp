@@ -65,23 +65,13 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
 
       console.log('Criando checklist - User ID:', user.data.user.id);
 
-      // Buscar o id do colaborador baseado no user_id
-      const { data: colaborador, error: colaboradorError } = await supabase
-        .from('colaboradores')
-        .select('id')
-        .eq('user_id', user.data.user.id)
-        .single();
-
-      console.log('Colaborador encontrado:', colaborador, 'Erro:', colaboradorError);
-
-      if (colaboradorError || !colaborador) {
-        throw new Error('Colaborador não encontrado para este usuário');
-      }
+      // Responsável é sempre o criador (user_id)
+      const responsavelId = user.data.user.id;
 
       const checklistData = {
         cliente_id: clienteId,
         funil: funil,
-        responsavel_id: colaborador.id,
+        responsavel_id: responsavelId,
         created_by: user.data.user.id
       };
 
