@@ -140,7 +140,7 @@ export const ChecklistCard = ({ checklist, onUpdate, isPublicView, isAuthenticat
               </Button>
               
               <div className="flex-1">
-                <h3 className="font-semibold text-base mb-1">{checklist.funil}</h3>
+                <h3 className="font-bold text-xl mb-1 text-primary">{checklist.funil}</h3>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   {responsavelNome && (
                     <div className="flex items-center gap-1">
