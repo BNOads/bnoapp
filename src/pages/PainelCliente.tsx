@@ -18,7 +18,7 @@ import { BrandingConfigModal } from "@/components/Clientes/BrandingConfigModal";
 import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
 import { HistoricoMensagensCliente } from "@/components/Clientes/HistoricoMensagensCliente";
 import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
-import { ChecklistCriativosView } from "@/components/Clientes/ChecklistCriativos/ChecklistCriativosView";
+import { ChecklistCriativosView } from "@/components/Clientes/ChecklistCriativos";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ClienteBrandingProvider } from "@/components/Clientes/ClienteBrandingProvider";
 import { ClienteBrandingHeader } from "@/components/Clientes/ClienteBrandingHeader";
