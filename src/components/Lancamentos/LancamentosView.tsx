@@ -6,10 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, BarChart3, FileText, Filter, Search, X, Edit, Trash2, TrendingUp, Target } from 'lucide-react';
+import { Plus, BarChart3, FileText, Filter, Search, X, Edit, Trash2, TrendingUp, Target, Lightbulb } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import NovoLancamentoModal from './NovoLancamentoModal';
 import { PainelIAResumo } from './PainelIAResumo';
+import GeradorPromessasModal from './GeradorPromessasModal';
 
 import LancamentosTable from './LancamentosTable';
 
@@ -59,6 +60,7 @@ export const LancamentosView: React.FC = () => {
   const [showNovoModal, setShowNovoModal] = useState(false);
   const [showEdicaoMassaModal, setShowEdicaoMassaModal] = useState(false);
   const [showExclusaoMassaModal, setShowExclusaoMassaModal] = useState(false);
+  const [showGeradorPromessas, setShowGeradorPromessas] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('lista');
   const [statusTab, setStatusTab] = useState<'ativos' | 'finalizados'>('ativos');
@@ -407,6 +409,15 @@ export const LancamentosView: React.FC = () => {
           </Button>
           
           <Button
+            variant="outline"
+            onClick={() => setShowGeradorPromessas(true)}
+            className="gap-2"
+          >
+            <Lightbulb className="h-4 w-4" />
+            Gerador de Promessas
+          </Button>
+          
+          <Button
             onClick={() => setShowNovoModal(true)}
             className="gap-2"
           >
@@ -587,6 +598,11 @@ export const LancamentosView: React.FC = () => {
         selectedIds={selectedIds}
         lancamentos={lancamentosFiltrados}
         onExclusaoCompleta={handleExclusaoMassaConcluida}
+      />
+
+      <GeradorPromessasModal
+        open={showGeradorPromessas}
+        onOpenChange={setShowGeradorPromessas}
       />
     </div>
   );

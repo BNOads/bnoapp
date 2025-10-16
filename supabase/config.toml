@@ -128,3 +128,6 @@ verify_jwt = true
 
 [functions.resumo-inteligente-mensagens]
 verify_jwt = true
+
+[functions.gerar-promessas]
+verify_jwt = true
