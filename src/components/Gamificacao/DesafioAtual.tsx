@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, Trophy, Target } from "lucide-react";
+import { Plus, Calendar, Trophy, Target, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { NovoDesafioModal } from "./NovoDesafioModal";
 import { RegistrarAcaoModal } from "./RegistrarAcaoModal";
+import { EditarDesafioModal } from "./EditarDesafioModal";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Desafio {
   id: string;
@@ -30,6 +32,8 @@ export const DesafioAtual = ({ isAdmin }: DesafioAtualProps) => {
   const [loading, setLoading] = useState(true);
   const [showNovoDesafio, setShowNovoDesafio] = useState(false);
   const [showRegistrarAcao, setShowRegistrarAcao] = useState(false);
+  const [showEditarDesafio, setShowEditarDesafio] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,6 +64,22 @@ export const DesafioAtual = ({ isAdmin }: DesafioAtualProps) => {
     }
   };
 
+  const handleDeleteDesafio = async () => {
+    if (!desafio) return;
+    try {
+      const { error } = await supabase
+        .from('gamificacao_desafios')
+        .delete()
+        .eq('id', desafio.id);
+      if (error) throw error;
+      toast({ title: 'Desafio excluído', description: 'O desafio foi removido com sucesso.' });
+      setConfirmDeleteOpen(false);
+      await loadDesafioAtual();
+    } catch (error) {
+      console.error('Erro ao excluir desafio:', error);
+      toast({ title: 'Erro ao excluir', description: 'Não foi possível excluir o desafio.', variant: 'destructive' });
+    }
+  };
   const getTipoMedicaoLabel = (tipo: string) => {
     const labels: Record<string, string> = {
       'quantidade_acoes': 'Quantidade de Ações',
@@ -133,9 +153,21 @@ export const DesafioAtual = ({ isAdmin }: DesafioAtualProps) => {
               </CardTitle>
               <CardDescription>{desafio.descricao}</CardDescription>
             </div>
-            <Badge variant={diasRestantes > 7 ? "default" : "destructive"}>
-              {diasRestantes > 0 ? `${diasRestantes} dias restantes` : 'Encerrado'}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={diasRestantes > 7 ? "default" : "destructive"}>
+                {diasRestantes > 0 ? `${diasRestantes} dias restantes` : 'Encerrado'}
+              </Badge>
+              {isAdmin && (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setShowEditarDesafio(true)} aria-label="Editar desafio">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmDeleteOpen(true)} aria-label="Excluir desafio">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </CardHeader>
 
@@ -206,6 +238,32 @@ export const DesafioAtual = ({ isAdmin }: DesafioAtualProps) => {
         desafioId={desafio.id}
         onSuccess={loadDesafioAtual}
       />
+
+      {isAdmin && (
+        <EditarDesafioModal
+          open={showEditarDesafio}
+          onOpenChange={setShowEditarDesafio}
+          desafioId={desafio.id}
+          onSuccess={loadDesafioAtual}
+        />
+      )}
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir desafio</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Tem certeza que deseja excluir o desafio atual?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteDesafio}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
