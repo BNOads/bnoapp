@@ -37,11 +37,22 @@ export const RegistrarAcaoModal = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Buscar o colaborador_id a partir do user_id
+      const { data: colaborador, error: colaboradorError } = await supabase
+        .from('colaboradores')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (colaboradorError || !colaborador) {
+        throw new Error("Colaborador não encontrado");
+      }
+
       const { error } = await supabase
         .from('gamificacao_acoes')
         .insert({
           desafio_id: desafioId,
-          colaborador_id: user.id,
+          colaborador_id: colaborador.id,
           descricao,
           comprovacao: comprovacao || null,
           pontos: PONTOS_PADRAO,
