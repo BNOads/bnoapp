@@ -114,7 +114,7 @@ export const NovoItemModal = ({ open, onOpenChange, checklistId, onSuccess }: No
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Item do Checklist</DialogTitle>
         </DialogHeader>

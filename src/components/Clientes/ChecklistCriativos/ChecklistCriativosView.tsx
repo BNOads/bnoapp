@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ChecklistCard } from "./ChecklistCard";
@@ -39,12 +39,18 @@ export const ChecklistCriativosView = ({
   isPublicView = false
 }: ChecklistCriativosViewProps) => {
   const [checklists, setChecklists] = useState<Checklist[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+
+  const CHECKLISTS_PER_PAGE = 2;
+  const totalPages = Math.ceil(checklists.length / CHECKLISTS_PER_PAGE);
+  const paginatedChecklists = checklists.slice(
+    currentPage * CHECKLISTS_PER_PAGE,
+    (currentPage + 1) * CHECKLISTS_PER_PAGE
+  );
   useEffect(() => {
     const checkAuth = async () => {
       if (!isPublicView) {
@@ -107,12 +113,52 @@ export const ChecklistCriativosView = ({
         </div>
       </CardHeader>
       <CardContent>
-        {checklists.length === 0 ? <div className="text-center py-8 text-muted-foreground">
+        {checklists.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
             <p>Nenhum checklist encontrado</p>
             {isAuthenticated && <p className="text-sm mt-2">Crie um checklist para organizar os criativos</p>}
-          </div> : <div className="space-y-4">
-            {checklists.map(checklist => <ChecklistCard key={checklist.id} checklist={checklist} onUpdate={loadChecklists} isPublicView={isPublicView} isAuthenticated={isAuthenticated} />)}
-          </div>}
+          </div>
+        ) : (
+          <>
+            <div className="space-y-4">
+              {paginatedChecklists.map(checklist => (
+                <ChecklistCard 
+                  key={checklist.id} 
+                  checklist={checklist} 
+                  onUpdate={loadChecklists} 
+                  isPublicView={isPublicView} 
+                  isAuthenticated={isAuthenticated} 
+                />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                  disabled={currentPage === 0}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Anterior
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Página {currentPage + 1} de {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                  disabled={currentPage === totalPages - 1}
+                >
+                  Próxima
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </CardContent>
 
       <NovoChecklistModal open={showModal} onOpenChange={setShowModal} clienteId={clienteId} onSuccess={handleChecklistCreated} />
