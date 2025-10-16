@@ -16,35 +16,17 @@ interface NovoChecklistModalProps {
 
 export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }: NovoChecklistModalProps) => {
   const [funil, setFunil] = useState("");
-  const [responsavelId, setResponsavelId] = useState("");
-  const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [funis, setFunis] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
-      loadColaboradores();
       loadFunis();
       setFunil("");
-      setResponsavelId("");
     }
   }, [open, clienteId]);
 
-  const loadColaboradores = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('colaboradores')
-        .select('id, nome, user_id')
-        .eq('ativo', true)
-        .order('nome');
-
-      if (error) throw error;
-      setColaboradores(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar colaboradores:', error);
-    }
-  };
 
   const loadFunis = async () => {
     try {
@@ -86,7 +68,7 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
         .insert({
           cliente_id: clienteId,
           funil: funil,
-          responsavel_id: responsavelId || null,
+          responsavel_id: user.data.user.id,
           created_by: user.data.user.id
         });
 
@@ -98,7 +80,6 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
       });
       
       setFunil("");
-      setResponsavelId("");
       onSuccess();
     } catch (error) {
       console.error('Erro ao criar checklist:', error);
@@ -129,22 +110,6 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
                 {funis.map((nome) => (
                   <SelectItem key={nome} value={nome}>
                     {nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="responsavel">Responsável</Label>
-            <Select value={responsavelId} onValueChange={setResponsavelId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um responsável" />
-              </SelectTrigger>
-              <SelectContent>
-                {colaboradores.map((colaborador) => (
-                  <SelectItem key={colaborador.user_id} value={colaborador.user_id}>
-                    {colaborador.nome}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -17,8 +17,6 @@ interface EditarChecklistModalProps {
 
 export const EditarChecklistModal = ({ open, onOpenChange, checklist, onSuccess }: EditarChecklistModalProps) => {
   const [funil, setFunil] = useState("");
-  const [responsavelId, setResponsavelId] = useState("");
-  const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [funis, setFunis] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -26,26 +24,10 @@ export const EditarChecklistModal = ({ open, onOpenChange, checklist, onSuccess 
   useEffect(() => {
     if (open) {
       setFunil(checklist.funil);
-      setResponsavelId(checklist.responsavel_id || "");
-      loadColaboradores();
       loadFunis();
     }
   }, [open, checklist]);
 
-  const loadColaboradores = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('colaboradores')
-        .select('id, nome')
-        .eq('ativo', true)
-        .order('nome');
-
-      if (error) throw error;
-      setColaboradores(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar colaboradores:', error);
-    }
-  };
 
   const loadFunis = async () => {
     try {
@@ -82,8 +64,7 @@ export const EditarChecklistModal = ({ open, onOpenChange, checklist, onSuccess 
       const { error } = await supabase
         .from('checklist_criativos')
         .update({
-          funil: funil,
-          responsavel_id: responsavelId || null,
+          funil: funil
         })
         .eq('id', checklist.id);
 
@@ -124,22 +105,6 @@ export const EditarChecklistModal = ({ open, onOpenChange, checklist, onSuccess 
                 {funis.map((nome) => (
                   <SelectItem key={nome} value={nome}>
                     {nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="responsavel">Responsável (opcional)</Label>
-            <Select value={responsavelId || undefined} onValueChange={(value) => setResponsavelId(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Nenhum responsável selecionado" />
-              </SelectTrigger>
-              <SelectContent>
-                {colaboradores.map((colaborador) => (
-                  <SelectItem key={colaborador.id} value={colaborador.id}>
-                    {colaborador.nome}
                   </SelectItem>
                 ))}
               </SelectContent>
