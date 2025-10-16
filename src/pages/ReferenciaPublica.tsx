@@ -13,7 +13,7 @@ import {
   Shield,
   Clock
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { createPublicSupabaseClient } from "@/lib/supabase-public";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -64,6 +64,9 @@ export const ReferenciaPublica = () => {
       
       console.log('Carregando referência pública:', { id, slug, token });
       
+      // Usar cliente público (sem autenticação)
+      const publicClient = createPublicSupabaseClient();
+      
       // Buscar pela public_slug (rota /r/:slug) ou por ID (rotas legacy)
       const identifier = slug || id;
       
@@ -73,7 +76,7 @@ export const ReferenciaPublica = () => {
       }
 
       // Tentar buscar por public_slug primeiro, depois por ID se não encontrar
-      let query = supabase
+      let query = publicClient
         .from('referencias_criativos')
         .select('*')
         .eq('ativo', true)
@@ -103,9 +106,9 @@ export const ReferenciaPublica = () => {
       console.log('Referência carregada:', data);
       setReferencia(data as ReferenciaCreativo);
 
-      // Incrementar contador de visualizações
+      // Incrementar contador de visualizações usando cliente público
       try {
-        await supabase
+        await publicClient
           .from('referencias_criativos')
           .update({ view_count: (data.view_count || 0) + 1 })
           .eq('id', data.id);
