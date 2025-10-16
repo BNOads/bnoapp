@@ -2120,6 +2120,177 @@ export type Database = {
           },
         ]
       }
+      gamificacao_acoes: {
+        Row: {
+          aprovado: boolean | null
+          colaborador_id: string
+          comprovacao: string | null
+          created_at: string
+          data_registro: string
+          desafio_id: string
+          descricao: string
+          id: string
+          pontos: number
+        }
+        Insert: {
+          aprovado?: boolean | null
+          colaborador_id: string
+          comprovacao?: string | null
+          created_at?: string
+          data_registro?: string
+          desafio_id: string
+          descricao: string
+          id?: string
+          pontos?: number
+        }
+        Update: {
+          aprovado?: boolean | null
+          colaborador_id?: string
+          comprovacao?: string | null
+          created_at?: string
+          data_registro?: string
+          desafio_id?: string
+          descricao?: string
+          id?: string
+          pontos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gamificacao_acoes_desafio_id_fkey"
+            columns: ["desafio_id"]
+            isOneToOne: false
+            referencedRelation: "gamificacao_desafios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gamificacao_conquistas: {
+        Row: {
+          acoes_finais: number
+          colaborador_id: string
+          created_at: string
+          desafio_id: string
+          id: string
+          pontos_finais: number
+          posicao: number
+        }
+        Insert: {
+          acoes_finais: number
+          colaborador_id: string
+          created_at?: string
+          desafio_id: string
+          id?: string
+          pontos_finais: number
+          posicao: number
+        }
+        Update: {
+          acoes_finais?: number
+          colaborador_id?: string
+          created_at?: string
+          desafio_id?: string
+          id?: string
+          pontos_finais?: number
+          posicao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gamificacao_conquistas_desafio_id_fkey"
+            columns: ["desafio_id"]
+            isOneToOne: false
+            referencedRelation: "gamificacao_desafios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gamificacao_desafios: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string
+          criterio_vitoria: Database["public"]["Enums"]["criterio_vitoria"]
+          data_fim: string
+          data_inicio: string
+          descricao: string | null
+          id: string
+          notificado: boolean
+          tipo_medicao: Database["public"]["Enums"]["tipo_medicao_desafio"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by: string
+          criterio_vitoria?: Database["public"]["Enums"]["criterio_vitoria"]
+          data_fim: string
+          data_inicio: string
+          descricao?: string | null
+          id?: string
+          notificado?: boolean
+          tipo_medicao?: Database["public"]["Enums"]["tipo_medicao_desafio"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string
+          criterio_vitoria?: Database["public"]["Enums"]["criterio_vitoria"]
+          data_fim?: string
+          data_inicio?: string
+          descricao?: string | null
+          id?: string
+          notificado?: boolean
+          tipo_medicao?: Database["public"]["Enums"]["tipo_medicao_desafio"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gamificacao_ranking: {
+        Row: {
+          colaborador_id: string
+          created_at: string
+          desafio_id: string
+          id: string
+          posicao: number | null
+          total_acoes: number
+          total_pontos: number
+          ultima_acao: string | null
+          updated_at: string
+        }
+        Insert: {
+          colaborador_id: string
+          created_at?: string
+          desafio_id: string
+          id?: string
+          posicao?: number | null
+          total_acoes?: number
+          total_pontos?: number
+          ultima_acao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          colaborador_id?: string
+          created_at?: string
+          desafio_id?: string
+          id?: string
+          posicao?: number | null
+          total_acoes?: number
+          total_pontos?: number
+          ultima_acao?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gamificacao_ranking_desafio_id_fkey"
+            columns: ["desafio_id"]
+            isOneToOne: false
+            referencedRelation: "gamificacao_desafios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gravacoes: {
         Row: {
           cliente_id: string | null
@@ -4363,6 +4534,10 @@ export type Database = {
       alert_severity: "info" | "warn" | "urgent"
       alert_status: "open" | "closed"
       categoria_cliente: "negocio_local" | "infoproduto"
+      criterio_vitoria:
+        | "maior_numero_acoes"
+        | "maior_pontuacao"
+        | "maior_consistencia"
       delivery_channel: "inapp" | "email" | "slack"
       estado_civil:
         | "solteiro"
@@ -4425,6 +4600,7 @@ export type Database = {
         | "outro"
         | "tradicional"
         | "captacao_simples"
+      tipo_medicao_desafio: "quantidade_acoes" | "pontuacao" | "check_in_diario"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4555,6 +4731,11 @@ export const Constants = {
       alert_severity: ["info", "warn", "urgent"],
       alert_status: ["open", "closed"],
       categoria_cliente: ["negocio_local", "infoproduto"],
+      criterio_vitoria: [
+        "maior_numero_acoes",
+        "maior_pontuacao",
+        "maior_consistencia",
+      ],
       delivery_channel: ["inapp", "email", "slack"],
       estado_civil: [
         "solteiro",
@@ -4624,6 +4805,11 @@ export const Constants = {
         "outro",
         "tradicional",
         "captacao_simples",
+      ],
+      tipo_medicao_desafio: [
+        "quantidade_acoes",
+        "pontuacao",
+        "check_in_diario",
       ],
     },
   },

@@ -1,4 +1,4 @@
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, Star, HardDriveDownload, CheckSquare } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, Star, HardDriveDownload, CheckSquare, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -57,6 +57,12 @@ export const Header = ({}: HeaderProps) => {
       label: 'Ferramentas',
       icon: Rocket,
       path: '/ferramentas'
+    },
+    {
+      id: 'gamificacao',
+      label: 'Gamificação',
+      icon: Trophy,
+      path: '/gamificacao'
     }
   ];
 

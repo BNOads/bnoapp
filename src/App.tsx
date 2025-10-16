@@ -34,6 +34,7 @@ import DebriefingPublico from "./pages/DebriefingPublico";
 import { MapaMentalPublico } from "./pages/MapaMentalPublico";
 import FunilPublico from "./pages/FunilPublico";
 import Tarefas from "./pages/Tarefas";
+import Gamificacao from "./pages/Gamificacao";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient({
@@ -162,6 +163,11 @@ function App() {
                 <Route path="/tarefas" element={
                   <ProtectedRoute>
                     <Tarefas />
+                  </ProtectedRoute>
+                } />
+                <Route path="/gamificacao" element={
+                  <ProtectedRoute>
+                    <Gamificacao />
                   </ProtectedRoute>
                 } />
                 <Route path="/" element={
