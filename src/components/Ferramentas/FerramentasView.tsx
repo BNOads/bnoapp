@@ -6,7 +6,7 @@ import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
 import { PautaReuniaoView } from "@/components/Reunioes/PautaReuniaoView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw } from "lucide-react";
+import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -182,6 +182,14 @@ export const FerramentasView = () => {
       component: <LinksView />,
       color: "text-emerald-600"
     },
+    {
+      id: "desafio",
+      title: "Desafio",
+      description: "Participe dos desafios mensais e acompanhe o ranking",
+      icon: Trophy,
+      component: null, // Redirecionamento para /gamificacao
+      color: "text-yellow-600"
+    },
   ];
 
   // Carregar preferências do usuário
@@ -312,6 +320,11 @@ export const FerramentasView = () => {
     // Redirecionar para /referencias ao invés de usar ferramenta inline
     if (toolId === 'referencias') {
       navigate('/referencias');
+      return;
+    }
+    // Redirecionar para /gamificacao
+    if (toolId === 'desafio') {
+      navigate('/gamificacao');
       return;
     }
     setSelectedTool(toolId);
