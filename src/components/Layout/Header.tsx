@@ -60,7 +60,7 @@ export const Header = ({}: HeaderProps) => {
     },
     {
       id: 'gamificacao',
-      label: 'Gamificação',
+      label: 'Desafio',
       icon: Trophy,
       path: '/gamificacao'
     }
