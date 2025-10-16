@@ -23,9 +23,11 @@ export const RegistrarAcaoModal = ({
 }: RegistrarAcaoModalProps) => {
   const [descricao, setDescricao] = useState("");
   const [comprovacao, setComprovacao] = useState("");
-  const [pontos, setPontos] = useState("5");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // Pontos fixos definidos pelo sistema
+  const PONTOS_PADRAO = 5;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +44,7 @@ export const RegistrarAcaoModal = ({
           colaborador_id: user.id,
           descricao,
           comprovacao: comprovacao || null,
-          pontos: parseInt(pontos),
+          pontos: PONTOS_PADRAO,
           aprovado: true
         });
 
@@ -50,13 +52,12 @@ export const RegistrarAcaoModal = ({
 
       toast({
         title: "✅ Ação registrada com sucesso!",
-        description: `+${pontos} pontos adicionados ao ranking!`,
+        description: `+${PONTOS_PADRAO} pontos adicionados ao ranking!`,
       });
 
       // Resetar form
       setDescricao("");
       setComprovacao("");
-      setPontos("5");
       onOpenChange(false);
       onSuccess();
     } catch (error) {
@@ -91,19 +92,12 @@ export const RegistrarAcaoModal = ({
             />
           </div>
 
-          <div>
-            <Label htmlFor="pontos">Pontos</Label>
-            <Input
-              id="pontos"
-              type="number"
-              value={pontos}
-              onChange={(e) => setPontos(e.target.value)}
-              min="1"
-              max="100"
-              required
-            />
-            <p className="text-sm text-muted-foreground mt-1">
-              Valor padrão: 5 pontos por ação
+          <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              💎 Cada ação vale {PONTOS_PADRAO} pontos
+            </p>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+              Acumule pontos e suba no ranking do desafio!
             </p>
           </div>
 
