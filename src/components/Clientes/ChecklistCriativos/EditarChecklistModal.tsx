@@ -36,7 +36,7 @@ export const EditarChecklistModal = ({ open, onOpenChange, checklist, onSuccess 
     try {
       const { data, error } = await supabase
         .from('colaboradores')
-        .select('id, nome, user_id')
+        .select('id, nome')
         .eq('ativo', true)
         .order('nome');
 
@@ -138,7 +138,7 @@ export const EditarChecklistModal = ({ open, onOpenChange, checklist, onSuccess 
               </SelectTrigger>
               <SelectContent>
                 {colaboradores.map((colaborador) => (
-                  <SelectItem key={colaborador.user_id} value={colaborador.user_id}>
+                  <SelectItem key={colaborador.id} value={colaborador.id}>
                     {colaborador.nome}
                   </SelectItem>
                 ))}
