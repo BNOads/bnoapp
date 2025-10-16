@@ -105,13 +105,12 @@ export const EditarChecklistModal = ({ open, onOpenChange, checklist, onSuccess 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="responsavel">Responsável</Label>
-            <Select value={responsavelId} onValueChange={setResponsavelId}>
+            <Label htmlFor="responsavel">Responsável (opcional)</Label>
+            <Select value={responsavelId || undefined} onValueChange={(value) => setResponsavelId(value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione um responsável" />
+                <SelectValue placeholder="Nenhum responsável selecionado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhum</SelectItem>
                 {colaboradores.map((colaborador) => (
                   <SelectItem key={colaborador.user_id} value={colaborador.user_id}>
                     {colaborador.nome}
