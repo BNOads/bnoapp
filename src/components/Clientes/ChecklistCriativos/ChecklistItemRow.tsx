@@ -149,13 +149,17 @@ export const ChecklistItemRow = ({ item, onUpdate, isAuthenticated }: ChecklistI
                     try {
                       const { data, error } = await supabase
                         .from('referencias_criativos')
-                        .select('public_slug')
+                        .select('public_slug, link_externo')
                         .eq('id', refId)
                         .single();
 
                       if (error) throw error;
 
-                      if (data?.public_slug) {
+                      // Se tiver link externo, abre ele diretamente
+                      if (data?.link_externo) {
+                        window.open(data.link_externo, '_blank');
+                      } else if (data?.public_slug) {
+                        // Se não tiver link externo, abre a página pública
                         window.open(`/referencia/publica/${data.public_slug}`, '_blank');
                       } else {
                         toast({

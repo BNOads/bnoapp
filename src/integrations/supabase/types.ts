@@ -3377,6 +3377,7 @@ export type Database = {
           id: string
           is_public: boolean | null
           is_template: boolean
+          link_externo: string | null
           link_publico: string | null
           link_url: string | null
           links_externos: Json | null
@@ -3402,6 +3403,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           is_template?: boolean
+          link_externo?: string | null
           link_publico?: string | null
           link_url?: string | null
           links_externos?: Json | null
@@ -3427,6 +3429,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           is_template?: boolean
+          link_externo?: string | null
           link_publico?: string | null
           link_url?: string | null
           links_externos?: Json | null
