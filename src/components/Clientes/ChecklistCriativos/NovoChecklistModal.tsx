@@ -63,6 +63,8 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
       const user = await supabase.auth.getUser();
       if (!user.data.user) throw new Error('Usuário não autenticado');
 
+      console.log('Criando checklist - User ID:', user.data.user.id);
+
       // Buscar o id do colaborador baseado no user_id
       const { data: colaborador, error: colaboradorError } = await supabase
         .from('colaboradores')
@@ -70,16 +72,26 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
         .eq('user_id', user.data.user.id)
         .single();
 
-      if (colaboradorError) throw colaboradorError;
+      console.log('Colaborador encontrado:', colaborador, 'Erro:', colaboradorError);
+
+      if (colaboradorError || !colaborador) {
+        throw new Error('Colaborador não encontrado para este usuário');
+      }
+
+      const checklistData = {
+        cliente_id: clienteId,
+        funil: funil,
+        responsavel_id: colaborador.id,
+        created_by: user.data.user.id
+      };
+
+      console.log('Dados do checklist a serem inseridos:', checklistData);
 
       const { error } = await supabase
         .from('checklist_criativos')
-        .insert({
-          cliente_id: clienteId,
-          funil: funil,
-          responsavel_id: colaborador.id,
-          created_by: user.data.user.id
-        });
+        .insert(checklistData);
+
+      console.log('Erro ao inserir:', error);
 
       if (error) throw error;
 
@@ -94,7 +106,7 @@ export const NovoChecklistModal = ({ open, onOpenChange, clienteId, onSuccess }:
       console.error('Erro ao criar checklist:', error);
       toast({
         title: "Erro",
-        description: "Erro ao criar checklist",
+        description: error instanceof Error ? error.message : "Erro ao criar checklist",
         variant: "destructive"
       });
     } finally {
