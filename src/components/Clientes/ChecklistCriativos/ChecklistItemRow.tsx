@@ -138,21 +138,46 @@ export const ChecklistItemRow = ({ item, onUpdate, isAuthenticated }: ChecklistI
           )}
 
           {item.referencias && Array.isArray(item.referencias) && item.referencias.length > 0 && (
-            <div className="flex items-center gap-2 mt-2">
-              <Button
-                variant="default"
-                size="sm"
-                className="h-8 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={() => {
-                  toast({
-                    title: "Referências",
-                    description: "Funcionalidade em desenvolvimento"
-                  });
-                }}
-              >
-                <Link2 className="h-4 w-4" />
-                Ver Referências ({item.referencias.length})
-              </Button>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {item.referencias.map((refId: string, index: number) => (
+                <Button
+                  key={refId}
+                  variant="default"
+                  size="sm"
+                  className="h-8 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={async () => {
+                    try {
+                      const { data, error } = await supabase
+                        .from('referencias_criativos')
+                        .select('public_slug')
+                        .eq('id', refId)
+                        .single();
+
+                      if (error) throw error;
+
+                      if (data?.public_slug) {
+                        window.open(`/referencia/publica/${data.public_slug}`, '_blank');
+                      } else {
+                        toast({
+                          title: "Erro",
+                          description: "Link da referência não encontrado",
+                          variant: "destructive"
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Erro ao abrir referência:', error);
+                      toast({
+                        title: "Erro",
+                        description: "Não foi possível abrir a referência",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                >
+                  <Link2 className="h-4 w-4" />
+                  Referência {index + 1}
+                </Button>
+              ))}
             </div>
           )}
         </div>
