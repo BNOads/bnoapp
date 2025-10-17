@@ -3,11 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Eye } from "lucide-react";
+import { ExternalLink, Eye, Edit2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { EditarPontosModal } from "./EditarPontosModal";
 import { 
   Dialog,
   DialogContent,
@@ -33,7 +35,9 @@ export const ComprovacoesView = () => {
   const [desafioAtual, setDesafioAtual] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [editarAcao, setEditarAcao] = useState<{ id: string; pontos: number } | null>(null);
   const { toast } = useToast();
+  const { isAdmin, isMaster } = useUserPermissions();
 
   useEffect(() => {
     loadAcoes();
@@ -170,9 +174,20 @@ export const ComprovacoesView = () => {
                                 })}
                               </p>
                             </div>
-                            <Badge variant={acao.aprovado ? "default" : "secondary"}>
-                              {acao.pontos} pts
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={acao.aprovado ? "default" : "secondary"}>
+                                {acao.pontos} pts
+                              </Badge>
+                              {(isAdmin || isMaster) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setEditarAcao({ id: acao.id, pontos: acao.pontos })}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                           
                           <div className="bg-muted/50 p-3 rounded-lg">
@@ -243,6 +258,17 @@ export const ComprovacoesView = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal para editar pontos */}
+      {editarAcao && (
+        <EditarPontosModal
+          open={!!editarAcao}
+          onOpenChange={() => setEditarAcao(null)}
+          acaoId={editarAcao.id}
+          pontosAtuais={editarAcao.pontos}
+          onSuccess={loadAcoes}
+        />
+      )}
     </>
   );
 };
