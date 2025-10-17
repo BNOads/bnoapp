@@ -294,123 +294,19 @@ export default function GeradorPromessasModal({
           </div>
 
           {resultado && (
-            <div className="mt-6 space-y-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Resultado:</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopiar}
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copiar Tudo
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Resultado:</Label>
+                <Button onClick={handleCopiar} variant="outline" size="sm">
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar
                 </Button>
               </div>
-              
-              <div className="space-y-6">
-                {resultado.split(/(?=\d️⃣)/).filter(Boolean).map((opcao, index) => {
-                  const cores = [
-                    'bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800',
-                    'bg-purple-50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-800',
-                    'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800'
-                  ];
-                  
-                  const coresTitulo = [
-                    'text-blue-700 dark:text-blue-300',
-                    'text-purple-700 dark:text-purple-300',
-                    'text-emerald-700 dark:text-emerald-300'
-                  ];
-                  
-                  const lines = opcao.split('\n').filter(line => line.trim());
-                  const opcaoNumero = lines[0]?.replace(/\d️⃣\s*/, '').trim();
-                  
-                  let nomeOferta = '';
-                  let promessa = '';
-                  let inPromessa = false;
-                  
-                  for (let i = 1; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (line.includes('Nome da oferta:')) {
-                      nomeOferta = line.replace(/\*\*/g, '').replace('Nome da oferta:', '').trim();
-                    } else if (line.includes('Promessa:')) {
-                      inPromessa = true;
-                      promessa = line.replace(/\*\*/g, '').replace('Promessa:', '').trim();
-                    } else if (inPromessa && line && !line.includes('OPÇÃO') && !line.includes('─')) {
-                      promessa += ' ' + line.replace(/\*\*/g, '').trim();
-                    }
-                  }
-                  
-                  return (
-                    <div 
-                      key={index} 
-                      className={`p-6 rounded-lg border-2 ${cores[index]} transition-all hover:shadow-md`}
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <h4 className={`text-2xl font-bold ${coresTitulo[index]}`}>
-                          {opcaoNumero || `Opção ${index + 1}`}
-                        </h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${nomeOferta}\n\n${promessa}`);
-                            toast({
-                              title: "Copiado!",
-                              description: "Opção copiada para a área de transferência",
-                            });
-                          }}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-sm font-semibold text-muted-foreground mb-1">
-                            Nome da oferta:
-                          </p>
-                          <p className="text-lg font-bold text-foreground">
-                            {nomeOferta}
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-sm font-semibold text-muted-foreground mb-1">
-                            Promessa:
-                          </p>
-                          <p className="text-base leading-relaxed text-foreground">
-                            {promessa}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                
-                {/* Explicação do MAGIC */}
-                {resultado.includes('MAGIC') && (
-                  <div className="p-6 rounded-lg bg-muted/50 border border-border">
-                    <h4 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <span>✨</span>
-                      Aplicação do Método MAGIC
-                    </h4>
-                    <div className="text-sm text-muted-foreground space-y-2">
-                      {resultado.split('\n').filter(line => 
-                        line.toLowerCase().includes('magic') || 
-                        line.toLowerCase().includes('magnet') ||
-                        line.toLowerCase().includes('avatar') ||
-                        line.toLowerCase().includes('goal') ||
-                        line.toLowerCase().includes('interval') ||
-                        line.toLowerCase().includes('container')
-                      ).map((line, idx) => (
-                        <p key={idx} className="leading-relaxed">
-                          {line.replace(/\*\*/g, '').trim()}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <Textarea
+                value={resultado}
+                readOnly
+                className="min-h-[400px] font-mono text-sm"
+              />
             </div>
           )}
         </div>
