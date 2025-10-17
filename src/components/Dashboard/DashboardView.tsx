@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X, Filter, Settings, Trophy, ArrowRight } from "lucide-react";
+import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, GraduationCap, CheckCircle, Clock, Star, LayoutDashboard, Play, Palette, FileText, ClipboardList, TrendingDown, Network, LogIn, User, Lock, Edit2, Check, X, Filter, Settings, Trophy, ArrowRight, Plus } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
@@ -14,6 +14,7 @@ import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Top3Ranking } from "@/components/Gamificacao/Top3Ranking";
+import { RegistrarAcaoModal } from "@/components/Gamificacao/RegistrarAcaoModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -38,6 +39,7 @@ export function DashboardView() {
     return localStorage.getItem('dashboard-header-color') || 'gradient-primary';
   });
   const [desafioAtual, setDesafioAtual] = useState<any>(null);
+  const [showRegistrarAcao, setShowRegistrarAcao] = useState(false);
   const { toast } = useToast();
   const colorPickerRef = useRef<HTMLDivElement>(null);
 
@@ -410,15 +412,25 @@ export function DashboardView() {
           <CardContent className="pt-6">
             {desafioAtual ? (
               <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-lg mb-2">{desafioAtual.titulo}</h4>
-                  <p className="text-sm text-muted-foreground mb-3">{desafioAtual.descricao}</p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      {format(new Date(desafioAtual.data_inicio), "dd/MM", { locale: ptBR })} - {format(new Date(desafioAtual.data_fim), "dd/MM/yyyy", { locale: ptBR })}
-                    </span>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-lg mb-2">{desafioAtual.titulo}</h4>
+                    <p className="text-sm text-muted-foreground mb-3">{desafioAtual.descricao}</p>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        {format(new Date(desafioAtual.data_inicio), "dd/MM", { locale: ptBR })} - {format(new Date(desafioAtual.data_fim), "dd/MM/yyyy", { locale: ptBR })}
+                      </span>
+                    </div>
                   </div>
+                  <Button
+                    size="sm"
+                    onClick={() => setShowRegistrarAcao(true)}
+                    className="flex items-center gap-1 flex-shrink-0"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Registrar
+                  </Button>
                 </div>
                 <div className="border-t pt-3">
                   <p className="text-xs text-muted-foreground mb-3">Top 3 no ranking:</p>
@@ -628,6 +640,20 @@ export function DashboardView() {
 
       {/* View Only Badge */}
       {!canCreateContent && <ViewOnlyBadge />}
+      
+      {desafioAtual && (
+        <RegistrarAcaoModal
+          open={showRegistrarAcao}
+          onOpenChange={(open) => {
+            setShowRegistrarAcao(open);
+            if (!open) carregarDesafioAtual();
+          }}
+          desafioId={desafioAtual.id}
+          onSuccess={() => {
+            carregarDesafioAtual();
+          }}
+        />
+      )}
     </div>;
 }
 ;
