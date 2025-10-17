@@ -54,7 +54,7 @@ export const RegistrarAcaoModal = ({
           desafio_id: desafioId,
           colaborador_id: colaborador.id,
           descricao,
-          comprovacao: comprovacao || null,
+          comprovacao,
           pontos: PONTOS_PADRAO,
           aprovado: true
         });
@@ -113,12 +113,13 @@ export const RegistrarAcaoModal = ({
           </div>
 
           <div>
-            <Label htmlFor="comprovacao">Comprovação (opcional)</Label>
+            <Label htmlFor="comprovacao">Comprovação *</Label>
             <Input
               id="comprovacao"
               value={comprovacao}
               onChange={(e) => setComprovacao(e.target.value)}
               placeholder="Link para imagem, print ou documento"
+              required
             />
             <p className="text-sm text-muted-foreground mt-1">
               Adicione um link de comprovação (imagem, print, documento)
