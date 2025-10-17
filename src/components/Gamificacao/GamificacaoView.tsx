@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, History, Award } from "lucide-react";
+import { Trophy, History, Award, FileCheck } from "lucide-react";
 import { DesafioAtual } from "./DesafioAtual";
 import { RankingView } from "./RankingView";
 import { HistoricoDesafios } from "./HistoricoDesafios";
 import { MinhasConquistas } from "./MinhasConquistas";
+import { ComprovacoesView } from "./ComprovacoesView";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 export const GamificacaoView = () => {
@@ -28,7 +29,7 @@ export const GamificacaoView = () => {
       <DesafioAtual isAdmin={isAdmin || isMaster} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className={`grid w-full ${isAdmin || isMaster ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="ranking" className="flex items-center gap-2">
             <Trophy className="h-4 w-4" />
             Ranking
@@ -41,6 +42,12 @@ export const GamificacaoView = () => {
             <History className="h-4 w-4" />
             Histórico
           </TabsTrigger>
+          {(isAdmin || isMaster) && (
+            <TabsTrigger value="comprovacoes" className="flex items-center gap-2">
+              <FileCheck className="h-4 w-4" />
+              Comprovações
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="ranking" className="mt-6">
@@ -54,6 +61,12 @@ export const GamificacaoView = () => {
         <TabsContent value="historico" className="mt-6">
           <HistoricoDesafios />
         </TabsContent>
+
+        {(isAdmin || isMaster) && (
+          <TabsContent value="comprovacoes" className="mt-6">
+            <ComprovacoesView />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

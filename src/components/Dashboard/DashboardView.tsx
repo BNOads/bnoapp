@@ -13,7 +13,7 @@ import { useRecentTabs } from "@/hooks/useRecentTabs";
 import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { DesafioAtual } from "@/components/Gamificacao/DesafioAtual";
+import { Top3Ranking } from "@/components/Gamificacao/Top3Ranking";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -363,7 +363,7 @@ export function DashboardView() {
         </div>
       </div>
 
-      {/* Desafio do Mês Section */}
+      {/* Top 3 Ranking Section */}
       <section className="space-y-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -380,11 +380,11 @@ export function DashboardView() {
             variant="outline"
             className="flex items-center gap-2"
           >
-            Ver Ranking Completo
+            Ver Desafio Completo
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
-        <DesafioAtual isAdmin={isAdmin || isMaster} />
+        <Top3Ranking />
       </section>
 
       {/* PDI Section */}
