@@ -14,6 +14,8 @@ import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Top3Ranking } from "@/components/Gamificacao/Top3Ranking";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -35,6 +37,7 @@ export function DashboardView() {
   const [selectedBgColor, setSelectedBgColor] = useState(() => {
     return localStorage.getItem('dashboard-header-color') || 'gradient-primary';
   });
+  const [desafioAtual, setDesafioAtual] = useState<any>(null);
   const { toast } = useToast();
   const colorPickerRef = useRef<HTMLDivElement>(null);
 
@@ -244,8 +247,26 @@ export function DashboardView() {
     }
   };
   
+  const carregarDesafioAtual = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('gamificacao_desafios')
+        .select('*')
+        .eq('ativo', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      setDesafioAtual(data);
+    } catch (error) {
+      console.error('Erro ao carregar desafio:', error);
+    }
+  };
+
   useEffect(() => {
     carregarPdis();
+    carregarDesafioAtual();
   }, []);
 
   // Recarrega PDIs da equipe quando a permissão de admin estiver disponível
@@ -363,7 +384,7 @@ export function DashboardView() {
         </div>
       </div>
 
-      {/* Top 3 Ranking Section */}
+      {/* Desafio do Mês Section */}
       <section className="space-y-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -384,7 +405,33 @@ export function DashboardView() {
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
-        <Top3Ranking />
+        
+        <Card>
+          <CardContent className="pt-6">
+            {desafioAtual ? (
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold text-lg mb-2">{desafioAtual.titulo}</h4>
+                  <p className="text-sm text-muted-foreground mb-3">{desafioAtual.descricao}</p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">
+                      {format(new Date(desafioAtual.data_inicio), "dd/MM", { locale: ptBR })} - {format(new Date(desafioAtual.data_fim), "dd/MM/yyyy", { locale: ptBR })}
+                    </span>
+                  </div>
+                </div>
+                <div className="border-t pt-3">
+                  <p className="text-xs text-muted-foreground mb-3">Top 3 no ranking:</p>
+                  <Top3Ranking />
+                </div>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-4">
+                Nenhum desafio ativo no momento
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       {/* PDI Section */}

@@ -97,9 +97,9 @@ export const Top3Ranking = () => {
   };
 
   const getPositionIcon = (position: number) => {
-    if (position === 1) return <Trophy className="h-8 w-8 text-yellow-500" />;
-    if (position === 2) return <Medal className="h-8 w-8 text-gray-400" />;
-    if (position === 3) return <Award className="h-8 w-8 text-orange-500" />;
+    if (position === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;
+    if (position === 2) return <Medal className="h-5 w-5 text-gray-400" />;
+    if (position === 3) return <Award className="h-5 w-5 text-orange-500" />;
     return null;
   };
 
@@ -111,76 +111,29 @@ export const Top3Ranking = () => {
   };
 
   if (loading) {
-    return (
-      <Card>
-        <CardContent className="py-8">
-          <p className="text-center text-muted-foreground">Carregando...</p>
-        </CardContent>
-      </Card>
-    );
+    return <p className="text-sm text-muted-foreground">Carregando...</p>;
   }
 
   if (top3.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Trophy className="h-5 w-5 text-yellow-600" />
-            Ranking do Desafio
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-center text-muted-foreground py-4">
-            Nenhuma ação registrada ainda. Seja o primeiro!
-          </p>
-        </CardContent>
-      </Card>
-    );
+    return <p className="text-sm text-muted-foreground">Nenhuma ação registrada ainda</p>;
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Trophy className="h-5 w-5 text-yellow-600" />
-          Top 3 - {desafioTitulo}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {top3.map((item) => (
-            <Card
-              key={item.colaborador_id}
-              className={getPositionBg(item.posicao)}
-            >
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center space-y-3">
-                  <div className="relative">
-                    <Avatar className="h-16 w-16 border-2 border-background">
-                      <AvatarImage src={item.colaborador?.avatar_url} />
-                      <AvatarFallback className="text-lg font-bold">
-                        {item.colaborador?.nome?.[0] || "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute -top-2 -right-2">
-                      {getPositionIcon(item.posicao)}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground">{item.colaborador?.nome}</p>
-                    <p className="text-2xl font-bold text-primary mt-1">
-                      {item.total_pontos} pts
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.total_acoes} ações
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+    <div className="flex items-center gap-3">
+      {top3.map((item) => (
+        <div
+          key={item.colaborador_id}
+          className="flex items-center gap-2"
+        >
+          <div className="flex-shrink-0">
+            {getPositionIcon(item.posicao)}
+          </div>
+          <div className="flex flex-col">
+            <p className="text-sm font-medium text-foreground">{item.colaborador?.nome}</p>
+            <p className="text-xs text-muted-foreground">{item.total_pontos} pts</p>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      ))}
+    </div>
   );
 };
