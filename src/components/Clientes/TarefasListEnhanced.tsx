@@ -144,7 +144,8 @@ export const TarefasListEnhanced = ({
         ...novaTarefa,
         cliente_id: clienteId,
         eh_tarefa_bnoapp: tipo === 'equipe',
-        created_by: user.data.user.id
+        created_by: user.data.user.id,
+        status: 'pendente'
       });
       if (error) throw error;
       toast({

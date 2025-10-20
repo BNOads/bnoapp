@@ -96,6 +96,7 @@ export const TarefasList = ({ clienteId, tipo, isPublicView = false }: TarefasLi
           cliente_id: clienteId,
           eh_tarefa_bnoapp: tipo === 'equipe',
           created_by: user.data.user.id,
+          status: 'pendente'
         });
 
       if (error) throw error;
