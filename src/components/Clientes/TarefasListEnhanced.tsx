@@ -48,7 +48,7 @@ export const TarefasListEnhanced = ({
   const [novaTarefa, setNovaTarefa] = useState({
     titulo: '',
     descricao: '',
-    prioridade: 'media',
+    prioridade: 'brasileirao',
     data_vencimento: ''
   });
   const {
@@ -156,7 +156,7 @@ export const TarefasListEnhanced = ({
       setNovaTarefa({
         titulo: '',
         descricao: '',
-        prioridade: 'media',
+        prioridade: 'brasileirao',
         data_vencimento: ''
       });
       loadTarefas();
@@ -256,11 +256,11 @@ export const TarefasListEnhanced = ({
   };
   const getPrioridadeColor = (prioridade: string) => {
     switch (prioridade) {
-      case 'alta':
+      case 'copa_mundo':
         return 'border-l-red-500';
-      case 'media':
+      case 'libertadores':
         return 'border-l-yellow-500';
-      case 'baixa':
+      case 'brasileirao':
         return 'border-l-green-500';
       default:
         return 'border-l-gray-500';
@@ -389,9 +389,9 @@ export const TarefasListEnhanced = ({
                         <SelectValue placeholder="Prioridade" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="baixa">Baixa</SelectItem>
-                        <SelectItem value="media">Média</SelectItem>
-                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="brasileirao">Brasileirão</SelectItem>
+                        <SelectItem value="libertadores">Libertadores</SelectItem>
+                        <SelectItem value="copa_mundo">Copa do Mundo</SelectItem>
                       </SelectContent>
                     </Select>
                     <Input type="date" value={novaTarefa.data_vencimento} onChange={e => setNovaTarefa({

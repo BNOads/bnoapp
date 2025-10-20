@@ -36,7 +36,7 @@ export const TarefasList = ({ clienteId, tipo, isPublicView = false }: TarefasLi
   const [novaTarefa, setNovaTarefa] = useState({
     titulo: '',
     descricao: '',
-    prioridade: 'media',
+    prioridade: 'brasileirao',
     data_vencimento: '',
   });
   const { toast } = useToast();
@@ -110,7 +110,7 @@ export const TarefasList = ({ clienteId, tipo, isPublicView = false }: TarefasLi
       setNovaTarefa({
         titulo: '',
         descricao: '',
-        prioridade: 'media',
+        prioridade: 'brasileirao',
         data_vencimento: '',
       });
       loadTarefas();
@@ -164,9 +164,9 @@ export const TarefasList = ({ clienteId, tipo, isPublicView = false }: TarefasLi
 
   const getPrioridadeColor = (prioridade: string) => {
     switch (prioridade) {
-      case 'alta': return 'border-l-red-500';
-      case 'media': return 'border-l-yellow-500';
-      case 'baixa': return 'border-l-green-500';
+      case 'copa_mundo': return 'border-l-red-500';
+      case 'libertadores': return 'border-l-yellow-500';
+      case 'brasileirao': return 'border-l-green-500';
       default: return 'border-l-gray-500';
     }
   };
@@ -216,9 +216,9 @@ export const TarefasList = ({ clienteId, tipo, isPublicView = false }: TarefasLi
                       <SelectValue placeholder="Prioridade" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="baixa">Baixa</SelectItem>
-                      <SelectItem value="media">Média</SelectItem>
-                      <SelectItem value="alta">Alta</SelectItem>
+                      <SelectItem value="brasileirao">Brasileirão</SelectItem>
+                      <SelectItem value="libertadores">Libertadores</SelectItem>
+                      <SelectItem value="copa_mundo">Copa do Mundo</SelectItem>
                     </SelectContent>
                   </Select>
                   <Input
