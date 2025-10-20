@@ -10,7 +10,13 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 export const GamificacaoView = () => {
   const [activeTab, setActiveTab] = useState("ranking");
+  const [refreshKey, setRefreshKey] = useState(0);
   const { isAdmin, isMaster } = useUserPermissions();
+
+  const handlePontosAtualizados = () => {
+    // Forçar atualização do ranking
+    setRefreshKey(prev => prev + 1);
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -51,7 +57,7 @@ export const GamificacaoView = () => {
         </TabsList>
 
         <TabsContent value="ranking" className="mt-6">
-          <RankingView />
+          <RankingView key={refreshKey} />
         </TabsContent>
 
         <TabsContent value="conquistas" className="mt-6">
@@ -64,7 +70,7 @@ export const GamificacaoView = () => {
 
         {(isAdmin || isMaster) && (
           <TabsContent value="comprovacoes" className="mt-6">
-            <ComprovacoesView />
+            <ComprovacoesView onPontosAtualizados={handlePontosAtualizados} />
           </TabsContent>
         )}
       </Tabs>

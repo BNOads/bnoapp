@@ -30,7 +30,11 @@ interface Acao {
   };
 }
 
-export const ComprovacoesView = () => {
+interface ComprovacoesViewProps {
+  onPontosAtualizados?: () => void;
+}
+
+export const ComprovacoesView = ({ onPontosAtualizados }: ComprovacoesViewProps = {}) => {
   const [acoes, setAcoes] = useState<Acao[]>([]);
   const [desafioAtual, setDesafioAtual] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -270,6 +274,8 @@ export const ComprovacoesView = () => {
         onSuccess={() => {
           loadAcoes();
           setEditarAcao(null);
+          // Notificar que os pontos foram atualizados
+          onPontosAtualizados?.();
         }}
       />
     </>
