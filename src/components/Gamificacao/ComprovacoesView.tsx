@@ -260,15 +260,18 @@ export const ComprovacoesView = () => {
       </Dialog>
 
       {/* Modal para editar pontos */}
-      {editarAcao && (
-        <EditarPontosModal
-          open={!!editarAcao}
-          onOpenChange={() => setEditarAcao(null)}
-          acaoId={editarAcao.id}
-          pontosAtuais={editarAcao.pontos}
-          onSuccess={loadAcoes}
-        />
-      )}
+      <EditarPontosModal
+        open={!!editarAcao}
+        onOpenChange={(open) => {
+          if (!open) setEditarAcao(null);
+        }}
+        acaoId={editarAcao?.id || ''}
+        pontosAtuais={editarAcao?.pontos || 0}
+        onSuccess={() => {
+          loadAcoes();
+          setEditarAcao(null);
+        }}
+      />
     </>
   );
 };

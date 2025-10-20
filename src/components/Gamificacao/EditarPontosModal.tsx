@@ -32,6 +32,8 @@ export const EditarPontosModal = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('Editando pontos:', { acaoId, pontosAtuais, novoPontos: pontos });
+    
     if (pontos < 0) {
       toast({
         title: "Valor inválido",
@@ -41,13 +43,27 @@ export const EditarPontosModal = ({
       return;
     }
 
+    if (!acaoId) {
+      toast({
+        title: "Erro",
+        description: "ID da ação não encontrado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      console.log('Atualizando no banco:', { pontos, acaoId });
+      
+      const { data, error } = await supabase
         .from('gamificacao_acoes')
         .update({ pontos })
-        .eq('id', acaoId);
+        .eq('id', acaoId)
+        .select();
+
+      console.log('Resposta do banco:', { data, error });
 
       if (error) throw error;
 
@@ -58,11 +74,11 @@ export const EditarPontosModal = ({
 
       onSuccess();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao atualizar pontos:', error);
       toast({
         title: "Erro ao atualizar pontos",
-        description: "Não foi possível atualizar os pontos. Tente novamente.",
+        description: error.message || "Não foi possível atualizar os pontos. Tente novamente.",
         variant: "destructive",
       });
     } finally {
