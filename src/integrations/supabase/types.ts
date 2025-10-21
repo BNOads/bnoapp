@@ -4481,6 +4481,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      recalcular_ranking_desafio: {
+        Args: { desafio_uuid: string }
+        Returns: undefined
+      }
       soft_delete_referencia: {
         Args: { _id: string }
         Returns: undefined

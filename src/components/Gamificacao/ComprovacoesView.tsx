@@ -3,8 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Eye, Edit2 } from "lucide-react";
+import { ExternalLink, Eye, Edit2, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -40,6 +50,7 @@ export const ComprovacoesView = ({ onPontosAtualizados }: ComprovacoesViewProps 
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [editarAcao, setEditarAcao] = useState<{ id: string; pontos: number } | null>(null);
+  const [recusarAcao, setRecusarAcao] = useState<string | null>(null);
   const { toast } = useToast();
   const { isAdmin, isMaster } = useUserPermissions();
 
@@ -116,6 +127,61 @@ export const ComprovacoesView = ({ onPontosAtualizados }: ComprovacoesViewProps 
     }
   };
 
+  const handleAprovar = async (acaoId: string) => {
+    try {
+      const { error } = await supabase
+        .from('gamificacao_acoes')
+        .update({ aprovado: true })
+        .eq('id', acaoId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Comprovação aprovada",
+        description: "A ação foi aprovada com sucesso.",
+      });
+
+      loadAcoes();
+      onPontosAtualizados?.();
+    } catch (error) {
+      console.error('Erro ao aprovar ação:', error);
+      toast({
+        title: "Erro ao aprovar",
+        description: "Não foi possível aprovar a ação.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRecusar = async () => {
+    if (!recusarAcao) return;
+
+    try {
+      const { error } = await supabase
+        .from('gamificacao_acoes')
+        .update({ aprovado: false })
+        .eq('id', recusarAcao);
+
+      if (error) throw error;
+
+      toast({
+        title: "Comprovação recusada",
+        description: "A ação foi recusada e os pontos foram removidos.",
+      });
+
+      setRecusarAcao(null);
+      loadAcoes();
+      onPontosAtualizados?.();
+    } catch (error) {
+      console.error('Erro ao recusar ação:', error);
+      toast({
+        title: "Erro ao recusar",
+        description: "Não foi possível recusar a ação.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const isImageUrl = (url: string) => {
     return /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
   };
@@ -169,30 +235,54 @@ export const ComprovacoesView = ({ onPontosAtualizados }: ComprovacoesViewProps 
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">{acao.colaborador?.nome}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {format(new Date(acao.data_registro), "dd/MM/yyyy 'às' HH:mm", {
-                                  locale: ptBR,
-                                })}
-                              </p>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium">{acao.colaborador?.nome}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(new Date(acao.data_registro), "dd/MM/yyyy 'às' HH:mm", {
+                                    locale: ptBR,
+                                  })}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={acao.aprovado ? "default" : "destructive"}>
+                                  {acao.aprovado ? "Aprovada" : "Recusada"} - {acao.pontos} pts
+                                </Badge>
+                                {(isAdmin || isMaster) && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setEditarAcao({ id: acao.id, pontos: acao.pontos })}
+                                      title="Editar pontos"
+                                    >
+                                      <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                    {acao.aprovado ? (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setRecusarAcao(acao.id)}
+                                        title="Recusar comprovação"
+                                        className="text-destructive hover:text-destructive"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleAprovar(acao.id)}
+                                        title="Aprovar comprovação"
+                                        className="text-green-600 hover:text-green-700"
+                                      >
+                                        <Check className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={acao.aprovado ? "default" : "secondary"}>
-                                {acao.pontos} pts
-                              </Badge>
-                              {(isAdmin || isMaster) && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setEditarAcao({ id: acao.id, pontos: acao.pontos })}
-                                >
-                                  <Edit2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
                           
                           <div className="bg-muted/50 p-3 rounded-lg">
                             <p className="text-sm">{acao.descricao}</p>
@@ -278,6 +368,25 @@ export const ComprovacoesView = ({ onPontosAtualizados }: ComprovacoesViewProps 
           onPontosAtualizados?.();
         }}
       />
+
+      {/* Modal de confirmação para recusar */}
+      <AlertDialog open={!!recusarAcao} onOpenChange={(open) => !open && setRecusarAcao(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Recusar comprovação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ao recusar esta comprovação, os pontos serão removidos do ranking do participante. 
+              Esta ação pode ser revertida aprovando novamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRecusar} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Recusar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
