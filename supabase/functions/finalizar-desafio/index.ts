@@ -1,9 +1,10 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.56.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
 serve(async (req) => {
@@ -12,12 +13,21 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization') || '';
+    const authToken = authHeader.replace('Bearer ', '');
+    if (!authToken) {
+      return new Response(
+        JSON.stringify({ error: 'Token de autorização necessário' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: `Bearer ${authToken}` },
         },
       }
     );
@@ -81,7 +91,7 @@ serve(async (req) => {
     // Buscar o vencedor do ranking (posição 1)
     const { data: ranking, error: rankingError } = await supabaseClient
       .from('gamificacao_ranking')
-      .select('*, colaborador:colaboradores(nome, avatar_url)')
+      .select('*')
       .eq('desafio_id', desafioId)
       .eq('posicao', 1)
       .maybeSingle();
@@ -90,9 +100,24 @@ serve(async (req) => {
       console.error('Erro ao buscar ranking:', rankingError);
     }
 
+    // Buscar dados do colaborador vencedor (se houver)
+    let vencedor: { nome: string; avatar_url: string | null } | null = null;
+    if (ranking?.colaborador_id) {
+      const { data: colaborador, error: colError } = await supabaseClient
+        .from('colaboradores')
+        .select('nome, avatar_url')
+        .eq('id', ranking.colaborador_id)
+        .single();
+      if (colError) {
+        console.error('Erro ao buscar colaborador vencedor:', colError);
+      } else {
+        vencedor = colaborador;
+      }
+    }
+
     let mensagemVencedor = '';
-    if (ranking && ranking.colaborador) {
-      mensagemVencedor = `🏆 **Vencedor:** ${ranking.colaborador.nome} com ${ranking.total_pontos} pontos e ${ranking.total_acoes} ações!`;
+    if (ranking && vencedor) {
+      mensagemVencedor = `🏆 **Vencedor:** ${vencedor.nome} com ${ranking.total_pontos} pontos e ${ranking.total_acoes} ações!`;
     } else {
       mensagemVencedor = 'Nenhum participante registrou ações neste desafio.';
     }
@@ -122,7 +147,7 @@ serve(async (req) => {
       .insert({
         titulo: `Desafio Finalizado: ${desafio.titulo}`,
         conteudo: notificacaoConteudo,
-        tipo: 'success',
+        tipo: 'info',
         prioridade: 'alta',
         destinatarios: ['all'],
         ativo: true,
@@ -142,7 +167,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         message: 'Desafio finalizado com sucesso',
-        vencedor: ranking?.colaborador || null
+        vencedor: vencedor || null
       }),
       { 
         status: 200, 
