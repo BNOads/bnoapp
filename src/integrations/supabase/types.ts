@@ -226,7 +226,7 @@ export type Database = {
           colaborador_id: string | null
           created_at: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           motivo: string | null
           user_agent: string | null
           user_id: string
@@ -237,7 +237,7 @@ export type Database = {
           colaborador_id?: string | null
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           motivo?: string | null
           user_agent?: string | null
           user_id: string
@@ -248,7 +248,7 @@ export type Database = {
           colaborador_id?: string | null
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           motivo?: string | null
           user_agent?: string | null
           user_id?: string
@@ -1095,7 +1095,7 @@ export type Database = {
           file_name: string
           file_size: number | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           is_batch: boolean | null
           mime_type: string | null
           success: boolean | null
@@ -1113,7 +1113,7 @@ export type Database = {
           file_name: string
           file_size?: number | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           is_batch?: boolean | null
           mime_type?: string | null
           success?: boolean | null
@@ -1131,7 +1131,7 @@ export type Database = {
           file_name?: string
           file_size?: number | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           is_batch?: boolean | null
           mime_type?: string | null
           success?: boolean | null
@@ -2211,6 +2211,7 @@ export type Database = {
           data_fim: string
           data_inicio: string
           descricao: string | null
+          finalizado: boolean | null
           id: string
           notificado: boolean
           tipo_medicao: Database["public"]["Enums"]["tipo_medicao_desafio"]
@@ -2225,6 +2226,7 @@ export type Database = {
           data_fim: string
           data_inicio: string
           descricao?: string | null
+          finalizado?: boolean | null
           id?: string
           notificado?: boolean
           tipo_medicao?: Database["public"]["Enums"]["tipo_medicao_desafio"]
@@ -2239,6 +2241,7 @@ export type Database = {
           data_fim?: string
           data_inicio?: string
           descricao?: string | null
+          finalizado?: boolean | null
           id?: string
           notificado?: boolean
           tipo_medicao?: Database["public"]["Enums"]["tipo_medicao_desafio"]
@@ -2301,7 +2304,7 @@ export type Database = {
           duracao: number | null
           embedding: string | null
           id: string
-          indexacao_busca: unknown | null
+          indexacao_busca: unknown
           palavras_chave: string[] | null
           participantes_identificados: string[] | null
           participantes_mencionados: string[] | null
@@ -2327,7 +2330,7 @@ export type Database = {
           duracao?: number | null
           embedding?: string | null
           id?: string
-          indexacao_busca?: unknown | null
+          indexacao_busca?: unknown
           palavras_chave?: string[] | null
           participantes_identificados?: string[] | null
           participantes_mencionados?: string[] | null
@@ -2353,7 +2356,7 @@ export type Database = {
           duracao?: number | null
           embedding?: string | null
           id?: string
-          indexacao_busca?: unknown | null
+          indexacao_busca?: unknown
           palavras_chave?: string[] | null
           participantes_identificados?: string[] | null
           participantes_mencionados?: string[] | null
@@ -3634,7 +3637,7 @@ export type Database = {
           duracao: number | null
           embedding: string | null
           id: string
-          indexacao_busca: unknown | null
+          indexacao_busca: unknown
           link_gravacao: string | null
           link_meet: string | null
           palavras_chave: string[] | null
@@ -3658,7 +3661,7 @@ export type Database = {
           duracao?: number | null
           embedding?: string | null
           id?: string
-          indexacao_busca?: unknown | null
+          indexacao_busca?: unknown
           link_gravacao?: string | null
           link_meet?: string | null
           palavras_chave?: string[] | null
@@ -3682,7 +3685,7 @@ export type Database = {
           duracao?: number | null
           embedding?: string | null
           id?: string
-          indexacao_busca?: unknown | null
+          indexacao_busca?: unknown
           link_gravacao?: string | null
           link_meet?: string | null
           palavras_chave?: string[] | null
@@ -4324,10 +4327,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      binary_quantize: {
-        Args: { "": string } | { "": unknown }
-        Returns: unknown
-      }
       buscar_transcricoes_reunioes: {
         Args: {
           _cliente_id?: string
@@ -4353,10 +4352,7 @@ export type Database = {
           url_gravacao: string
         }[]
       }
-      check_admin_access: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      check_admin_access: { Args: { _user_id: string }; Returns: boolean }
       create_yjs_snapshot: {
         Args: {
           _block_id: string
@@ -4368,26 +4364,14 @@ export type Database = {
         }
         Returns: string
       }
-      extrair_titulos_reuniao: {
-        Args: { conteudo: string }
-        Returns: string[]
-      }
-      generate_cliente_slug: {
-        Args: { nome_cliente: string }
-        Returns: string
-      }
+      extrair_titulos_reuniao: { Args: { conteudo: string }; Returns: string[] }
+      generate_cliente_slug: { Args: { nome_cliente: string }; Returns: string }
       generate_initial_password: {
         Args: { email_input: string }
         Returns: string
       }
-      generate_public_token: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_reference_slug: {
-        Args: { titulo: string }
-        Returns: string
-      }
+      generate_public_token: { Args: never; Returns: string }
+      generate_reference_slug: { Args: { titulo: string }; Returns: string }
       get_colaborador_dados_sensíveis: {
         Args: { _colaborador_id: string; _motivo?: string }
         Returns: {
@@ -4410,44 +4394,12 @@ export type Database = {
         Args: { _email: string }
         Returns: undefined
       }
-      halfvec_avg: {
-        Args: { "": number[] }
-        Returns: unknown
-      }
-      halfvec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      halfvec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      halfvec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
       has_sensitive_data_permission: {
         Args: {
           _permission_type: Database["public"]["Enums"]["tipo_acesso_dados"]
           _user_id: string
         }
         Returns: boolean
-      }
-      hnsw_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_sparsevec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnswhandler: {
-        Args: { "": unknown }
-        Returns: unknown
       }
       is_admin_with_valid_reason: {
         Args: { _user_id: string }
@@ -4457,50 +4409,12 @@ export type Database = {
         Args: { _profile_user_id: string; _user_id: string }
         Returns: boolean
       }
-      ivfflat_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflathandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      l2_norm: {
-        Args: { "": unknown } | { "": unknown }
-        Returns: number
-      }
-      l2_normalize: {
-        Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: unknown
-      }
-      migrate_reference_content_to_markdown: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      migrate_reference_content_to_markdown: { Args: never; Returns: undefined }
       recalcular_ranking_desafio: {
         Args: { desafio_uuid: string }
         Returns: undefined
       }
-      soft_delete_referencia: {
-        Args: { _id: string }
-        Returns: undefined
-      }
-      sparsevec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      sparsevec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
+      soft_delete_referencia: { Args: { _id: string }; Returns: undefined }
       update_creative_status: {
         Args: { creative_id: string; new_status: boolean }
         Returns: Json
@@ -4508,30 +4422,6 @@ export type Database = {
       update_creative_status_v2: {
         Args: { creative_id: string; new_status_text: string }
         Returns: Json
-      }
-      vector_avg: {
-        Args: { "": number[] }
-        Returns: string
-      }
-      vector_dims: {
-        Args: { "": string } | { "": unknown }
-        Returns: number
-      }
-      vector_norm: {
-        Args: { "": string }
-        Returns: number
-      }
-      vector_out: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      vector_send: {
-        Args: { "": string }
-        Returns: string
-      }
-      vector_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
       }
     }
     Enums: {

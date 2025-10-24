@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, Trophy, Target, Edit, Trash2 } from "lucide-react";
+import { Plus, Calendar, Trophy, Target, Edit, Trash2, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays } from "date-fns";
@@ -21,6 +21,7 @@ interface Desafio {
   data_inicio: string;
   data_fim: string;
   ativo: boolean;
+  finalizado: boolean;
 }
 
 interface DesafioAtualProps {
@@ -34,6 +35,8 @@ export const DesafioAtual = ({ isAdmin }: DesafioAtualProps) => {
   const [showRegistrarAcao, setShowRegistrarAcao] = useState(false);
   const [showEditarDesafio, setShowEditarDesafio] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmFinalizarOpen, setConfirmFinalizarOpen] = useState(false);
+  const [finalizandoDesafio, setFinalizandoDesafio] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -78,6 +81,36 @@ export const DesafioAtual = ({ isAdmin }: DesafioAtualProps) => {
     } catch (error) {
       console.error('Erro ao excluir desafio:', error);
       toast({ title: 'Erro ao excluir', description: 'Não foi possível excluir o desafio.', variant: 'destructive' });
+    }
+  };
+
+  const handleFinalizarDesafio = async () => {
+    if (!desafio) return;
+    setFinalizandoDesafio(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('finalizar-desafio', {
+        body: { desafioId: desafio.id }
+      });
+
+      if (error) throw error;
+
+      toast({ 
+        title: 'Desafio finalizado!', 
+        description: data.vencedor 
+          ? `Vencedor: ${data.vencedor.nome}. Todos foram notificados!` 
+          : 'Todos foram notificados sobre o fim do desafio.'
+      });
+      setConfirmFinalizarOpen(false);
+      await loadDesafioAtual();
+    } catch (error) {
+      console.error('Erro ao finalizar desafio:', error);
+      toast({ 
+        title: 'Erro ao finalizar', 
+        description: 'Não foi possível finalizar o desafio.', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setFinalizandoDesafio(false);
     }
   };
   const getTipoMedicaoLabel = (tipo: string) => {
@@ -157,6 +190,11 @@ export const DesafioAtual = ({ isAdmin }: DesafioAtualProps) => {
               <Badge variant={diasRestantes > 7 ? "default" : "destructive"}>
                 {diasRestantes > 0 ? `${diasRestantes} dias restantes` : 'Encerrado'}
               </Badge>
+              {desafio.finalizado && (
+                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                  Finalizado
+                </Badge>
+              )}
               {isAdmin && (
                 <>
                   <Button variant="outline" size="sm" onClick={() => setShowEditarDesafio(true)} aria-label="Editar desafio">
@@ -220,15 +258,28 @@ export const DesafioAtual = ({ isAdmin }: DesafioAtualProps) => {
             </div>
           </div>
 
-          <Button 
-            onClick={() => setShowRegistrarAcao(true)} 
-            className="w-full"
-            size="lg"
-            disabled={diasRestantes < 0}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Registrar Ação
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setShowRegistrarAcao(true)} 
+              className="flex-1"
+              size="lg"
+              disabled={diasRestantes < 0 || desafio.finalizado}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Registrar Ação
+            </Button>
+            {isAdmin && !desafio.finalizado && (
+              <Button 
+                onClick={() => setConfirmFinalizarOpen(true)} 
+                variant="outline"
+                size="lg"
+                className="border-green-500 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Finalizar Desafio
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -260,6 +311,27 @@ export const DesafioAtual = ({ isAdmin }: DesafioAtualProps) => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteDesafio}>
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmFinalizarOpen} onOpenChange={setConfirmFinalizarOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finalizar desafio</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ao finalizar o desafio, o vencedor será declarado e todos os colaboradores receberão uma notificação. Esta ação não pode ser desfeita. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={finalizandoDesafio}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-green-600 text-white hover:bg-green-700" 
+              onClick={handleFinalizarDesafio}
+              disabled={finalizandoDesafio}
+            >
+              {finalizandoDesafio ? 'Finalizando...' : 'Finalizar Desafio'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
