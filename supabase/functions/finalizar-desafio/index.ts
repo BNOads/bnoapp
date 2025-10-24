@@ -100,27 +100,32 @@ serve(async (req) => {
       console.error('Erro ao buscar ranking:', rankingError);
     }
 
-    // Buscar dados do colaborador vencedor (se houver)
+    console.log('Ranking encontrado:', ranking);
+
+    let mensagemVencedor = '';
     let vencedor: { nome: string; avatar_url: string | null } | null = null;
-    if (ranking?.colaborador_id) {
+
+    if (ranking) {
+      // Buscar dados do colaborador vencedor
       const { data: colaborador, error: colError } = await supabaseClient
         .from('colaboradores')
         .select('nome, avatar_url')
         .eq('id', ranking.colaborador_id)
         .single();
+      
       if (colError) {
         console.error('Erro ao buscar colaborador vencedor:', colError);
+        // Mesmo com erro, criar mensagem com os dados do ranking
+        mensagemVencedor = `🏆 **Vencedor:** Colaborador com ${ranking.total_pontos} pontos e ${ranking.total_acoes} ações!`;
       } else {
         vencedor = colaborador;
+        mensagemVencedor = `🏆 **Vencedor:** ${colaborador.nome} com ${ranking.total_pontos} pontos e ${ranking.total_acoes} ações!`;
       }
-    }
-
-    let mensagemVencedor = '';
-    if (ranking && vencedor) {
-      mensagemVencedor = `🏆 **Vencedor:** ${vencedor.nome} com ${ranking.total_pontos} pontos e ${ranking.total_acoes} ações!`;
     } else {
       mensagemVencedor = 'Nenhum participante registrou ações neste desafio.';
     }
+
+    console.log('Mensagem do vencedor:', mensagemVencedor);
 
     // Marcar desafio como finalizado
     const { error: updateError } = await supabaseClient
