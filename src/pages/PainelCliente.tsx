@@ -19,6 +19,7 @@ import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
 import { HistoricoMensagensCliente } from "@/components/Clientes/HistoricoMensagensCliente";
 import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
 import { ChecklistCriativosView } from "@/components/Clientes/ChecklistCriativos";
+import { NPSPopup } from "@/components/NPS/NPSPopup";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ClienteBrandingProvider } from "@/components/Clientes/ClienteBrandingProvider";
 import { ClienteBrandingHeader } from "@/components/Clientes/ClienteBrandingHeader";
@@ -197,6 +198,9 @@ const PainelCliente = () => {
         <meta name="twitter:description" content={`Painel de gestão personalizado para ${cliente.nome} - Sistema BNOads`} />
         <meta name="twitter:image" content={`${window.location.origin}/bnoads-logo-share.png`} />
       </Helmet>
+      
+      {/* NPS Popup - mostrar apenas para não autenticados (clientes) */}
+      {!isAuthenticated && <NPSPopup clienteId={cliente.id} clienteNome={cliente.nome} />}
       
       <div 
         className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border"

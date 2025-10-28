@@ -134,3 +134,9 @@ verify_jwt = true
 
 [functions.finalizar-desafio]
 verify_jwt = true
+
+[functions.nps-analisar-insights]
+verify_jwt = true
+
+[functions.nps-criar-tarefa-alerta]
+verify_jwt = true
