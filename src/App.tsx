@@ -35,6 +35,7 @@ import { MapaMentalPublico } from "./pages/MapaMentalPublico";
 import FunilPublico from "./pages/FunilPublico";
 import Tarefas from "./pages/Tarefas";
 import Gamificacao from "./pages/Gamificacao";
+import NPS from "./pages/NPS";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient({
@@ -168,6 +169,11 @@ function App() {
                 <Route path="/gamificacao" element={
                   <ProtectedRoute>
                     <Gamificacao />
+                  </ProtectedRoute>
+                } />
+                <Route path="/nps" element={
+                  <ProtectedRoute>
+                    <NPS />
                   </ProtectedRoute>
                 } />
                 <Route path="/" element={
