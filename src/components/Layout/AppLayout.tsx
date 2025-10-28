@@ -29,13 +29,16 @@ export function AppLayout({ children }: AppLayoutProps) {
     '/painel'
   ];
   
+  // Check if current route is a client panel NPS page
+  const isClientNPSRoute = location.pathname.match(/^\/painel\/[^/]+\/nps$/);
+  
   // Para rotas públicas e específicas de visualização, verificar se o usuário está logado
   const isPublicViewRoute = location.pathname.startsWith('/referencia/') && 
                            !location.pathname.startsWith('/referencia/publica');
   
   const shouldShowHeader = !hideHeaderRoutes.some(route => 
     location.pathname.startsWith(route)
-  ) && !(isPublicViewRoute && !user);
+  ) && !(isPublicViewRoute && !user) && !isClientNPSRoute;
   
   const shouldShowFAB = shouldShowHeader;
 
