@@ -128,6 +128,13 @@ export function HistoricoMensagensCliente({ clienteId, clienteNome, isPublicView
     setResumoModal(true);
     
     try {
+      // Use public client for public view
+      let functionsClient = supabase;
+      if (isPublicView) {
+        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        functionsClient = createPublicSupabaseClient();
+      }
+
       // Pegar últimas 8 mensagens (mais recentes)
       const mensagensParaAnalise = mensagens.slice(0, 8).map(msg => ({
         data: format(new Date(msg.semana_referencia), "dd/MM/yyyy", { locale: ptBR }),
@@ -136,7 +143,7 @@ export function HistoricoMensagensCliente({ clienteId, clienteNome, isPublicView
 
       console.log('📊 Enviando mensagens para análise:', mensagensParaAnalise.length);
 
-      const { data, error } = await supabase.functions.invoke('resumo-inteligente-mensagens', {
+      const { data, error } = await functionsClient.functions.invoke('resumo-inteligente-mensagens', {
         body: {
           cliente_nome: clienteNome || 'Cliente',
           mensagens: mensagensParaAnalise
@@ -213,7 +220,7 @@ Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
               <History className="h-5 w-5" />
               Histórico de Mensagens Semanais
             </CardTitle>
-            {!isPublicView && mensagens.length > 0 && (
+            {mensagens.length > 0 && (
               <Button
                 onClick={gerarResumoInteligente}
                 className="gap-2 bg-blue-600 hover:bg-blue-700"

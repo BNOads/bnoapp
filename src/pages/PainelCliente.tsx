@@ -370,7 +370,11 @@ const PainelCliente = () => {
                   csId={cliente.cs_id}
                 />
               )}
-              <HistoricoMensagensCliente clienteId={cliente.id} isPublicView={!isAuthenticated} />
+              <HistoricoMensagensCliente 
+                clienteId={cliente.id} 
+                clienteNome={cliente.nome}
+                isPublicView={!isAuthenticated} 
+              />
             </div>
           </section>
 
