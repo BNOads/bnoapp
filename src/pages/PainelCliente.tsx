@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Share2, Edit2, Palette } from "lucide-react";
-import { MessageCircle, ArrowLeft, LogIn } from "lucide-react";
+import { MessageCircle, ArrowLeft, LogIn, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { StatusCliente } from "@/components/Clientes/StatusCliente";
@@ -227,6 +227,18 @@ const PainelCliente = () => {
             </div>
             
             <div className="flex-shrink-0 flex gap-2">
+              {!isAuthenticated && (
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={() => navigate(`/painel/${cliente.slug || clienteId}/nps`)}
+                  className="flex items-center gap-2"
+                >
+                  <Star className="h-4 w-4" />
+                  <span>Avaliar</span>
+                </Button>
+              )}
+              
               {isAuthenticated && canManageBudgets && (
                 <>
                   <Button 

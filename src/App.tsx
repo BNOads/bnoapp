@@ -16,6 +16,7 @@ import TreinamentosPage from "./pages/Treinamentos";
 import FerramentasPage from "./pages/Ferramentas";
 import PDIDetalhes from "./pages/PDIDetalhes";
 import PainelCliente from "./pages/PainelCliente";
+import PainelClienteNPS from "./pages/PainelClienteNPS";
 import CriativosCliente from "./pages/CriativosCliente";
 import CursoDetalhes from "./pages/CursoDetalhes";
 import AulaDetalhes from "./pages/AulaDetalhes";
@@ -85,7 +86,8 @@ function App() {
                     <PDIDetalhes />
                   </ProtectedRoute>
                 } />
-                <Route path="/painel/:clienteId" element={<PainelCliente />} />
+            <Route path="/painel/:clienteId" element={<PainelCliente />} />
+            <Route path="/painel/:clienteSlug/nps" element={<PainelClienteNPS />} />
                 <Route path="/criativos/:clienteId" element={
                   <ProtectedRoute>
                     <CriativosCliente />
