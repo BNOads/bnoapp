@@ -183,6 +183,14 @@ export const FerramentasView = () => {
       color: "text-emerald-600"
     },
     {
+      id: "nps",
+      title: "NPS & Satisfação",
+      description: "Acompanhe e gerencie a satisfação dos clientes com NPS",
+      icon: BarChart3,
+      component: null, // Redirecionamento para /nps
+      color: "text-pink-600"
+    },
+    {
       id: "desafio",
       title: "Desafio",
       description: "Participe dos desafios mensais e acompanhe o ranking",
@@ -335,6 +343,11 @@ export const FerramentasView = () => {
     // Redirecionar para /gamificacao
     if (toolId === 'desafio') {
       navigate('/gamificacao');
+      return;
+    }
+    // Redirecionar para /nps
+    if (toolId === 'nps') {
+      navigate('/nps');
       return;
     }
     setSelectedTool(toolId);
