@@ -61,6 +61,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [selectedCreatives, setSelectedCreatives] = useState<string[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [allFolders, setAllFolders] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta' | 'status'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
@@ -205,17 +206,35 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     }
   };
 
+  // Carregar todas as pastas únicas do cliente
+  const carregarTodasAsPastas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('creatives')
+        .select('folder_name')
+        .eq('client_id', clienteId)
+        .not('folder_name', 'is', null);
+
+      if (error) throw error;
+
+      const uniqueFolders = Array.from(
+        new Set(data?.map(item => item.folder_name).filter(Boolean))
+      ).sort();
+
+      setAllFolders(uniqueFolders as string[]);
+    } catch (error) {
+      console.error('Erro ao carregar pastas:', error);
+    }
+  };
+
   useEffect(() => {
     carregarCreatives();
+    carregarTodasAsPastas();
   }, [clienteId, pagination.page, selectedType, selectedFolder, searchTerm]);
 
-  // Função para obter subpastas únicas
+  // Função para obter subpastas únicas (agora usa o estado allFolders)
   const getUniqueSubfolders = () => {
-    const folders = creatives
-      .map(creative => creative.folder_name || 'Raiz')
-      .filter((folder, index, arr) => arr.indexOf(folder) === index)
-      .sort();
-    return folders;
+    return allFolders;
   };
 
   // Helpers de status para ordenação
