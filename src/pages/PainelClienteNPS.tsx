@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Star, ArrowLeft, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { PublicLogo } from "@/components/Layout/PublicLogo";
+
 
 const PainelClienteNPS = () => {
   const { clienteSlug } = useParams();
@@ -162,7 +162,6 @@ const PainelClienteNPS = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <PublicLogo showLoginButton={false} />
         <div className="flex justify-center items-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -176,7 +175,6 @@ const PainelClienteNPS = () => {
   if (!cliente) {
     return (
       <div className="min-h-screen bg-background">
-        <PublicLogo showLoginButton={false} />
         <div className="container mx-auto px-4 py-8">
           <Card>
             <CardContent className="pt-6 text-center">
@@ -198,7 +196,7 @@ const PainelClienteNPS = () => {
         <title>{`Avaliar ${cliente.nome} - BNOads`}</title>
       </Helmet>
 
-      <PublicLogo showLoginButton={false} />
+      
 
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <Button
