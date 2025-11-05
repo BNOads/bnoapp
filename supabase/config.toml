@@ -75,6 +75,9 @@ verify_jwt = true
 [functions.google-sheets-financeiro]
 verify_jwt = true
 
+[functions.google-sheets-cliente]
+verify_jwt = true
+
 [functions.importar-pops-drive]
 verify_jwt = true
 

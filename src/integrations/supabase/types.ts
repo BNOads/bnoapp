@@ -628,6 +628,11 @@ export type Database = {
           etapa_atual: string | null
           funis_trabalhando: string[] | null
           funnel_status: boolean
+          google_sheet_aba: string | null
+          google_sheet_erro: string | null
+          google_sheet_id: string | null
+          google_sheet_sync_status: string | null
+          google_sheet_ultima_sync: string | null
           id: string
           is_active: boolean
           last_drive_sync: string | null
@@ -671,6 +676,11 @@ export type Database = {
           etapa_atual?: string | null
           funis_trabalhando?: string[] | null
           funnel_status?: boolean
+          google_sheet_aba?: string | null
+          google_sheet_erro?: string | null
+          google_sheet_id?: string | null
+          google_sheet_sync_status?: string | null
+          google_sheet_ultima_sync?: string | null
           id?: string
           is_active?: boolean
           last_drive_sync?: string | null
@@ -714,6 +724,11 @@ export type Database = {
           etapa_atual?: string | null
           funis_trabalhando?: string[] | null
           funnel_status?: boolean
+          google_sheet_aba?: string | null
+          google_sheet_erro?: string | null
+          google_sheet_id?: string | null
+          google_sheet_sync_status?: string | null
+          google_sheet_ultima_sync?: string | null
           id?: string
           is_active?: boolean
           last_drive_sync?: string | null
@@ -2290,6 +2305,53 @@ export type Database = {
             columns: ["desafio_id"]
             isOneToOne: false
             referencedRelation: "gamificacao_desafios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_sheets_logs: {
+        Row: {
+          aba: string
+          cliente_id: string | null
+          colunas_lidas: number | null
+          created_at: string | null
+          erro: string | null
+          id: string
+          linhas_lidas: number | null
+          metricas_identificadas: Json | null
+          sheet_id: string
+          status: string
+        }
+        Insert: {
+          aba: string
+          cliente_id?: string | null
+          colunas_lidas?: number | null
+          created_at?: string | null
+          erro?: string | null
+          id?: string
+          linhas_lidas?: number | null
+          metricas_identificadas?: Json | null
+          sheet_id: string
+          status?: string
+        }
+        Update: {
+          aba?: string
+          cliente_id?: string | null
+          colunas_lidas?: number | null
+          created_at?: string | null
+          erro?: string | null
+          id?: string
+          linhas_lidas?: number | null
+          metricas_identificadas?: Json | null
+          sheet_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_sheets_logs_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
         ]

@@ -14,6 +14,7 @@ import { UTMBuilderView } from "./UTMBuilderView";
 import { AcessosLoginsView } from "./AcessosLoginsView";
 import { MensagensSemanaisView } from "./MensagensSemanaisView";
 import { LinksView } from "./LinksView";
+import { GoogleSheetsAdmin } from "@/components/Clientes/GoogleSheetsAdmin";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -197,6 +198,14 @@ export const FerramentasView = () => {
       icon: Trophy,
       component: null, // Redirecionamento para /gamificacao
       color: "text-yellow-600"
+    },
+    {
+      id: "google-sheets",
+      title: "Google Sheets - Métricas",
+      description: "Configure e monitore integrações com Google Sheets por cliente",
+      icon: BarChart3,
+      component: <GoogleSheetsAdmin />,
+      color: "text-teal-600"
     },
   ];
 

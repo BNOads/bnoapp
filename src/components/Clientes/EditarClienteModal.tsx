@@ -46,7 +46,9 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
     link_painel: '',
     observacoes: '',
     progresso_etapa: 0,
-    status_cliente: 'ativo'
+    status_cliente: 'ativo',
+    google_sheet_id: '',
+    google_sheet_aba: 'Dashboard'
   });
 
   useEffect(() => {
@@ -60,7 +62,9 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
         link_painel: cliente.link_painel || '',
         observacoes: cliente.observacoes || '',
         progresso_etapa: cliente.progresso_etapa || 0,
-        status_cliente: cliente.status_cliente || 'ativo'
+        status_cliente: cliente.status_cliente || 'ativo',
+        google_sheet_id: cliente.google_sheet_id || '',
+        google_sheet_aba: cliente.google_sheet_aba || 'Dashboard'
       });
       loadTeamMembers();
     }
@@ -261,6 +265,38 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
               placeholder="Observações gerais sobre o cliente"
               rows={3}
             />
+          </div>
+
+          {/* Seção de Google Sheets */}
+          <div className="space-y-4 border-t pt-4">
+            <Label className="text-base font-semibold">Google Sheets - Métricas do Cliente</Label>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="google_sheet_id">ID da Planilha</Label>
+                <Input
+                  id="google_sheet_id"
+                  value={formData.google_sheet_id}
+                  onChange={(e) => handleInputChange('google_sheet_id', e.target.value)}
+                  placeholder="1AbCdEfGhIjKlMnOpQrStUvWxYz..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Cole o ID da planilha do Google Sheets (parte da URL entre /d/ e /edit)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="google_sheet_aba">Nome da Aba</Label>
+                <Input
+                  id="google_sheet_aba"
+                  value={formData.google_sheet_aba}
+                  onChange={(e) => handleInputChange('google_sheet_aba', e.target.value)}
+                  placeholder="Dashboard"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Nome da aba/sheet que contém os dados (padrão: Dashboard)
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Seção de Branding */}
