@@ -134,6 +134,22 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
     }));
   };
 
+  const extractSheetId = (input: string): string => {
+    // Se já for um ID (não contém /), retorna direto
+    if (!input.includes('/')) {
+      return input.trim();
+    }
+
+    // Extrai ID do link: https://docs.google.com/spreadsheets/d/{ID}/edit
+    const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return match ? match[1] : input.trim();
+  };
+
+  const handleSheetInputChange = (value: string) => {
+    const extractedId = extractSheetId(value);
+    setFormData(prev => ({ ...prev, google_sheet_id: extractedId }));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -272,15 +288,15 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
             <Label className="text-base font-semibold">Google Sheets - Métricas do Cliente</Label>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="google_sheet_id">ID da Planilha</Label>
+                <Label htmlFor="google_sheet_id">Link ou ID da Planilha</Label>
                 <Input
                   id="google_sheet_id"
                   value={formData.google_sheet_id}
-                  onChange={(e) => handleInputChange('google_sheet_id', e.target.value)}
-                  placeholder="1AbCdEfGhIjKlMnOpQrStUvWxYz..."
+                  onChange={(e) => handleSheetInputChange(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/1AbCdEfG... ou 1AbCdEfG..."
                 />
                 <p className="text-xs text-muted-foreground">
-                  Cole o ID da planilha do Google Sheets (parte da URL entre /d/ e /edit)
+                  Cole o link completo da planilha ou apenas o ID (extraído automaticamente)
                 </p>
               </div>
 
