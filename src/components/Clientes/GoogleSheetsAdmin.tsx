@@ -2,9 +2,18 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RefreshCw, AlertCircle, CheckCircle, Clock, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -28,6 +37,9 @@ export const GoogleSheetsAdmin = () => {
   const [clientes, setClientes] = useState<ClienteStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingCliente, setEditingCliente] = useState<ClienteStatus | null>(null);
+  const [formData, setFormData] = useState({ google_sheet_id: '', google_sheet_aba: 'Dashboard' });
 
   const loadClientes = async () => {
     setLoading(true);
@@ -44,6 +56,38 @@ export const GoogleSheetsAdmin = () => {
       toast.error('Erro ao carregar lista de clientes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openEditModal = (cliente: ClienteStatus) => {
+    setEditingCliente(cliente);
+    setFormData({
+      google_sheet_id: cliente.google_sheet_id || '',
+      google_sheet_aba: cliente.google_sheet_aba || 'Dashboard'
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveConfig = async () => {
+    if (!editingCliente) return;
+
+    try {
+      const { error } = await supabase
+        .from('clientes')
+        .update({
+          google_sheet_id: formData.google_sheet_id || null,
+          google_sheet_aba: formData.google_sheet_aba || 'Dashboard'
+        })
+        .eq('id', editingCliente.id);
+
+      if (error) throw error;
+
+      toast.success('Configuração salva com sucesso!');
+      setEditModalOpen(false);
+      loadClientes();
+    } catch (error: any) {
+      console.error('Erro ao salvar:', error);
+      toast.error('Erro ao salvar configuração');
     }
   };
 
@@ -144,16 +188,25 @@ export const GoogleSheetsAdmin = () => {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  {cliente.google_sheet_id && (
+                  <div className="flex gap-2 justify-end">
                     <Button
-                      onClick={() => syncCliente(cliente.id)}
-                      disabled={syncing === cliente.id || !cliente.google_sheet_id}
+                      onClick={() => openEditModal(cliente)}
                       size="sm"
                       variant="outline"
                     >
-                      <RefreshCw className={`h-4 w-4 ${syncing === cliente.id ? 'animate-spin' : ''}`} />
+                      <Settings className="h-4 w-4" />
                     </Button>
-                  )}
+                    {cliente.google_sheet_id && (
+                      <Button
+                        onClick={() => syncCliente(cliente.id)}
+                        disabled={syncing === cliente.id}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${syncing === cliente.id ? 'animate-spin' : ''}`} />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -166,6 +219,48 @@ export const GoogleSheetsAdmin = () => {
           </div>
         )}
       </CardContent>
+
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configurar Google Sheets - {editingCliente?.nome}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="sheet-id">ID da Planilha</Label>
+              <Input
+                id="sheet-id"
+                value={formData.google_sheet_id}
+                onChange={(e) => setFormData({ ...formData, google_sheet_id: e.target.value })}
+                placeholder="1AbCdEfGhIjKlMnOpQrStUvWxYz..."
+              />
+              <p className="text-xs text-muted-foreground">
+                Cole o ID da planilha (parte da URL entre /d/ e /edit)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sheet-aba">Nome da Aba</Label>
+              <Input
+                id="sheet-aba"
+                value={formData.google_sheet_aba}
+                onChange={(e) => setFormData({ ...formData, google_sheet_aba: e.target.value })}
+                placeholder="Dashboard"
+              />
+              <p className="text-xs text-muted-foreground">
+                Nome da aba/sheet que contém os dados
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveConfig}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
