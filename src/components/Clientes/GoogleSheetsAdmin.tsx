@@ -26,6 +26,8 @@ import {
 interface ClienteStatus {
   id: string;
   nome: string;
+  status_cliente?: string; // para compatibilidade com tabelas que usam string
+  ativo?: boolean; // para compatibilidade com boolean
   google_sheet_id: string | null;
   google_sheet_aba: string | null;
   google_sheet_ultima_sync: string | null;
@@ -46,12 +48,12 @@ export const GoogleSheetsAdmin = () => {
     try {
       const { data, error } = await supabase
         .from('clientes')
-        .select('id, nome, google_sheet_id, google_sheet_aba, google_sheet_ultima_sync, google_sheet_sync_status, google_sheet_erro')
-        .eq('ativo', true)
+        .select('id, nome, status_cliente, ativo, google_sheet_id, google_sheet_aba, google_sheet_ultima_sync, google_sheet_sync_status, google_sheet_erro')
         .order('nome');
 
       if (error) throw error;
-      setClientes(data || []);
+      const onlyActive = (data || []).filter((c: any) => c.status_cliente === 'ativo' || c.ativo === true);
+      setClientes(onlyActive);
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
       toast.error('Erro ao carregar lista de clientes');
