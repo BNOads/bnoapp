@@ -26,8 +26,7 @@ import {
 interface ClienteStatus {
   id: string;
   nome: string;
-  status_cliente?: string; // para compatibilidade com tabelas que usam string
-  ativo?: boolean; // para compatibilidade com boolean
+  is_active?: boolean;
   google_sheet_id: string | null;
   google_sheet_aba: string | null;
   google_sheet_ultima_sync: string | null;
@@ -48,12 +47,12 @@ export const GoogleSheetsAdmin = () => {
     try {
       const { data, error } = await supabase
         .from('clientes')
-        .select('id, nome, status_cliente, ativo, google_sheet_id, google_sheet_aba, google_sheet_ultima_sync, google_sheet_sync_status, google_sheet_erro')
+        .select('id, nome, is_active, google_sheet_id, google_sheet_aba, google_sheet_ultima_sync, google_sheet_sync_status, google_sheet_erro')
+        .or('status_cliente.eq.ativo,is_active.eq.true')
         .order('nome');
 
       if (error) throw error;
-      const onlyActive = (data || []).filter((c: any) => c.status_cliente === 'ativo' || c.ativo === true);
-      setClientes(onlyActive);
+      setClientes(data || []);
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
       toast.error('Erro ao carregar lista de clientes');
@@ -119,19 +118,17 @@ export const GoogleSheetsAdmin = () => {
 
       if (error) throw error;
 
-      if (data.success) {
+      if (data?.success) {
         toast.success('Sincronização concluída com sucesso!');
-        loadClientes();
       } else {
-        throw new Error(data.error || 'Erro na sincronização');
+        toast.error(data?.error || 'Erro na sincronização');
       }
     } catch (error: any) {
       console.error('Erro na sincronização:', error);
       toast.error(error.message || 'Erro ao sincronizar planilha');
-      // Atualiza a lista para refletir status de erro ou reverter "em_andamento"
-      loadClientes();
     } finally {
       setSyncing(null);
+      loadClientes(); // Always reload to get latest status
     }
   };
 

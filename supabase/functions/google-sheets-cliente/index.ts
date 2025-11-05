@@ -90,14 +90,19 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Store body and clienteId at the start for error handling
+  let bodyData: any = {};
+  let clienteId: string | null = null;
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { cliente_id, refresh = false } = await req.json();
+    bodyData = await req.json();
+    clienteId = bodyData.cliente_id;
 
-    if (!cliente_id) {
+    if (!clienteId) {
       throw new Error('cliente_id é obrigatório');
     }
 
@@ -105,7 +110,7 @@ serve(async (req) => {
     const { data: cliente, error: clienteError } = await supabase
       .from('clientes')
       .select('google_sheet_id, google_sheet_aba, nome')
-      .eq('id', cliente_id)
+      .eq('id', clienteId)
       .single();
 
     if (clienteError) throw clienteError;
@@ -121,7 +126,7 @@ serve(async (req) => {
         google_sheet_sync_status: 'em_andamento',
         google_sheet_erro: null 
       })
-      .eq('id', cliente_id);
+      .eq('id', clienteId);
 
     // Buscar credenciais do Google (tenta Service Account primeiro; se falhar, usa API Key)
     console.log('Buscando credenciais do Google...');
@@ -153,9 +158,9 @@ serve(async (req) => {
       }
     }
 
-    // Ler dados da planilha
+    // Ler dados da planilha - ENCODE THE RANGE to handle spaces and special characters
     const sheetRange = `${cliente.google_sheet_aba || 'Dashboard'}!A1:Z1000`;
-    let sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cliente.google_sheet_id}/values/${sheetRange}`;
+    let sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cliente.google_sheet_id}/values/${encodeURIComponent(sheetRange)}`;
     
     // Se usar API Key, adiciona na URL
     if (!authHeader && apiKeyForSheets) {
@@ -220,7 +225,7 @@ serve(async (req) => {
     await supabase
       .from('google_sheets_logs')
       .insert({
-        cliente_id,
+        cliente_id: clienteId,
         sheet_id: cliente.google_sheet_id,
         aba: cliente.google_sheet_aba || 'Dashboard',
         colunas_lidas: headers.length,
@@ -237,7 +242,7 @@ serve(async (req) => {
         google_sheet_ultima_sync: new Date().toISOString(),
         google_sheet_erro: null
       })
-      .eq('id', cliente_id);
+      .eq('id', clienteId);
 
     return new Response(
       JSON.stringify({
@@ -253,29 +258,33 @@ serve(async (req) => {
   } catch (error) {
     console.error('Erro na função:', error);
     
-    // Atualizar status de erro
-    const { cliente_id } = await req.json().catch(() => ({}));
-    if (cliente_id) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      
-      await supabase
-        .from('clientes')
-        .update({
-          google_sheet_sync_status: 'erro',
-          google_sheet_erro: error.message
-        })
-        .eq('id', cliente_id);
+    // Update error status using stored clienteId (don't re-read body)
+    if (clienteId) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        await supabase
+          .from('clientes')
+          .update({
+            google_sheet_sync_status: 'erro',
+            google_sheet_erro: error.message
+          })
+          .eq('id', clienteId);
+      } catch (updateError) {
+        console.error('Erro ao atualizar status:', updateError);
+      }
     }
 
+    // Always return 200 with success: false to avoid generic Supabase errors
     return new Response(
       JSON.stringify({ 
         success: false, 
         error: error.message 
       }),
       { 
-        status: 400,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
