@@ -47,6 +47,7 @@ export const GoogleSheetsAdmin = () => {
       const { data, error } = await supabase
         .from('clientes')
         .select('id, nome, google_sheet_id, google_sheet_aba, google_sheet_ultima_sync, google_sheet_sync_status, google_sheet_erro')
+        .eq('ativo', true)
         .order('nome');
 
       if (error) throw error;
