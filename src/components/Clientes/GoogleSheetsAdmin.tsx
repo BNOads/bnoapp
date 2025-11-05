@@ -126,6 +126,8 @@ export const GoogleSheetsAdmin = () => {
     } catch (error: any) {
       console.error('Erro na sincronização:', error);
       toast.error(error.message || 'Erro ao sincronizar planilha');
+      // Atualiza a lista para refletir status de erro ou reverter "em_andamento"
+      loadClientes();
     } finally {
       setSyncing(null);
     }

@@ -151,16 +151,16 @@ serve(async (req) => {
       sheetsUrl += `?key=${googleApiKey}`;
     }
 
-    const headers: Record<string, string> = {
+    const reqHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     };
     
     if (authHeader) {
-      headers['Authorization'] = authHeader;
+      reqHeaders['Authorization'] = authHeader;
     }
 
     console.log('Fazendo requisição para Google Sheets...');
-    const response = await fetch(sheetsUrl, { headers });
+    const response = await fetch(sheetsUrl, { headers: reqHeaders });
 
     if (!response.ok) {
       const errorText = await response.text();
