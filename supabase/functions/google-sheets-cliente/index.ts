@@ -123,25 +123,44 @@ serve(async (req) => {
       })
       .eq('id', cliente_id);
 
-    // Buscar credenciais do Google
+    // Buscar credenciais do Google (tenta Service Account primeiro, depois API Key)
+    console.log('Buscando credenciais do Google...');
     const googleCredsJson = Deno.env.get('GOOGLE_SHEETS_CREDENTIALS');
-    if (!googleCredsJson) {
-      throw new Error('Credenciais do Google Sheets não configuradas');
+    const googleApiKey = Deno.env.get('GOOGLE_DRIVE_API_KEY');
+    
+    let authHeader = '';
+    
+    if (googleCredsJson) {
+      console.log('Usando GOOGLE_SHEETS_CREDENTIALS (Service Account)');
+      const credentials = JSON.parse(googleCredsJson);
+      const jwt = await createJWT(credentials);
+      authHeader = `Bearer ${jwt}`;
+    } else if (googleApiKey) {
+      console.log('Usando GOOGLE_DRIVE_API_KEY como fallback');
+      authHeader = '';
+    } else {
+      throw new Error('Nenhuma credencial do Google configurada. Configure GOOGLE_SHEETS_CREDENTIALS ou GOOGLE_DRIVE_API_KEY');
     }
-
-    const credentials = JSON.parse(googleCredsJson);
-    const jwt = await createJWT(credentials);
 
     // Ler dados da planilha
     const sheetRange = `${cliente.google_sheet_aba || 'Dashboard'}!A1:Z1000`;
-    const sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cliente.google_sheet_id}/values/${sheetRange}`;
+    let sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cliente.google_sheet_id}/values/${sheetRange}`;
+    
+    // Se usar API Key, adiciona na URL
+    if (!authHeader && googleApiKey) {
+      sheetsUrl += `?key=${googleApiKey}`;
+    }
 
-    const response = await fetch(sheetsUrl, {
-      headers: {
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
+    console.log('Fazendo requisição para Google Sheets...');
+    const response = await fetch(sheetsUrl, { headers });
 
     if (!response.ok) {
       const errorText = await response.text();
