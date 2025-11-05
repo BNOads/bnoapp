@@ -1997,6 +1997,8 @@ export function PautaReuniaoView() {
         open={viewingVersion !== null}
         onOpenChange={(open) => !open && setViewingVersion(null)}
         version={viewingVersion}
+        onRestore={handleRestoreVersion}
+        isCurrentVersion={viewingVersion?.versao === currentDocument?.versao_atual}
       />
       
       {/* Modal Enviar no Slack */}

@@ -162,24 +162,8 @@ export function HistoricoVersoes({
                                 className="h-8"
                               >
                                 <Eye className="h-4 w-4 mr-1" />
-                                Ver
+                                Visualizar
                               </Button>
-                              {!isCurrentVersion && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleRestore(version)}
-                                  disabled={restoring !== null}
-                                  className="h-8"
-                                >
-                                  {restoring === version.id ? (
-                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                  ) : (
-                                    <RotateCcw className="h-4 w-4 mr-1" />
-                                  )}
-                                  Restaurar
-                                </Button>
-                              )}
                             </div>
                           </div>
                         </div>

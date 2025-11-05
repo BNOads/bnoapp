@@ -1,16 +1,19 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PautaVersion } from '@/hooks/usePautaVersioning';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { FileText, Users, List, CheckSquare } from 'lucide-react';
+import { FileText, Users, List, CheckSquare, RotateCcw } from 'lucide-react';
 
 interface VisualizarVersaoProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   version: PautaVersion | null;
+  onRestore?: (version: PautaVersion) => void;
+  isCurrentVersion?: boolean;
 }
 
 const BLOCK_TYPE_ICONS = {
@@ -22,11 +25,32 @@ const BLOCK_TYPE_ICONS = {
   acoes: CheckSquare
 };
 
-export function VisualizarVersao({ open, onOpenChange, version }: VisualizarVersaoProps) {
+export function VisualizarVersao({ open, onOpenChange, version, onRestore, isCurrentVersion }: VisualizarVersaoProps) {
   if (!version) return null;
 
   const date = parseISO(version.data_hora);
   const conteudo = version.conteudo;
+
+  const handleRestore = () => {
+    if (onRestore) {
+      onRestore(version);
+      onOpenChange(false);
+    }
+  };
+
+  const renderContent = (content: any): string => {
+    if (typeof content === 'string') {
+      return content;
+    }
+    if (typeof content === 'object' && content !== null) {
+      // Se for um objeto Tiptap/ProseMirror, tentar extrair o texto
+      if (content.type === 'doc' && content.content) {
+        return JSON.stringify(content, null, 2);
+      }
+      return JSON.stringify(content, null, 2);
+    }
+    return String(content);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -39,11 +63,27 @@ export function VisualizarVersao({ open, onOpenChange, version }: VisualizarVers
                 <Badge variant="outline" className="text-xs">
                   {version.tipo}
                 </Badge>
+                {isCurrentVersion && (
+                  <Badge variant="default" className="text-xs">
+                    Versão Atual
+                  </Badge>
+                )}
               </div>
               <p className="text-sm font-normal text-muted-foreground">
                 {format(date, "d 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })} • {version.autor_nome}
               </p>
             </div>
+            {!isCurrentVersion && onRestore && (
+              <Button 
+                onClick={handleRestore}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Restaurar esta versão
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -100,10 +140,9 @@ export function VisualizarVersao({ open, onOpenChange, version }: VisualizarVers
                         </div>
                         
                         {block.conteudo && (
-                          <div 
-                            className="prose prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: block.conteudo }}
-                          />
+                          <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+                            {renderContent(block.conteudo)}
+                          </div>
                         )}
                       </div>
                     );
