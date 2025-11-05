@@ -3259,6 +3259,53 @@ export type Database = {
         }
         Relationships: []
       }
+      pauta_historico: {
+        Row: {
+          autor: string
+          autor_nome: string
+          conteudo: Json
+          created_at: string
+          data_hora: string
+          id: string
+          observacoes: string | null
+          pauta_id: string
+          tipo: string
+          versao: number
+        }
+        Insert: {
+          autor: string
+          autor_nome: string
+          conteudo: Json
+          created_at?: string
+          data_hora?: string
+          id?: string
+          observacoes?: string | null
+          pauta_id: string
+          tipo: string
+          versao: number
+        }
+        Update: {
+          autor?: string
+          autor_nome?: string
+          conteudo?: Json
+          created_at?: string
+          data_hora?: string
+          id?: string
+          observacoes?: string | null
+          pauta_id?: string
+          tipo?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pauta_historico_pauta_id_fkey"
+            columns: ["pauta_id"]
+            isOneToOne: false
+            referencedRelation: "reunioes_documentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pdi_aulas: {
         Row: {
           aula_id: string
@@ -3883,6 +3930,7 @@ export type Database = {
           titulo_reuniao: string
           ultima_atualizacao: string
           updated_at: string
+          versao_atual: number | null
         }
         Insert: {
           ano: number
@@ -3900,6 +3948,7 @@ export type Database = {
           titulo_reuniao: string
           ultima_atualizacao?: string
           updated_at?: string
+          versao_atual?: number | null
         }
         Update: {
           ano?: number
@@ -3917,6 +3966,7 @@ export type Database = {
           titulo_reuniao?: string
           ultima_atualizacao?: string
           updated_at?: string
+          versao_atual?: number | null
         }
         Relationships: [
           {

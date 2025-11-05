@@ -12,12 +12,16 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { WYSIWYGEditor } from "@/components/ui/WYSIWYGEditor";
-import { Calendar, Plus, Save, FileText, Users, List, CheckSquare, Search, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight, Settings, BookOpen, X, Check, Clock, Hourglass, Trash2, Image, Video, Link, Upload, Expand, ChevronDown, ChevronUp, Minus, PlusIcon, MessageSquare } from "lucide-react";
+import { Calendar, Plus, Save, FileText, Users, List, CheckSquare, Search, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight, Settings, BookOpen, X, Check, Clock, Hourglass, Trash2, Image, Video, Link, Upload, Expand, ChevronDown, ChevronUp, Minus, PlusIcon, MessageSquare, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { EnviarSlackModal } from "./EnviarSlackModal";
+import { usePautaVersioning } from "@/hooks/usePautaVersioning";
+import { HistoricoVersoes } from "./HistoricoVersoes";
+import { VisualizarVersao } from "./VisualizarVersao";
+import type { PautaVersion } from "@/hooks/usePautaVersioning";
 interface MeetingDocument {
   id: string;
   ano: number;
@@ -33,6 +37,7 @@ interface MeetingDocument {
   cliente_id?: string | null;
   cliente_nome?: string | null;
   blocos?: MeetingBlock[];
+  versao_atual?: number;
 }
 interface MeetingBlock {
   id: string;
@@ -114,6 +119,26 @@ export function PautaReuniaoView() {
   const [minimizedBlocks, setMinimizedBlocks] = useState<Set<string>>(new Set());
   const [showSlackModal, setShowSlackModal] = useState(false);
 
+  // Version control states
+  const [showHistorico, setShowHistorico] = useState(false);
+  const [viewingVersion, setViewingVersion] = useState<PautaVersion | null>(null);
+  
+  // Initialize versioning hook
+  const {
+    versions,
+    loading: loadingVersions,
+    createVersion,
+    scheduleAutosave: scheduleVersionAutosave,
+    saveManualVersion,
+    loadVersions,
+    restoreVersion,
+    cleanup: cleanupVersioning
+  } = usePautaVersioning(
+    currentDocument?.id || null,
+    user?.id || null,
+    userData?.nome || 'Usuário'
+  );
+
   // Removed realtime collaboration for better performance and stability
 
   // Delete confirmation state
@@ -148,6 +173,68 @@ export function PautaReuniaoView() {
     .replace(/\s+/g, '-') // Replace spaces with hyphens
     .replace(/-+/g, '-') // Remove duplicate hyphens
     .trim();
+  };
+
+  // Get current content for versioning
+  const getCurrentContent = () => {
+    if (!currentDocument) return null;
+    
+    return {
+      titulo_reuniao: currentDocument.titulo_reuniao,
+      descricao: currentDocument.descricao,
+      participantes: currentDocument.participantes,
+      status: currentDocument.status,
+      blocos: blocks.map(block => ({
+        id: block.id,
+        tipo: block.tipo,
+        titulo: block.titulo,
+        conteudo: block.conteudo,
+        ordem: block.ordem,
+        ancora: block.ancora
+      }))
+    };
+  };
+
+  // Handle save manual version
+  const handleSaveManualVersion = async () => {
+    const content = getCurrentContent();
+    if (content) {
+      await saveManualVersion(content, 'Versão salva manualmente');
+    }
+  };
+
+  // Handle restore version
+  const handleRestoreVersion = async (version: PautaVersion) => {
+    const currentContent = getCurrentContent();
+    if (!currentContent) return;
+
+    const restoredContent = await restoreVersion(version, currentContent);
+    if (restoredContent) {
+      // Update document state with restored content
+      setCurrentDocument(prev => prev ? {
+        ...prev,
+        titulo_reuniao: restoredContent.titulo_reuniao,
+        descricao: restoredContent.descricao,
+        participantes: restoredContent.participantes,
+        status: restoredContent.status
+      } : null);
+
+      // Update blocks
+      if (restoredContent.blocos) {
+        setBlocks(restoredContent.blocos);
+      }
+
+      // Force save to persist restored content
+      setTimeout(() => saveDocument(false), 500);
+    }
+  };
+
+  // Handle open historico
+  const handleOpenHistorico = () => {
+    if (currentDocument?.id) {
+      loadVersions();
+      setShowHistorico(true);
+    }
   };
   const autosaveTimeout = useRef<NodeJS.Timeout>();
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -222,8 +309,19 @@ export function PautaReuniaoView() {
   useEffect(() => {
     if (blocks.length > 0 && hasUnsavedChanges) {
       triggerAutosave();
+      // Schedule version autosave (every 3 minutes)
+      if (currentDocument) {
+        scheduleVersionAutosave(getCurrentContent());
+      }
     }
   }, [blocks, hasUnsavedChanges]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupVersioning();
+    };
+  }, []);
 
   // Search debouncing
   useEffect(() => {
@@ -768,6 +866,13 @@ export function PautaReuniaoView() {
         setBlocks([]);
       }
       updateURL(year, month, day);
+      
+      // Create initial version
+      const initialContent = getCurrentContent();
+      if (initialContent && doc) {
+        await createVersion(initialContent, 'criacao');
+      }
+
       toast({
         title: "Sucesso",
         description: "Documento criado com sucesso"
@@ -1680,6 +1785,16 @@ export function PautaReuniaoView() {
                   <Save className="h-3 w-3 mr-1" />
                   {hasUnsavedChanges ? 'Salvar Agora' : 'Salvo'}
                 </Button>}
+              
+              {currentDocument && <Button variant="outline" size="sm" onClick={handleSaveManualVersion} className="h-7 text-xs">
+                  <Save className="h-3 w-3 mr-1" />
+                  Salvar Versão
+                </Button>}
+              
+              {currentDocument && <Button variant="ghost" size="sm" onClick={handleOpenHistorico} className="h-7 text-xs">
+                  <History className="h-3 w-3 mr-1" />
+                  Histórico
+                </Button>}
             </div>
             
           </div>
@@ -1855,6 +1970,24 @@ export function PautaReuniaoView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Modal Histórico de Versões */}
+      <HistoricoVersoes
+        open={showHistorico}
+        onOpenChange={setShowHistorico}
+        versions={versions}
+        loading={loadingVersions}
+        onRestore={handleRestoreVersion}
+        onView={setViewingVersion}
+        currentVersionNumber={currentDocument?.versao_atual}
+      />
+      
+      {/* Modal Visualizar Versão */}
+      <VisualizarVersao
+        open={viewingVersion !== null}
+        onOpenChange={(open) => !open && setViewingVersion(null)}
+        version={viewingVersion}
+      />
       
       {/* Modal Enviar no Slack */}
       {currentDocument && <EnviarSlackModal 
