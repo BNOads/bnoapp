@@ -123,23 +123,34 @@ serve(async (req) => {
       })
       .eq('id', cliente_id);
 
-    // Buscar credenciais do Google (tenta Service Account primeiro, depois API Key)
+    // Buscar credenciais do Google (tenta Service Account primeiro; se falhar, usa API Key)
     console.log('Buscando credenciais do Google...');
-    const googleCredsJson = Deno.env.get('GOOGLE_SHEETS_CREDENTIALS');
-    const googleApiKey = Deno.env.get('GOOGLE_DRIVE_API_KEY');
+    const rawSheetsSecret = Deno.env.get('GOOGLE_SHEETS_CREDENTIALS') || '';
+    const driveApiKey = Deno.env.get('GOOGLE_DRIVE_API_KEY') || '';
     
     let authHeader = '';
+    let apiKeyForSheets = '';
     
-    if (googleCredsJson) {
-      console.log('Usando GOOGLE_SHEETS_CREDENTIALS (Service Account)');
-      const credentials = JSON.parse(googleCredsJson);
-      const jwt = await createJWT(credentials);
-      authHeader = `Bearer ${jwt}`;
-    } else if (googleApiKey) {
-      console.log('Usando GOOGLE_DRIVE_API_KEY como fallback');
-      authHeader = '';
-    } else {
-      throw new Error('Nenhuma credencial do Google configurada. Configure GOOGLE_SHEETS_CREDENTIALS ou GOOGLE_DRIVE_API_KEY');
+    if (rawSheetsSecret) {
+      try {
+        const credentials = JSON.parse(rawSheetsSecret);
+        console.log('GOOGLE_SHEETS_CREDENTIALS é JSON (Service Account)');
+        const jwt = await createJWT(credentials);
+        authHeader = `Bearer ${jwt}`;
+      } catch {
+        // Não é JSON → tratar como API Key direta
+        console.log('GOOGLE_SHEETS_CREDENTIALS não é JSON; usando como API Key');
+        apiKeyForSheets = rawSheetsSecret.trim();
+      }
+    }
+
+    if (!authHeader) {
+      apiKeyForSheets = apiKeyForSheets || driveApiKey;
+      if (apiKeyForSheets) {
+        console.log('Usando API Key para Google Sheets');
+      } else {
+        throw new Error('Nenhuma credencial do Google configurada. Configure GOOGLE_SHEETS_CREDENTIALS (JSON) ou uma API Key (GOOGLE_SHEETS_CREDENTIALS/GOOGLE_DRIVE_API_KEY)');
+      }
     }
 
     // Ler dados da planilha
@@ -147,8 +158,8 @@ serve(async (req) => {
     let sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cliente.google_sheet_id}/values/${sheetRange}`;
     
     // Se usar API Key, adiciona na URL
-    if (!authHeader && googleApiKey) {
-      sheetsUrl += `?key=${googleApiKey}`;
+    if (!authHeader && apiKeyForSheets) {
+      sheetsUrl += `?key=${apiKeyForSheets}`;
     }
 
     const reqHeaders: Record<string, string> = {
