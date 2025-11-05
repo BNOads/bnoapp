@@ -309,10 +309,8 @@ export function PautaReuniaoView() {
   useEffect(() => {
     if (blocks.length > 0 && hasUnsavedChanges) {
       triggerAutosave();
-      // Schedule version autosave (every 3 minutes)
-      if (currentDocument) {
-        scheduleVersionAutosave(getCurrentContent());
-      }
+      // Note: Version autosave is disabled to avoid conflicts
+      // Manual version save available via button
     }
   }, [blocks, hasUnsavedChanges]);
 
@@ -1256,6 +1254,18 @@ export function PautaReuniaoView() {
       setSaveStatus('saved');
       setHasUnsavedChanges(false);
       console.info('Save success at', now.toISOString());
+      
+      // Create version only after successful save
+      if (!isAutosave) {
+        // Manual save creates an autosave version
+        const content = getCurrentContent();
+        if (content) {
+          await createVersion(content, 'autosave').catch(err => {
+            console.error('Error creating version:', err);
+            // Don't fail the whole save if versioning fails
+          });
+        }
+      }
       
       if (isAutosave) {
         toast({
