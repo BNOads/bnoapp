@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { WYSIWYGEditor } from "@/components/ui/WYSIWYGEditor";
 import { PautaBlocoLexicalEditor } from "./PautaBlocoLexicalEditor";
 import { OnlineUsers } from "./OnlineUsers";
+import { cleanAndRemigrateLexicalBlocks } from "@/lib/cleanLexicalMigration";
 import { Calendar, Plus, Save, FileText, Users, List, CheckSquare, Search, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight, Settings, BookOpen, X, Check, Clock, Hourglass, Trash2, Image, Video, Link, Upload, Expand, ChevronDown, ChevronUp, Minus, PlusIcon, MessageSquare, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -141,6 +142,29 @@ export function PautaReuniaoView() {
     user?.id || null,
     userData?.nome || 'Usuário'
   );
+
+  // Limpar blocos corrompidos ao montar o componente
+  useEffect(() => {
+    const runCleanup = async () => {
+      console.log('[Limpeza] Executando limpeza de blocos corrompidos...');
+      const result = await cleanAndRemigrateLexicalBlocks();
+      
+      if (result.success) {
+        if (result.cleaned > 0) {
+          toast({
+            title: '✅ Blocos corrigidos',
+            description: `${result.cleaned} bloco(s) com HTML foram limpos automaticamente.`,
+            duration: 4000
+          });
+          // Recarregar documentos para pegar versões limpas
+          setTimeout(() => loadDocuments(), 1000);
+        }
+      }
+    };
+    
+    // Rodar limpeza sempre ao carregar até todos blocos estarem ok
+    runCleanup();
+  }, []); // Roda ao montar
 
   // Removed realtime collaboration for better performance and stability
 
@@ -1152,14 +1176,33 @@ export function PautaReuniaoView() {
     }
   };
   const buildLexicalFromLegacy = (legacy: any) => {
-    const text = typeof legacy === 'string' ? legacy.replace(/<[^>]*>/g, '') : (legacy?.texto || '');
+    // Extrair texto do conteúdo legado (pode ser string ou objeto com .texto)
+    let htmlText = '';
+    if (typeof legacy === 'string') {
+      htmlText = legacy;
+    } else if (legacy?.texto) {
+      htmlText = legacy.texto;
+    }
+    
+    // Remover todas as tags HTML e decodificar entidades
+    const plainText = htmlText
+      .replace(/<br\s*\/?>/gi, '\n') // Converter <br> em quebras de linha
+      .replace(/<\/p>/gi, '\n\n') // Converter fim de parágrafo em dupla quebra
+      .replace(/<[^>]+>/g, '') // Remover todas as outras tags
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .trim();
+    
     return {
       root: {
         type: 'root',
         children: [
           {
             type: 'paragraph',
-            children: [{ type: 'text', text, version: 1 }],
+            children: [{ type: 'text', text: plainText, version: 1 }],
             direction: 'ltr',
             format: '',
             indent: 0,
@@ -1177,18 +1220,41 @@ export function PautaReuniaoView() {
   const migrateBlocksIfNeeded = async (blocksArr: MeetingBlock[]) => {
     const toMigrate = blocksArr.filter(b => !b.conteudo_lexical);
     if (toMigrate.length === 0) return;
+    
     try {
+      console.log(`[Migração] Iniciando migração de ${toMigrate.length} bloco(s)`);
+      
       await Promise.all(
         toMigrate.map(async (b) => {
           const lexical = buildLexicalFromLegacy(b.conteudo);
-          await supabase.from('reunioes_blocos').update({ conteudo_lexical: lexical }).eq('id', b.id);
+          console.log(`[Migração] Bloco ${b.id}:`, { 
+            original: b.conteudo?.texto?.substring(0, 100),
+            lexical: lexical.root.children[0].children[0].text.substring(0, 100)
+          });
+          
+          await supabase
+            .from('reunioes_blocos')
+            .update({ conteudo_lexical: lexical as any })
+            .eq('id', b.id);
         })
       );
-      setBlocks(prev => prev.map(b => b.conteudo_lexical ? b : ({ ...b, conteudo_lexical: buildLexicalFromLegacy(b.conteudo) })));
-      toast({ title: '✅ Blocos migrados', description: `${toMigrate.length} bloco(s) migrados para o novo editor.` });
+      
+      // Atualizar estado local
+      setBlocks(prev => prev.map(b => 
+        b.conteudo_lexical ? b : ({ ...b, conteudo_lexical: buildLexicalFromLegacy(b.conteudo) })
+      ));
+      
+      toast({ 
+        title: '✅ Blocos migrados', 
+        description: `${toMigrate.length} bloco(s) migrados para o novo editor.` 
+      });
     } catch (e) {
       console.error('Erro migrando blocos para Lexical:', e);
-      toast({ title: '❌ Erro na migração', description: 'Não foi possível migrar alguns blocos.', variant: 'destructive' });
+      toast({ 
+        title: '❌ Erro na migração', 
+        description: 'Não foi possível migrar alguns blocos.', 
+        variant: 'destructive' 
+      });
     }
   };
 
@@ -1821,27 +1887,57 @@ export function PautaReuniaoView() {
             </Button>
           </div>;
       default:
-        // Se tem conteúdo Lexical, usa o editor colaborativo
+        // Se tem conteúdo Lexical válido, usa o editor colaborativo
         if (block.conteudo_lexical) {
-          return (
-            <div>
-              <PautaBlocoLexicalEditor
-                pautaId={currentDocument?.id || ''}
-                blocoId={block.id}
-                initialContent={block.conteudo_lexical}
-                onContentChange={(content) => {
-                  // Atualiza o estado local para evitar re-renders
-                  const updatedBlocks = blocks.map(b => 
-                    b.id === block.id ? { ...b, conteudo_lexical: content } : b
-                  );
-                  setBlocks(updatedBlocks);
-                }}
-                onClientMention={(clientName) => {
-                  console.log('Cliente mencionado na pauta:', clientName);
-                }}
-              />
-            </div>
-          );
+          // Verificar se o conteúdo não está corrompido (HTML no text node)
+          try {
+            const hasHTML = block.conteudo_lexical?.root?.children?.some((child: any) => {
+              if (child.type === 'paragraph' && Array.isArray(child.children)) {
+                return child.children.some((textNode: any) => {
+                  const text = textNode.text || '';
+                  return text.includes('<') && text.includes('>');
+                });
+              }
+              return false;
+            });
+
+            if (hasHTML) {
+              // Bloco corrompido - mostrar mensagem temporária
+              return (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
+                  <div className="text-yellow-800 font-medium mb-2">
+                    ⚠️ Aguarde - bloco sendo corrigido...
+                  </div>
+                  <div className="text-yellow-600 text-xs">
+                    Este bloco será atualizado automaticamente em alguns segundos.
+                  </div>
+                </div>
+              );
+            }
+
+            // Conteúdo válido - renderizar editor
+            return (
+              <div>
+                <PautaBlocoLexicalEditor
+                  pautaId={currentDocument?.id || ''}
+                  blocoId={block.id}
+                  initialContent={block.conteudo_lexical}
+                  onContentChange={(content) => {
+                    const updatedBlocks = blocks.map(b => 
+                      b.id === block.id ? { ...b, conteudo_lexical: content } : b
+                    );
+                    setBlocks(updatedBlocks);
+                  }}
+                  onClientMention={(clientName) => {
+                    console.log('Cliente mencionado na pauta:', clientName);
+                  }}
+                />
+              </div>
+            );
+          } catch (err) {
+            console.error('Erro ao verificar bloco:', err);
+            // Fallback para modo legado se houver erro
+          }
         }
 
         // Conteúdo antigo - renderiza com botão de migração
@@ -1862,36 +1958,11 @@ export function PautaReuniaoView() {
               size="sm"
               onClick={async () => {
                 try {
-                  // Converter texto HTML para formato Lexical
-                  const lexicalContent = {
-                    root: {
-                      type: 'root',
-                      children: [
-                        {
-                          type: 'paragraph',
-                          children: [
-                            {
-                              type: 'text',
-                              text: block.conteudo.texto || '',
-                              version: 1
-                            }
-                          ],
-                          direction: 'ltr',
-                          format: '',
-                          indent: 0,
-                          version: 1
-                        }
-                      ],
-                      direction: 'ltr',
-                      format: '',
-                      indent: 0,
-                      version: 1
-                    }
-                  };
+                  const lexicalContent = buildLexicalFromLegacy(block.conteudo);
 
                   const { error } = await supabase
                     .from('reunioes_blocos')
-                    .update({ conteudo_lexical: lexicalContent })
+                    .update({ conteudo_lexical: lexicalContent as any })
                     .eq('id', block.id);
 
                   if (error) throw error;
