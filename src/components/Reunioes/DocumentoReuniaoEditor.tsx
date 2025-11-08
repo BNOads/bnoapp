@@ -64,7 +64,7 @@ export function DocumentoReuniaoEditor({
         document: ydoc,
       }),
       CollaborationCursor.configure({
-        provider: awareness as any,
+        provider: { awareness } as any,
         user: {
           name: userData?.nome || 'Anônimo',
           color: getUserColor(),
