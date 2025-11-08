@@ -289,16 +289,36 @@ export function PautaBlocoLexicalEditor({
     <LexicalComposer initialConfig={initialConfig}>
       <div className="relative min-h-[200px]">
         <div className="absolute top-2 right-2 z-10">
-          <div className={`px-2 py-1 rounded text-xs ${
-            syncStatus === 'syncing' ? 'bg-blue-500/20 text-blue-700' :
-            syncStatus === 'synced' ? 'bg-green-500/20 text-green-700' :
-            syncStatus === 'error' ? 'bg-red-500/20 text-red-700' :
-            'bg-gray-500/20 text-gray-700'
+          <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
+            syncStatus === 'syncing' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
+            syncStatus === 'synced' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
+            syncStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
+            'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-400'
           }`}>
-            {syncStatus === 'syncing' && '🔄 Sincronizando...'}
-            {syncStatus === 'synced' && '✅ Sincronizado'}
-            {syncStatus === 'error' && '❌ Erro'}
-            {syncStatus === 'idle' && '⚪ Aguardando'}
+            {syncStatus === 'syncing' && (
+              <>
+                <span className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></span>
+                <span>Sincronizando...</span>
+              </>
+            )}
+            {syncStatus === 'synced' && (
+              <>
+                <span className="inline-block w-1.5 h-1.5 bg-green-600 rounded-full"></span>
+                <span>Online</span>
+              </>
+            )}
+            {syncStatus === 'error' && (
+              <>
+                <span className="inline-block w-1.5 h-1.5 bg-red-600 rounded-full"></span>
+                <span>Erro de conexão</span>
+              </>
+            )}
+            {syncStatus === 'idle' && (
+              <>
+                <span className="inline-block w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
+                <span>Conectando...</span>
+              </>
+            )}
           </div>
         </div>
 

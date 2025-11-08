@@ -51,7 +51,7 @@ export function useRealtimeDocument(documentId: string) {
         // Ignore events from current user
         if (event.user_id === user.id) return;
 
-        console.log('Received sync event:', event);
+        console.log('📥 [Realtime] Recebeu evento de sincronização:', event);
         
         // Call all registered callbacks
         updateCallbacksRef.current.forEach(callback => {
@@ -64,15 +64,18 @@ export function useRealtimeDocument(documentId: string) {
 
         setLastSyncTime(new Date());
         setSyncStatus('synced');
-        
-        // Auto-reset status after 2 seconds
-        setTimeout(() => setSyncStatus('idle'), 2000);
       });
 
     channelRef.current = channel;
 
     channel.subscribe((status) => {
-      console.log('Document sync channel status:', status);
+      console.log('📡 [Realtime] Status do canal de sincronização:', status);
+      if (status === 'SUBSCRIBED') {
+        // Quando conectado, marcar como sincronizado
+        setSyncStatus('synced');
+      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+        setSyncStatus('error');
+      }
     });
 
     return () => {
@@ -104,10 +107,9 @@ export function useRealtimeDocument(documentId: string) {
         payload: syncEvent,
       });
 
-      console.log('Broadcasted sync event (immediate):', syncEvent);
+      console.log('📤 [Realtime] Broadcast imediato enviado:', syncEvent);
       setLastSyncTime(new Date());
       setSyncStatus('synced');
-      setTimeout(() => setSyncStatus('idle'), 1000);
       return;
     }
 
@@ -137,10 +139,9 @@ export function useRealtimeDocument(documentId: string) {
         payload: lastUpdate,
       });
 
-      console.log('Broadcasted sync event:', lastUpdate);
+      console.log('📤 [Realtime] Broadcast enviado:', lastUpdate);
       setLastSyncTime(new Date());
       setSyncStatus('synced');
-      setTimeout(() => setSyncStatus('idle'), 1000);
     }, DEBOUNCE_DELAY);
   }, [userData, user]);
 
