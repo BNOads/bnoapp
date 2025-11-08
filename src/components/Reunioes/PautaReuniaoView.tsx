@@ -845,7 +845,7 @@ export function PautaReuniaoView() {
               children: [
                 {
                   type: 'paragraph',
-                  children: [],
+                  children: [{ type: 'text', text: '', version: 1 }],
                   direction: 'ltr',
                   format: '',
                   indent: 0,
@@ -996,7 +996,7 @@ export function PautaReuniaoView() {
           children: [
             {
               type: 'paragraph',
-              children: [],
+              children: [{ type: 'text', text: '', version: 1 }],
               direction: 'ltr',
               format: '',
               indent: 0,

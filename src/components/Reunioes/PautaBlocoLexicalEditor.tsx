@@ -43,6 +43,54 @@ export function PautaBlocoLexicalEditor({
     onClientMention?.(clientName);
   }, [onClientMention]);
 
+  // Validar e sanitizar initialContent
+  const getValidInitialState = () => {
+    if (!initialContent) {
+      return {
+        root: {
+          children: [
+            {
+              type: 'paragraph',
+              children: [{ type: 'text', text: '', version: 1 }],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1
+            }
+          ],
+          direction: 'ltr',
+          format: '',
+          indent: 0,
+          version: 1
+        }
+      };
+    }
+
+    // Verificar se tem estrutura válida
+    if (!initialContent.root || !initialContent.root.children) {
+      return {
+        root: {
+          children: [
+            {
+              type: 'paragraph',
+              children: [{ type: 'text', text: '', version: 1 }],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1
+            }
+          ],
+          direction: 'ltr',
+          format: '',
+          indent: 0,
+          version: 1
+        }
+      };
+    }
+
+    return initialContent;
+  };
+
   const initialConfig = {
     namespace: `PautaBloco-${blocoId}`,
     theme: {
@@ -60,7 +108,7 @@ export function PautaBlocoLexicalEditor({
       link: 'text-primary underline hover:text-primary/80',
     },
     nodes: [HeadingNode, ListNode, ListItemNode, LinkNode],
-    editorState: initialContent ? JSON.stringify(initialContent) : undefined,
+    editorState: JSON.stringify(getValidInitialState()),
     onError: (error: Error) => {
       console.error('Lexical error:', error);
       toast({
