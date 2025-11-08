@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
@@ -56,13 +55,6 @@ export function YjsCollaborativeEditor({
       Collaboration.configure({
         document: ydoc,
         field: `block-${blockId}`, // Campo específico do bloco
-      }),
-      CollaborationCursor.configure({
-        provider: providerRef.current as any,
-        user: {
-          name: userData?.nome || user?.email || 'Usuário',
-          color: getUserColor(),
-        },
       }),
       Placeholder.configure({
         placeholder,
