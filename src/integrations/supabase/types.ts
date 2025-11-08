@@ -4080,6 +4080,7 @@ export type Database = {
         Row: {
           ancora: string | null
           conteudo: Json
+          conteudo_lexical: Json | null
           created_at: string
           documento_id: string
           id: string
@@ -4091,6 +4092,7 @@ export type Database = {
         Insert: {
           ancora?: string | null
           conteudo?: Json
+          conteudo_lexical?: Json | null
           created_at?: string
           documento_id: string
           id?: string
@@ -4102,6 +4104,7 @@ export type Database = {
         Update: {
           ancora?: string | null
           conteudo?: Json
+          conteudo_lexical?: Json | null
           created_at?: string
           documento_id?: string
           id?: string

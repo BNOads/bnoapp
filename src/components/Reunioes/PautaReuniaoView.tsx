@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { WYSIWYGEditor } from "@/components/ui/WYSIWYGEditor";
+import { PautaBlocoLexicalEditor } from "./PautaBlocoLexicalEditor";
 import { OnlineUsers } from "./OnlineUsers";
 import { Calendar, Plus, Save, FileText, Users, List, CheckSquare, Search, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight, Settings, BookOpen, X, Check, Clock, Hourglass, Trash2, Image, Video, Link, Upload, Expand, ChevronDown, ChevronUp, Minus, PlusIcon, MessageSquare, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +46,7 @@ interface MeetingBlock {
   tipo: string;
   titulo: string | null;
   conteudo: any;
+  conteudo_lexical?: any;
   ordem: number;
   ancora: string | null;
 }
@@ -578,6 +580,7 @@ export function PautaReuniaoView() {
           tipo,
           titulo,
           conteudo,
+          conteudo_lexical,
           ordem,
           ancora
         )
@@ -631,6 +634,7 @@ export function PautaReuniaoView() {
             tipo,
             titulo,
             conteudo,
+            conteudo_lexical,
             ordem,
             ancora
           )
@@ -786,6 +790,7 @@ export function PautaReuniaoView() {
             tipo,
             titulo,
             conteudo,
+            conteudo_lexical,
             ordem,
             ancora
           )
@@ -835,6 +840,24 @@ export function PautaReuniaoView() {
           tipo: (block.tipo === 'texto' ? 'descricao' : block.tipo) as 'titulo' | 'descricao' | 'participantes' | 'pauta' | 'decisoes' | 'acoes',
           titulo: block.titulo,
           conteudo: block.conteudo,
+          conteudo_lexical: {
+            root: {
+              children: [
+                {
+                  type: 'paragraph',
+                  children: [],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1
+                }
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1
+            }
+          },
           ordem: index,
           ancora: block.titulo ? block.titulo.toLowerCase().replace(/\s+/g, '-') : null
         }));
@@ -914,6 +937,7 @@ export function PautaReuniaoView() {
             tipo,
             titulo,
             conteudo,
+            conteudo_lexical,
             ordem,
             ancora
           )
@@ -966,6 +990,24 @@ export function PautaReuniaoView() {
       titulo: '',
       conteudo: {
         texto: ''
+      },
+      conteudo_lexical: {
+        root: {
+          children: [
+            {
+              type: 'paragraph',
+              children: [],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1
+            }
+          ],
+          direction: 'ltr',
+          format: '',
+          indent: 0,
+          version: 1
+        }
       },
       ordem: blocks.length,
       ancora: null
@@ -1235,6 +1277,7 @@ export function PautaReuniaoView() {
           tipo: (block.tipo === 'texto' ? 'descricao' : block.tipo) as "titulo" | "descricao" | "participantes" | "pauta" | "decisoes" | "acoes",
           titulo: block.titulo,
           conteudo: block.conteudo,
+          conteudo_lexical: block.conteudo_lexical || null,
           ordem: index,
           ancora: block.titulo ? block.titulo.toLowerCase().replace(/\s+/g, '-') : null
         }));
@@ -1412,6 +1455,7 @@ export function PautaReuniaoView() {
                   tipo,
                   titulo,
                   conteudo,
+                  conteudo_lexical,
                   ordem,
                   ancora
                 )
@@ -1727,13 +1771,104 @@ export function PautaReuniaoView() {
             </Button>
           </div>;
       default:
-        return <WYSIWYGEditor
-          content={block.conteudo.texto || ''}
-          onChange={content => handleBlockContentChange(block.id, content)}
-          onTitleExtracted={() => {}}
-          placeholder="Digite o conteúdo da pauta..."
-          showToolbar={true}
-        />;
+        // Se tem conteúdo Lexical, usa o editor colaborativo
+        if (block.conteudo_lexical) {
+          return (
+            <div>
+              <PautaBlocoLexicalEditor
+                pautaId={currentDocument?.id || ''}
+                blocoId={block.id}
+                initialContent={block.conteudo_lexical}
+                onContentChange={(content) => {
+                  // Atualiza o estado local para evitar re-renders
+                  const updatedBlocks = blocks.map(b => 
+                    b.id === block.id ? { ...b, conteudo_lexical: content } : b
+                  );
+                  setBlocks(updatedBlocks);
+                }}
+                onClientMention={(clientName) => {
+                  console.log('Cliente mencionado na pauta:', clientName);
+                }}
+              />
+            </div>
+          );
+        }
+
+        // Conteúdo antigo - renderiza com botão de migração
+        return (
+          <div className="space-y-3">
+            <div className="bg-muted/50 border border-dashed rounded-lg p-4">
+              <div className="text-sm text-muted-foreground mb-2">
+                <strong>Modo legado:</strong> Este bloco usa o editor antigo.
+              </div>
+              <div 
+                className="prose prose-sm max-w-none dark:prose-invert"
+                dangerouslySetInnerHTML={{ __html: block.conteudo.texto || 'Sem conteúdo' }}
+              />
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  // Converter texto HTML para formato Lexical
+                  const lexicalContent = {
+                    root: {
+                      children: [
+                        {
+                          type: 'paragraph',
+                          children: [
+                            {
+                              type: 'text',
+                              text: block.conteudo.texto || '',
+                              version: 1
+                            }
+                          ],
+                          direction: 'ltr',
+                          format: '',
+                          indent: 0,
+                          version: 1
+                        }
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                      version: 1
+                    }
+                  };
+
+                  const { error } = await supabase
+                    .from('reunioes_blocos')
+                    .update({ conteudo_lexical: lexicalContent })
+                    .eq('id', block.id);
+
+                  if (error) throw error;
+
+                  // Atualizar estado local
+                  const updatedBlocks = blocks.map(b => 
+                    b.id === block.id ? { ...b, conteudo_lexical: lexicalContent } : b
+                  );
+                  setBlocks(updatedBlocks);
+
+                  toast({
+                    title: "✅ Migrado",
+                    description: "Bloco migrado para o novo editor colaborativo!"
+                  });
+                } catch (error) {
+                  console.error('Erro ao migrar bloco:', error);
+                  toast({
+                    title: "❌ Erro",
+                    description: "Não foi possível migrar o bloco",
+                    variant: "destructive"
+                  });
+                }
+              }}
+            >
+              🔄 Migrar para novo editor
+            </Button>
+          </div>
+        );
     }
   };
 
