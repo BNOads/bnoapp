@@ -659,7 +659,10 @@ export function PautaReuniaoView() {
       const dayKey = day.toString();
       if (docsMap[dayKey]) {
         setCurrentDocument(docsMap[dayKey]);
-        setBlocks(docsMap[dayKey].blocos || []);
+        const blocksForDay = docsMap[dayKey].blocos || [];
+        setBlocks(blocksForDay);
+        // Migrar blocos legados deste dia
+        migrateBlocksIfNeeded(blocksForDay);
       } else {
         await createOrOpenDocument(day, undefined, year, month);
       }
@@ -813,6 +816,8 @@ export function PautaReuniaoView() {
         setDocuments(prev => ({ ...prev, [dayKey]: docWithBlocks }));
         setCurrentDocument(docWithBlocks);
         setBlocks(docWithBlocks.blocos || []);
+        // Migrar blocos legados se necessário
+        migrateBlocksIfNeeded(docWithBlocks.blocos || []);
         updateURL(year, month, day);
         
         return;
@@ -842,6 +847,7 @@ export function PautaReuniaoView() {
           conteudo: block.conteudo,
           conteudo_lexical: {
             root: {
+              type: 'root',
               children: [
                 {
                   type: 'paragraph',
@@ -959,6 +965,8 @@ export function PautaReuniaoView() {
       };
       setCurrentDocument(docWithBlocks);
       setBlocks(docWithBlocks.blocos);
+      // Migrar blocos legados no documento de busca
+      migrateBlocksIfNeeded(docWithBlocks.blocos || []);
 
       // Scroll to the specific block after a short delay
       setTimeout(() => {
@@ -993,6 +1001,7 @@ export function PautaReuniaoView() {
       },
       conteudo_lexical: {
         root: {
+          type: 'root',
           children: [
             {
               type: 'paragraph',
@@ -1142,6 +1151,47 @@ export function PautaReuniaoView() {
         };
     }
   };
+  const buildLexicalFromLegacy = (legacy: any) => {
+    const text = typeof legacy === 'string' ? legacy.replace(/<[^>]*>/g, '') : (legacy?.texto || '');
+    return {
+      root: {
+        type: 'root',
+        children: [
+          {
+            type: 'paragraph',
+            children: [{ type: 'text', text, version: 1 }],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            version: 1,
+          },
+        ],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        version: 1,
+      },
+    };
+  };
+
+  const migrateBlocksIfNeeded = async (blocksArr: MeetingBlock[]) => {
+    const toMigrate = blocksArr.filter(b => !b.conteudo_lexical);
+    if (toMigrate.length === 0) return;
+    try {
+      await Promise.all(
+        toMigrate.map(async (b) => {
+          const lexical = buildLexicalFromLegacy(b.conteudo);
+          await supabase.from('reunioes_blocos').update({ conteudo_lexical: lexical }).eq('id', b.id);
+        })
+      );
+      setBlocks(prev => prev.map(b => b.conteudo_lexical ? b : ({ ...b, conteudo_lexical: buildLexicalFromLegacy(b.conteudo) })));
+      toast({ title: '✅ Blocos migrados', description: `${toMigrate.length} bloco(s) migrados para o novo editor.` });
+    } catch (e) {
+      console.error('Erro migrando blocos para Lexical:', e);
+      toast({ title: '❌ Erro na migração', description: 'Não foi possível migrar alguns blocos.', variant: 'destructive' });
+    }
+  };
+
   const updateBlock = (blockId: string, updates: Partial<MeetingBlock>) => {
     setBlocks(prev => prev.map(block => block.id === blockId ? {
       ...block,
@@ -1815,6 +1865,7 @@ export function PautaReuniaoView() {
                   // Converter texto HTML para formato Lexical
                   const lexicalContent = {
                     root: {
+                      type: 'root',
                       children: [
                         {
                           type: 'paragraph',

@@ -47,6 +47,7 @@ export function PautaBlocoLexicalEditor({
   const sanitizeState = (state: any) => {
     const makeDefault = () => ({
       root: {
+        type: 'root',
         children: [
           {
             type: 'paragraph',
@@ -102,12 +103,13 @@ export function PautaBlocoLexicalEditor({
 
     return {
       root: {
+        type: 'root',
         ...root,
         children: safeChildren,
+        version: 1,
       },
     };
   };
-
   // Criar estado inicial seguro
   const createSafeInitialState = () => {
     console.log('[Lexical] Criando estado inicial para bloco', blocoId);
