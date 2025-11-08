@@ -8,7 +8,8 @@ import Image from '@tiptap/extension-image';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import * as Y from 'yjs';
-import { useEffect, useState } from 'react';
+import { Awareness } from 'y-protocols/awareness';
+import { useEffect, useState, useMemo } from 'react';
 import { DocumentoReuniaoYjsProvider } from '@/lib/DocumentoReuniaoYjsProvider';
 import { OfflineYjsCache } from '@/lib/offlineYjsCache';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -46,10 +47,15 @@ export function DocumentoReuniaoEditor({
 }: DocumentoReuniaoEditorProps) {
   const { toast } = useToast();
   const { userData } = useCurrentUser();
-  const [ydoc] = useState(() => new Y.Doc());
+  
+  // Create Yjs document and awareness
+  const ydoc = useMemo(() => new Y.Doc(), []);
+  const awareness = useMemo(() => new Awareness(ydoc), [ydoc]);
+  
   const [provider, setProvider] = useState<DocumentoReuniaoYjsProvider | null>(null);
   const [cache, setCache] = useState<OfflineYjsCache | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -58,7 +64,7 @@ export function DocumentoReuniaoEditor({
         document: ydoc,
       }),
       CollaborationCursor.configure({
-        provider: provider as any,
+        provider: awareness as any,
         user: {
           name: userData?.nome || 'Anônimo',
           color: getUserColor(),
@@ -77,21 +83,22 @@ export function DocumentoReuniaoEditor({
       }),
     ],
     editable: !readOnly,
-  });
+  }, [isReady]); // Only recreate when ready
 
   // Setup Yjs provider
   useEffect(() => {
-    const newProvider = new DocumentoReuniaoYjsProvider(ano, documentoId, ydoc);
+    const newProvider = new DocumentoReuniaoYjsProvider(ano, documentoId, ydoc, awareness);
     const newCache = new OfflineYjsCache(`documento-reuniao-${ano}`, ydoc);
     
     setProvider(newProvider);
     setCache(newCache);
+    setIsReady(true);
 
     return () => {
       newProvider.destroy();
       newCache.destroy();
     };
-  }, [documentoId, ano, ydoc]);
+  }, [documentoId, ano, ydoc, awareness]);
 
   const handleManualSave = async () => {
     if (!provider) return;
