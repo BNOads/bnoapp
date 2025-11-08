@@ -108,6 +108,51 @@ export function PautaBlocoLexicalEditor({
     };
   };
 
+  // Criar estado inicial seguro
+  const createSafeInitialState = () => {
+    console.log('[Lexical] Criando estado inicial para bloco', blocoId);
+    console.log('[Lexical] initialContent:', initialContent);
+    
+    if (!initialContent) {
+      console.log('[Lexical] Sem conteúdo inicial, usando padrão do Lexical');
+      return undefined;
+    }
+    
+    try {
+      const sanitized = sanitizeState(initialContent);
+      console.log('[Lexical] Estado sanitizado:', sanitized);
+      
+      const jsonString = JSON.stringify(sanitized);
+      
+      // Validar que o JSON não está vazio
+      const parsed = JSON.parse(jsonString);
+      if (!parsed?.root?.children || parsed.root.children.length === 0) {
+        console.warn('[Lexical] Estado sanitizado está vazio, usando padrão');
+        return undefined;
+      }
+      
+      // Validar que todos os children têm um array de children ou são text nodes
+      const hasValidChildren = parsed.root.children.every((child: any) => {
+        if (child.type === 'text') return true;
+        if (child.type === 'paragraph' || child.type === 'heading') {
+          return Array.isArray(child.children) && child.children.length > 0;
+        }
+        return true;
+      });
+      
+      if (!hasValidChildren) {
+        console.warn('[Lexical] Children inválidos detectados, usando padrão');
+        return undefined;
+      }
+      
+      console.log('[Lexical] Estado inicial válido criado');
+      return jsonString;
+    } catch (e) {
+      console.error('[Lexical] Erro ao criar estado inicial:', e);
+      return undefined;
+    }
+  };
+
   const initialConfig = {
     namespace: `PautaBloco-${blocoId}`,
     theme: {
@@ -125,7 +170,7 @@ export function PautaBlocoLexicalEditor({
       link: 'text-primary underline hover:text-primary/80',
     },
     nodes: [HeadingNode, ListNode, ListItemNode, LinkNode],
-    editorState: JSON.stringify(sanitizeState(initialContent)),
+    editorState: createSafeInitialState(),
     onError: (error: Error) => {
       console.error('Lexical error:', error);
       toast({
