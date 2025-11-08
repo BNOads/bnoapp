@@ -38,6 +38,7 @@ import Tarefas from "./pages/Tarefas";
 import Gamificacao from "./pages/Gamificacao";
 import NPS from "./pages/NPS";
 import DocumentoReuniao from "./pages/DocumentoReuniao";
+import ArquivoReuniao from "./pages/ArquivoReuniao";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient({
@@ -182,6 +183,11 @@ function App() {
                 <Route path="/documento-reuniao" element={
                   <ProtectedRoute>
                     <DocumentoReuniao />
+                  </ProtectedRoute>
+                } />
+                <Route path="/arquivo-reuniao" element={
+                  <ProtectedRoute>
+                    <ArquivoReuniao />
                   </ProtectedRoute>
                 } />
                 <Route path="/" element={

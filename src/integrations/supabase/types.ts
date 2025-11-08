@@ -157,6 +157,66 @@ export type Database = {
           },
         ]
       }
+      arquivo_reuniao: {
+        Row: {
+          ano: number
+          atualizado_em: string | null
+          atualizado_por: string | null
+          clientes_relacionados: Json | null
+          conteudo: Json
+          criado_em: string | null
+          criado_por: string | null
+          id: string
+        }
+        Insert: {
+          ano: number
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          clientes_relacionados?: Json | null
+          conteudo?: Json
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: string
+        }
+        Update: {
+          ano?: number
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          clientes_relacionados?: Json | null
+          conteudo?: Json
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      arquivo_reuniao_backup: {
+        Row: {
+          ano: number
+          conteudo: Json
+          criado_em: string | null
+          criado_por: string | null
+          descricao: string | null
+          id: string
+        }
+        Insert: {
+          ano: number
+          conteudo: Json
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+        }
+        Update: {
+          ano?: number
+          conteudo?: Json
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       assistente_conversas: {
         Row: {
           ativo: boolean
