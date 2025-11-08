@@ -3259,6 +3259,47 @@ export type Database = {
         }
         Relationships: []
       }
+      pauta_colaboracao: {
+        Row: {
+          atualizado_em: string | null
+          atualizado_por: string | null
+          conteudo_json: Json | null
+          conteudo_yjs: string | null
+          created_at: string | null
+          id: string
+          pauta_id: string
+          versao: number | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          conteudo_json?: Json | null
+          conteudo_yjs?: string | null
+          created_at?: string | null
+          id?: string
+          pauta_id: string
+          versao?: number | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          conteudo_json?: Json | null
+          conteudo_yjs?: string | null
+          created_at?: string | null
+          id?: string
+          pauta_id?: string
+          versao?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_pauta_id"
+            columns: ["pauta_id"]
+            isOneToOne: true
+            referencedRelation: "reunioes_documentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pauta_historico: {
         Row: {
           autor: string
