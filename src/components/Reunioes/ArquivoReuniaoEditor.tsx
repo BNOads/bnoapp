@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { $getRoot, $createParagraphNode, $createTextNode, EditorState, LexicalEditor } from 'lexical';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
-import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
@@ -14,6 +13,7 @@ import { ListNode, ListItemNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { MentionPlugin } from './MentionPlugin';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface ArquivoReuniaoEditorProps {
@@ -21,15 +21,21 @@ interface ArquivoReuniaoEditorProps {
   ano: number;
   initialContent?: any;
   onContentChange?: (content: any) => void;
+  onClientMention?: (clientName: string) => void;
 }
 
-export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContentChange }: ArquivoReuniaoEditorProps) {
+export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContentChange, onClientMention }: ArquivoReuniaoEditorProps) {
   const { toast } = useToast();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const editorRef = useRef<LexicalEditor | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const lastStateRef = useRef<any>(null);
   const isSelfUpdate = useRef(false);
+
+  const handleMention = useCallback((clientName: string) => {
+    console.log('Cliente mencionado:', clientName);
+    onClientMention?.(clientName);
+  }, [onClientMention]);
 
   const initialConfig = {
     namespace: 'ArquivoReuniao',
@@ -145,6 +151,7 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
         <HistoryPlugin />
         <ListPlugin />
         <LinkPlugin />
+        <MentionPlugin onMention={handleMention} />
         <OnChangePlugin onChange={handleEditorChange} />
       </div>
     </LexicalComposer>

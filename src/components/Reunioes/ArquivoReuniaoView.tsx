@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArquivoReuniaoEditor } from './ArquivoReuniaoEditor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuth } from '@/components/Auth/AuthContext';
+import { gerarEstruturaDias } from '@/lib/gerarEstruturaDias';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const MESES = [
@@ -47,6 +48,7 @@ export function ArquivoReuniaoView() {
   const [isSaving, setIsSaving] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [clientesMencionados, setClientesMencionados] = useState<Set<string>>(new Set());
   
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -157,36 +159,8 @@ export function ArquivoReuniaoView() {
       } else {
         const { data: user } = await supabase.auth.getUser();
         
-        const defaultContent = {
-          root: {
-            children: [
-              {
-                children: [
-                  {
-                    detail: 0,
-                    format: 0,
-                    mode: "normal",
-                    style: "",
-                    text: `Arquivo de Reunião ${anoAtual}`,
-                    type: "text",
-                    version: 1
-                  }
-                ],
-                direction: "ltr",
-                format: "",
-                indent: 0,
-                type: "heading",
-                version: 1,
-                tag: "h1"
-              }
-            ],
-            direction: "ltr",
-            format: "",
-            indent: 0,
-            type: "root",
-            version: 1
-          }
-        };
+        // Gerar estrutura completa com todos os dias do ano
+        const defaultContent = gerarEstruturaDias(anoAtual);
 
         const { data: newArquivo, error: createError } = await supabase
           .from('arquivo_reuniao')
@@ -205,7 +179,7 @@ export function ArquivoReuniaoView() {
         
         toast({
           title: "📄 Arquivo criado",
-          description: `Arquivo de reunião ${anoAtual} inicializado`,
+          description: `Arquivo de reunião ${anoAtual} com todos os dias gerado`,
         });
       }
     } catch (error) {
@@ -285,6 +259,27 @@ export function ArquivoReuniaoView() {
 
   const scrollToToday = () => {
     setSelectedDate({ mes: mesAtual + 1, dia: diaAtual });
+  };
+
+  const handleClientMention = (clientName: string) => {
+    setClientesMencionados(prev => {
+      const newSet = new Set(prev);
+      newSet.add(clientName);
+      return newSet;
+    });
+
+    // Salvar no banco
+    if (arquivoId) {
+      supabase
+        .from('arquivo_reuniao')
+        .update({
+          clientes_relacionados: Array.from(clientesMencionados).concat(clientName)
+        })
+        .eq('id', arquivoId)
+        .then(() => {
+          console.log('Cliente adicionado:', clientName);
+        });
+    }
   };
 
   if (loading || !arquivoId) {
@@ -411,6 +406,7 @@ export function ArquivoReuniaoView() {
               ano={anoAtual}
               initialContent={conteudo}
               onContentChange={handleContentChange}
+              onClientMention={handleClientMention}
             />
           </div>
         </div>
@@ -423,9 +419,23 @@ export function ArquivoReuniaoView() {
           Clientes Mencionados
         </h3>
         <Separator className="mb-3" />
-        <p className="text-xs text-muted-foreground">
-          Em breve: lista de clientes mencionados no arquivo (detecção automática de @menções)
-        </p>
+        
+        {clientesMencionados.size === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Digite @NomeDoCliente no texto para adicionar menções
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {Array.from(clientesMencionados).map((cliente) => (
+              <div 
+                key={cliente}
+                className="p-2 bg-accent/50 rounded-md text-sm hover:bg-accent cursor-pointer"
+              >
+                @{cliente}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
