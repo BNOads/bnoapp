@@ -191,39 +191,32 @@ export function PautaBlocoLexicalEditor({
   useEffect(() => {
     if (!pautaId || !blocoId || !editorRef.current) return;
 
-    console.log('📡 [Realtime] Configurando listener para bloco:', blocoId);
+    console.log(`📡 [${blocoId.slice(0,8)}] Configurando listener de sincronização em tempo real`);
 
     const cleanup = onSyncEvent((event) => {
       // Only process updates for this specific block
       if (event.type !== 'content_update' || event.block_id !== blocoId) return;
       if (!editorRef.current || isApplyingRemoteUpdate.current) return;
 
-      console.log('📡 [Realtime] Recebendo atualização remota para bloco:', blocoId);
+      console.log(`📥 [${blocoId.slice(0,8)}] Recebendo update remoto em ${new Date().toISOString()}`);
 
       try {
         // Mark that we're applying a remote update to prevent re-broadcasting
         isApplyingRemoteUpdate.current = true;
 
-        const sanitized = sanitizeState(event.value);
-        const parsed = editorRef.current.parseEditorState(JSON.stringify(sanitized));
+        // Aplicar diretamente sem sanitização pesada
+        const parsed = editorRef.current.parseEditorState(JSON.stringify(event.value));
         editorRef.current.setEditorState(parsed);
 
-        console.log('✅ [Realtime] Atualização remota aplicada com sucesso');
+        console.log(`✅ [${blocoId.slice(0,8)}] Update remoto aplicado com sucesso`);
       } catch (e) {
-        console.error('❌ [Realtime] Erro ao aplicar atualização remota:', e);
-        // Reset to safe state
-        editorRef.current.update(() => {
-          const root = $getRoot();
-          root.clear();
-          const p = $createParagraphNode();
-          p.append($createTextNode(''));
-          root.append(p);
-        });
+        console.error(`❌ [${blocoId.slice(0,8)}] Erro ao aplicar update:`, e);
+        // Não fazer nada - manter estado atual ao invés de tentar "consertar"
       } finally {
-        // Reset the flag after a short delay
+        // Reset mais rápido - 50ms
         setTimeout(() => {
           isApplyingRemoteUpdate.current = false;
-        }, 100);
+        }, 50);
       }
     });
 
@@ -238,7 +231,7 @@ export function PautaBlocoLexicalEditor({
   const handleEditorChange = (editorState: EditorState, editor: LexicalEditor) => {
     // Skip if this is a remote update being applied
     if (isApplyingRemoteUpdate.current) {
-      console.log('⏭️ [Editor] Pulando broadcast - update remoto sendo aplicado');
+      console.log(`⏭️ [${blocoId.slice(0,8)}] Pulando - aplicando update remoto`);
       return;
     }
 
@@ -249,21 +242,21 @@ export function PautaBlocoLexicalEditor({
     if (JSON.stringify(json) !== JSON.stringify(lastStateRef.current)) {
       lastStateRef.current = json;
 
-      console.log('📤 [Editor] Conteúdo alterado, broadcasting para outros usuários');
+      console.log(`📤 [${blocoId.slice(0,8)}] Broadcasting mudança em ${new Date().toISOString()}`);
 
-      // Broadcast to other users in real-time (without debounce for instant sync)
-      broadcastContentUpdate(blocoId, 'conteudo_lexical', json, false);
+      // Broadcast IMEDIATO para sincronização instantânea
+      broadcastContentUpdate(blocoId, 'conteudo_lexical', json, true);
 
       // Notify parent component
       onContentChange?.(json);
 
-      // Debounced save to database
+      // Debounced save to database (2 segundos)
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
 
       saveTimeoutRef.current = setTimeout(async () => {
-        console.log('💾 [Editor] Salvando no banco de dados...');
+        console.log(`💾 [${blocoId.slice(0,8)}] Salvando no banco de dados...`);
         try {
           const { error } = await supabase
             .from('reunioes_blocos')
@@ -274,12 +267,12 @@ export function PautaBlocoLexicalEditor({
             .eq('id', blocoId);
 
           if (error) {
-            console.error('❌ [Editor] Erro ao salvar bloco:', error);
+            console.error(`❌ [${blocoId.slice(0,8)}] Erro ao salvar bloco:`, error);
           } else {
-            console.log('✅ [Editor] Bloco salvo com sucesso');
+            console.log(`✅ [${blocoId.slice(0,8)}] Bloco salvo com sucesso`);
           }
         } catch (err) {
-          console.error('❌ [Editor] Erro ao salvar:', err);
+          console.error(`❌ [${blocoId.slice(0,8)}] Erro ao salvar:`, err);
         }
       }, 2000); // Auto-save após 2 segundos
     }
