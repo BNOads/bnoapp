@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { EditorState, LexicalEditor } from 'lexical';
+import { EditorState, LexicalEditor, $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -43,52 +43,69 @@ export function PautaBlocoLexicalEditor({
     onClientMention?.(clientName);
   }, [onClientMention]);
 
-  // Validar e sanitizar initialContent
-  const getValidInitialState = () => {
-    if (!initialContent) {
-      return {
-        root: {
-          children: [
-            {
-              type: 'paragraph',
-              children: [{ type: 'text', text: '', version: 1 }],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              version: 1
-            }
-          ],
+  // Sanitização robusta do estado Lexical
+  const sanitizeState = (state: any) => {
+    const makeDefault = () => ({
+      root: {
+        children: [
+          {
+            type: 'paragraph',
+            children: [{ type: 'text', text: '', version: 1 }],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            version: 1,
+          },
+        ],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        version: 1,
+      },
+    });
+
+    if (!state || typeof state !== 'object') return makeDefault();
+    if (!state.root || typeof state.root !== 'object') return makeDefault();
+
+    const root = state.root;
+    if (!Array.isArray(root.children) || root.children.length === 0) {
+      return makeDefault();
+    }
+
+    const safeChildren = root.children.map((child: any) => {
+      if (!child || typeof child !== 'object' || typeof child.type !== 'string') {
+        return {
+          type: 'paragraph',
+          children: [{ type: 'text', text: String(child ?? ''), version: 1 }],
           direction: 'ltr',
           format: '',
           indent: 0,
-          version: 1
-        }
-      };
-    }
+          version: 1,
+        };
+      }
 
-    // Verificar se tem estrutura válida
-    if (!initialContent.root || !initialContent.root.children) {
-      return {
-        root: {
-          children: [
-            {
-              type: 'paragraph',
-              children: [{ type: 'text', text: '', version: 1 }],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              version: 1
-            }
-          ],
-          direction: 'ltr',
-          format: '',
-          indent: 0,
-          version: 1
+      // Garantir filhos para parágrafos/headers
+      const needsChildren = ['paragraph', 'heading', 'quote'].includes(child.type);
+      if (needsChildren) {
+        if (!Array.isArray(child.children) || child.children.length === 0) {
+          child.children = [{ type: 'text', text: '', version: 1 }];
+        } else {
+          child.children = child.children.map((grand: any) =>
+            grand && typeof grand.type === 'string'
+              ? grand
+              : { type: 'text', text: String(grand?.text ?? ''), version: 1 }
+          );
         }
-      };
-    }
+      }
+      return child;
+    });
 
-    return initialContent;
+    return {
+      root: {
+        ...root,
+        children: safeChildren,
+      },
+    };
   };
 
   const initialConfig = {
@@ -108,7 +125,7 @@ export function PautaBlocoLexicalEditor({
       link: 'text-primary underline hover:text-primary/80',
     },
     nodes: [HeadingNode, ListNode, ListItemNode, LinkNode],
-    editorState: JSON.stringify(getValidInitialState()),
+    editorState: JSON.stringify(sanitizeState(initialContent)),
     onError: (error: Error) => {
       console.error('Lexical error:', error);
       toast({
@@ -129,10 +146,20 @@ export function PautaBlocoLexicalEditor({
       .on('broadcast', { event: 'content-update' }, ({ payload }) => {
         console.log('📡 Recebendo atualização de outro usuário');
         if (editorRef.current && payload.content) {
-          isSelfUpdate.current = true;
-          editorRef.current.setEditorState(
-            editorRef.current.parseEditorState(JSON.stringify(payload.content))
-          );
+          try {
+            const sanitized = sanitizeState(payload.content);
+            const parsed = editorRef.current.parseEditorState(JSON.stringify(sanitized));
+            editorRef.current.setEditorState(parsed);
+          } catch (e) {
+            console.error('Falha ao aplicar atualização remota. Usando estado padrão.', e);
+            editorRef.current.update(() => {
+              const root = $getRoot();
+              root.clear();
+              const p = $createParagraphNode();
+              p.append($createTextNode(''));
+              root.append(p);
+            });
+          }
           setTimeout(() => {
             isSelfUpdate.current = false;
           }, 100);
