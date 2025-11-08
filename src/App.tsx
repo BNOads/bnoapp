@@ -37,6 +37,7 @@ import FunilPublico from "./pages/FunilPublico";
 import Tarefas from "./pages/Tarefas";
 import Gamificacao from "./pages/Gamificacao";
 import NPS from "./pages/NPS";
+import DocumentoReuniao from "./pages/DocumentoReuniao";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient({
@@ -176,6 +177,11 @@ function App() {
                 <Route path="/nps" element={
                   <ProtectedRoute>
                     <NPS />
+                  </ProtectedRoute>
+                } />
+                <Route path="/documento-reuniao" element={
+                  <ProtectedRoute>
+                    <DocumentoReuniao />
                   </ProtectedRoute>
                 } />
                 <Route path="/" element={

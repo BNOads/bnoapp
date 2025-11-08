@@ -1763,6 +1763,112 @@ export type Database = {
           },
         ]
       }
+      documento_reuniao: {
+        Row: {
+          ano: number
+          atualizado_em: string
+          atualizado_por: string | null
+          clientes_relacionados: Json | null
+          conteudo: Json
+          id: string
+        }
+        Insert: {
+          ano: number
+          atualizado_em?: string
+          atualizado_por?: string | null
+          clientes_relacionados?: Json | null
+          conteudo?: Json
+          id?: string
+        }
+        Update: {
+          ano?: number
+          atualizado_em?: string
+          atualizado_por?: string | null
+          clientes_relacionados?: Json | null
+          conteudo?: Json
+          id?: string
+        }
+        Relationships: []
+      }
+      documento_reuniao_colaboracao: {
+        Row: {
+          atualizado_em: string | null
+          atualizado_por: string | null
+          conteudo_json: Json | null
+          conteudo_yjs: string | null
+          documento_id: string
+          id: string
+          versao: number | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          conteudo_json?: Json | null
+          conteudo_yjs?: string | null
+          documento_id: string
+          id?: string
+          versao?: number | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          conteudo_json?: Json | null
+          conteudo_yjs?: string | null
+          documento_id?: string
+          id?: string
+          versao?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_reuniao_colaboracao_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: true
+            referencedRelation: "documento_reuniao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documento_reuniao_snapshots: {
+        Row: {
+          conteudo_json: Json | null
+          conteudo_yjs: string | null
+          criado_em: string | null
+          criado_por: string | null
+          descricao: string | null
+          documento_id: string
+          id: string
+          versao: number | null
+        }
+        Insert: {
+          conteudo_json?: Json | null
+          conteudo_yjs?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          documento_id: string
+          id?: string
+          versao?: number | null
+        }
+        Update: {
+          conteudo_json?: Json | null
+          conteudo_yjs?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          documento_id?: string
+          id?: string
+          versao?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_reuniao_snapshots_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documento_reuniao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documentos: {
         Row: {
           autor: string | null
