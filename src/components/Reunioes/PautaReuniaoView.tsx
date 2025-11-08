@@ -12,9 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { WYSIWYGEditor } from "@/components/ui/WYSIWYGEditor";
-import { YjsCollaborativeEditor } from "./YjsCollaborativeEditor";
 import { OnlineUsers } from "./OnlineUsers";
-import { migratePautaToYjs } from "@/lib/migratePautasToYjs";
 import { Calendar, Plus, Save, FileText, Users, List, CheckSquare, Search, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight, Settings, BookOpen, X, Check, Clock, Hourglass, Trash2, Image, Video, Link, Upload, Expand, ChevronDown, ChevronUp, Minus, PlusIcon, MessageSquare, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -811,9 +809,6 @@ export function PautaReuniaoView() {
         setCurrentDocument(docWithBlocks);
         setBlocks(docWithBlocks.blocos || []);
         updateURL(year, month, day);
-        
-        // Migrar para Yjs se necessário
-        migratePautaToYjs(existingDoc.id).catch(console.error);
         
         return;
       }
@@ -1732,22 +1727,6 @@ export function PautaReuniaoView() {
             </Button>
           </div>;
       default:
-        // Use Yjs Collaborative Editor for real-time collaboration
-        if (currentDocument?.id) {
-          return <YjsCollaborativeEditor
-            pautaId={currentDocument.id}
-            blockId={block.id}
-            placeholder="Digite o conteúdo da pauta..."
-            onSave={() => {
-              toast({
-                title: "Snapshot salvo",
-                description: "Versão salva com sucesso",
-                duration: 2000
-              });
-            }}
-          />;
-        }
-        // Fallback to regular editor if no document
         return <WYSIWYGEditor
           content={block.conteudo.texto || ''}
           onChange={content => handleBlockContentChange(block.id, content)}
@@ -1787,11 +1766,6 @@ export function PautaReuniaoView() {
               </div>
               
               <div className="flex items-center gap-2">
-                {/* Online Users Indicator */}
-                {currentDocument && (
-                  <OnlineUsers documentId={currentDocument.id} />
-                )}
-                
                 <p className="text-sm text-muted-foreground">
                   {selectedDate.dia ? `${selectedDate.dia}/${selectedDate.mes}/${selectedDate.ano}` : `${MONTHS[selectedDate.mes - 1]} ${selectedDate.ano}`}
                 </p>
