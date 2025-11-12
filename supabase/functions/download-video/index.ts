@@ -32,39 +32,80 @@ serve(async (req) => {
           if (!videoId) throw new Error('ID do YouTube inválido');
           
           fileName = `youtube_${videoId}.mp4`;
-          console.log('📹 Baixando vídeo do YouTube via Cobalt API...');
+          console.log('📹 Tentando baixar vídeo do YouTube...');
           
-          // Usar Cobalt API (serviço público e confiável)
-          const cobaltResponse = await fetch('https://api.cobalt.tools/api/json', {
-            method: 'POST',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
+          // Tentar múltiplos serviços em ordem
+          let success = false;
+          const services = [
+            {
+              name: 'Cobalt API v7',
+              endpoint: 'https://co.wuk.sh/api/json',
+              buildRequest: () => ({
+                url: url,
+                vCodec: 'h264',
+                vQuality: '720',
+                aFormat: 'mp3',
+                filenamePattern: 'basic',
+                isAudioOnly: false,
+                isNoTTWatermark: true,
+              })
             },
-            body: JSON.stringify({
-              url: url,
-              vCodec: 'h264',
-              vQuality: '720',
-              aFormat: 'mp3',
-              filenamePattern: 'basic',
-              isAudioOnly: false,
-              isNoTTWatermark: true,
-            })
-          });
+            {
+              name: 'Cobalt API (legacy)',
+              endpoint: 'https://api.cobalt.tools/api/json',
+              buildRequest: () => ({
+                url: url,
+                vCodec: 'h264',
+                vQuality: '720',
+              })
+            }
+          ];
 
-          if (!cobaltResponse.ok) {
-            throw new Error(`Cobalt API retornou erro: ${cobaltResponse.status}`);
+          for (const service of services) {
+            try {
+              console.log(`🔄 Tentando ${service.name}...`);
+              
+              const response = await fetch(service.endpoint, {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(service.buildRequest())
+              });
+
+              const responseText = await response.text();
+              console.log(`📥 ${service.name} response (${response.status}):`, responseText);
+
+              if (!response.ok) {
+                console.log(`⚠️ ${service.name} retornou ${response.status}, tentando próximo...`);
+                continue;
+              }
+
+              const data = JSON.parse(responseText);
+
+              if (data.status === 'stream' || data.status === 'redirect') {
+                downloadUrl = data.url;
+                console.log(`✅ Download URL obtida via ${service.name}`);
+                success = true;
+                break;
+              } else if (data.status === 'picker') {
+                downloadUrl = data.picker?.[0]?.url || data.url;
+                console.log(`✅ Download URL obtida via ${service.name} (picker)`);
+                success = true;
+                break;
+              } else if (data.status === 'error') {
+                console.log(`⚠️ ${service.name} retornou erro:`, data.text);
+                continue;
+              }
+            } catch (err: any) {
+              console.log(`⚠️ ${service.name} falhou:`, err.message);
+              continue;
+            }
           }
 
-          const cobaltData = await cobaltResponse.json();
-          console.log('✅ Cobalt response:', cobaltData);
-
-          if (cobaltData.status === 'stream' || cobaltData.status === 'redirect') {
-            downloadUrl = cobaltData.url;
-          } else if (cobaltData.status === 'error') {
-            throw new Error(cobaltData.text || 'Erro ao processar vídeo do YouTube');
-          } else {
-            throw new Error('Formato de resposta inesperado do Cobalt');
+          if (!success) {
+            throw new Error('Todos os serviços de download falharam. Tente novamente mais tarde.');
           }
         } catch (error: any) {
           console.error('❌ Erro ao processar YouTube:', error);
@@ -75,41 +116,66 @@ serve(async (req) => {
       case 'instagram':
         try {
           fileName = `instagram_${Date.now()}.mp4`;
-          console.log('📸 Baixando vídeo do Instagram via Cobalt API...');
+          console.log('📸 Tentando baixar vídeo do Instagram...');
           
-          // Cobalt também suporta Instagram
-          const cobaltResponse = await fetch('https://api.cobalt.tools/api/json', {
-            method: 'POST',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
+          let success = false;
+          const services = [
+            {
+              name: 'Cobalt API v7',
+              endpoint: 'https://co.wuk.sh/api/json'
             },
-            body: JSON.stringify({
-              url: url,
-              vCodec: 'h264',
-              vQuality: '720',
-              aFormat: 'mp3',
-              filenamePattern: 'basic',
-              isAudioOnly: false,
-            })
-          });
+            {
+              name: 'Cobalt API (legacy)',
+              endpoint: 'https://api.cobalt.tools/api/json'
+            }
+          ];
 
-          if (!cobaltResponse.ok) {
-            throw new Error(`Cobalt API retornou erro: ${cobaltResponse.status}`);
+          for (const service of services) {
+            try {
+              console.log(`🔄 Tentando ${service.name}...`);
+              
+              const response = await fetch(service.endpoint, {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  url: url,
+                  vCodec: 'h264',
+                  vQuality: '720',
+                })
+              });
+
+              const responseText = await response.text();
+              console.log(`📥 ${service.name} response (${response.status}):`, responseText);
+
+              if (!response.ok) {
+                console.log(`⚠️ ${service.name} retornou ${response.status}, tentando próximo...`);
+                continue;
+              }
+
+              const data = JSON.parse(responseText);
+
+              if (data.status === 'stream' || data.status === 'redirect') {
+                downloadUrl = data.url;
+                console.log(`✅ Download URL obtida via ${service.name}`);
+                success = true;
+                break;
+              } else if (data.status === 'picker') {
+                downloadUrl = data.picker?.[0]?.url || data.url;
+                console.log(`✅ Download URL obtida via ${service.name} (picker)`);
+                success = true;
+                break;
+              }
+            } catch (err: any) {
+              console.log(`⚠️ ${service.name} falhou:`, err.message);
+              continue;
+            }
           }
 
-          const cobaltData = await cobaltResponse.json();
-          console.log('✅ Cobalt response:', cobaltData);
-
-          if (cobaltData.status === 'stream' || cobaltData.status === 'redirect') {
-            downloadUrl = cobaltData.url;
-          } else if (cobaltData.status === 'picker') {
-            // Instagram pode ter múltiplos vídeos (carrossel)
-            downloadUrl = cobaltData.picker?.[0]?.url || cobaltData.url;
-          } else if (cobaltData.status === 'error') {
-            throw new Error(cobaltData.text || 'Erro ao processar vídeo do Instagram');
-          } else {
-            throw new Error('Formato de resposta inesperado do Cobalt');
+          if (!success) {
+            throw new Error('Não foi possível baixar do Instagram. Tente novamente mais tarde.');
           }
         } catch (error: any) {
           console.error('❌ Erro ao processar Instagram:', error);
