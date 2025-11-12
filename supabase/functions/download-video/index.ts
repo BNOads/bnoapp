@@ -27,51 +27,172 @@ serve(async (req) => {
 
     switch (platform) {
       case 'youtube':
-        // Usar API pública do YouTube (yt-dlp proxy ou similar)
-        // Por simplicidade, vamos usar um serviço público como y2mate API alternativa
         try {
-          // Exemplo usando API pública (você pode substituir por outra API)
           const videoId = extractYouTubeId(url);
           if (!videoId) throw new Error('ID do YouTube inválido');
           
           fileName = `youtube_${videoId}.mp4`;
+          console.log('📹 Baixando vídeo do YouTube via Cobalt API...');
           
-          // Aqui você pode integrar com serviços como:
-          // - cobalt.tools API
-          // - yt-dlp.org
-          // - ou qualquer outro serviço público
-          
-          // Por enquanto, retornamos um erro informativo
-          throw new Error('YouTube download requer integração com serviço externo (yt-dlp, cobalt.tools, etc.)');
-        } catch (error) {
-          console.error('Erro ao processar YouTube:', error);
-          throw error;
+          // Usar Cobalt API (serviço público e confiável)
+          const cobaltResponse = await fetch('https://api.cobalt.tools/api/json', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: url,
+              vCodec: 'h264',
+              vQuality: '720',
+              aFormat: 'mp3',
+              filenamePattern: 'basic',
+              isAudioOnly: false,
+              isNoTTWatermark: true,
+            })
+          });
+
+          if (!cobaltResponse.ok) {
+            throw new Error(`Cobalt API retornou erro: ${cobaltResponse.status}`);
+          }
+
+          const cobaltData = await cobaltResponse.json();
+          console.log('✅ Cobalt response:', cobaltData);
+
+          if (cobaltData.status === 'stream' || cobaltData.status === 'redirect') {
+            downloadUrl = cobaltData.url;
+          } else if (cobaltData.status === 'error') {
+            throw new Error(cobaltData.text || 'Erro ao processar vídeo do YouTube');
+          } else {
+            throw new Error('Formato de resposta inesperado do Cobalt');
+          }
+        } catch (error: any) {
+          console.error('❌ Erro ao processar YouTube:', error);
+          throw new Error(`Erro ao baixar do YouTube: ${error.message}`);
         }
         break;
 
       case 'instagram':
         try {
-          // Instagram requer scraping ou API de terceiros
-          // Você pode usar serviços como:
-          // - instaloader API
-          // - instagram-downloader API
-          
           fileName = `instagram_${Date.now()}.mp4`;
-          throw new Error('Instagram download requer integração com serviço externo (instaloader, etc.)');
-        } catch (error) {
-          console.error('Erro ao processar Instagram:', error);
-          throw error;
+          console.log('📸 Baixando vídeo do Instagram via Cobalt API...');
+          
+          // Cobalt também suporta Instagram
+          const cobaltResponse = await fetch('https://api.cobalt.tools/api/json', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: url,
+              vCodec: 'h264',
+              vQuality: '720',
+              aFormat: 'mp3',
+              filenamePattern: 'basic',
+              isAudioOnly: false,
+            })
+          });
+
+          if (!cobaltResponse.ok) {
+            throw new Error(`Cobalt API retornou erro: ${cobaltResponse.status}`);
+          }
+
+          const cobaltData = await cobaltResponse.json();
+          console.log('✅ Cobalt response:', cobaltData);
+
+          if (cobaltData.status === 'stream' || cobaltData.status === 'redirect') {
+            downloadUrl = cobaltData.url;
+          } else if (cobaltData.status === 'picker') {
+            // Instagram pode ter múltiplos vídeos (carrossel)
+            downloadUrl = cobaltData.picker?.[0]?.url || cobaltData.url;
+          } else if (cobaltData.status === 'error') {
+            throw new Error(cobaltData.text || 'Erro ao processar vídeo do Instagram');
+          } else {
+            throw new Error('Formato de resposta inesperado do Cobalt');
+          }
+        } catch (error: any) {
+          console.error('❌ Erro ao processar Instagram:', error);
+          throw new Error(`Erro ao baixar do Instagram: ${error.message}`);
         }
         break;
 
       case 'meta':
         try {
-          // Meta Ad Library requer scraping específico
           fileName = `meta_ads_${Date.now()}.mp4`;
-          throw new Error('Meta Ad Library download requer scraping customizado');
-        } catch (error) {
-          console.error('Erro ao processar Meta Ad Library:', error);
-          throw error;
+          console.log('🎯 Tentando baixar vídeo da Meta Ad Library...');
+          
+          // Meta Ad Library tem URL específica, vamos tentar usar Cobalt também
+          const cobaltResponse = await fetch('https://api.cobalt.tools/api/json', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: url,
+              vCodec: 'h264',
+              vQuality: '720',
+              aFormat: 'mp3',
+              filenamePattern: 'basic',
+              isAudioOnly: false,
+            })
+          });
+
+          if (!cobaltResponse.ok) {
+            // Se Cobalt não funcionar, tentar scraping direto
+            console.log('⚠️ Cobalt não suportou Meta Ad Library, tentando scraping direto...');
+            
+            // Fazer scraping do HTML da página
+            const pageResponse = await fetch(url, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              }
+            });
+
+            if (!pageResponse.ok) {
+              throw new Error('Não foi possível acessar a página da Meta Ad Library');
+            }
+
+            const html = await pageResponse.text();
+            
+            // Procurar por URLs de vídeo no HTML (padrões comuns do Facebook)
+            const videoPatterns = [
+              /"playable_url":"([^"]+)"/,
+              /"playable_url_quality_hd":"([^"]+)"/,
+              /"video_url":"([^"]+)"/,
+              /https:\/\/video[^"'\s]+\.mp4/
+            ];
+
+            for (const pattern of videoPatterns) {
+              const match = html.match(pattern);
+              if (match && match[1]) {
+                downloadUrl = match[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+                console.log('✅ URL de vídeo encontrada via scraping:', downloadUrl);
+                break;
+              } else if (match && match[0]) {
+                downloadUrl = match[0];
+                console.log('✅ URL de vídeo encontrada via scraping:', downloadUrl);
+                break;
+              }
+            }
+
+            if (!downloadUrl) {
+              throw new Error('Não foi possível extrair URL do vídeo da Meta Ad Library');
+            }
+          } else {
+            const cobaltData = await cobaltResponse.json();
+            console.log('✅ Cobalt response:', cobaltData);
+
+            if (cobaltData.status === 'stream' || cobaltData.status === 'redirect') {
+              downloadUrl = cobaltData.url;
+            } else if (cobaltData.status === 'error') {
+              throw new Error(cobaltData.text || 'Erro ao processar vídeo da Meta Ad Library');
+            }
+          }
+        } catch (error: any) {
+          console.error('❌ Erro ao processar Meta Ad Library:', error);
+          throw new Error(`Erro ao baixar da Meta Ad Library: ${error.message}`);
         }
         break;
 
@@ -79,7 +200,13 @@ serve(async (req) => {
         throw new Error('Plataforma não suportada');
     }
 
-    // Se chegou aqui com sucesso, retornar URL de download
+    if (!downloadUrl) {
+      throw new Error('Não foi possível obter URL de download');
+    }
+
+    console.log('✅ URL de download obtida:', downloadUrl);
+
+    // Retornar URL de download
     return new Response(
       JSON.stringify({
         success: true,
@@ -92,12 +219,10 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('❌ Erro no download:', error);
     
-    // Retornar erro amigável para o usuário
     return new Response(
       JSON.stringify({
         success: false,
         error: error.message || 'Erro ao processar vídeo. Tente novamente.',
-        details: 'Esta funcionalidade requer integração com serviços de download de vídeo (yt-dlp, cobalt.tools, etc.). Por favor, configure uma API key ou serviço externo.'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -249,6 +249,44 @@ export const DownloaderCriativosView = () => {
         </Card>
       )}
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Video className="h-5 w-5 text-red-600" />
+              <h3 className="font-semibold text-red-900 dark:text-red-100">YouTube</h3>
+            </div>
+            <p className="text-sm text-red-700 dark:text-red-300">
+              Vídeos regulares, Shorts e lives. Qualidade até 720p.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Video className="h-5 w-5 text-purple-600" />
+              <h3 className="font-semibold text-purple-900 dark:text-purple-100">Instagram</h3>
+            </div>
+            <p className="text-sm text-purple-700 dark:text-purple-300">
+              Posts, Reels e Stories. Suporta carrosséis.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Video className="h-5 w-5 text-blue-600" />
+              <h3 className="font-semibold text-blue-900 dark:text-blue-100">Meta Ads</h3>
+            </div>
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Anúncios da Biblioteca de Anúncios do Facebook.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card className="bg-muted/30">
         <CardContent className="pt-6">
           <div className="flex gap-3">
@@ -261,6 +299,9 @@ export const DownloaderCriativosView = () => {
                 <li>Quando pronto, clique em "Baixar Arquivo (.mp4)"</li>
                 <li>O arquivo será salvo na sua máquina</li>
               </ol>
+              <p className="mt-3 text-xs">
+                <strong>Tecnologia:</strong> Utiliza Cobalt API (YouTube/Instagram) e scraping customizado (Meta Ads)
+              </p>
             </div>
           </div>
         </CardContent>
