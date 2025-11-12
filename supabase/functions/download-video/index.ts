@@ -159,6 +159,38 @@ serve(async (req) => {
           }
 
           if (!downloadUrl) {
+            console.log('⚠️ Extração direta falhou, tentando via ddinstagram...');
+            // 4) Fallback: ddinstagram (espelha conteúdo público)
+            try {
+              const igPath = igUrl.replace(/^https?:\/\/[^/]+/, '');
+              const ddUrl = `https://ddinstagram.com${igPath}`;
+              let ddHtml = await fetchHTML(ddUrl);
+              if (!ddHtml) {
+                const ddProxy = `https://r.jina.ai/http://ddinstagram.com${igPath}`;
+                ddHtml = await fetchHTML(ddProxy);
+              }
+              if (ddHtml) {
+                const ddPatterns = [
+                  /property="og:video" content="([^"]+)"/,
+                  /"video_url":"([^"]+)"/,
+                  /(https:\\/\\/scontent[^"\\\s]+?mp4[^"\\\s]*)/,
+                  /(https:\/\/scontent[^"'\s]+?\.mp4[^"'\s]*)/
+                ];
+                for (const pattern of ddPatterns) {
+                  const match = ddHtml.match(pattern);
+                  if (match && match[1]) {
+                    downloadUrl = match[1]
+                      .replace(/&amp;/g, '&')
+                      .replace(/\\u002F/g, '/')
+                      .replace(/\\/g, '');
+                    break;
+                  }
+                }
+              }
+            } catch {}
+          }
+
+          if (!downloadUrl) {
             throw new Error('Não foi possível extrair a URL do vídeo do Instagram');
           }
 
