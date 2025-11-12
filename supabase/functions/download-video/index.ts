@@ -5,353 +5,483 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Sistema de logs estruturado
+function log(level: 'INFO' | 'WARN' | 'ERROR', platform: string, message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  const emoji = level === 'ERROR' ? '❌' : level === 'WARN' ? '⚠️' : '✅';
+  console.log(`${emoji} [${timestamp}] [${level}] [${platform}] ${message}`, data ? JSON.stringify(data) : '');
+}
+
+// Sistema de retry com exponential backoff
+async function fetchWithRetry(
+  url: string, 
+  options: RequestInit, 
+  maxRetries = 3,
+  platform = 'UNKNOWN'
+): Promise<Response> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      log('INFO', platform, `Tentativa ${attempt + 1}/${maxRetries}`, { url: url.substring(0, 100) });
+      const response = await fetch(url, options);
+      
+      if (response.ok) {
+        log('INFO', platform, `Requisição bem-sucedida na tentativa ${attempt + 1}`);
+        return response;
+      }
+      
+      log('WARN', platform, `Tentativa ${attempt + 1} falhou com status ${response.status}`);
+      
+      // Não retry em erros 4xx (exceto 429 - rate limit)
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+      }
+      
+    } catch (error) {
+      log('ERROR', platform, `Erro na tentativa ${attempt + 1}`, { error: error.message });
+      
+      if (attempt === maxRetries - 1) {
+        throw error;
+      }
+    }
+    
+    // Exponential backoff: 200ms, 800ms, 3200ms
+    if (attempt < maxRetries - 1) {
+      const delay = Math.pow(4, attempt) * 200;
+      log('INFO', platform, `Aguardando ${delay}ms antes da próxima tentativa`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw new Error('Max retries reached');
+}
+
+// Validação e sanitização de URLs
+function validateAndSanitizeUrl(url: string): { valid: boolean; sanitized: string; error?: string } {
+  try {
+    // Remove espaços e quebras de linha
+    const cleaned = url.trim().replace(/\s+/g, '');
+    
+    // Tenta criar URL object para validar
+    const urlObj = new URL(cleaned);
+    
+    // Remove parâmetros desnecessários do Instagram
+    if (urlObj.hostname.includes('instagram.com')) {
+      urlObj.searchParams.delete('utm_source');
+      urlObj.searchParams.delete('utm_medium');
+      urlObj.searchParams.delete('igshid');
+      urlObj.searchParams.delete('igsh');
+    }
+    
+    return {
+      valid: true,
+      sanitized: urlObj.toString()
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      sanitized: url,
+      error: 'URL inválida. Verifique se copiou corretamente.'
+    };
+  }
+}
+
+// Extrai código do post do Instagram
+function extractInstagramPostCode(url: string): string | null {
+  // Suporta: /p/, /reel/, /tv/, /stories/
+  const patterns = [
+    /instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/,
+    /instagram\.com\/stories\/[^/]+\/([0-9]+)/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  
+  return null;
+}
+
+// Extrai ID do YouTube com validação robusta
+function extractYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/v\/([a-zA-Z0-9_-]{11})/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1].length === 11) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
+// ==================== INSTAGRAM ====================
+async function downloadInstagram(url: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
+  log('INFO', 'INSTAGRAM', 'Iniciando download do Instagram', { url });
+  const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY');
+  
+  // Estratégia 1: RapidAPI - instagram-video-downloader13 (com multipart/form-data)
+  if (RAPIDAPI_KEY) {
+    try {
+      log('INFO', 'INSTAGRAM', 'Tentando RapidAPI instagram-video-downloader13');
+      
+      const formData = new FormData();
+      formData.append('url', url);
+      
+      const response = await fetchWithRetry(
+        'https://instagram-video-downloader13.p.rapidapi.com/index.php',
+        {
+          method: 'POST',
+          headers: {
+            'X-RapidAPI-Key': RAPIDAPI_KEY,
+            'X-RapidAPI-Host': 'instagram-video-downloader13.p.rapidapi.com',
+          },
+          body: formData,
+        },
+        3,
+        'INSTAGRAM'
+      );
+      
+      const data = await response.json();
+      log('INFO', 'INSTAGRAM', 'Resposta da API', { data });
+      
+      if (data.status === 'success' && data.media && data.media.length > 0) {
+        const video = data.media.find((m: any) => m.type === 'video') || data.media[0];
+        
+        if (video && video.url) {
+          log('INFO', 'INSTAGRAM', 'Download bem-sucedido via RapidAPI');
+          return {
+            downloadUrl: video.url,
+            filename: `instagram_${Date.now()}.mp4`,
+            method: 'RapidAPI (instagram-video-downloader13)'
+          };
+        }
+      }
+      
+      throw new Error('Nenhum vídeo encontrado na resposta da API');
+    } catch (error) {
+      log('WARN', 'INSTAGRAM', 'Falha no RapidAPI', { error: error.message });
+    }
+  }
+  
+  // Estratégia 2: API pública alternativa (igram.io)
+  try {
+    log('INFO', 'INSTAGRAM', 'Tentando API alternativa (igram.io)');
+    
+    const postCode = extractInstagramPostCode(url);
+    if (!postCode) {
+      throw new Error('Não foi possível extrair código do post');
+    }
+    
+    const apiUrl = `https://api.igram.io/v1/dl`;
+    const response = await fetchWithRetry(
+      apiUrl,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url }),
+      },
+      2,
+      'INSTAGRAM'
+    );
+    
+    const data = await response.json();
+    
+    if (data.data && data.data.length > 0) {
+      const video = data.data.find((item: any) => item.type === 'video') || data.data[0];
+      
+      if (video && video.url) {
+        log('INFO', 'INSTAGRAM', 'Download bem-sucedido via API alternativa');
+        return {
+          downloadUrl: video.url,
+          filename: `instagram_${postCode}.mp4`,
+          method: 'API pública (igram.io)'
+        };
+      }
+    }
+    
+    throw new Error('Nenhum vídeo encontrado');
+  } catch (error) {
+    log('WARN', 'INSTAGRAM', 'Falha na API alternativa', { error: error.message });
+  }
+  
+  // Estratégia 3: Scraping direto (último recurso)
+  try {
+    log('INFO', 'INSTAGRAM', 'Tentando scraping direto (último recurso)');
+    
+    const response = await fetchWithRetry(
+      url,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'Referer': 'https://www.instagram.com/',
+        },
+      },
+      2,
+      'INSTAGRAM'
+    );
+    
+    const html = await response.text();
+    
+    // Procura por URLs de vídeo no HTML
+    const videoPatterns = [
+      /"video_url":"([^"]+)"/,
+      /"playback_url":"([^"]+)"/,
+      /contentUrl":"([^"]+\.mp4[^"]*)"/,
+    ];
+    
+    for (const pattern of videoPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        const videoUrl = match[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+        log('INFO', 'INSTAGRAM', 'Vídeo encontrado via scraping');
+        
+        return {
+          downloadUrl: videoUrl,
+          filename: `instagram_${Date.now()}.mp4`,
+          method: 'Scraping direto'
+        };
+      }
+    }
+    
+    throw new Error('Não foi possível extrair URL do vídeo via scraping');
+  } catch (error) {
+    log('ERROR', 'INSTAGRAM', 'Todas as estratégias falharam', { error: error.message });
+    throw new Error(
+      'Não foi possível baixar o vídeo do Instagram. Verifique se: ' +
+      '1) A URL está correta, ' +
+      '2) O post contém um vídeo, ' +
+      '3) O perfil não é privado.'
+    );
+  }
+}
+
+// ==================== YOUTUBE ====================
+async function downloadYouTube(url: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
+  log('INFO', 'YOUTUBE', 'Iniciando download do YouTube', { url });
+  
+  const videoId = extractYouTubeId(url);
+  if (!videoId) {
+    throw new Error('ID do vídeo inválido. Verifique a URL do YouTube.');
+  }
+  
+  const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY');
+  
+  // Estratégia 1: RapidAPI - youtube-to-mp4
+  if (RAPIDAPI_KEY) {
+    try {
+      log('INFO', 'YOUTUBE', 'Tentando RapidAPI youtube-to-mp4');
+      
+      const response = await fetchWithRetry(
+        `https://youtube-to-mp43.p.rapidapi.com/?url=${encodeURIComponent(url)}`,
+        {
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key': RAPIDAPI_KEY,
+            'X-RapidAPI-Host': 'youtube-to-mp43.p.rapidapi.com',
+          },
+        },
+        3,
+        'YOUTUBE'
+      );
+      
+      const data = await response.json();
+      log('INFO', 'YOUTUBE', 'Resposta da API', { data });
+      
+      if (data.download_url || data.downloadUrl || data.url) {
+        const downloadUrl = data.download_url || data.downloadUrl || data.url;
+        const title = data.title || `youtube_${videoId}`;
+        
+        log('INFO', 'YOUTUBE', 'Download bem-sucedido via RapidAPI');
+        return {
+          downloadUrl,
+          filename: `${title.substring(0, 50)}.mp4`,
+          method: 'RapidAPI (youtube-to-mp4)'
+        };
+      }
+      
+      throw new Error('URL de download não encontrada na resposta');
+    } catch (error) {
+      log('WARN', 'YOUTUBE', 'Falha no RapidAPI', { error: error.message });
+    }
+  }
+  
+  // Estratégia 2: Piped API (múltiplas instâncias)
+  const pipedInstances = [
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi.tokhmi.xyz',
+    'https://api.piped.privacydev.net',
+    'https://api-piped.mha.fi',
+  ];
+  
+  for (const instance of pipedInstances) {
+    try {
+      log('INFO', 'YOUTUBE', `Tentando Piped API: ${instance}`);
+      
+      const response = await fetchWithRetry(
+        `${instance}/streams/${videoId}`,
+        { method: 'GET' },
+        2,
+        'YOUTUBE'
+      );
+      
+      const data = await response.json();
+      
+      if (data.videoStreams && data.videoStreams.length > 0) {
+        // Pega a melhor qualidade disponível
+        const stream = data.videoStreams.find((s: any) => s.quality === '720p') ||
+                      data.videoStreams.find((s: any) => s.quality === '480p') ||
+                      data.videoStreams[0];
+        
+        const title = data.title || `youtube_${videoId}`;
+        
+        log('INFO', 'YOUTUBE', `Download bem-sucedido via Piped: ${instance}`);
+        return {
+          downloadUrl: stream.url,
+          filename: `${title.substring(0, 50)}.mp4`,
+          method: `Piped API (${new URL(instance).hostname})`
+        };
+      }
+      
+      throw new Error('Nenhum stream de vídeo encontrado');
+    } catch (error) {
+      log('WARN', 'YOUTUBE', `Falha no Piped ${instance}`, { error: error.message });
+      continue;
+    }
+  }
+  
+  log('ERROR', 'YOUTUBE', 'Todas as estratégias falharam');
+  throw new Error(
+    'Não foi possível baixar o vídeo do YouTube. ' +
+    'Verifique se o vídeo não é privado ou restrito por idade.'
+  );
+}
+
+// ==================== META ADS ====================
+async function downloadMetaAds(url: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
+  log('INFO', 'META', 'Iniciando download do Meta Ad Library', { url });
+  
+  try {
+    const response = await fetchWithRetry(
+      url,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        },
+      },
+      2,
+      'META'
+    );
+    
+    const html = await response.text();
+    
+    // Procura por URLs de vídeo no HTML
+    const videoPatterns = [
+      /"playable_url":"([^"]+)"/,
+      /"playable_url_quality_hd":"([^"]+)"/,
+      /"video_url":"([^"]+)"/,
+      /src":"([^"]+\.mp4[^"]*)"/,
+    ];
+    
+    for (const pattern of videoPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        const videoUrl = match[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+        log('INFO', 'META', 'Vídeo encontrado');
+        
+        return {
+          downloadUrl: videoUrl,
+          filename: `meta_ad_${Date.now()}.mp4`,
+          method: 'Scraping Meta Ad Library'
+        };
+      }
+    }
+    
+    throw new Error('Não foi possível extrair URL do vídeo');
+  } catch (error) {
+    log('ERROR', 'META', 'Erro no download', { error: error.message });
+    throw new Error(
+      'Não foi possível baixar o anúncio do Meta. ' +
+      'Verifique se a URL está correta e o anúncio contém vídeo.'
+    );
+  }
+}
+
+// ==================== SERVIDOR PRINCIPAL ====================
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { url, platform } = await req.json();
-
-    if (!url || !platform) {
+    log('INFO', 'SERVER', 'Nova requisição recebida', { url, platform });
+    
+    // Validação da URL
+    const validation = validateAndSanitizeUrl(url);
+    if (!validation.valid) {
       return new Response(
-        JSON.stringify({ success: false, error: 'URL e plataforma são obrigatórios' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: validation.error }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
+    
+    const sanitizedUrl = validation.sanitized;
+    let result;
 
-    console.log(`🎥 Processando download de ${platform}:`, url);
-
-    let downloadUrl: string | null = null;
-    let fileName = `video_${Date.now()}.mp4`;
-    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
-
+    // Processa baseado na plataforma
     switch (platform) {
       case 'youtube':
-        try {
-          const videoId = extractYouTubeId(url);
-          if (!videoId) throw new Error('ID do YouTube inválido');
-
-          fileName = `youtube_${videoId}.mp4`;
-          console.log('📹 Baixando vídeo do YouTube via RapidAPI...');
-
-          // 1) Tentar RapidAPI primeiro (se configurado)
-          if (rapidApiKey) {
-            try {
-              console.log('🔄 Tentando RapidAPI YouTube Downloader...');
-              const rapidResponse = await fetch(
-                `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
-                {
-                  headers: {
-                    'X-RapidAPI-Key': rapidApiKey,
-                    'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com'
-                  }
-                }
-              );
-
-              if (rapidResponse.ok) {
-                const rapidData = await rapidResponse.json();
-                console.log('📥 RapidAPI response:', rapidData);
-                
-                // Procurar link MP4
-                if (rapidData.link) {
-                  downloadUrl = rapidData.link;
-                  console.log('✅ URL obtida via RapidAPI');
-                } else if (rapidData.formats) {
-                  // Procurar formato MP4 na lista
-                  const mp4Format = rapidData.formats.find((f: any) => 
-                    f.mimeType?.includes('video/mp4') && f.hasAudio
-                  ) || rapidData.formats[0];
-                  
-                  if (mp4Format?.url) {
-                    downloadUrl = mp4Format.url;
-                    console.log('✅ URL obtida via RapidAPI (formats)');
-                  }
-                }
-              } else {
-                console.log('⚠️ RapidAPI retornou:', rapidResponse.status);
-              }
-            } catch (err: any) {
-              console.log('⚠️ RapidAPI falhou:', err.message);
-            }
-          }
-
-          // 2) Fallback: Piped API (múltiplas instâncias públicas)
-          if (!downloadUrl) {
-            console.log('🔄 Fallback para Piped API...');
-            const pipedInstances = [
-              'https://piped.video',
-              'https://pipedapi.kavin.rocks',
-              'https://piped-api.garudalinux.org',
-              'https://piped.projectsegfau.lt',
-            ];
-
-            for (const base of pipedInstances) {
-              try {
-                console.log(`🔄 Tentando ${base}...`);
-                const res = await fetch(`${base}/streams/${videoId}`, {
-                  headers: { 'Accept': 'application/json' }
-                });
-                
-                if (!res.ok) {
-                  console.log(`⚠️ ${base} retornou ${res.status}`);
-                  continue;
-                }
-
-                const data = await res.json();
-                
-                // Procurar stream com vídeo+áudio
-                const streams = [
-                  ...(data.videoStreams || []),
-                  ...(data.formatStreams || []),
-                ];
-
-                const mp4Stream = streams.find((s: any) => 
-                  (s.mimeType?.includes('video/mp4') || s.format === 'MPEG_4') &&
-                  (s.videoOnly === false || s.quality?.includes('720'))
-                );
-
-                if (mp4Stream?.url) {
-                  downloadUrl = mp4Stream.url;
-                  console.log(`✅ URL obtida via ${base}`);
-                  break;
-                }
-              } catch (err) {
-                console.log(`⚠️ ${base} falhou:`, (err as Error).message);
-                continue;
-              }
-            }
-          }
-
-          if (!downloadUrl) {
-            throw new Error('Não foi possível obter o vídeo do YouTube. Verifique se o vídeo é público.');
-          }
-        } catch (error: any) {
-          console.error('❌ Erro ao processar YouTube:', error);
-          throw new Error(`Erro ao baixar do YouTube: ${error.message}`);
-        }
+        result = await downloadYouTube(sanitizedUrl);
         break;
-
+        
       case 'instagram':
-        try {
-          fileName = `instagram_${Date.now()}.mp4`;
-          console.log('📸 Baixando vídeo do Instagram...');
-
-          // 1) Tentar RapidAPI primeiro (se configurado)
-          if (rapidApiKey) {
-            try {
-              console.log('🔄 Tentando RapidAPI Instagram Downloader...');
-              const rapidResponse = await fetch(
-                'https://instagram-scraper-api2.p.rapidapi.com/v1/post_info',
-                {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'X-RapidAPI-Key': rapidApiKey,
-                    'X-RapidAPI-Host': 'instagram-scraper-api2.p.rapidapi.com'
-                  },
-                  body: JSON.stringify({ code_or_id_or_url: url })
-                }
-              );
-
-              if (rapidResponse.ok) {
-                const rapidData = await rapidResponse.json();
-                console.log('📥 RapidAPI response:', rapidData);
-                
-                // Extrair URL do vídeo da resposta
-                if (rapidData.data?.video_url) {
-                  downloadUrl = rapidData.data.video_url;
-                  console.log('✅ URL obtida via RapidAPI');
-                } else if (rapidData.video_url) {
-                  downloadUrl = rapidData.video_url;
-                  console.log('✅ URL obtida via RapidAPI (direto)');
-                }
-              } else {
-                console.log('⚠️ RapidAPI retornou:', rapidResponse.status);
-              }
-            } catch (err: any) {
-              console.log('⚠️ RapidAPI falhou:', err.message);
-            }
-          }
-
-          // 2) Fallback: Scraping direto
-          if (!downloadUrl) {
-            console.log('🔄 Fallback para scraping...');
-            
-            async function fetchHTML(target: string): Promise<string | null> {
-              try {
-                const res = await fetch(target, {
-                  headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'Accept-Language': 'en-US,en;q=0.9'
-                  }
-                });
-                if (!res.ok) return null;
-                return await res.text();
-              } catch {
-                return null;
-              }
-            }
-
-            const igUrl = url.replace(/^http:\/\//, 'https://');
-            let html = await fetchHTML(igUrl);
-
-            // Tentar via proxy se falhar
-            if (!html) {
-              console.log('⚠️ Tentando via proxy r.jina.ai...');
-              const proxied = `https://r.jina.ai/${igUrl}`;
-              html = await fetchHTML(proxied);
-            }
-
-            if (!html) {
-              throw new Error('Não foi possível carregar a página do Instagram');
-            }
-
-            // Extrair URL do vídeo
-            const patterns = [
-              /property="og:video" content="([^"]+)"/,
-              /"video_url":"([^"]+)"/,
-              /(https:\\/\\/scontent[^\"\\\s]+?mp4[^\"\\\s]*)/,
-              /(https:\/\/scontent[^"'\s]+?\.mp4[^"'\s]*)/
-            ];
-
-            for (const pattern of patterns) {
-              const match = html.match(pattern);
-              if (match && match[1]) {
-                downloadUrl = match[1]
-                  .replace(/&amp;/g, '&')
-                  .replace(/\\u002F/g, '/')
-                  .replace(/\\/g, '');
-                console.log('✅ URL extraída via scraping');
-                break;
-              }
-            }
-
-            if (!downloadUrl) {
-              throw new Error('Não foi possível extrair URL do vídeo. Verifique se o post contém vídeo.');
-            }
-          }
-        } catch (error: any) {
-          console.error('❌ Erro ao processar Instagram:', error);
-          throw new Error(`Erro ao baixar do Instagram: ${error.message}`);
-        }
+        result = await downloadInstagram(sanitizedUrl);
         break;
-
+        
       case 'meta':
-        try {
-          fileName = `meta_ads_${Date.now()}.mp4`;
-          console.log('🎯 Baixando vídeo da Meta Ad Library (scraping)...');
-          
-          async function fetchMetaHTML(target: string): Promise<string | null> {
-            try {
-              const r = await fetch(target, {
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                  'Accept-Language': 'en-US,en;q=0.9'
-                }
-              });
-              if (!r.ok) return null;
-              return await r.text();
-            } catch {
-              return null;
-            }
-          }
-
-          const targets = [
-            url,
-            `https://r.jina.ai/${url}`
-          ];
-
-          let html: string | null = null;
-          for (const t of targets) {
-            console.log('🔄 Carregando HTML Meta Ads:', t);
-            html = await fetchMetaHTML(t);
-            if (html) break;
-          }
-
-          if (!html) throw new Error('Não foi possível carregar a página da Meta Ad Library');
-
-          // Padrões para encontrar URLs de vídeo do Facebook
-          const patterns = [
-            /"playable_url":"([^"]+)"/,
-            /"playable_url_quality_hd":"([^"]+)"/,
-            /"video_url":"([^"]+)"/,
-            /(https:\\/\\/video[^\"\\\s]+?\.mp4[^\"\\\s]*)/,
-            /(https:\/\/video[^"'\s]+?\.mp4[^"'\s]*)/
-          ];
-
-          for (const pattern of patterns) {
-            const m = html.match(pattern);
-            if (m && m[1]) {
-              downloadUrl = m[1]
-                .replace(/&amp;/g, '&')
-                .replace(/\\u002F/g, '/')
-                .replace(/\\/g, '');
-              console.log('✅ URL de vídeo encontrada via scraping');
-              break;
-            } else if (m && m[0] && m[0].startsWith('http')) {
-              downloadUrl = m[0];
-              console.log('✅ URL de vídeo encontrada via scraping');
-              break;
-            }
-          }
-
-          if (!downloadUrl) {
-            throw new Error('Não foi possível extrair URL do vídeo. Verifique se o anúncio contém vídeo.');
-          }
-        } catch (error: any) {
-          console.error('❌ Erro ao processar Meta Ad Library:', error);
-          throw new Error(`Erro ao baixar da Meta Ad Library: ${error.message}`);
-        }
+        result = await downloadMetaAds(sanitizedUrl);
         break;
-
+        
       default:
-        throw new Error('Plataforma não suportada');
+        throw new Error(`Plataforma não suportada: ${platform}`);
     }
 
-    if (!downloadUrl) {
-      throw new Error('Não foi possível obter URL de download');
-    }
+    log('INFO', 'SERVER', 'Download concluído com sucesso', { 
+      platform, 
+      method: result.method,
+      filename: result.filename 
+    });
 
-    console.log('✅ URL de download obtida:', downloadUrl.substring(0, 100) + '...');
-
-    // Retornar URL de download
     return new Response(
       JSON.stringify({
         success: true,
-        downloadUrl,
-        fileName,
+        downloadUrl: result.downloadUrl,
+        fileName: result.filename,
+        method: result.method,
+        platform,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: any) {
-    console.error('❌ Erro no download:', error);
-    
-    // Retornar 200 com success:false para permitir mensagem clara no cliente
+  } catch (error) {
+    log('ERROR', 'SERVER', 'Erro na requisição', { error: error.message });
     return new Response(
-      JSON.stringify({
+      JSON.stringify({ 
         success: false,
-        error: error.message || 'Erro ao processar vídeo. Tente novamente.',
+        error: error.message || 'Erro desconhecido ao processar o download',
+        timestamp: new Date().toISOString(),
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
-
-// Função auxiliar para extrair ID do YouTube
-function extractYouTubeId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/,
-    /youtube\.com\/embed\/([^&\s]+)/,
-    /youtube\.com\/v\/([^&\s]+)/,
-    /youtube\.com\/shorts\/([^&\s]+)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) return match[1];
-  }
-
-  return null;
-}

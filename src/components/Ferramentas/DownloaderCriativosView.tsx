@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, CheckCircle, AlertCircle, Video, Clock } from "lucide-react";
+import { Download, Loader2, CheckCircle, AlertCircle, Video, Clock, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ interface DownloadHistoryItem {
   platform: string;
   timestamp: number;
   filename?: string;
+  method?: string;
 }
 
 export const DownloaderCriativosView = () => {
@@ -20,6 +21,7 @@ export const DownloaderCriativosView = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
+  const [downloadMethod, setDownloadMethod] = useState<string>("");
   const [history, setHistory] = useState<DownloadHistoryItem[]>(() => {
     const saved = localStorage.getItem("download-history");
     return saved ? JSON.parse(saved) : [];
@@ -42,12 +44,13 @@ export const DownloaderCriativosView = () => {
     return <Badge className={className}>{label}</Badge>;
   };
 
-  const addToHistory = (url: string, platform: string, filename?: string) => {
+  const addToHistory = (url: string, platform: string, filename?: string, method?: string) => {
     const newItem: DownloadHistoryItem = {
       url,
       platform,
       timestamp: Date.now(),
-      filename
+      filename,
+      method
     };
     const newHistory = [newItem, ...history].slice(0, 5);
     setHistory(newHistory);
@@ -77,6 +80,7 @@ export const DownloaderCriativosView = () => {
     setIsLoading(true);
     setDownloadUrl(null);
     setFileName("");
+    setDownloadMethod("");
 
     try {
       console.log("🎥 Iniciando download de:", url);
@@ -90,11 +94,12 @@ export const DownloaderCriativosView = () => {
       if (data.success) {
         setDownloadUrl(data.downloadUrl);
         setFileName(data.fileName || `video_${Date.now()}.mp4`);
-        addToHistory(url, platform, data.fileName);
+        setDownloadMethod(data.method || "Método desconhecido");
+        addToHistory(url, platform, data.fileName, data.method);
         
         toast({
           title: "✅ Download pronto!",
-          description: "Clique no botão abaixo para salvar o vídeo."
+          description: `Método: ${data.method || "padrão"}`
         });
       } else {
         throw new Error(data.error || "Erro ao processar vídeo");
@@ -176,11 +181,31 @@ export const DownloaderCriativosView = () => {
                       <p className="text-sm text-green-700 dark:text-green-300">
                         {fileName}
                       </p>
+                      {downloadMethod && (
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          📡 Método: {downloadMethod}
+                        </p>
+                      )}
                     </div>
-                    <Button onClick={handleFileDownload} className="w-full">
-                      <Download className="h-4 w-4 mr-2" />
-                      Baixar Arquivo (.mp4)
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button onClick={handleFileDownload} className="flex-1">
+                        <Download className="h-4 w-4 mr-2" />
+                        Baixar Arquivo (.mp4)
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          navigator.clipboard.writeText(downloadUrl);
+                          toast({
+                            title: "URL copiada!",
+                            description: "Link do vídeo copiado para a área de transferência."
+                          });
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -233,6 +258,9 @@ export const DownloaderCriativosView = () => {
                     <p className="text-sm truncate">{item.url}</p>
                     {item.filename && (
                       <p className="text-xs text-muted-foreground">{item.filename}</p>
+                    )}
+                    {item.method && (
+                      <p className="text-xs text-muted-foreground">📡 {item.method}</p>
                     )}
                   </div>
                   <Button
@@ -300,7 +328,7 @@ export const DownloaderCriativosView = () => {
                 <li>O arquivo será salvo na sua máquina</li>
               </ol>
               <p className="mt-3 text-xs">
-                <strong>Tecnologia:</strong> Utiliza Cobalt API (YouTube/Instagram) e scraping customizado (Meta Ads)
+                <strong>Tecnologia:</strong> Sistema em camadas com RapidAPI (prioridade), APIs públicas e scraping como fallback. Retry automático e logs detalhados.
               </p>
             </div>
           </div>
