@@ -22,6 +22,7 @@ serve(async (req) => {
       );
     }
 
+    // Cliente com token do usuário para autenticação
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -32,21 +33,40 @@ serve(async (req) => {
       }
     );
 
+    // Cliente com service role para operações administrativas (ignora RLS)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+
     // Verificar autenticação
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
+      console.error('Erro de autenticação:', authError);
       return new Response(
         JSON.stringify({ error: 'Não autorizado' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verificar se o usuário é admin ou gestor
-    const { data: profile } = await supabaseClient
+    console.log('Usuário autenticado:', user.id);
+
+    // Verificar se o usuário é admin ou gestor usando o cliente admin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('nivel_acesso')
       .eq('user_id', user.id)
       .single();
+
+    if (profileError) {
+      console.error('Erro ao buscar perfil:', profileError);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao verificar permissões do usuário' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Perfil do usuário:', profile);
 
     if (!profile || !['admin', 'gestor_trafego'].includes(profile.nivel_acesso)) {
       return new Response(
@@ -66,8 +86,8 @@ serve(async (req) => {
 
     console.log(`Finalizando desafio: ${desafioId}`);
 
-    // Buscar informações do desafio
-    const { data: desafio, error: desafioError } = await supabaseClient
+    // Buscar informações do desafio usando cliente admin
+    const { data: desafio, error: desafioError } = await supabaseAdmin
       .from('gamificacao_desafios')
       .select('*')
       .eq('id', desafioId)
@@ -88,8 +108,8 @@ serve(async (req) => {
       );
     }
 
-    // Buscar o vencedor do ranking (posição 1)
-    const { data: ranking, error: rankingError } = await supabaseClient
+    // Buscar o vencedor do ranking (posição 1) usando cliente admin
+    const { data: ranking, error: rankingError } = await supabaseAdmin
       .from('gamificacao_ranking')
       .select('*')
       .eq('desafio_id', desafioId)
@@ -106,8 +126,8 @@ serve(async (req) => {
     let vencedor: { nome: string; avatar_url: string | null } | null = null;
 
     if (ranking) {
-      // Buscar dados do colaborador vencedor
-      const { data: colaborador, error: colError } = await supabaseClient
+      // Buscar dados do colaborador vencedor usando cliente admin
+      const { data: colaborador, error: colError } = await supabaseAdmin
         .from('colaboradores')
         .select('nome, avatar_url')
         .eq('id', ranking.colaborador_id)
@@ -127,8 +147,8 @@ serve(async (req) => {
 
     console.log('Mensagem do vencedor:', mensagemVencedor);
 
-    // Marcar desafio como finalizado
-    const { error: updateError } = await supabaseClient
+    // Marcar desafio como finalizado usando cliente admin
+    const { error: updateError } = await supabaseAdmin
       .from('gamificacao_desafios')
       .update({ 
         finalizado: true,
@@ -144,10 +164,10 @@ serve(async (req) => {
       );
     }
 
-    // Criar notificação para todos
+    // Criar notificação para todos usando cliente admin
     const notificacaoConteudo = `O desafio "${desafio.titulo}" foi finalizado!\n\n${mensagemVencedor}\n\nParabéns a todos os participantes pelo empenho! 🎉`;
 
-    const { error: avisoError } = await supabaseClient
+    const { error: avisoError } = await supabaseAdmin
       .from('avisos')
       .insert({
         titulo: `Desafio Finalizado: ${desafio.titulo}`,
