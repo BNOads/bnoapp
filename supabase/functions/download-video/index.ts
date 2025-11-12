@@ -30,82 +30,70 @@ serve(async (req) => {
         try {
           const videoId = extractYouTubeId(url);
           if (!videoId) throw new Error('ID do YouTube inválido');
-          
+
           fileName = `youtube_${videoId}.mp4`;
-          console.log('📹 Tentando baixar vídeo do YouTube...');
-          
-          // Tentar múltiplos serviços em ordem
-          let success = false;
-          const services = [
-            {
-              name: 'Cobalt API v7',
-              endpoint: 'https://co.wuk.sh/api/json',
-              buildRequest: () => ({
-                url: url,
-                vCodec: 'h264',
-                vQuality: '720',
-                aFormat: 'mp3',
-                filenamePattern: 'basic',
-                isAudioOnly: false,
-                isNoTTWatermark: true,
-              })
-            },
-            {
-              name: 'Cobalt API (legacy)',
-              endpoint: 'https://api.cobalt.tools/api/json',
-              buildRequest: () => ({
-                url: url,
-                vCodec: 'h264',
-                vQuality: '720',
-              })
-            }
+          console.log('📹 Tentando baixar vídeo do YouTube via Piped API (fallback múltiplo)...');
+
+          const pipedInstances = [
+            'https://piped.video',
+            'https://piped.projectsegfau.lt',
+            'https://piped.jotoma.de',
+            'https://watch.leptons.xyz',
+            'https://piped.hadwiger.dev'
           ];
 
-          for (const service of services) {
+          let success = false;
+
+          for (const base of pipedInstances) {
             try {
-              console.log(`🔄 Tentando ${service.name}...`);
-              
-              const response = await fetch(service.endpoint, {
-                method: 'POST',
+              console.log(`🔄 Buscando streams em ${base}...`);
+              const res = await fetch(`${base}/api/v1/streams/${videoId}`, {
                 headers: {
                   'Accept': 'application/json',
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(service.buildRequest())
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36'
+                }
               });
+              const body = await res.text();
+              console.log(`📥 ${base} status ${res.status}`);
+              if (!res.ok) continue;
 
-              const responseText = await response.text();
-              console.log(`📥 ${service.name} response (${response.status}):`, responseText);
+              const data = JSON.parse(body);
+              // Tentar encontrar stream MP4 com áudio
+              const streams = [
+                ...(data.formatStreams || []),
+                ...(data.videoStreams || []),
+              ];
 
-              if (!response.ok) {
-                console.log(`⚠️ ${service.name} retornou ${response.status}, tentando próximo...`);
-                continue;
+              const mp4Candidates = streams
+                .filter((s: any) =>
+                  (s.container?.includes('mp4') || s.mimeType?.includes('mp4')) && (s.url || s.proxyUrl)
+                );
+
+              let chosen: any = mp4Candidates.find((s: any) =>
+                (s.quality?.includes('720') || s.qualityLabel?.includes('720'))
+              ) || mp4Candidates[0];
+
+              if (!chosen && data.hls) {
+                // Fallback para HLS (o navegador baixa como arquivo m3u8)
+                downloadUrl = data.hls;
+                success = true;
+              } else if (chosen) {
+                downloadUrl = chosen.url || chosen.proxyUrl;
+                success = true;
               }
 
-              const data = JSON.parse(responseText);
-
-              if (data.status === 'stream' || data.status === 'redirect') {
-                downloadUrl = data.url;
-                console.log(`✅ Download URL obtida via ${service.name}`);
-                success = true;
+              if (success && downloadUrl) {
+                console.log('✅ URL obtida via Piped:', downloadUrl.substring(0, 80) + '...');
                 break;
-              } else if (data.status === 'picker') {
-                downloadUrl = data.picker?.[0]?.url || data.url;
-                console.log(`✅ Download URL obtida via ${service.name} (picker)`);
-                success = true;
-                break;
-              } else if (data.status === 'error') {
-                console.log(`⚠️ ${service.name} retornou erro:`, data.text);
-                continue;
               }
-            } catch (err: any) {
-              console.log(`⚠️ ${service.name} falhou:`, err.message);
+            } catch (err) {
+              console.log('⚠️ Falha na instância Piped:', (err as Error).message);
               continue;
             }
           }
 
-          if (!success) {
-            throw new Error('Todos os serviços de download falharam. Tente novamente mais tarde.');
+          if (!success || !downloadUrl) {
+            throw new Error('Não foi possível obter o stream do YouTube (todas as instâncias falharam)');
           }
         } catch (error: any) {
           console.error('❌ Erro ao processar YouTube:', error);
@@ -116,67 +104,65 @@ serve(async (req) => {
       case 'instagram':
         try {
           fileName = `instagram_${Date.now()}.mp4`;
-          console.log('📸 Tentando baixar vídeo do Instagram...');
-          
-          let success = false;
-          const services = [
-            {
-              name: 'Cobalt API v7',
-              endpoint: 'https://co.wuk.sh/api/json'
-            },
-            {
-              name: 'Cobalt API (legacy)',
-              endpoint: 'https://api.cobalt.tools/api/json'
+          console.log('📸 Tentando baixar vídeo do Instagram (scraping)...');
+
+          // Normalizar URL (garantir https)
+          const igUrl = url.replace(/^http:\/\//, 'https://');
+
+          // 1) Tentar obter HTML direto
+          async function fetchHTML(target: string): Promise<string | null> {
+            try {
+              const res = await fetch(target, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
+                  'Accept-Language': 'en-US,en;q=0.9'
+                }
+              });
+              if (!res.ok) return null;
+              return await res.text();
+            } catch {
+              return null;
             }
+          }
+
+          let html = await fetchHTML(igUrl);
+
+          // 2) Fallback por proxy de leitura (r.jina.ai) para evitar bloqueios
+          if (!html) {
+            console.log('⚠️ HTML direto falhou, tentando via r.jina.ai proxy...');
+            const proxied = `https://r.jina.ai/http://${igUrl.replace(/^https?:\/\//, '')}`;
+            html = await fetchHTML(proxied);
+          }
+
+          if (!html) {
+            throw new Error('Não foi possível carregar a página do Instagram');
+          }
+
+          // 3) Extrair URL do vídeo via diferentes padrões
+          const patterns = [
+            /property="og:video" content="([^"]+)"/,
+            /property='og:video' content='([^']+)'/,
+            /"video_url":"([^"]+)"/,
+            /(https:\\u002F\\u002Fscontent[^"\\\s]+?mp4[^"\\\s]*)/,
+            /(https:\/\/scontent[^"'\s]+?\.mp4[^"'\s]*)/
           ];
 
-          for (const service of services) {
-            try {
-              console.log(`🔄 Tentando ${service.name}...`);
-              
-              const response = await fetch(service.endpoint, {
-                method: 'POST',
-                headers: {
-                  'Accept': 'application/json',
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  url: url,
-                  vCodec: 'h264',
-                  vQuality: '720',
-                })
-              });
-
-              const responseText = await response.text();
-              console.log(`📥 ${service.name} response (${response.status}):`, responseText);
-
-              if (!response.ok) {
-                console.log(`⚠️ ${service.name} retornou ${response.status}, tentando próximo...`);
-                continue;
-              }
-
-              const data = JSON.parse(responseText);
-
-              if (data.status === 'stream' || data.status === 'redirect') {
-                downloadUrl = data.url;
-                console.log(`✅ Download URL obtida via ${service.name}`);
-                success = true;
-                break;
-              } else if (data.status === 'picker') {
-                downloadUrl = data.picker?.[0]?.url || data.url;
-                console.log(`✅ Download URL obtida via ${service.name} (picker)`);
-                success = true;
-                break;
-              }
-            } catch (err: any) {
-              console.log(`⚠️ ${service.name} falhou:`, err.message);
-              continue;
+          for (const pattern of patterns) {
+            const match = html.match(pattern);
+            if (match && match[1]) {
+              downloadUrl = match[1]
+                .replace(/&amp;/g, '&')
+                .replace(/\\u002F/g, '/')
+                .replace(/\\/g, '');
+              break;
             }
           }
 
-          if (!success) {
-            throw new Error('Não foi possível baixar do Instagram. Tente novamente mais tarde.');
+          if (!downloadUrl) {
+            throw new Error('Não foi possível extrair a URL do vídeo do Instagram');
           }
+
+          console.log('✅ URL do Instagram encontrada:', downloadUrl.substring(0, 120) + '...');
         } catch (error: any) {
           console.error('❌ Erro ao processar Instagram:', error);
           throw new Error(`Erro ao baixar do Instagram: ${error.message}`);
@@ -224,9 +210,9 @@ serve(async (req) => {
             
             // Procurar por URLs de vídeo no HTML (padrões comuns do Facebook)
             const videoPatterns = [
-              /"playable_url":"([^"]+)"/,
-              /"playable_url_quality_hd":"([^"]+)"/,
-              /"video_url":"([^"]+)"/,
+              /"playable_url":"([^\"]+)"/,
+              /"playable_url_quality_hd":"([^\"]+)"/,
+              /"video_url":"([^\"]+)"/,
               /https:\/\/video[^"'\s]+\.mp4/
             ];
 
@@ -285,12 +271,13 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('❌ Erro no download:', error);
     
+    // Retornar 200 com success:false para permitir mensagem clara no cliente
     return new Response(
       JSON.stringify({
         success: false,
         error: error.message || 'Erro ao processar vídeo. Tente novamente.',
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
