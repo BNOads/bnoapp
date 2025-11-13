@@ -14,6 +14,7 @@ import { LinkNode } from '@lexical/link';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { HeadingsPlugin, HeadingInfo } from './HeadingsPlugin';
+import { FloatingToolbarPlugin } from './FloatingToolbarPlugin';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface ArquivoReuniaoEditorProps {
@@ -22,9 +23,10 @@ interface ArquivoReuniaoEditorProps {
   initialContent?: any;
   onContentChange?: (content: any) => void;
   onHeadingsChange?: (headings: HeadingInfo[]) => void;
+  onAddToIndex?: (text: string) => void;
 }
 
-export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContentChange, onHeadingsChange }: ArquivoReuniaoEditorProps) {
+export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContentChange, onHeadingsChange, onAddToIndex }: ArquivoReuniaoEditorProps) {
   const { toast } = useToast();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const editorRef = useRef<LexicalEditor | null>(null);
