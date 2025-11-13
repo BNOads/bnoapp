@@ -19,11 +19,11 @@ import { useToast } from '@/hooks/use-toast';
 import { ArquivoReuniaoEditor } from './ArquivoReuniaoEditor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuth } from '@/components/Auth/AuthContext';
-import { useArquivoVersioning, type ArquivoVersion } from '@/hooks/useArquivoVersioning';
+import { useArquivoVersioning } from '@/hooks/useArquivoVersioning';
+import { Input } from '@/components/ui/input';
 import { ArquivoHistoricoVersoes } from './ArquivoHistoricoVersoes';
 import { ArquivoVisualizarVersao } from './ArquivoVisualizarVersao';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { 
   Dialog,
   DialogContent,
@@ -160,7 +160,6 @@ export function ArquivoReuniaoView() {
     } else {
       // Realçar texto no conteúdo
       if (editorElement) {
-        const range = document.createRange();
         const walker = document.createTreeWalker(
           editorElement,
           NodeFilter.SHOW_TEXT,
@@ -173,7 +172,6 @@ export function ArquivoReuniaoView() {
         while (node = walker.nextNode()) {
           const text = node.textContent || '';
           if (currentPos + text.length >= result.position) {
-            const offset = result.position - currentPos;
             if (node.parentElement) {
               node.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
@@ -226,13 +224,13 @@ export function ArquivoReuniaoView() {
         Object.keys(state).forEach((key) => {
           const presences = state[key] as any[];
           if (presences && presences.length > 0) {
-            const presence = presences[0] as any;
-            if (presence && typeof presence === 'object') {
+            const presence = presences[0];
+            if (presence.user_id !== user.id) {
               users.push({
-                userId: key,
-                userName: presence.userName || presence.user_name || 'Usuário',
-                color: presence.color || userColor,
-                lastActive: presence.lastActive || new Date().toISOString()
+                userId: presence.user_id,
+                userName: presence.user_name,
+                color: presence.color,
+                lastActive: presence.lastActive
               });
             }
           }
@@ -240,10 +238,10 @@ export function ArquivoReuniaoView() {
 
         setOnlineUsers(users);
       })
-      .subscribe(async (status) => {
+      .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({
-            userName: userData.nome,
+          channel.track({
+            user_id: user.id,
             user_name: userData.nome,
             color: userColor,
             lastActive: new Date().toISOString()
@@ -267,7 +265,6 @@ export function ArquivoReuniaoView() {
       try {
         setLoading(true);
 
-        // Check if arquivo exists
         const { data: existingArquivo, error: fetchError } = await supabase
           .from('arquivo_reuniao')
           .select('*')
@@ -280,7 +277,6 @@ export function ArquivoReuniaoView() {
           setArquivoId(existingArquivo.id);
           setConteudo(existingArquivo.conteudo);
         } else {
-          // Create new arquivo
           const { data: newArquivo, error: createError } = await supabase
             .from('arquivo_reuniao')
             .insert({
@@ -310,7 +306,6 @@ export function ArquivoReuniaoView() {
     loadOrCreateArquivo();
   }, [anoAtual, user, toast]);
 
-  // Debounced save
   const handleContentChange = (newContent: any) => {
     pendingContentRef.current = newContent;
 
@@ -327,7 +322,6 @@ export function ArquivoReuniaoView() {
     if (!arquivoId || !content) return false;
     
     if (isSavingRef.current) {
-      console.log('⏭️ Salvamento já em progresso, ignorando...');
       return false;
     }
 
@@ -351,24 +345,21 @@ export function ArquivoReuniaoView() {
 
       setLastSaved(new Date());
       setSaveStatus('saved');
-      console.log('✅ Conteúdo salvo automaticamente');
       
       setTimeout(() => setSaveStatus('idle'), 3000);
       return true;
     } catch (error: any) {
-      console.error('❌ Erro ao salvar (tentativa ' + (retryCount + 1) + '):', error);
+      console.error('❌ Erro ao salvar:', error);
       
       if (retryCount < 2) {
         const delay = Math.pow(2, retryCount) * 1000;
-        console.log(`⏳ Tentando novamente em ${delay}ms...`);
-        
         await new Promise(resolve => setTimeout(resolve, delay));
         return await saveContent(content, retryCount + 1);
       } else {
         setSaveStatus('error');
         toast({
           title: "❌ Erro ao salvar",
-          description: "Não foi possível salvar após 3 tentativas. Use 'Salvar Manualmente'.",
+          description: "Não foi possível salvar. Use 'Salvar Manualmente'.",
           variant: "destructive"
         });
         return false;
@@ -380,36 +371,58 @@ export function ArquivoReuniaoView() {
   };
 
   const handleManualSave = async () => {
-    if (pendingContentRef.current) {
-      const success = await saveContent(pendingContentRef.current);
-      if (success) {
-        toast({
-          title: "✅ Salvo",
-          description: "Arquivo salvo com sucesso",
-          duration: 2000
-        });
-      }
+    const content = pendingContentRef.current || conteudo;
+    const success = await saveContent(content);
+    
+    if (success) {
+      toast({
+        title: "✅ Salvo",
+        description: "Conteúdo salvo com sucesso",
+      });
     }
   };
 
   const handleSaveVersion = async () => {
-    if (pendingContentRef.current && arquivoId) {
-      const success = await versioning.saveManualVersion(
-        pendingContentRef.current, 
-        saveVersionObservation || undefined
-      );
-      
-      if (success) {
-        setShowSaveVersionModal(false);
-        setSaveVersionObservation('');
-        await versioning.loadVersions();
-      }
+    if (!arquivoId) return;
+
+    const saved = await versioning.createVersion(
+      conteudo,
+      'manual',
+      saveVersionObservation || undefined
+    );
+
+    if (saved) {
+      setShowSaveVersionModal(false);
+      setSaveVersionObservation('');
+      toast({
+        title: "✅ Versão salva",
+        description: "Versão manual criada com sucesso",
+      });
     }
   };
 
-  const handleOpenHistory = async () => {
-    await versioning.loadVersions();
-    setShowHistoryModal(true);
+  const handleRestoreVersion = async (version: any) => {
+    if (!arquivoId) return;
+
+    try {
+      setConteudo(version.conteudo);
+      await saveContent(version.conteudo);
+      
+      setShowHistoryModal(false);
+      setShowViewModal(false);
+      
+      toast({
+        title: "✅ Versão restaurada",
+        description: `Versão ${version.versao} foi restaurada`,
+      });
+    } catch (error) {
+      console.error('Erro ao restaurar versão:', error);
+      toast({
+        title: "❌ Erro",
+        description: "Não foi possível restaurar a versão",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleViewVersion = (version: any) => {
@@ -417,18 +430,9 @@ export function ArquivoReuniaoView() {
     setShowViewModal(true);
   };
 
-  const handleRestoreVersion = async (version: any) => {
-    if (pendingContentRef.current) {
-      const restoredContent = await versioning.restoreVersion(version, pendingContentRef.current);
-      
-      if (restoredContent) {
-        setConteudo(restoredContent);
-        await saveContent(restoredContent);
-        await versioning.loadVersions();
-        setShowHistoryModal(false);
-        setShowViewModal(false);
-      }
-    }
+  const handleOpenHistory = async () => {
+    await versioning.loadVersions();
+    setShowHistoryModal(true);
   };
 
   const handleHeadingsChange = (headings: any[]) => {
@@ -444,7 +448,6 @@ export function ArquivoReuniaoView() {
     setIndicesTitulos(prev => [...prev, newHeading]);
   }, []);
 
-  // Cleanup ao desmontar
   useEffect(() => {
     return () => {
       versioning.cleanup();
@@ -467,14 +470,42 @@ export function ArquivoReuniaoView() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Área principal - Editor */}
       <div className="flex-1 flex flex-col">
         <div className="border-b border-border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-2xl font-bold">Arquivo de Reunião {anoAtual}</h1>
+            <div>
+              <h1 className="text-2xl font-bold">Arquivo de Reunião {anoAtual}</h1>
+              <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
+                  saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
+                  saveStatus === 'saved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
+                  saveStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
+                  'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-400'
+                }`}>
+                  {saveStatus === 'saving' && (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  )}
+                  {saveStatus === 'saved' && (
+                    <>
+                      <span className="inline-block w-1.5 h-1.5 bg-green-600 rounded-full"></span>
+                      <span>Salvo</span>
+                    </>
+                  )}
+                  {saveStatus === 'error' && <span>Erro ao salvar</span>}
+                  {saveStatus === 'idle' && lastSaved && (
+                    <>
+                      <Clock className="w-3 h-3" />
+                      <span>{lastSaved.toLocaleTimeString()}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
             
             <div className="flex items-center gap-3">
-              {/* Online users */}
               {onlineUsers.length > 0 && (
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
@@ -498,21 +529,12 @@ export function ArquivoReuniaoView() {
                 </div>
               )}
 
-              {/* Botões de Versionamento */}
-              <Button
-                onClick={handleOpenHistory}
-                variant="outline"
-                size="sm"
-              >
+              <Button onClick={handleOpenHistory} variant="outline" size="sm">
                 <History className="h-4 w-4 mr-2" />
                 Histórico
               </Button>
 
-              <Button
-                onClick={() => setShowSaveVersionModal(true)}
-                variant="outline"
-                size="sm"
-              >
+              <Button onClick={() => setShowSaveVersionModal(true)} variant="outline" size="sm">
                 <Bookmark className="h-4 w-4 mr-2" />
                 Salvar Versão
               </Button>
@@ -524,117 +546,71 @@ export function ArquivoReuniaoView() {
                 size="sm"
               >
                 {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                {saveStatus === 'error' ? 'Tentar Salvar' : 'Salvar'}
+                Salvar
               </Button>
             </div>
           </div>
 
-          {/* Barra de busca */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar no texto ou no índice..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-24"
-            />
-            {searchQuery && (
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                {searchResults.length > 0 && (
-                  <>
-                    <span className="text-xs text-muted-foreground mr-1">
-                      {currentResultIndex + 1}/{searchResults.length}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0"
-                      onClick={handlePrevResult}
-                    >
-                      <ChevronUp className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0"
-                      onClick={handleNextResult}
-                    >
-                      <ChevronDownIcon className="h-3 w-3" />
-                    </Button>
-                  </>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Buscar no texto ou no índice..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0"
-                  onClick={clearSearch}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
               </div>
-            )}
-          </div>
 
-          {/* Resultados da busca */}
-          {showSearchResults && searchResults.length > 0 && (
-            <div className="mt-2 p-2 bg-muted rounded-md text-xs">
-              <div className="font-semibold mb-1">
-                {searchResults.length} resultado(s) encontrado(s)
-              </div>
-              <div className="space-y-1">
-                {searchResults.slice(0, 5).map((result, index) => (
+              {searchResults.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {currentResultIndex + 1} de {searchResults.length}
+                  </Badge>
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="outline" onClick={handlePrevResult}>
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleNextResult}>
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
+                {searchResults.map((result, index) => (
                   <button
                     key={index}
-                    className={`w-full text-left p-2 rounded hover:bg-accent transition-colors ${
+                    onClick={() => navigateToResult(index)}
+                    className={`w-full text-left px-4 py-2 hover:bg-accent transition-colors border-b border-border last:border-b-0 ${
                       index === currentResultIndex ? 'bg-accent' : ''
                     }`}
-                    onClick={() => navigateToResult(index)}
                   >
-                    <Badge variant={result.type === 'index' ? 'default' : 'secondary'} className="text-xs mb-1">
-                      {result.type === 'index' ? 'Índice' : 'Texto'}
-                    </Badge>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {result.context}
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant={result.type === 'index' ? 'default' : 'secondary'} className="text-xs">
+                        {result.type === 'index' ? 'Índice' : 'Texto'}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {result.context}
+                      </span>
                     </div>
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Status de Salvamento */}
-          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-2">
-            <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
-              saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
-              saveStatus === 'saved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
-              saveStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
-              'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-400'
-            }`}>
-              {saveStatus === 'saving' && (
-                <>
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>Salvando...</span>
-                </>
-              )}
-              {saveStatus === 'saved' && (
-                <>
-                  <span className="inline-block w-1.5 h-1.5 bg-green-600 rounded-full"></span>
-                  <span>Salvo {lastSaved && `há ${Math.floor((Date.now() - lastSaved.getTime()) / 1000)}s`}</span>
-                </>
-              )}
-              {saveStatus === 'error' && (
-                <>
-                  <span className="inline-block w-1.5 h-1.5 bg-red-600 rounded-full"></span>
-                  <span>Erro ao salvar</span>
-                </>
-              )}
-              {saveStatus === 'idle' && lastSaved && (
-                <>
-                  <Clock className="w-3 h-3 opacity-50" />
-                  <span className="opacity-70">Último salvamento: {lastSaved.toLocaleTimeString()}</span>
-                </>
-              )}
-            </div>
+            )}
           </div>
         </div>
 
@@ -652,7 +628,6 @@ export function ArquivoReuniaoView() {
         </div>
       </div>
 
-      {/* Sidebar direita - Índice de Títulos */}
       <div className="w-72 border-l border-border bg-card overflow-y-auto">
         <div className="p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -694,7 +669,6 @@ export function ArquivoReuniaoView() {
         </div>
       </div>
 
-      {/* Modais de Versionamento */}
       <ArquivoHistoricoVersoes
         open={showHistoryModal}
         onOpenChange={setShowHistoryModal}
