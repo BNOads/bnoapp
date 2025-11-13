@@ -457,6 +457,7 @@ export function ArquivoReuniaoView() {
               initialContent={conteudo}
               onContentChange={handleContentChange}
               onHeadingsChange={handleHeadingsChange}
+              onAddToIndex={handleAddToIndex}
             />
           </div>
         </div>
