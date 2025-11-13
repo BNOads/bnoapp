@@ -49,7 +49,7 @@ export function ArquivoReuniaoView() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [clientesMencionados, setClientesMencionados] = useState<Set<string>>(new Set());
+  const [marcadoresManuais, setMarcadoresManuais] = useState<Set<string>>(new Set());
   const [indicesTitulos, setIndicesTitulos] = useState<{ text: string; tag: string; id: string }[]>([]);
   
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
@@ -159,9 +159,6 @@ export function ArquivoReuniaoView() {
         if (existingArquivo) {
           setArquivoId(existingArquivo.id);
           setConteudo(existingArquivo.conteudo);
-          if (existingArquivo.clientes_relacionados && Array.isArray(existingArquivo.clientes_relacionados)) {
-            setClientesMencionados(new Set(existingArquivo.clientes_relacionados.map(String)));
-          }
         } else {
           // Create new arquivo
           const { data: newArquivo, error: createError } = await supabase
@@ -288,34 +285,19 @@ export function ArquivoReuniaoView() {
     setSelectedDate({ mes: mesAtual + 1, dia: diaAtual });
   };
 
-  const handleClientMention = useCallback((clientName: string) => {
-    setClientesMencionados(prev => {
-      // Evitar duplicação
-      if (prev.has(clientName)) {
-        return prev;
-      }
-      
+  const handleManualIndexMark = useCallback((text: string) => {
+    setMarcadoresManuais(prev => {
       const newSet = new Set(prev);
-      newSet.add(clientName);
+      if (newSet.has(text)) {
+        newSet.delete(text);
+        console.log('🗑️ Marcador removido:', text);
+      } else {
+        newSet.add(text);
+        console.log('📌 Marcador adicionado:', text);
+      }
       return newSet;
     });
   }, []);
-
-  // Salvar clientes mencionados no banco (separado do setState)
-  useEffect(() => {
-    if (arquivoId && clientesMencionados.size > 0) {
-      const uniqueClients = Array.from(clientesMencionados);
-      supabase
-        .from('arquivo_reuniao')
-        .update({ clientes_relacionados: uniqueClients })
-        .eq('id', arquivoId)
-        .then(({ error }) => {
-          if (error) {
-            console.error('❌ Erro ao salvar clientes:', error);
-          }
-        });
-    }
-  }, [arquivoId, clientesMencionados]);
 
   const handleHeadingsChange = (headings: any[]) => {
     setIndicesTitulos(headings);
@@ -476,8 +458,8 @@ export function ArquivoReuniaoView() {
               ano={anoAtual}
               initialContent={conteudo}
               onContentChange={handleContentChange}
-              onClientMention={handleClientMention}
               onHeadingsChange={handleHeadingsChange}
+              onManualIndexMark={handleManualIndexMark}
             />
           </div>
         </div>
@@ -529,26 +511,27 @@ export function ArquivoReuniaoView() {
 
           <Separator className="my-4" />
 
-          {/* Clientes Mencionados */}
+          {/* Marcadores Manuais */}
           <div>
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Clientes Mencionados
+              <BookOpen className="h-4 w-4" />
+              Marcadores Manuais
             </h3>
-            {clientesMencionados.size > 0 ? (
+            {marcadoresManuais.size > 0 ? (
               <div className="space-y-1">
-                {Array.from(clientesMencionados).map((cliente) => (
+                {Array.from(marcadoresManuais).map((marcador) => (
                   <div
-                    key={cliente}
-                    className="px-2 py-1.5 rounded text-sm bg-primary/10 text-primary"
+                    key={marcador}
+                    className="px-2 py-1.5 rounded text-sm bg-primary/10 text-primary flex items-center gap-2"
                   >
-                    @{cliente}
+                    <span>📌</span>
+                    <span>{marcador}</span>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Digite @NomeDoCliente no texto para adicionar menções
+                Clique 2x em uma palavra no texto para marcá-la aqui
               </p>
             )}
           </div>
