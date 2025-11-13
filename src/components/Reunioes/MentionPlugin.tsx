@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { TextNode } from 'lexical';
+import { $getRoot } from 'lexical';
 
 interface MentionPluginProps {
   onMention: (clientName: string) => void;
@@ -9,38 +9,46 @@ interface MentionPluginProps {
 export function MentionPlugin({ onMention }: MentionPluginProps) {
   const [editor] = useLexicalComposerContext();
   const processedMentionsRef = useRef<Set<string>>(new Set());
-  const debounceTimerRef = useRef<NodeJS.Timeout>();
+  const lastTextRef = useRef<string>('');
 
-  useEffect(() => {
-    return editor.registerNodeTransform(TextNode, (node: TextNode) => {
-      const text = node.getTextContent();
+  const processMentions = useCallback(() => {
+    editor.getEditorState().read(() => {
+      const root = $getRoot();
+      const text = root.getTextContent();
       
-      // Detectar menções completas: @NomeDoCliente seguido de espaço, quebra de linha ou fim de texto
-      // Mínimo de 2 caracteres após o @
+      // Só processar se o texto mudou
+      if (text === lastTextRef.current) {
+        return;
+      }
+      lastTextRef.current = text;
+      
+      // Detectar menções completas: @NomeDoCliente seguido de espaço ou fim
       const mentionRegex = /@(\w{2,})(?:\s|$)/g;
+      const currentMentions = new Set<string>();
       let match;
-      const foundMentions = new Set<string>();
       
       while ((match = mentionRegex.exec(text)) !== null) {
-        const mentionedName = match[1];
-        foundMentions.add(mentionedName);
+        currentMentions.add(match[1]);
       }
       
-      // Debounce para evitar múltiplas chamadas durante digitação rápida
-      if (foundMentions.size > 0) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = setTimeout(() => {
-          foundMentions.forEach(mention => {
-            // Apenas notificar se ainda não foi processado
-            if (!processedMentionsRef.current.has(mention)) {
-              processedMentionsRef.current.add(mention);
-              onMention(mention);
-            }
-          });
-        }, 500);
-      }
+      // Apenas notificar novas menções
+      currentMentions.forEach(mention => {
+        if (!processedMentionsRef.current.has(mention)) {
+          processedMentionsRef.current.add(mention);
+          onMention(mention);
+        }
+      });
     });
   }, [editor, onMention]);
+
+  useEffect(() => {
+    // Usar update listener ao invés de node transform
+    const unregister = editor.registerUpdateListener(() => {
+      processMentions();
+    });
+
+    return unregister;
+  }, [editor, processMentions]);
 
   return null;
 }
