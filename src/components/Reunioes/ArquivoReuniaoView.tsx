@@ -288,6 +288,19 @@ export function ArquivoReuniaoView() {
     setIndicesTitulos(headings);
   };
 
+  const handleAddToIndex = useCallback((text: string) => {
+    // Add heading to index immediately
+    const newHeading = {
+      text,
+      tag: 'h2',
+      id: `heading-${Date.now()}`
+    };
+    
+    setIndicesTitulos(prev => [...prev, newHeading]);
+    
+    console.log('✅ Título fixado no índice:', text);
+  }, []);
+
   if (loading || !arquivoId) {
     return (
       <div className="flex items-center justify-center h-screen">
