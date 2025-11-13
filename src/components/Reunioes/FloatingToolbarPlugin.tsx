@@ -5,6 +5,7 @@ import {
   $isRangeSelection,
   FORMAT_TEXT_COMMAND,
   $createParagraphNode,
+  $createTextNode,
   $getNodeByKey,
   SELECTION_CHANGE_COMMAND,
   COMMAND_PRIORITY_LOW
@@ -122,17 +123,22 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
       
       if (!element) return;
 
-      // Create heading node
+      // Create heading node with text
       const headingNode = $createHeadingNode('h2');
-      const textNode = element.getTextContent();
-      headingNode.setTextContent(textNode);
+      const textNode = $createParagraphNode();
+      textNode.append($createTextNode(element.getTextContent()));
+      
+      // Get all children and move them to heading
+      element.getChildren().forEach(child => {
+        headingNode.append(child);
+      });
       
       // Replace current node with heading
       element.replace(headingNode);
       
       // Call callback to add to index
       if (onAddToIndex) {
-        onAddToIndex(textNode);
+        onAddToIndex(element.getTextContent());
       }
     });
 

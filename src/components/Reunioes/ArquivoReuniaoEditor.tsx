@@ -149,6 +149,7 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
         <ListPlugin />
         <LinkPlugin />
         {onHeadingsChange && <HeadingsPlugin onHeadingsChange={onHeadingsChange} />}
+        <FloatingToolbarPlugin onAddToIndex={onAddToIndex} />
         <OnChangePlugin onChange={handleEditorChange} />
       </div>
     </LexicalComposer>
