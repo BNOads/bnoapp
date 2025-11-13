@@ -14,6 +14,7 @@ import { LinkNode } from '@lexical/link';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { MentionPlugin } from './MentionPlugin';
+import { HeadingsPlugin, HeadingInfo } from './HeadingsPlugin';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface ArquivoReuniaoEditorProps {
@@ -22,9 +23,10 @@ interface ArquivoReuniaoEditorProps {
   initialContent?: any;
   onContentChange?: (content: any) => void;
   onClientMention?: (clientName: string) => void;
+  onHeadingsChange?: (headings: HeadingInfo[]) => void;
 }
 
-export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContentChange, onClientMention }: ArquivoReuniaoEditorProps) {
+export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContentChange, onClientMention, onHeadingsChange }: ArquivoReuniaoEditorProps) {
   const { toast } = useToast();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const editorRef = useRef<LexicalEditor | null>(null);
@@ -143,7 +145,7 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
           }
           placeholder={
             <div className="absolute top-6 left-6 text-muted-foreground pointer-events-none">
-              Digite as anotações da reunião...
+              Digite as anotações da reunião... Use ## para criar títulos que aparecerão no índice
             </div>
           }
           ErrorBoundary={({children}) => <>{children}</>}
@@ -152,6 +154,7 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
         <ListPlugin />
         <LinkPlugin />
         <MentionPlugin onMention={handleMention} />
+        {onHeadingsChange && <HeadingsPlugin onHeadingsChange={onHeadingsChange} />}
         <OnChangePlugin onChange={handleEditorChange} />
       </div>
     </LexicalComposer>

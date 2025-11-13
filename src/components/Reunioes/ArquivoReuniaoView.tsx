@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, ChevronDown, ChevronRight, CalendarDays, Users, Save, Clock, Loader2 } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronRight, CalendarDays, Users, Save, Clock, Loader2, BookOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ArquivoReuniaoEditor } from './ArquivoReuniaoEditor';
@@ -50,6 +50,7 @@ export function ArquivoReuniaoView() {
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [clientesMencionados, setClientesMencionados] = useState<Set<string>>(new Set());
+  const [indicesTitulos, setIndicesTitulos] = useState<{ text: string; tag: string; id: string }[]>([]);
   
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -110,22 +111,22 @@ export function ArquivoReuniaoView() {
               users.push({
                 userId: key,
                 userName: presence.userName || presence.user_name || 'Usuário',
-                color: presence.color || '#999',
-                lastActive: new Date().toISOString()
+                color: presence.color || userColor,
+                lastActive: presence.lastActive || new Date().toISOString()
               });
             }
           }
         });
 
-        setOnlineUsers(users.filter(u => u.userId !== user.id));
+        setOnlineUsers(users);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
-            userId: user.id,
             userName: userData.nome,
+            user_name: userData.nome,
             color: userColor,
-            online_at: new Date().toISOString()
+            lastActive: new Date().toISOString()
           });
         }
       });
@@ -136,65 +137,61 @@ export function ArquivoReuniaoView() {
       channel.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [userData, anoAtual]);
+  }, [userData, user?.id, anoAtual]);
 
-  // Inicializar arquivo
+  // Load or create arquivo
   useEffect(() => {
-    initializeArquivo();
-  }, []);
+    const loadOrCreateArquivo = async () => {
+      if (!user) return;
 
-  const initializeArquivo = async () => {
-    try {
-      setLoading(true);
+      try {
+        setLoading(true);
 
-      const { data: existingArquivo, error: fetchError } = await supabase
-        .from('arquivo_reuniao')
-        .select('*')
-        .eq('ano', anoAtual)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
-
-      if (existingArquivo) {
-        setArquivoId(existingArquivo.id);
-        setConteudo(existingArquivo.conteudo);
-      } else {
-        const { data: user } = await supabase.auth.getUser();
-        
-        // Gerar estrutura completa com todos os dias do ano
-        const defaultContent = gerarEstruturaDias(anoAtual);
-
-        const { data: newArquivo, error: createError } = await supabase
+        // Check if arquivo exists
+        const { data: existingArquivo, error: fetchError } = await supabase
           .from('arquivo_reuniao')
-          .insert({
-            ano: anoAtual,
-            conteudo: defaultContent,
-            criado_por: user.user?.id
-          })
-          .select()
-          .single();
+          .select('*')
+          .eq('ano', anoAtual)
+          .maybeSingle();
 
-        if (createError) throw createError;
-        
-        setArquivoId(newArquivo.id);
-        setConteudo(defaultContent);
-        
+        if (fetchError) throw fetchError;
+
+        if (existingArquivo) {
+          setArquivoId(existingArquivo.id);
+          setConteudo(existingArquivo.conteudo);
+          if (existingArquivo.clientes_relacionados && Array.isArray(existingArquivo.clientes_relacionados)) {
+            setClientesMencionados(new Set(existingArquivo.clientes_relacionados.map(String)));
+          }
+        } else {
+          // Create new arquivo
+          const { data: newArquivo, error: createError } = await supabase
+            .from('arquivo_reuniao')
+            .insert({
+              ano: anoAtual,
+              conteudo: null,
+              criado_por: user.id
+            })
+            .select()
+            .single();
+
+          if (createError) throw createError;
+
+          setArquivoId(newArquivo.id);
+        }
+      } catch (error: any) {
+        console.error('Erro ao carregar arquivo:', error);
         toast({
-          title: "📄 Arquivo criado",
-          description: `Arquivo de reunião ${anoAtual} com todos os dias gerado`,
+          title: "❌ Erro",
+          description: "Não foi possível carregar o arquivo",
+          variant: "destructive"
         });
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Erro ao inicializar arquivo:', error);
-      toast({
-        title: "❌ Erro",
-        description: "Não foi possível carregar o arquivo",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    loadOrCreateArquivo();
+  }, [anoAtual, user, toast]);
 
   // Debounced save
   const handleContentChange = (newContent: any) => {
@@ -312,6 +309,10 @@ export function ArquivoReuniaoView() {
     }
   };
 
+  const handleHeadingsChange = (headings: any[]) => {
+    setIndicesTitulos(headings);
+  };
+
   if (loading || !arquivoId) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -325,7 +326,7 @@ export function ArquivoReuniaoView() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar esquerda - Índice */}
+      {/* Sidebar esquerda - Calendário */}
       <div className="w-64 border-r border-border bg-card">
         <div className="p-4 border-b border-border">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -367,6 +368,7 @@ export function ArquivoReuniaoView() {
                           variant={isToday ? "secondary" : "ghost"}
                           size="sm"
                           className={`w-full justify-start text-xs ${isToday ? 'font-bold' : ''}`}
+                          onClick={() => setSelectedDate({ mes: mes.numero, dia: diaData.dia })}
                         >
                           {diaData.dia.toString().padStart(2, '0')}/{mes.numero.toString().padStart(2, '0')} - {diaData.diaSemana}
                           {isToday && <Badge variant="default" className="ml-2 text-xs">Hoje</Badge>}
@@ -462,40 +464,87 @@ export function ArquivoReuniaoView() {
         <div className="flex-1 overflow-auto">
           <div className="max-w-4xl mx-auto py-8">
             <ArquivoReuniaoEditor
-              arquivoId={arquivoId}
+              arquivoId={arquivoId || ''}
               ano={anoAtual}
               initialContent={conteudo}
               onContentChange={handleContentChange}
               onClientMention={handleClientMention}
+              onHeadingsChange={handleHeadingsChange}
             />
           </div>
         </div>
       </div>
 
-      {/* Sidebar direita - Clientes */}
-      <div className="w-64 border-l border-border bg-card p-4">
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Users className="h-4 w-4" />
-          Clientes Mencionados
-        </h3>
-        <Separator className="mb-3" />
-        
-        {clientesMencionados.size === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Digite @NomeDoCliente no texto para adicionar menções
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {Array.from(clientesMencionados).map((cliente) => (
-              <div 
-                key={cliente}
-                className="p-2 bg-accent/50 rounded-md text-sm hover:bg-accent cursor-pointer"
-              >
-                @{cliente}
+      {/* Sidebar direita - Índice de Títulos e Clientes */}
+      <div className="w-72 border-l border-border bg-card overflow-y-auto">
+        <div className="p-4">
+          {/* Índice de Títulos */}
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Índice de Títulos
+            </h3>
+            {indicesTitulos.length > 0 ? (
+              <div className="space-y-1">
+                {indicesTitulos.map((heading, index) => (
+                  <button
+                    key={`${heading.id}-${index}`}
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors ${
+                      heading.tag === 'h1' ? 'font-semibold' :
+                      heading.tag === 'h2' ? 'ml-3 font-medium' :
+                      'ml-6 text-muted-foreground'
+                    }`}
+                    onClick={() => {
+                      // Scroll suave até o título no editor
+                      const editorElement = document.querySelector('.prose');
+                      if (editorElement) {
+                        const headings = editorElement.querySelectorAll('h1, h2, h3');
+                        const targetHeading = Array.from(headings).find(
+                          h => h.textContent?.trim() === heading.text
+                        );
+                        if (targetHeading) {
+                          targetHeading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                      }
+                    }}
+                  >
+                    {heading.text}
+                  </button>
+                ))}
               </div>
-            ))}
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Use ## para criar títulos H2 que aparecerão aqui
+              </p>
+            )}
           </div>
-        )}
+
+          <Separator className="my-4" />
+
+          {/* Clientes Mencionados */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Clientes Mencionados
+            </h3>
+            {clientesMencionados.size > 0 ? (
+              <div className="space-y-1">
+                {Array.from(clientesMencionados).map((cliente) => (
+                  <div
+                    key={cliente}
+                    className="px-2 py-1.5 rounded text-sm bg-primary/10 text-primary"
+                  >
+                    @{cliente}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Digite @NomeDoCliente no texto para adicionar menções
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
