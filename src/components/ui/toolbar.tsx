@@ -1,13 +1,17 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bold, Italic, Underline, List, ListOrdered, Pin } from 'lucide-react';
+import { Bold, Italic, Underline, List, ListOrdered, Pin, Palette, Link2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 
 interface ToolbarProps {
   visible: boolean;
   position: { x: number; y: number };
   onFormat: (format: string) => void;
   onFixarIndice: () => void;
+  onColorChange: (color: string) => void;
+  onLinkInsert: () => void;
   activeFormats: {
     bold: boolean;
     italic: boolean;
@@ -58,7 +62,20 @@ const ToolbarButton = ({ icon: Icon, isActive, onClick, tooltip }: ToolbarButton
   );
 };
 
-export function Toolbar({ visible, position, onFormat, onFixarIndice, activeFormats }: ToolbarProps) {
+const COLORS = [
+  { name: 'Padrão', value: '' },
+  { name: 'Vermelho', value: '#ef4444' },
+  { name: 'Laranja', value: '#f97316' },
+  { name: 'Amarelo', value: '#eab308' },
+  { name: 'Verde', value: '#22c55e' },
+  { name: 'Azul', value: '#3b82f6' },
+  { name: 'Roxo', value: '#a855f7' },
+  { name: 'Rosa', value: '#ec4899' },
+];
+
+export function Toolbar({ visible, position, onFormat, onFixarIndice, onColorChange, onLinkInsert, activeFormats }: ToolbarProps) {
+  const [colorPopoverOpen, setColorPopoverOpen] = useState(false);
+
   return (
     <AnimatePresence>
       {visible && (
@@ -95,6 +112,48 @@ export function Toolbar({ visible, position, onFormat, onFixarIndice, activeForm
             isActive={activeFormats.underline}
             onClick={() => onFormat('underline')}
             tooltip="Sublinhado (Ctrl+U)"
+          />
+          
+          <div className="w-px h-6 bg-border mx-1" />
+          
+          <Popover open={colorPopoverOpen} onOpenChange={setColorPopoverOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="p-2 rounded-md transition-all duration-200 hover:bg-accent"
+                aria-label="Cor do texto"
+              >
+                <Palette className="w-4 h-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2 pointer-events-auto">
+              <div className="grid grid-cols-4 gap-1">
+                {COLORS.map((color) => (
+                  <button
+                    key={color.value || 'default'}
+                    type="button"
+                    className={cn(
+                      "h-8 rounded border-2 transition-all hover:scale-110",
+                      !color.value && "bg-gradient-to-br from-background to-muted"
+                    )}
+                    style={color.value ? { backgroundColor: color.value } : {}}
+                    onClick={() => {
+                      onColorChange(color.value);
+                      setColorPopoverOpen(false);
+                    }}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+          
+          <ToolbarButton
+            label="Link"
+            icon={Link2}
+            isActive={false}
+            onClick={onLinkInsert}
+            tooltip="Inserir link"
           />
           
           <div className="w-px h-6 bg-border mx-1" />
