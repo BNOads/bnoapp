@@ -13,8 +13,8 @@ import { ListNode, ListItemNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { MentionPlugin } from './MentionPlugin';
 import { HeadingsPlugin, HeadingInfo } from './HeadingsPlugin';
-import { ManualIndexPlugin } from './ManualIndexPlugin';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface ArquivoReuniaoEditorProps {
@@ -22,17 +22,22 @@ interface ArquivoReuniaoEditorProps {
   ano: number;
   initialContent?: any;
   onContentChange?: (content: any) => void;
+  onClientMention?: (clientName: string) => void;
   onHeadingsChange?: (headings: HeadingInfo[]) => void;
-  onManualIndexMark?: (text: string) => void;
 }
 
-export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContentChange, onHeadingsChange, onManualIndexMark }: ArquivoReuniaoEditorProps) {
+export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContentChange, onClientMention, onHeadingsChange }: ArquivoReuniaoEditorProps) {
   const { toast } = useToast();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const editorRef = useRef<LexicalEditor | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const lastStateRef = useRef<any>(null);
   const isSelfUpdate = useRef(false);
+
+  const handleMention = useCallback((clientName: string) => {
+    console.log('Cliente mencionado:', clientName);
+    onClientMention?.(clientName);
+  }, [onClientMention]);
 
   const initialConfig = {
     namespace: 'ArquivoReuniao',
@@ -140,7 +145,7 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
           }
           placeholder={
             <div className="absolute top-6 left-6 text-muted-foreground pointer-events-none">
-              Digite as anotações... Use ## para títulos ou clique 2x em uma palavra para marcá-la no índice
+              Digite as anotações da reunião... Use ## para criar títulos que aparecerão no índice
             </div>
           }
           ErrorBoundary={({children}) => <>{children}</>}
@@ -148,7 +153,7 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
         <HistoryPlugin />
         <ListPlugin />
         <LinkPlugin />
-        <ManualIndexPlugin onIndexMark={onManualIndexMark} />
+        <MentionPlugin onMention={handleMention} />
         {onHeadingsChange && <HeadingsPlugin onHeadingsChange={onHeadingsChange} />}
         <OnChangePlugin onChange={handleEditorChange} />
       </div>
