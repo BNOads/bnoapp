@@ -50,13 +50,17 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
     
     setActiveFormats(formats);
 
-    // Calculate position
+    // Calculate position relative to viewport
     const domRange = nativeSelection.getRangeAt(0);
     const rect = domRange.getBoundingClientRect();
     
+    // Position toolbar centered above selection
+    const toolbarWidth = 300; // Approximate toolbar width
+    const toolbarHeight = 50; // Approximate toolbar height
+    
     setToolbarPosition({
-      x: rect.left + rect.width / 2 - 150, // Center toolbar (assuming ~300px width)
-      y: rect.top - 50, // Position above selection
+      x: Math.max(10, Math.min(window.innerWidth - toolbarWidth - 10, rect.left + rect.width / 2 - toolbarWidth / 2)),
+      y: Math.max(10, rect.top - toolbarHeight - 10),
     });
     
     setToolbarVisible(true);
