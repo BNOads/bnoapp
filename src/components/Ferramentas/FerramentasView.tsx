@@ -6,7 +6,7 @@ import { MapaMentalView } from "./MapaMentalView";
 import { CriadorFunilView } from "./CriadorFunilView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
 import { PautaReuniaoView } from "@/components/Reunioes/PautaReuniaoView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, Download } from "lucide-react";
+import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, Download, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -95,6 +95,14 @@ export const FerramentasView = () => {
       icon: Calendar,
       component: <PautaReuniaoView />,
       color: "text-indigo-600"
+    },
+    {
+      id: "arquivo-reuniao",
+      title: "Arquivo de Reunião",
+      description: "Arquivo anual de reuniões com índice de navegação e busca inteligente",
+      icon: BookOpen,
+      component: null, // Redirecionamento para /arquivo-reuniao
+      color: "text-teal-600"
     },
     {
       id: "referencias",
@@ -366,6 +374,11 @@ export const FerramentasView = () => {
     // Redirecionar para /nps
     if (toolId === 'nps') {
       navigate('/nps');
+      return;
+    }
+    // Redirecionar para /arquivo-reuniao
+    if (toolId === 'arquivo-reuniao') {
+      navigate('/arquivo-reuniao');
       return;
     }
     setSelectedTool(toolId);
