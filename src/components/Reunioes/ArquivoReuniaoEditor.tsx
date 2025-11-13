@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { HeadingsPlugin, HeadingInfo } from './HeadingsPlugin';
 import { FloatingToolbarPlugin } from './FloatingToolbarPlugin';
+import { MarkdownHeadingPlugin } from './MarkdownHeadingPlugin';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface ArquivoReuniaoEditorProps {
@@ -153,6 +154,7 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
         <HistoryPlugin />
         <ListPlugin />
         <LinkPlugin />
+        <MarkdownHeadingPlugin />
         {onHeadingsChange && <HeadingsPlugin onHeadingsChange={onHeadingsChange} />}
         {onAddToIndex && <FloatingToolbarPlugin onAddToIndex={onAddToIndex} />}
         <OnChangePlugin onChange={handleEditorChange} />
