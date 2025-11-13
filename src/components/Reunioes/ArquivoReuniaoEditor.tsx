@@ -38,9 +38,14 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
     namespace: 'ArquivoReuniao',
     theme: {
       paragraph: 'mb-2',
+      text: {
+        bold: 'font-bold',
+        italic: 'italic',
+        underline: 'underline',
+      },
       heading: {
         h1: 'text-2xl font-bold mb-4 mt-6',
-        h2: 'text-xl font-semibold mb-3 mt-5',
+        h2: 'text-xl font-semibold mb-3 mt-5 bg-primary/5 px-2 py-1 rounded',
         h3: 'text-lg font-medium mb-2 mt-4',
       },
       list: {
