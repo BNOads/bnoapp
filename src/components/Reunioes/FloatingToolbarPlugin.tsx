@@ -3,6 +3,7 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import {
   $getSelection,
   $isRangeSelection,
+  $isTextNode,
   FORMAT_TEXT_COMMAND,
   SELECTION_CHANGE_COMMAND,
   $createParagraphNode,
@@ -14,7 +15,9 @@ import {
   INSERT_ORDERED_LIST_COMMAND,
   $isListNode,
 } from '@lexical/list';
+import { $createLinkNode, $isLinkNode } from '@lexical/link';
 import { Toolbar } from '@/components/ui/toolbar';
+import { LinkInsertModal } from './LinkInsertModal';
 import { mergeRegister } from '@lexical/utils';
 
 interface FloatingToolbarPluginProps {
@@ -25,6 +28,8 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
   const [editor] = useLexicalComposerContext();
   const [toolbarVisible, setToolbarVisible] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -92,7 +97,54 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
     }
   }, [editor]);
 
+  const handleColorChange = useCallback((color: string) => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        const nodes = selection.getNodes();
+        nodes.forEach((node) => {
+          if ($isTextNode(node)) {
+            const currentStyle = node.getStyle() || '';
+            // Remove qualquer definição de cor anterior
+            const styleWithoutColor = currentStyle.split(';')
+              .filter(s => !s.trim().startsWith('color'))
+              .join(';');
+            // Adiciona a nova cor
+            const newStyle = color 
+              ? `${styleWithoutColor ? styleWithoutColor + ';' : ''}color:${color}`
+              : styleWithoutColor;
+            node.setStyle(newStyle);
+          }
+        });
+      }
+    });
+  }, [editor]);
+
+  const handleLinkInsert = useCallback(() => {
+    editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        setSelectedText(selection.getTextContent());
+        setLinkModalOpen(true);
+      }
+    });
+  }, [editor]);
+
+  const handleInsertLink = useCallback((url: string, text: string) => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        const linkNode = $createLinkNode(url);
+        const textNode = $createTextNode(text);
+        linkNode.append(textNode);
+        selection.insertNodes([linkNode]);
+      }
+    });
+  }, [editor]);
+
   const handleFixarIndice = useCallback(() => {
+    let textToIndex = '';
+    
     editor.update(() => {
       const selection = $getSelection();
       
@@ -100,9 +152,9 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
         return;
       }
 
-      const selectedText = selection.getTextContent().trim();
+      textToIndex = selection.getTextContent().trim();
       
-      if (!selectedText) {
+      if (!textToIndex) {
         return;
       }
 
@@ -123,39 +175,49 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
         parent = parent.getParent();
       }
 
-      // Se já é um heading, não fazer nada
+      // Se já é um heading, apenas adicionar ao índice
       if (parent && $isHeadingNode(parent)) {
-        onAddToIndex(selectedText);
-        return;
+        return; // Não fazer nada no editor, apenas adicionar ao índice depois
       }
 
       // Criar novo heading node
       const headingNode = $createHeadingNode('h2');
-      const textNode = $createTextNode(selectedText);
+      const textNode = $createTextNode(textToIndex);
       headingNode.append(textNode);
 
       // Substituir o nó atual pelo heading
       if (parent) {
         parent.replace(headingNode);
       }
-
-      // Adicionar ao índice
-      onAddToIndex(selectedText);
     });
 
-    // Limpar seleção após transformar em heading
-    setTimeout(() => {
-      setToolbarVisible(false);
-    }, 100);
+    // Adicionar ao índice após a atualização do editor
+    if (textToIndex) {
+      setTimeout(() => {
+        onAddToIndex(textToIndex);
+        setToolbarVisible(false);
+      }, 100);
+    }
   }, [editor, onAddToIndex]);
 
   return (
-    <Toolbar
-      visible={toolbarVisible}
-      position={toolbarPosition}
-      onFormat={handleFormat}
-      onFixarIndice={handleFixarIndice}
-      activeFormats={activeFormats}
-    />
+    <>
+      <Toolbar
+        visible={toolbarVisible}
+        position={toolbarPosition}
+        onFormat={handleFormat}
+        onFixarIndice={handleFixarIndice}
+        onColorChange={handleColorChange}
+        onLinkInsert={handleLinkInsert}
+        activeFormats={activeFormats}
+      />
+      
+      <LinkInsertModal
+        isOpen={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        onInsert={handleInsertLink}
+        selectedText={selectedText}
+      />
+    </>
   );
 }
