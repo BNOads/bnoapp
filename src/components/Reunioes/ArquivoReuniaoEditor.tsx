@@ -13,7 +13,6 @@ import { ListNode, ListItemNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MentionPlugin } from './MentionPlugin';
 import { HeadingsPlugin, HeadingInfo } from './HeadingsPlugin';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -22,22 +21,16 @@ interface ArquivoReuniaoEditorProps {
   ano: number;
   initialContent?: any;
   onContentChange?: (content: any) => void;
-  onClientMention?: (clientName: string) => void;
   onHeadingsChange?: (headings: HeadingInfo[]) => void;
 }
 
-export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContentChange, onClientMention, onHeadingsChange }: ArquivoReuniaoEditorProps) {
+export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContentChange, onHeadingsChange }: ArquivoReuniaoEditorProps) {
   const { toast } = useToast();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const editorRef = useRef<LexicalEditor | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const lastStateRef = useRef<any>(null);
   const isSelfUpdate = useRef(false);
-
-  const handleMention = useCallback((clientName: string) => {
-    console.log('Cliente mencionado:', clientName);
-    onClientMention?.(clientName);
-  }, [onClientMention]);
 
   const initialConfig = {
     namespace: 'ArquivoReuniao',
@@ -153,7 +146,6 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
         <HistoryPlugin />
         <ListPlugin />
         <LinkPlugin />
-        <MentionPlugin onMention={handleMention} />
         {onHeadingsChange && <HeadingsPlugin onHeadingsChange={onHeadingsChange} />}
         <OnChangePlugin onChange={handleEditorChange} />
       </div>

@@ -49,7 +49,6 @@ export function ArquivoReuniaoView() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [clientesMencionados, setClientesMencionados] = useState<Set<string>>(new Set());
   const [indicesTitulos, setIndicesTitulos] = useState<{ text: string; tag: string; id: string }[]>([]);
   
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
@@ -159,9 +158,6 @@ export function ArquivoReuniaoView() {
         if (existingArquivo) {
           setArquivoId(existingArquivo.id);
           setConteudo(existingArquivo.conteudo);
-          if (existingArquivo.clientes_relacionados && Array.isArray(existingArquivo.clientes_relacionados)) {
-            setClientesMencionados(new Set(existingArquivo.clientes_relacionados.map(String)));
-          }
         } else {
           // Create new arquivo
           const { data: newArquivo, error: createError } = await supabase
@@ -287,35 +283,6 @@ export function ArquivoReuniaoView() {
   const scrollToToday = () => {
     setSelectedDate({ mes: mesAtual + 1, dia: diaAtual });
   };
-
-  const handleClientMention = useCallback((clientName: string) => {
-    setClientesMencionados(prev => {
-      // Evitar duplicação
-      if (prev.has(clientName)) {
-        return prev;
-      }
-      
-      const newSet = new Set(prev);
-      newSet.add(clientName);
-      return newSet;
-    });
-  }, []);
-
-  // Salvar clientes mencionados no banco (separado do setState)
-  useEffect(() => {
-    if (arquivoId && clientesMencionados.size > 0) {
-      const uniqueClients = Array.from(clientesMencionados);
-      supabase
-        .from('arquivo_reuniao')
-        .update({ clientes_relacionados: uniqueClients })
-        .eq('id', arquivoId)
-        .then(({ error }) => {
-          if (error) {
-            console.error('❌ Erro ao salvar clientes:', error);
-          }
-        });
-    }
-  }, [arquivoId, clientesMencionados]);
 
   const handleHeadingsChange = (headings: any[]) => {
     setIndicesTitulos(headings);
@@ -476,82 +443,52 @@ export function ArquivoReuniaoView() {
               ano={anoAtual}
               initialContent={conteudo}
               onContentChange={handleContentChange}
-              onClientMention={handleClientMention}
               onHeadingsChange={handleHeadingsChange}
             />
           </div>
         </div>
       </div>
 
-      {/* Sidebar direita - Índice de Títulos e Clientes */}
+      {/* Sidebar direita - Índice de Títulos */}
       <div className="w-72 border-l border-border bg-card overflow-y-auto">
         <div className="p-4">
-          {/* Índice de Títulos */}
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              Índice de Títulos
-            </h3>
-            {indicesTitulos.length > 0 ? (
-              <div className="space-y-1">
-                {indicesTitulos.map((heading, index) => (
-                  <button
-                    key={`${heading.id}-${index}`}
-                    className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors ${
-                      heading.tag === 'h1' ? 'font-semibold' :
-                      heading.tag === 'h2' ? 'ml-3 font-medium' :
-                      'ml-6 text-muted-foreground'
-                    }`}
-                    onClick={() => {
-                      // Scroll suave até o título no editor
-                      const editorElement = document.querySelector('.prose');
-                      if (editorElement) {
-                        const headings = editorElement.querySelectorAll('h1, h2, h3');
-                        const targetHeading = Array.from(headings).find(
-                          h => h.textContent?.trim() === heading.text
-                        );
-                        if (targetHeading) {
-                          targetHeading.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Índice de Títulos
+          </h3>
+          {indicesTitulos.length > 0 ? (
+            <div className="space-y-1">
+              {indicesTitulos.map((heading, index) => (
+                <button
+                  key={`${heading.id}-${index}`}
+                  className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors ${
+                    heading.tag === 'h1' ? 'font-semibold' :
+                    heading.tag === 'h2' ? 'ml-3 font-medium' :
+                    'ml-6 text-muted-foreground'
+                  }`}
+                  onClick={() => {
+                    // Scroll suave até o título no editor
+                    const editorElement = document.querySelector('.prose');
+                    if (editorElement) {
+                      const headings = editorElement.querySelectorAll('h1, h2, h3');
+                      const targetHeading = Array.from(headings).find(
+                        h => h.textContent?.trim() === heading.text
+                      );
+                      if (targetHeading) {
+                        targetHeading.scrollIntoView({ behavior: 'smooth', block: 'center' });
                       }
-                    }}
-                  >
-                    {heading.text}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Use ## para criar títulos H2 que aparecerão aqui
-              </p>
-            )}
-          </div>
-
-          <Separator className="my-4" />
-
-          {/* Clientes Mencionados */}
-          <div>
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Clientes Mencionados
-            </h3>
-            {clientesMencionados.size > 0 ? (
-              <div className="space-y-1">
-                {Array.from(clientesMencionados).map((cliente) => (
-                  <div
-                    key={cliente}
-                    className="px-2 py-1.5 rounded text-sm bg-primary/10 text-primary"
-                  >
-                    @{cliente}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Digite @NomeDoCliente no texto para adicionar menções
-              </p>
-            )}
-          </div>
+                    }
+                  }}
+                >
+                  {heading.text}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Use ## para criar títulos H2 que aparecerão aqui
+            </p>
+          )}
         </div>
       </div>
     </div>
