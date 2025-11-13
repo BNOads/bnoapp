@@ -9,6 +9,11 @@ import {
   $createParagraphNode,
   $createTextNode,
   $isParagraphNode,
+  UNDO_COMMAND,
+  REDO_COMMAND,
+  CAN_UNDO_COMMAND,
+  CAN_REDO_COMMAND,
+  COMMAND_PRIORITY_LOW,
 } from 'lexical';
 import { $createHeadingNode, $isHeadingNode } from '@lexical/rich-text';
 import {
@@ -31,6 +36,8 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
   const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [selectedText, setSelectedText] = useState('');
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -84,6 +91,22 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
           return false;
         },
         1
+      ),
+      editor.registerCommand(
+        CAN_UNDO_COMMAND,
+        (payload) => {
+          setCanUndo(payload);
+          return false;
+        },
+        COMMAND_PRIORITY_LOW
+      ),
+      editor.registerCommand(
+        CAN_REDO_COMMAND,
+        (payload) => {
+          setCanRedo(payload);
+          return false;
+        },
+        COMMAND_PRIORITY_LOW
       )
     );
   }, [editor, updateToolbar]);
@@ -203,6 +226,14 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
     }
   }, [editor, onAddToIndex]);
 
+  const handleUndo = useCallback(() => {
+    editor.dispatchCommand(UNDO_COMMAND, undefined);
+  }, [editor]);
+
+  const handleRedo = useCallback(() => {
+    editor.dispatchCommand(REDO_COMMAND, undefined);
+  }, [editor]);
+
   return (
     <>
       <Toolbar
@@ -212,6 +243,10 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
         onFixarIndice={handleFixarIndice}
         onColorChange={handleColorChange}
         onLinkInsert={handleLinkInsert}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
         activeFormats={activeFormats}
       />
       

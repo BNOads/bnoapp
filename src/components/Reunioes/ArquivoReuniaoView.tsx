@@ -4,13 +4,38 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, ChevronDown, ChevronRight, CalendarDays, Users, Save, Clock, Loader2, BookOpen } from 'lucide-react';
+import { 
+  Calendar, 
+  ChevronDown, 
+  ChevronRight, 
+  CalendarDays, 
+  Users, 
+  Save, 
+  Clock, 
+  Loader2, 
+  BookOpen, 
+  History, 
+  Bookmark 
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ArquivoReuniaoEditor } from './ArquivoReuniaoEditor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuth } from '@/components/Auth/AuthContext';
 import { gerarEstruturaDias } from '@/lib/gerarEstruturaDias';
+import { useArquivoVersioning, type ArquivoVersion } from '@/hooks/useArquivoVersioning';
+import { ArquivoHistoricoVersoes } from './ArquivoHistoricoVersoes';
+import { ArquivoVisualizarVersao } from './ArquivoVisualizarVersao';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const MESES = [
@@ -50,11 +75,24 @@ export function ArquivoReuniaoView() {
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [indicesTitulos, setIndicesTitulos] = useState<{ text: string; tag: string; id: string }[]>([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showSaveVersionModal, setShowSaveVersionModal] = useState(false);
+  const [saveVersionObservation, setSaveVersionObservation] = useState('');
+  const [selectedVersion, setSelectedVersion] = useState<any>(null);
+  const [currentVersionNumber, setCurrentVersionNumber] = useState<number>(1);
   
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const pendingContentRef = useRef<any>(null);
   const isSavingRef = useRef(false);
+
+  // Hook de versionamento
+  const versioning = useArquivoVersioning(
+    arquivoId || '',
+    user?.id || '',
+    userData?.nome || 'Usuário'
+  );
 
   // Gerar estrutura de meses/dias
   useEffect(() => {
@@ -274,6 +312,45 @@ export function ArquivoReuniaoView() {
     }
   };
 
+  const handleSaveVersion = async () => {
+    if (pendingContentRef.current && arquivoId) {
+      const success = await versioning.saveManualVersion(
+        pendingContentRef.current, 
+        saveVersionObservation || undefined
+      );
+      
+      if (success) {
+        setShowSaveVersionModal(false);
+        setSaveVersionObservation('');
+        await versioning.loadVersions();
+      }
+    }
+  };
+
+  const handleOpenHistory = async () => {
+    await versioning.loadVersions();
+    setShowHistoryModal(true);
+  };
+
+  const handleViewVersion = (version: any) => {
+    setSelectedVersion(version);
+    setShowViewModal(true);
+  };
+
+  const handleRestoreVersion = async (version: any) => {
+    if (pendingContentRef.current) {
+      const restoredContent = await versioning.restoreVersion(version, pendingContentRef.current);
+      
+      if (restoredContent) {
+        setConteudo(restoredContent);
+        await saveContent(restoredContent);
+        await versioning.loadVersions();
+        setShowHistoryModal(false);
+        setShowViewModal(false);
+      }
+    }
+  };
+
   const toggleMes = (mesNumero: number) => {
     setMeses(prev => prev.map(m => 
       m.numero === mesNumero ? { ...m, expanded: !m.expanded } : m
@@ -297,6 +374,16 @@ export function ArquivoReuniaoView() {
     };
     setIndicesTitulos(prev => [...prev, newHeading]);
   }, []);
+
+  // Cleanup ao desmontar
+  useEffect(() => {
+    return () => {
+      versioning.cleanup();
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [versioning]);
 
   if (loading || !arquivoId) {
     return (
@@ -434,6 +521,25 @@ export function ArquivoReuniaoView() {
               </div>
             )}
 
+            {/* Botões de Versionamento */}
+            <Button
+              onClick={handleOpenHistory}
+              variant="outline"
+              size="sm"
+            >
+              <History className="h-4 w-4 mr-2" />
+              Histórico
+            </Button>
+
+            <Button
+              onClick={() => setShowSaveVersionModal(true)}
+              variant="outline"
+              size="sm"
+            >
+              <Bookmark className="h-4 w-4 mr-2" />
+              Salvar Versão
+            </Button>
+
             <Button 
               onClick={handleManualSave} 
               disabled={isSaving}
@@ -502,6 +608,51 @@ export function ArquivoReuniaoView() {
           )}
         </div>
       </div>
+
+      {/* Modais de Versionamento */}
+      <ArquivoHistoricoVersoes
+        open={showHistoryModal}
+        onOpenChange={setShowHistoryModal}
+        versions={versioning.versions}
+        loading={versioning.loading}
+        onRestore={handleRestoreVersion}
+        onView={handleViewVersion}
+        currentVersionNumber={currentVersionNumber}
+      />
+
+      <ArquivoVisualizarVersao
+        open={showViewModal}
+        onOpenChange={setShowViewModal}
+        version={selectedVersion}
+        onRestore={handleRestoreVersion}
+        isCurrentVersion={selectedVersion?.versao === currentVersionNumber}
+      />
+
+      <Dialog open={showSaveVersionModal} onOpenChange={setShowSaveVersionModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Salvar Versão Manual</DialogTitle>
+            <DialogDescription>
+              Adicione uma descrição para esta versão (opcional)
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Ex: Concluída revisão da seção X..."
+            value={saveVersionObservation}
+            onChange={(e) => setSaveVersionObservation(e.target.value)}
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSaveVersionModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveVersion}>
+              <Bookmark className="h-4 w-4 mr-2" />
+              Salvar Versão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
