@@ -141,6 +141,27 @@ export function ArquivoReuniaoView() {
     setCurrentResultIndex(0);
   }, [searchQuery, indicesTitulos]);
 
+  // Rolar para o último índice ao carregar a página
+  useEffect(() => {
+    if (indicesTitulos.length > 0 && !searchQuery) {
+      const timer = setTimeout(() => {
+        const lastHeading = indicesTitulos[indicesTitulos.length - 1];
+        const editorElement = document.querySelector('.prose');
+        if (editorElement) {
+          const headings = editorElement.querySelectorAll('h1, h2, h3');
+          const targetHeading = Array.from(headings || []).find(
+            h => h.textContent?.trim() === lastHeading.text
+          );
+          if (targetHeading) {
+            targetHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+      }, 300); // Pequeno delay para garantir que o editor renderizou
+
+      return () => clearTimeout(timer);
+    }
+  }, [indicesTitulos.length]); // Só executa quando o número de índices muda (primeira carga)
+
   // Navegar pelos resultados
   const navigateToResult = (index: number) => {
     if (searchResults.length === 0) return;
