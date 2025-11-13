@@ -183,21 +183,24 @@ const PainelCliente = () => {
   return (
     <ClienteBrandingProvider cliente={cliente}>
       <Helmet>
-        <title>{`${cliente.nome} - Painel BNOads`}</title>
-        <meta name="description" content={`Painel de gestão personalizado para ${cliente.nome} - Sistema BNOads`} />
+        <title>{`${cliente.nome} - Painel do Cliente | BNOads`}</title>
+        <meta name="description" content={`Acesse o painel personalizado de ${cliente.nome} na BNOads. Acompanhe gravações de reuniões, tarefas, links importantes, orçamento de funis e muito mais.`} />
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
-        <meta property="og:title" content={`${cliente.nome} - Painel BNOads`} />
-        <meta property="og:description" content={`Painel de gestão personalizado para ${cliente.nome} - Sistema BNOads`} />
-        <meta property="og:image" content={`${window.location.origin}/bnoads-logo-share.png`} />
+        <meta property="og:site_name" content="BNOads" />
+        <meta property="og:title" content={`${cliente.nome} - Painel do Cliente`} />
+        <meta property="og:description" content={`Acesse o painel personalizado de ${cliente.nome} na BNOads. Acompanhe gravações, tarefas, links e orçamento dos seus funis de tráfego.`} />
+        <meta property="og:image" content={cliente.branding_enabled && cliente.branding_logo ? cliente.branding_logo : `${window.location.origin}/bnoads-logo-share.png`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <meta property="og:url" content={window.location.href} />
         
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${cliente.nome} - Painel BNOads`} />
-        <meta name="twitter:description" content={`Painel de gestão personalizado para ${cliente.nome} - Sistema BNOads`} />
-        <meta name="twitter:image" content={`${window.location.origin}/bnoads-logo-share.png`} />
+        <meta name="twitter:title" content={`${cliente.nome} - Painel do Cliente | BNOads`} />
+        <meta name="twitter:description" content={`Acesse o painel personalizado de ${cliente.nome} na BNOads. Acompanhe gravações, tarefas, links e orçamento dos seus funis.`} />
+        <meta name="twitter:image" content={cliente.branding_enabled && cliente.branding_logo ? cliente.branding_logo : `${window.location.origin}/bnoads-logo-share.png`} />
       </Helmet>
       
       {/* NPS Popup - mostrar apenas para não autenticados (clientes) */}
