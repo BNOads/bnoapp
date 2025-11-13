@@ -8,6 +8,7 @@ import {
   SELECTION_CHANGE_COMMAND,
   $createParagraphNode,
   $createTextNode,
+  $isParagraphNode,
 } from 'lexical';
 import { $createHeadingNode, $isHeadingNode } from '@lexical/rich-text';
 import {
@@ -158,36 +159,38 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
         return;
       }
 
-      // Pegar os nós selecionados
-      const nodes = selection.getNodes();
+      // Obter o anchor node (onde a seleção começa)
+      const anchorNode = selection.anchor.getNode();
       
-      if (nodes.length === 0) {
-        return;
+      // Encontrar o bloco pai (parágrafo ou heading)
+      let blockNode = anchorNode;
+      while (blockNode) {
+        const parent = blockNode.getParent();
+        if (!parent || parent.getType() === 'root') {
+          break;
+        }
+        if ($isParagraphNode(blockNode) || $isHeadingNode(blockNode)) {
+          break;
+        }
+        blockNode = parent;
       }
 
-      // Pegar o primeiro nó e encontrar seu parent mais próximo que é um elemento
-      let targetNode = nodes[0];
-      let parent = targetNode.getParent();
-      
-      // Subir até encontrar um nó de parágrafo ou heading
-      while (parent && !$isHeadingNode(parent) && parent.getType() !== 'paragraph') {
-        targetNode = parent;
-        parent = parent.getParent();
-      }
-
-      // Se já é um heading, apenas adicionar ao índice
-      if (parent && $isHeadingNode(parent)) {
-        return; // Não fazer nada no editor, apenas adicionar ao índice depois
-      }
-
-      // Criar novo heading node
-      const headingNode = $createHeadingNode('h2');
-      const textNode = $createTextNode(textToIndex);
-      headingNode.append(textNode);
-
-      // Substituir o nó atual pelo heading
-      if (parent) {
-        parent.replace(headingNode);
+      // Se encontramos um bloco válido
+      if (blockNode && ($isParagraphNode(blockNode) || $isHeadingNode(blockNode))) {
+        // Criar novo heading e copiar o conteúdo
+        const headingNode = $createHeadingNode('h2');
+        
+        // Copiar todos os filhos do bloco atual para o novo heading
+        const children = blockNode.getChildren();
+        children.forEach(child => {
+          headingNode.append(child);
+        });
+        
+        // Substituir o bloco atual pelo heading
+        blockNode.replace(headingNode);
+        
+        // Mover a seleção para o final do novo heading
+        headingNode.selectEnd();
       }
     });
 
