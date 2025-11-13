@@ -46,6 +46,7 @@ export function ArquivoReuniaoView() {
   const [selectedDate, setSelectedDate] = useState({ mes: mesAtual + 1, dia: diaAtual });
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [clientesMencionados, setClientesMencionados] = useState<Set<string>>(new Set());
@@ -53,6 +54,7 @@ export function ArquivoReuniaoView() {
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const pendingContentRef = useRef<any>(null);
+  const isSavingRef = useRef(false);
 
   // Gerar estrutura de meses/dias
   useEffect(() => {
@@ -207,11 +209,19 @@ export function ArquivoReuniaoView() {
     }, 3000); // Save after 3 seconds of inactivity
   };
 
-  const saveContent = async (content: any) => {
-    if (!arquivoId || !content) return;
+  const saveContent = async (content: any, retryCount = 0): Promise<boolean> => {
+    if (!arquivoId || !content) return false;
+    
+    // Evitar múltiplos salvamentos simultâneos
+    if (isSavingRef.current) {
+      console.log('⏭️ Salvamento já em progresso, ignorando...');
+      return false;
+    }
 
     try {
+      isSavingRef.current = true;
       setIsSaving(true);
+      setSaveStatus('saving');
       
       const { data: user } = await supabase.auth.getUser();
 
@@ -227,27 +237,47 @@ export function ArquivoReuniaoView() {
       if (error) throw error;
 
       setLastSaved(new Date());
-      console.log('💾 Conteúdo salvo automaticamente');
-    } catch (error) {
-      console.error('Erro ao salvar:', error);
-      toast({
-        title: "❌ Erro ao salvar",
-        description: "Tentando novamente...",
-        variant: "destructive"
-      });
+      setSaveStatus('saved');
+      console.log('✅ Conteúdo salvo automaticamente');
+      
+      // Auto-reset para idle após 3 segundos
+      setTimeout(() => setSaveStatus('idle'), 3000);
+      return true;
+    } catch (error: any) {
+      console.error('❌ Erro ao salvar (tentativa ' + (retryCount + 1) + '):', error);
+      
+      // Retry com backoff exponencial (máximo 3 tentativas)
+      if (retryCount < 2) {
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.log(`⏳ Tentando novamente em ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return await saveContent(content, retryCount + 1);
+      } else {
+        setSaveStatus('error');
+        toast({
+          title: "❌ Erro ao salvar",
+          description: "Não foi possível salvar após 3 tentativas. Use 'Salvar Manualmente'.",
+          variant: "destructive"
+        });
+        return false;
+      }
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   };
 
   const handleManualSave = async () => {
     if (pendingContentRef.current) {
-      await saveContent(pendingContentRef.current);
-      toast({
-        title: "✅ Salvo",
-        description: "Arquivo salvo com sucesso",
-        duration: 2000
-      });
+      const success = await saveContent(pendingContentRef.current);
+      if (success) {
+        toast({
+          title: "✅ Salvo",
+          description: "Arquivo salvo com sucesso",
+          duration: 2000
+        });
+      }
     }
   };
 
@@ -356,14 +386,39 @@ export function ArquivoReuniaoView() {
         <div className="border-b border-border bg-card p-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Arquivo de Reunião {anoAtual}</h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-              {lastSaved && (
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  Último salvamento: {lastSaved.toLocaleTimeString()}
-                </span>
-              )}
-              {isSaving && <span className="text-primary">Salvando...</span>}
+            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+              {/* Status de Salvamento */}
+              <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
+                saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
+                saveStatus === 'saved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
+                saveStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
+                'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-400'
+              }`}>
+                {saveStatus === 'saving' && (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Salvando...</span>
+                  </>
+                )}
+                {saveStatus === 'saved' && (
+                  <>
+                    <span className="inline-block w-1.5 h-1.5 bg-green-600 rounded-full"></span>
+                    <span>Salvo {lastSaved && `há ${Math.floor((Date.now() - lastSaved.getTime()) / 1000)}s`}</span>
+                  </>
+                )}
+                {saveStatus === 'error' && (
+                  <>
+                    <span className="inline-block w-1.5 h-1.5 bg-red-600 rounded-full"></span>
+                    <span>Erro ao salvar</span>
+                  </>
+                )}
+                {saveStatus === 'idle' && lastSaved && (
+                  <>
+                    <Clock className="w-3 h-3 opacity-50" />
+                    <span className="opacity-70">Último salvamento: {lastSaved.toLocaleTimeString()}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
           
@@ -392,9 +447,14 @@ export function ArquivoReuniaoView() {
               </div>
             )}
 
-            <Button onClick={handleManualSave} disabled={isSaving} size="sm">
+            <Button 
+              onClick={handleManualSave} 
+              disabled={isSaving}
+              variant={saveStatus === 'error' ? 'destructive' : 'default'}
+              size="sm"
+            >
               {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Salvar
+              {saveStatus === 'error' ? 'Tentar Salvar' : 'Salvar'}
             </Button>
           </div>
         </div>
