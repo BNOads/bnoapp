@@ -14,6 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { MentionPlugin } from './MentionPlugin';
 import { useRealtimeDocument } from '@/hooks/useRealtimeDocument';
+import { Button } from '@/components/ui/button';
+import { Check, X, Clock, Save } from 'lucide-react';
 
 interface PautaBlocoLexicalEditorProps {
   pautaId: string;
@@ -35,6 +37,8 @@ export function PautaBlocoLexicalEditor({
   const lastStateRef = useRef<any>(null);
   const isApplyingRemoteUpdate = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   
   const {
     broadcastContentUpdate,
@@ -228,6 +232,46 @@ export function PautaBlocoLexicalEditor({
     };
   }, [pautaId, blocoId, onSyncEvent]);
 
+  const saveToDatabase = async (content: any) => {
+    setSaveStatus('saving');
+    console.log(`💾 [${blocoId.slice(0,8)}] Salvando no banco de dados...`);
+    
+    try {
+      const { error } = await supabase
+        .from('reunioes_blocos')
+        .update({ 
+          conteudo_lexical: content as any,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', blocoId);
+
+      if (error) {
+        console.error(`❌ [${blocoId.slice(0,8)}] Erro ao salvar bloco:`, error);
+        setSaveStatus('error');
+        toast({
+          title: "❌ Erro ao salvar",
+          description: "Não foi possível salvar as alterações. Clique em 'Salvar Manualmente'.",
+          variant: "destructive"
+        });
+      } else {
+        console.log(`✅ [${blocoId.slice(0,8)}] Bloco salvo com sucesso`);
+        setSaveStatus('saved');
+        setLastSaveTime(new Date());
+        
+        // Auto-reset para idle após 3 segundos
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      }
+    } catch (err) {
+      console.error(`❌ [${blocoId.slice(0,8)}] Erro ao salvar:`, err);
+      setSaveStatus('error');
+      toast({
+        title: "❌ Erro ao salvar",
+        description: "Ocorreu um erro inesperado. Tente salvar manualmente.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleEditorChange = (editorState: EditorState, editor: LexicalEditor) => {
     // Skip if this is a remote update being applied
     if (isApplyingRemoteUpdate.current) {
@@ -250,38 +294,28 @@ export function PautaBlocoLexicalEditor({
       // Notify parent component
       onContentChange?.(json);
 
-      // Debounced save to database (2 segundos)
+      // Debounced save to database (1.5 segundos - reduzido)
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
 
-      saveTimeoutRef.current = setTimeout(async () => {
-        console.log(`💾 [${blocoId.slice(0,8)}] Salvando no banco de dados...`);
-        try {
-          const { error } = await supabase
-            .from('reunioes_blocos')
-            .update({ 
-              conteudo_lexical: json as any,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', blocoId);
+      saveTimeoutRef.current = setTimeout(() => {
+        saveToDatabase(json);
+      }, 1500); // Auto-save após 1.5 segundos
+    }
+  };
 
-          if (error) {
-            console.error(`❌ [${blocoId.slice(0,8)}] Erro ao salvar bloco:`, error);
-          } else {
-            console.log(`✅ [${blocoId.slice(0,8)}] Bloco salvo com sucesso`);
-          }
-        } catch (err) {
-          console.error(`❌ [${blocoId.slice(0,8)}] Erro ao salvar:`, err);
-        }
-      }, 2000); // Auto-save após 2 segundos
+  const handleManualSave = () => {
+    if (lastStateRef.current) {
+      saveToDatabase(lastStateRef.current);
     }
   };
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div className="relative min-h-[200px]">
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+          {/* Status de Conexão */}
           <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
             syncStatus === 'syncing' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
             syncStatus === 'synced' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
@@ -291,7 +325,7 @@ export function PautaBlocoLexicalEditor({
             {syncStatus === 'syncing' && (
               <>
                 <span className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></span>
-                <span>Sincronizando...</span>
+                <span>Conectando...</span>
               </>
             )}
             {syncStatus === 'synced' && (
@@ -303,16 +337,62 @@ export function PautaBlocoLexicalEditor({
             {syncStatus === 'error' && (
               <>
                 <span className="inline-block w-1.5 h-1.5 bg-red-600 rounded-full"></span>
-                <span>Erro de conexão</span>
+                <span>Offline</span>
               </>
             )}
             {syncStatus === 'idle' && (
               <>
-                <span className="inline-block w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
+                <span className="inline-block w-1.5 h-1.5 bg-gray-500 rounded-full animate-pulse"></span>
                 <span>Conectando...</span>
               </>
             )}
           </div>
+
+          {/* Status de Salvamento */}
+          <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
+            saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
+            saveStatus === 'saved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
+            saveStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
+            'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-400'
+          }`}>
+            {saveStatus === 'saving' && (
+              <>
+                <Clock className="w-3 h-3 animate-spin" />
+                <span>Salvando...</span>
+              </>
+            )}
+            {saveStatus === 'saved' && (
+              <>
+                <Check className="w-3 h-3" />
+                <span>Salvo {lastSaveTime && `há ${Math.floor((Date.now() - lastSaveTime.getTime()) / 1000)}s`}</span>
+              </>
+            )}
+            {saveStatus === 'error' && (
+              <>
+                <X className="w-3 h-3" />
+                <span>Erro ao salvar</span>
+              </>
+            )}
+            {saveStatus === 'idle' && lastSaveTime && (
+              <>
+                <Check className="w-3 h-3 opacity-50" />
+                <span className="opacity-70">Salvo há {Math.floor((Date.now() - lastSaveTime.getTime()) / 1000)}s</span>
+              </>
+            )}
+          </div>
+
+          {/* Botão de Salvar Manualmente (aparece em caso de erro) */}
+          {saveStatus === 'error' && (
+            <Button 
+              size="sm" 
+              variant="destructive" 
+              className="h-7 px-2 text-xs"
+              onClick={handleManualSave}
+            >
+              <Save className="w-3 h-3 mr-1" />
+              Salvar
+            </Button>
+          )}
         </div>
 
         <RichTextPlugin

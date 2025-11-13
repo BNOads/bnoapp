@@ -26,15 +26,15 @@ export function useRealtimeDocument(documentId: string) {
 
   // Debounce function for batching updates - REDUCED for instant broadcast
   const debounceTimeoutRef = useRef<NodeJS.Timeout>();
-  const DEBOUNCE_DELAY = 100; // Reduzido de 300ms para 100ms para broadcast mais rápido
-  const userDataRef = useRef(userData);
+  const DEBOUNCE_DELAY = 100;
+  const connectionTimeoutRef = useRef<NodeJS.Timeout>();
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
+  const CONNECTION_TIMEOUT = 5000; // 5 seconds
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    userDataRef.current = userData;
-  }, [userData]);
-
-  useEffect(() => {
-    if (!documentId || !userData || !user || documentId.length === 0) {
+    if (!documentId || !user || documentId.length === 0) {
       setSyncStatus('idle');
       return;
     }
@@ -68,13 +68,63 @@ export function useRealtimeDocument(documentId: string) {
 
     channelRef.current = channel;
 
+    // Connection timeout - se não conectar em 5s, marcar erro e tentar retry
+    connectionTimeoutRef.current = setTimeout(() => {
+      if (syncStatus === 'idle' || syncStatus === 'syncing') {
+        console.error('⚠️ [Realtime] Timeout de conexão - tentativa', retryCountRef.current + 1);
+        
+        if (retryCountRef.current < MAX_RETRIES) {
+          retryCountRef.current++;
+          toast({
+            title: "Reconectando...",
+            description: `Tentativa ${retryCountRef.current} de ${MAX_RETRIES}`,
+          });
+          
+          // Retry connection
+          if (channelRef.current) {
+            supabase.removeChannel(channelRef.current);
+          }
+          setSyncStatus('idle');
+        } else {
+          setSyncStatus('error');
+          toast({
+            title: "❌ Erro de conexão",
+            description: "Não foi possível conectar ao servidor. Suas mudanças serão salvas localmente.",
+            variant: "destructive",
+          });
+        }
+      }
+    }, CONNECTION_TIMEOUT);
+
     channel.subscribe((status) => {
       console.log('📡 [Realtime] Status do canal de sincronização:', status);
+      
       if (status === 'SUBSCRIBED') {
-        // Quando conectado, marcar como sincronizado
+        // Limpar timeout de conexão e resetar retry counter
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+        }
+        retryCountRef.current = 0;
         setSyncStatus('synced');
+        
+        // Iniciar heartbeat para verificar conexão
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+        }
+        heartbeatIntervalRef.current = setInterval(() => {
+          // Verificar se canal ainda está ativo
+          const currentStatus = channelRef.current?.state;
+          if (currentStatus !== 'joined') {
+            console.warn('⚠️ [Realtime] Canal não está mais conectado');
+            setSyncStatus('error');
+          }
+        }, 10000); // Check every 10 seconds
+        
       } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
         setSyncStatus('error');
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+        }
       }
     });
 
@@ -84,6 +134,12 @@ export function useRealtimeDocument(documentId: string) {
       }
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
+      }
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+      }
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
       }
     };
   }, [documentId, user?.id]);
