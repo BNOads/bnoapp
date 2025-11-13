@@ -288,6 +288,16 @@ export function ArquivoReuniaoView() {
     setIndicesTitulos(headings);
   };
 
+  const handleAddToIndex = useCallback((text: string) => {
+    // Adicionar imediatamente ao índice quando um título é fixado
+    const newHeading = {
+      text,
+      tag: 'h2' as const,
+      id: `heading-${Date.now()}`
+    };
+    setIndicesTitulos(prev => [...prev, newHeading]);
+  }, []);
+
   if (loading || !arquivoId) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -444,6 +454,7 @@ export function ArquivoReuniaoView() {
               initialContent={conteudo}
               onContentChange={handleContentChange}
               onHeadingsChange={handleHeadingsChange}
+              onAddToIndex={handleAddToIndex}
             />
           </div>
         </div>
