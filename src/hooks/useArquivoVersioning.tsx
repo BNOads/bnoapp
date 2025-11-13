@@ -40,7 +40,7 @@ export const useArquivoVersioning = (arquivoId: string, userId: string, userName
       }
 
       // Buscar próximo número de versão
-      const { data: lastVersion } = await supabase
+      const { data: lastVersion } = await (supabase as any)
         .from('arquivo_reuniao_historico')
         .select('versao')
         .eq('arquivo_id', arquivoId)
@@ -51,7 +51,7 @@ export const useArquivoVersioning = (arquivoId: string, userId: string, userName
       const nextVersion = (lastVersion?.versao || 0) + 1;
 
       // Criar nova versão
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('arquivo_reuniao_historico')
         .insert({
           arquivo_id: arquivoId,
@@ -110,7 +110,7 @@ export const useArquivoVersioning = (arquivoId: string, userId: string, userName
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('arquivo_reuniao_historico')
         .select('*')
         .eq('arquivo_id', arquivoId)
