@@ -1,32 +1,29 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { 
-  Calendar, 
-  ChevronDown, 
-  ChevronRight, 
-  CalendarDays, 
   Users, 
   Save, 
   Clock, 
   Loader2, 
   BookOpen, 
   History, 
-  Bookmark 
+  Bookmark,
+  Search,
+  X,
+  ChevronUp,
+  ChevronDown as ChevronDownIcon
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ArquivoReuniaoEditor } from './ArquivoReuniaoEditor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuth } from '@/components/Auth/AuthContext';
-import { gerarEstruturaDias } from '@/lib/gerarEstruturaDias';
 import { useArquivoVersioning, type ArquivoVersion } from '@/hooks/useArquivoVersioning';
 import { ArquivoHistoricoVersoes } from './ArquivoHistoricoVersoes';
 import { ArquivoVisualizarVersao } from './ArquivoVisualizarVersao';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { 
   Dialog,
   DialogContent,
@@ -37,11 +34,6 @@ import {
 } from '@/components/ui/dialog';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-const MESES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-];
-
 interface UserPresence {
   userId: string;
   userName: string;
@@ -49,11 +41,11 @@ interface UserPresence {
   lastActive: string;
 }
 
-interface MesData {
-  nome: string;
-  numero: number;
-  dias: { dia: number; diaSemana: string }[];
-  expanded: boolean;
+interface SearchResult {
+  text: string;
+  type: 'content' | 'index';
+  context: string;
+  position: number;
 }
 
 export function ArquivoReuniaoView() {
@@ -61,14 +53,14 @@ export function ArquivoReuniaoView() {
   const { userData } = useCurrentUser();
   const { user } = useAuth();
   const anoAtual = new Date().getFullYear();
-  const mesAtual = new Date().getMonth();
-  const diaAtual = new Date().getDate();
 
   const [arquivoId, setArquivoId] = useState<string | null>(null);
   const [conteudo, setConteudo] = useState<any>(null);
-  const [meses, setMeses] = useState<MesData[]>([]);
-  const [selectedDate, setSelectedDate] = useState({ mes: mesAtual + 1, dia: diaAtual });
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [currentResultIndex, setCurrentResultIndex] = useState(0);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
@@ -93,32 +85,124 @@ export function ArquivoReuniaoView() {
     userData?.nome || 'Usuário'
   );
 
-  // Gerar estrutura de meses/dias
+  // Busca no conteúdo e índice
   useEffect(() => {
-    const mesesData: MesData[] = MESES.map((nome, index) => {
-      const mes = index + 1;
-      const diasNoMes = new Date(anoAtual, mes, 0).getDate();
-      const dias = [];
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
 
-      for (let dia = 1; dia <= diasNoMes; dia++) {
-        const data = new Date(anoAtual, index, dia);
-        const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-        dias.push({
-          dia,
-          diaSemana: diasSemana[data.getDay()]
+    const results: SearchResult[] = [];
+    const query = searchQuery.toLowerCase();
+
+    // Buscar no índice de títulos
+    indicesTitulos.forEach((heading, index) => {
+      if (heading.text.toLowerCase().includes(query)) {
+        results.push({
+          text: heading.text,
+          type: 'index',
+          context: `${heading.tag.toUpperCase()}: ${heading.text}`,
+          position: index
         });
       }
-
-      return {
-        nome,
-        numero: mes,
-        dias,
-        expanded: mes === mesAtual + 1
-      };
     });
 
-    setMeses(mesesData);
-  }, [anoAtual, mesAtual]);
+    // Buscar no conteúdo do editor
+    const editorElement = document.querySelector('.prose');
+    if (editorElement) {
+      const textContent = editorElement.textContent || '';
+      const lowerContent = textContent.toLowerCase();
+      let startIndex = 0;
+      
+      while (startIndex < lowerContent.length) {
+        const foundIndex = lowerContent.indexOf(query, startIndex);
+        if (foundIndex === -1) break;
+        
+        // Extrair contexto (50 caracteres antes e depois)
+        const contextStart = Math.max(0, foundIndex - 50);
+        const contextEnd = Math.min(textContent.length, foundIndex + query.length + 50);
+        const context = textContent.substring(contextStart, contextEnd);
+        const highlight = textContent.substring(foundIndex, foundIndex + query.length);
+        
+        results.push({
+          text: highlight,
+          type: 'content',
+          context: `...${context}...`,
+          position: foundIndex
+        });
+        
+        startIndex = foundIndex + query.length;
+      }
+    }
+
+    setSearchResults(results);
+    setShowSearchResults(results.length > 0);
+    setCurrentResultIndex(0);
+  }, [searchQuery, indicesTitulos]);
+
+  // Navegar pelos resultados
+  const navigateToResult = (index: number) => {
+    if (searchResults.length === 0) return;
+    
+    const result = searchResults[index];
+    const editorElement = document.querySelector('.prose');
+    
+    if (result.type === 'index') {
+      // Navegar para o título no índice
+      const headings = editorElement?.querySelectorAll('h1, h2, h3');
+      const targetHeading = Array.from(headings || []).find(
+        h => h.textContent?.trim() === result.text
+      );
+      if (targetHeading) {
+        targetHeading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      // Realçar texto no conteúdo
+      if (editorElement) {
+        const range = document.createRange();
+        const walker = document.createTreeWalker(
+          editorElement,
+          NodeFilter.SHOW_TEXT,
+          null
+        );
+        
+        let currentPos = 0;
+        let node;
+        
+        while (node = walker.nextNode()) {
+          const text = node.textContent || '';
+          if (currentPos + text.length >= result.position) {
+            const offset = result.position - currentPos;
+            if (node.parentElement) {
+              node.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            break;
+          }
+          currentPos += text.length;
+        }
+      }
+    }
+    
+    setCurrentResultIndex(index);
+  };
+
+  const handleNextResult = () => {
+    const nextIndex = (currentResultIndex + 1) % searchResults.length;
+    navigateToResult(nextIndex);
+  };
+
+  const handlePrevResult = () => {
+    const prevIndex = (currentResultIndex - 1 + searchResults.length) % searchResults.length;
+    navigateToResult(prevIndex);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
+    setCurrentResultIndex(0);
+  };
 
   // Setup presence channel
   useEffect(() => {
@@ -236,13 +320,12 @@ export function ArquivoReuniaoView() {
 
     saveTimeoutRef.current = setTimeout(async () => {
       await saveContent(pendingContentRef.current);
-    }, 3000); // Save after 3 seconds of inactivity
+    }, 3000);
   };
 
   const saveContent = async (content: any, retryCount = 0): Promise<boolean> => {
     if (!arquivoId || !content) return false;
     
-    // Evitar múltiplos salvamentos simultâneos
     if (isSavingRef.current) {
       console.log('⏭️ Salvamento já em progresso, ignorando...');
       return false;
@@ -270,15 +353,13 @@ export function ArquivoReuniaoView() {
       setSaveStatus('saved');
       console.log('✅ Conteúdo salvo automaticamente');
       
-      // Auto-reset para idle após 3 segundos
       setTimeout(() => setSaveStatus('idle'), 3000);
       return true;
     } catch (error: any) {
       console.error('❌ Erro ao salvar (tentativa ' + (retryCount + 1) + '):', error);
       
-      // Retry com backoff exponencial (máximo 3 tentativas)
       if (retryCount < 2) {
-        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        const delay = Math.pow(2, retryCount) * 1000;
         console.log(`⏳ Tentando novamente em ${delay}ms...`);
         
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -350,22 +431,11 @@ export function ArquivoReuniaoView() {
     }
   };
 
-  const toggleMes = (mesNumero: number) => {
-    setMeses(prev => prev.map(m => 
-      m.numero === mesNumero ? { ...m, expanded: !m.expanded } : m
-    ));
-  };
-
-  const scrollToToday = () => {
-    setSelectedDate({ mes: mesAtual + 1, dia: diaAtual });
-  };
-
   const handleHeadingsChange = (headings: any[]) => {
     setIndicesTitulos(headings);
   };
 
   const handleAddToIndex = useCallback((text: string) => {
-    // Adicionar imediatamente ao índice quando um título é fixado
     const newHeading = {
       text,
       tag: 'h2' as const,
@@ -397,157 +467,174 @@ export function ArquivoReuniaoView() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar esquerda - Calendário */}
-      <div className="w-64 border-r border-border bg-card">
-        <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <CalendarDays className="h-5 w-5" />
-            {anoAtual}
-          </h2>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full mt-2"
-            onClick={scrollToToday}
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            Ir para Hoje
-          </Button>
-        </div>
-
-        <ScrollArea className="h-[calc(100vh-140px)]">
-          <div className="p-2">
-            {meses.map((mes) => (
-              <div key={mes.numero} className="mb-2">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start font-semibold"
-                  onClick={() => toggleMes(mes.numero)}
-                >
-                  {mes.expanded ? <ChevronDown className="h-4 w-4 mr-2" /> : <ChevronRight className="h-4 w-4 mr-2" />}
-                  {mes.nome}
-                </Button>
-                
-                {mes.expanded && (
-                  <div className="ml-4 mt-1 space-y-1">
-                    {mes.dias.slice(0, 10).map((diaData) => {
-                      const isToday = mes.numero === mesAtual + 1 && diaData.dia === diaAtual;
-                      
-                      return (
-                        <Button
-                          key={diaData.dia}
-                          variant={isToday ? "secondary" : "ghost"}
-                          size="sm"
-                          className={`w-full justify-start text-xs ${isToday ? 'font-bold' : ''}`}
-                          onClick={() => setSelectedDate({ mes: mes.numero, dia: diaData.dia })}
-                        >
-                          {diaData.dia.toString().padStart(2, '0')}/{mes.numero.toString().padStart(2, '0')} - {diaData.diaSemana}
-                          {isToday && <Badge variant="default" className="ml-2 text-xs">Hoje</Badge>}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
-
       {/* Área principal - Editor */}
       <div className="flex-1 flex flex-col">
-        <div className="border-b border-border bg-card p-4 flex items-center justify-between">
-          <div>
+        <div className="border-b border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
             <h1 className="text-2xl font-bold">Arquivo de Reunião {anoAtual}</h1>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-              {/* Status de Salvamento */}
-              <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
-                saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
-                saveStatus === 'saved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
-                saveStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
-                'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-400'
-              }`}>
-                {saveStatus === 'saving' && (
-                  <>
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    <span>Salvando...</span>
-                  </>
-                )}
-                {saveStatus === 'saved' && (
-                  <>
-                    <span className="inline-block w-1.5 h-1.5 bg-green-600 rounded-full"></span>
-                    <span>Salvo {lastSaved && `há ${Math.floor((Date.now() - lastSaved.getTime()) / 1000)}s`}</span>
-                  </>
-                )}
-                {saveStatus === 'error' && (
-                  <>
-                    <span className="inline-block w-1.5 h-1.5 bg-red-600 rounded-full"></span>
-                    <span>Erro ao salvar</span>
-                  </>
-                )}
-                {saveStatus === 'idle' && lastSaved && (
-                  <>
-                    <Clock className="w-3 h-3 opacity-50" />
-                    <span className="opacity-70">Último salvamento: {lastSaved.toLocaleTimeString()}</span>
-                  </>
-                )}
-              </div>
+            
+            <div className="flex items-center gap-3">
+              {/* Online users */}
+              {onlineUsers.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex -space-x-2">
+                    {onlineUsers.slice(0, 3).map((user) => (
+                      <div
+                        key={user.userId}
+                        className="w-8 h-8 rounded-full border-2 border-background flex items-center justify-center text-xs font-semibold text-white"
+                        style={{ backgroundColor: user.color }}
+                        title={user.userName}
+                      >
+                        {user.userName.charAt(0).toUpperCase()}
+                      </div>
+                    ))}
+                    {onlineUsers.length > 3 && (
+                      <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs">
+                        +{onlineUsers.length - 3}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Botões de Versionamento */}
+              <Button
+                onClick={handleOpenHistory}
+                variant="outline"
+                size="sm"
+              >
+                <History className="h-4 w-4 mr-2" />
+                Histórico
+              </Button>
+
+              <Button
+                onClick={() => setShowSaveVersionModal(true)}
+                variant="outline"
+                size="sm"
+              >
+                <Bookmark className="h-4 w-4 mr-2" />
+                Salvar Versão
+              </Button>
+
+              <Button 
+                onClick={handleManualSave} 
+                disabled={isSaving}
+                variant={saveStatus === 'error' ? 'destructive' : 'default'}
+                size="sm"
+              >
+                {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {saveStatus === 'error' ? 'Tentar Salvar' : 'Salvar'}
+              </Button>
             </div>
           </div>
-          
-          <div className="flex items-center gap-3">
-            {/* Online users */}
-            {onlineUsers.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <div className="flex -space-x-2">
-                  {onlineUsers.slice(0, 3).map((user) => (
-                    <div
-                      key={user.userId}
-                      className="w-8 h-8 rounded-full border-2 border-background flex items-center justify-center text-xs font-semibold text-white"
-                      style={{ backgroundColor: user.color }}
-                      title={user.userName}
+
+          {/* Barra de busca */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar no texto ou no índice..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-24"
+            />
+            {searchQuery && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                {searchResults.length > 0 && (
+                  <>
+                    <span className="text-xs text-muted-foreground mr-1">
+                      {currentResultIndex + 1}/{searchResults.length}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0"
+                      onClick={handlePrevResult}
                     >
-                      {user.userName.charAt(0).toUpperCase()}
-                    </div>
-                  ))}
-                  {onlineUsers.length > 3 && (
-                    <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs">
-                      +{onlineUsers.length - 3}
-                    </div>
-                  )}
-                </div>
+                      <ChevronUp className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0"
+                      onClick={handleNextResult}
+                    >
+                      <ChevronDownIcon className="h-3 w-3" />
+                    </Button>
+                  </>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0"
+                  onClick={clearSearch}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
               </div>
             )}
+          </div>
 
-            {/* Botões de Versionamento */}
-            <Button
-              onClick={handleOpenHistory}
-              variant="outline"
-              size="sm"
-            >
-              <History className="h-4 w-4 mr-2" />
-              Histórico
-            </Button>
+          {/* Resultados da busca */}
+          {showSearchResults && searchResults.length > 0 && (
+            <div className="mt-2 p-2 bg-muted rounded-md text-xs">
+              <div className="font-semibold mb-1">
+                {searchResults.length} resultado(s) encontrado(s)
+              </div>
+              <div className="space-y-1">
+                {searchResults.slice(0, 5).map((result, index) => (
+                  <button
+                    key={index}
+                    className={`w-full text-left p-2 rounded hover:bg-accent transition-colors ${
+                      index === currentResultIndex ? 'bg-accent' : ''
+                    }`}
+                    onClick={() => navigateToResult(index)}
+                  >
+                    <Badge variant={result.type === 'index' ? 'default' : 'secondary'} className="text-xs mb-1">
+                      {result.type === 'index' ? 'Índice' : 'Texto'}
+                    </Badge>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {result.context}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-            <Button
-              onClick={() => setShowSaveVersionModal(true)}
-              variant="outline"
-              size="sm"
-            >
-              <Bookmark className="h-4 w-4 mr-2" />
-              Salvar Versão
-            </Button>
-
-            <Button 
-              onClick={handleManualSave} 
-              disabled={isSaving}
-              variant={saveStatus === 'error' ? 'destructive' : 'default'}
-              size="sm"
-            >
-              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              {saveStatus === 'error' ? 'Tentar Salvar' : 'Salvar'}
-            </Button>
+          {/* Status de Salvamento */}
+          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-2">
+            <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
+              saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
+              saveStatus === 'saved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
+              saveStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
+              'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-400'
+            }`}>
+              {saveStatus === 'saving' && (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Salvando...</span>
+                </>
+              )}
+              {saveStatus === 'saved' && (
+                <>
+                  <span className="inline-block w-1.5 h-1.5 bg-green-600 rounded-full"></span>
+                  <span>Salvo {lastSaved && `há ${Math.floor((Date.now() - lastSaved.getTime()) / 1000)}s`}</span>
+                </>
+              )}
+              {saveStatus === 'error' && (
+                <>
+                  <span className="inline-block w-1.5 h-1.5 bg-red-600 rounded-full"></span>
+                  <span>Erro ao salvar</span>
+                </>
+              )}
+              {saveStatus === 'idle' && lastSaved && (
+                <>
+                  <Clock className="w-3 h-3 opacity-50" />
+                  <span className="opacity-70">Último salvamento: {lastSaved.toLocaleTimeString()}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -583,7 +670,6 @@ export function ArquivoReuniaoView() {
                     'ml-6 text-muted-foreground'
                   }`}
                   onClick={() => {
-                    // Scroll suave até o título no editor
                     const editorElement = document.querySelector('.prose');
                     if (editorElement) {
                       const headings = editorElement.querySelectorAll('h1, h2, h3');
