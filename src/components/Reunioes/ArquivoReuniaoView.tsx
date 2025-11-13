@@ -290,23 +290,34 @@ export function ArquivoReuniaoView() {
 
   const handleClientMention = (clientName: string) => {
     setClientesMencionados(prev => {
+      // Evitar duplicação - só adicionar se ainda não existir
+      if (prev.has(clientName)) {
+        return prev;
+      }
+      
       const newSet = new Set(prev);
       newSet.add(clientName);
+      
+      // Salvar no banco com o conjunto atualizado
+      if (arquivoId) {
+        const uniqueClients = Array.from(newSet);
+        supabase
+          .from('arquivo_reuniao')
+          .update({
+            clientes_relacionados: uniqueClients
+          })
+          .eq('id', arquivoId)
+          .then(({ error }) => {
+            if (error) {
+              console.error('❌ Erro ao salvar cliente:', error);
+            } else {
+              console.log('✅ Cliente adicionado:', clientName, '| Total:', uniqueClients.length);
+            }
+          });
+      }
+      
       return newSet;
     });
-
-    // Salvar no banco
-    if (arquivoId) {
-      supabase
-        .from('arquivo_reuniao')
-        .update({
-          clientes_relacionados: Array.from(clientesMencionados).concat(clientName)
-        })
-        .eq('id', arquivoId)
-        .then(() => {
-          console.log('Cliente adicionado:', clientName);
-        });
-    }
   };
 
   const handleHeadingsChange = (headings: any[]) => {
