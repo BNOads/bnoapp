@@ -212,3 +212,16 @@ All colors MUST be HSL.
   filter: brightness(0.9);
   cursor: pointer;
 }
+
+/* Lexical Editor Text Formatting */
+.editor-text-bold {
+  font-weight: bold;
+}
+
+.editor-text-italic {
+  font-style: italic;
+}
+
+.editor-text-underline {
+  text-decoration: underline;
+}
