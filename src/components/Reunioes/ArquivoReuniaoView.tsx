@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -288,37 +288,34 @@ export function ArquivoReuniaoView() {
     setSelectedDate({ mes: mesAtual + 1, dia: diaAtual });
   };
 
-  const handleClientMention = (clientName: string) => {
+  const handleClientMention = useCallback((clientName: string) => {
     setClientesMencionados(prev => {
-      // Evitar duplicação - só adicionar se ainda não existir
+      // Evitar duplicação
       if (prev.has(clientName)) {
         return prev;
       }
       
       const newSet = new Set(prev);
       newSet.add(clientName);
-      
-      // Salvar no banco com o conjunto atualizado
-      if (arquivoId) {
-        const uniqueClients = Array.from(newSet);
-        supabase
-          .from('arquivo_reuniao')
-          .update({
-            clientes_relacionados: uniqueClients
-          })
-          .eq('id', arquivoId)
-          .then(({ error }) => {
-            if (error) {
-              console.error('❌ Erro ao salvar cliente:', error);
-            } else {
-              console.log('✅ Cliente adicionado:', clientName, '| Total:', uniqueClients.length);
-            }
-          });
-      }
-      
       return newSet;
     });
-  };
+  }, []);
+
+  // Salvar clientes mencionados no banco (separado do setState)
+  useEffect(() => {
+    if (arquivoId && clientesMencionados.size > 0) {
+      const uniqueClients = Array.from(clientesMencionados);
+      supabase
+        .from('arquivo_reuniao')
+        .update({ clientes_relacionados: uniqueClients })
+        .eq('id', arquivoId)
+        .then(({ error }) => {
+          if (error) {
+            console.error('❌ Erro ao salvar clientes:', error);
+          }
+        });
+    }
+  }, [arquivoId, clientesMencionados]);
 
   const handleHeadingsChange = (headings: any[]) => {
     setIndicesTitulos(headings);
