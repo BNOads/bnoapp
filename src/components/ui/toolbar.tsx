@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bold, Italic, Underline, List, ListOrdered, Pin, Palette, Link2 } from 'lucide-react';
+import { Bold, Italic, Underline, List, ListOrdered, Pin, Palette, Link2, Undo2, Redo2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -12,6 +12,10 @@ interface ToolbarProps {
   onFixarIndice: () => void;
   onColorChange: (color: string) => void;
   onLinkInsert: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
   activeFormats: {
     bold: boolean;
     italic: boolean;
@@ -73,7 +77,19 @@ const COLORS = [
   { name: 'Rosa', value: '#ec4899' },
 ];
 
-export function Toolbar({ visible, position, onFormat, onFixarIndice, onColorChange, onLinkInsert, activeFormats }: ToolbarProps) {
+export function Toolbar({ 
+  visible, 
+  position, 
+  onFormat, 
+  onFixarIndice, 
+  onColorChange, 
+  onLinkInsert, 
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
+  activeFormats 
+}: ToolbarProps) {
   const [colorPopoverOpen, setColorPopoverOpen] = useState(false);
 
   return (
@@ -90,6 +106,31 @@ export function Toolbar({ visible, position, onFormat, onFixarIndice, onColorCha
             top: `${position.y}px`,
           }}
         >
+          {/* Undo/Redo */}
+          {onUndo && (
+            <ToolbarButton
+              label="Desfazer"
+              icon={Undo2}
+              isActive={false}
+              onClick={onUndo}
+              tooltip="Desfazer (Ctrl+Z)"
+            />
+          )}
+          
+          {onRedo && (
+            <ToolbarButton
+              label="Refazer"
+              icon={Redo2}
+              isActive={false}
+              onClick={onRedo}
+              tooltip="Refazer (Ctrl+Y)"
+            />
+          )}
+          
+          {(onUndo || onRedo) && (
+            <div className="w-px h-6 bg-border mx-1" />
+          )}
+          
           <ToolbarButton
             label="Negrito"
             icon={Bold}
