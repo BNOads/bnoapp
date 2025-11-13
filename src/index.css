@@ -212,3 +212,24 @@ All colors MUST be HSL.
   filter: brightness(0.9);
   cursor: pointer;
 }
+
+/* Lexical Editor - Formatação de Texto */
+.editor-text-bold {
+  font-weight: bold;
+}
+
+.editor-text-italic {
+  font-style: italic;
+}
+
+.editor-text-underline {
+  text-decoration: underline;
+}
+
+/* Lexical Editor - Títulos fixados no índice */
+.editor-heading-indexed {
+  background: hsl(var(--primary) / 0.05);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  border-left: 3px solid hsl(var(--primary));
+}
