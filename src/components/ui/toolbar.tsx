@@ -94,12 +94,12 @@ export function Toolbar({
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           transition={{ duration: 0.15, ease: 'easeOut' }}
           style={{
-            position: 'absolute',
+            position: 'fixed',
             left: `${position.x}px`,
             top: `${position.y}px`,
             zIndex: 1000,
           }}
-          className="flex items-center gap-1 bg-card border border-border rounded-lg shadow-lg p-1 overflow-x-auto"
+          className="flex items-center gap-1 bg-card border border-border rounded-lg shadow-lg p-1 overflow-x-auto max-w-[90vw] md:max-w-none"
         >
           <ToolbarButton
             label="Negrito"
