@@ -217,6 +217,53 @@ export type Database = {
         }
         Relationships: []
       }
+      arquivo_reuniao_historico: {
+        Row: {
+          arquivo_id: string
+          autor: string
+          autor_nome: string
+          conteudo: Json
+          created_at: string
+          data_hora: string
+          id: string
+          observacoes: string | null
+          tipo: string
+          versao: number
+        }
+        Insert: {
+          arquivo_id: string
+          autor: string
+          autor_nome: string
+          conteudo: Json
+          created_at?: string
+          data_hora?: string
+          id?: string
+          observacoes?: string | null
+          tipo: string
+          versao: number
+        }
+        Update: {
+          arquivo_id?: string
+          autor?: string
+          autor_nome?: string
+          conteudo?: Json
+          created_at?: string
+          data_hora?: string
+          id?: string
+          observacoes?: string | null
+          tipo?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arquivo_reuniao_historico_arquivo_id_fkey"
+            columns: ["arquivo_id"]
+            isOneToOne: false
+            referencedRelation: "arquivo_reuniao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistente_conversas: {
         Row: {
           ativo: boolean

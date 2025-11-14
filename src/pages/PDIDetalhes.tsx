@@ -8,11 +8,23 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Calendar, CheckCircle, Clock, Play, ExternalLink, MessageSquare, Lock, Send } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, Clock, Play, ExternalLink, MessageSquare, Lock, Send, Edit2, Trash2, CheckCircle2 } from 'lucide-react';
 import { PDIExternalLinks } from '@/components/PDI/PDIExternalLinks';
+import { EditarPDIModal } from '@/components/PDI/EditarPDIModal';
 import { useAuth } from '@/components/Auth/AuthContext';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Aula {
   id: string;
@@ -46,10 +58,12 @@ interface PDI {
   descricao: string;
   data_limite: string;
   status: string;
+  colaborador_id?: string;
   aulas: Aula[];
   aulas_externas?: AulaExterna[];
   links_externos?: any[];
   acessos?: Acesso[];
+  acessos_ids?: string[];
 }
 
 interface Comentario {
@@ -69,11 +83,15 @@ export default function PDIDetalhes() {
   const location = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isAdmin } = useUserPermissions();
   const [pdi, setPdi] = useState<PDI | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
   const [novoComentario, setNovoComentario] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showFinalizarDialog, setShowFinalizarDialog] = useState(false);
 
   useEffect(() => {
     carregarPDI();
@@ -133,6 +151,7 @@ export default function PDIDetalhes() {
         descricao: pdiData.descricao,
         data_limite: pdiData.data_limite,
         status: pdiData.status,
+        colaborador_id: pdiData.colaborador_id,
         aulas: aulasData?.map((a: any) => ({
           id: a.id,
           aula_id: a.aula_id,
@@ -145,7 +164,8 @@ export default function PDIDetalhes() {
         })) || [],
         aulas_externas: Array.isArray(pdiData.aulas_externas) ? pdiData.aulas_externas as unknown as AulaExterna[] : [],
         links_externos: Array.isArray(pdiData.links_externos) ? pdiData.links_externos : [],
-        acessos: acessosData
+        acessos: acessosData,
+        acessos_ids: pdiData.acessos_ids || []
       };
 
       setPdi(pdiCompleto);
@@ -321,6 +341,74 @@ export default function PDIDetalhes() {
     }
   };
 
+  const deletarPDI = async () => {
+    if (!id) return;
+
+    try {
+      // Deletar aulas do PDI
+      await supabase
+        .from('pdi_aulas')
+        .delete()
+        .eq('pdi_id', id);
+
+      // Deletar comentários
+      await supabase
+        .from('pdi_comentarios')
+        .delete()
+        .eq('pdi_id', id);
+
+      // Deletar PDI
+      const { error } = await supabase
+        .from('pdis')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "PDI deletado com sucesso"
+      });
+
+      navigate('/');
+    } catch (error) {
+      console.error('Erro ao deletar PDI:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao deletar PDI",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const finalizarPDI = async () => {
+    if (!id) return;
+
+    try {
+      const { error } = await supabase
+        .from('pdis')
+        .update({ status: 'concluido' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "PDI finalizado com sucesso!"
+      });
+
+      setShowFinalizarDialog(false);
+      await carregarPDI();
+    } catch (error) {
+      console.error('Erro ao finalizar PDI:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao finalizar PDI",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -379,19 +467,52 @@ export default function PDIDetalhes() {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
-      {/* Header */}
-      <div className="flex items-center gap-4">
+      {/* Header com Botões Admin */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <Button onClick={() => {
             const from = location.state?.from || '/?tab=colaboradores';
             navigate(from);
-          }} variant="outline" size="sm">
-           <ArrowLeft className="h-4 w-4 mr-2" />
-           Voltar
-         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">{pdi.titulo}</h1>
-          <p className="text-muted-foreground">{pdi.descricao}</p>
+          }} variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">{pdi.titulo}</h1>
+            <p className="text-muted-foreground">{pdi.descricao}</p>
+          </div>
         </div>
+
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowEditModal(true)}
+            >
+              <Edit2 className="h-4 w-4 mr-2" />
+              Editar
+            </Button>
+            {pdi.status !== 'concluido' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFinalizarDialog(true)}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Finalizar
+              </Button>
+            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Deletar
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Status e Progresso */}
@@ -717,6 +838,64 @@ export default function PDIDetalhes() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Modais de Admin */}
+      {isAdmin && pdi && (
+        <>
+          <EditarPDIModal
+            open={showEditModal}
+            onOpenChange={setShowEditModal}
+            onSuccess={() => {
+              setShowEditModal(false);
+              carregarPDI();
+            }}
+            pdiId={id!}
+            pdiData={{
+              titulo: pdi.titulo,
+              descricao: pdi.descricao,
+              colaborador_id: pdi.colaborador_id || '',
+              data_limite: pdi.data_limite,
+              aulas: pdi.aulas,
+              aulas_externas: pdi.aulas_externas,
+              acessos_ids: pdi.acessos_ids || []
+            }}
+          />
+
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Deletar PDI</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja deletar este PDI? Esta ação não pode ser desfeita e todos os dados relacionados serão permanentemente removidos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={deletarPDI} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Deletar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={showFinalizarDialog} onOpenChange={setShowFinalizarDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Finalizar PDI</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja finalizar este PDI? O status será alterado para "Concluído".
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={finalizarPDI}>
+                  Finalizar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </div>
   );
 }
