@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PasswordChangeModal } from "@/components/Auth/PasswordChangeModal";
+import { ThemeSelector } from "@/components/Perfil/ThemeSelector";
 import {
   Select,
   SelectContent,
@@ -367,6 +368,14 @@ export const PerfilColaborador = () => {
             </Button>
           </div>
         </div>
+      </Card>
+
+      {/* Preferências de Tema */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">
+          Preferências de Aparência
+        </h3>
+        <ThemeSelector />
       </Card>
 
       {/* Modal de Alteração de Senha */}
