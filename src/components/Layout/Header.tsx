@@ -1,10 +1,9 @@
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, Star, CheckSquare, Trophy } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useFavoriteTabs } from "@/hooks/useFavoriteTabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import bnoadsLogo from "@/assets/bnoads-logo-new.png";
 import NotificationBell from "@/components/Notifications/NotificationBell";
@@ -16,7 +15,6 @@ export const Header = ({}: HeaderProps) => {
   const { user, signOut } = useAuth();
   const { userData } = useCurrentUser();
   const { isAdmin } = useUserPermissions();
-  const { toggleCurrentPageFavorite, isCurrentPageFavorite } = useFavoriteTabs();
   const navigate = useNavigate();
   const location = useLocation();
   const tabs = [
@@ -140,17 +138,6 @@ export const Header = ({}: HeaderProps) => {
 
             {/* Notification Bell */}
             <NotificationBell />
-
-            {/* Favorite Star Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleCurrentPageFavorite}
-              className="p-2"
-              title={isCurrentPageFavorite() ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-            >
-              <Star className={`h-4 w-4 ${isCurrentPageFavorite() ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
-            </Button>
 
             {/* User Menu */}
             <DropdownMenu>

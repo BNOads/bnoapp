@@ -2,11 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
-import { MapaMentalView } from "./MapaMentalView";
-import { CriadorFunilView } from "./CriadorFunilView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
 import { PautaReuniaoView } from "@/components/Reunioes/PautaReuniaoView";
-import { FileText, Palette, NotebookPen, Brain, Workflow, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, Download, BookOpen } from "lucide-react";
+import { FileText, Palette, NotebookPen, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, Download, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -127,22 +125,6 @@ export const FerramentasView = () => {
       icon: NotebookPen,
       component: <BlocoNotasView />,
       color: "text-green-600"
-    },
-    {
-      id: "mapa-mental",
-      title: "Mapa Mental",
-      description: "Organize suas ideias visualmente com mapas mentais interativos",
-      icon: Brain,
-      component: <MapaMentalView />,
-      color: "text-orange-600"
-    },
-    {
-      id: "criador-funil",
-      title: "Criador de Funil",
-      description: "Projete e visualize funis de marketing completos",
-      icon: Workflow,
-      component: <CriadorFunilView />,
-      color: "text-red-600"
     },
     {
       id: "orcamentos-funil",
