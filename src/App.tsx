@@ -32,8 +32,6 @@ import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import NovoDebriefing from "@/components/Debriefings/NovoDebriefing";
 import DebriefingDetalhes from "@/components/Debriefings/DebriefingDetalhes";
 import DebriefingPublico from "./pages/DebriefingPublico";
-import { MapaMentalPublico } from "./pages/MapaMentalPublico";
-import FunilPublico from "./pages/FunilPublico";
 import Tarefas from "./pages/Tarefas";
 import Gamificacao from "./pages/Gamificacao";
 import NPS from "./pages/NPS";
@@ -80,8 +78,6 @@ function App() {
                 {/* Legacy routes - manter compatibilidade */}
                 <Route path="/referencia/:id" element={<ReferenciaViewer />} />
                 <Route path="/debriefing/publico/:id" element={<DebriefingPublico />} />
-                <Route path="/mapa-mental/publico/:id" element={<MapaMentalPublico />} />
-                <Route path="/funil/publico/:id" element={<FunilPublico />} />
                 <Route path="/pdi/:id" element={
                   <ProtectedRoute>
                     <PDIDetalhes />

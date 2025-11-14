@@ -132,28 +132,6 @@ export function useRecentTabs() {
       };
     }
 
-    if (pathname.startsWith('/funil/')) {
-      const id = pathname.split('/')[2];
-      return { 
-        id: `funil-${id}`, 
-        name: 'Funil', 
-        icon: 'TrendingDown', 
-        path: pathname,
-        timestamp: Date.now() 
-      };
-    }
-
-    if (pathname.startsWith('/mapa-mental/')) {
-      const id = pathname.split('/')[2];
-      return { 
-        id: `mapa-mental-${id}`, 
-        name: 'Mapa Mental', 
-        icon: 'Network', 
-        path: pathname,
-        timestamp: Date.now() 
-      };
-    }
-
     if (pathname.startsWith('/pop/')) {
       const id = pathname.split('/')[2];
       return { 

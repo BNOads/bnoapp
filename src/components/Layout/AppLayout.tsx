@@ -24,8 +24,6 @@ export function AppLayout({ children }: AppLayoutProps) {
     '/pop/publico',
     '/referencia/publica',
     '/debriefing/publico',
-    '/mapa-mental/publico',
-    '/funil/publico',
     '/painel'
   ];
   
