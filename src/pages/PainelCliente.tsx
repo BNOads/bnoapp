@@ -23,7 +23,6 @@ import { NPSPopup } from "@/components/NPS/NPSPopup";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ClienteBrandingProvider } from "@/components/Clientes/ClienteBrandingProvider";
 import { ClienteBrandingHeader } from "@/components/Clientes/ClienteBrandingHeader";
-import { GoogleSheetsMetrics } from "@/components/Clientes/GoogleSheetsMetrics";
 import type { User } from "@supabase/supabase-js";
 const PainelCliente = () => {
   const { clienteId } = useParams();
@@ -354,16 +353,6 @@ const PainelCliente = () => {
               </div>
             </section>
           </div>
-
-          {/* Métricas do Google Sheets - Destaque especial */}
-          {cliente.google_sheet_id && (
-            <section className="space-y-3 sm:space-y-4">
-              <GoogleSheetsMetrics 
-                clienteId={cliente.id} 
-                showRefresh={isAuthenticated}
-              />
-            </section>
-          )}
 
           {/* Gravações - Prioridade Mobile */}
           <section className="space-y-3 sm:space-y-4">

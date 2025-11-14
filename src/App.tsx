@@ -32,7 +32,6 @@ import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import NovoDebriefing from "@/components/Debriefings/NovoDebriefing";
 import DebriefingDetalhes from "@/components/Debriefings/DebriefingDetalhes";
 import DebriefingPublico from "./pages/DebriefingPublico";
-import Tarefas from "./pages/Tarefas";
 import Gamificacao from "./pages/Gamificacao";
 import NPS from "./pages/NPS";
 import ArquivoReuniao from "./pages/ArquivoReuniao";
@@ -158,11 +157,6 @@ function App() {
                 <Route path="/ferramentas/:toolName" element={
                   <ProtectedRoute>
                     <FerramentasPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/tarefas" element={
-                  <ProtectedRoute>
-                    <Tarefas />
                   </ProtectedRoute>
                 } />
                 <Route path="/gamificacao" element={
