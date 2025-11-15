@@ -12,6 +12,14 @@ function log(level: 'INFO' | 'WARN' | 'ERROR', platform: string, message: string
   console.log(`${emoji} [${timestamp}] [${level}] [${platform}] ${message}`, data ? JSON.stringify(data) : '');
 }
 
+// Função auxiliar para extrair mensagens de erro de forma segura
+function getErrorMessage(error: any): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error) return error.message;
+  return String(error);
+}
+
 // Sistema de retry com exponential backoff
 async function fetchWithRetry(
   url: string, 
@@ -37,7 +45,7 @@ async function fetchWithRetry(
       }
       
     } catch (error) {
-      log('ERROR', platform, `Erro na tentativa ${attempt + 1}`, { error: error.message });
+      log('ERROR', platform, `Erro na tentativa ${attempt + 1}`, { error: getErrorMessage(error) });
       
       if (attempt === maxRetries - 1) {
         throw error;
@@ -190,7 +198,7 @@ async function downloadViaCobalt(url: string, platform: string): Promise<{ downl
 
       log('WARN', platform, `Cobalt instância ${i + 1} status inesperado: ${data.status}`, { endpoint });
     } catch (error) {
-      log('WARN', platform, `Falha ao conectar com Cobalt instância ${i + 1}`, { endpoint, error: error.message });
+      log('WARN', platform, `Falha ao conectar com Cobalt instância ${i + 1}`, { endpoint, error: getErrorMessage(error) });
     }
   }
 
@@ -255,7 +263,7 @@ async function downloadUniversal(url: string, platform: string): Promise<{ downl
     
     throw new Error('Formato de resposta não reconhecido');
   } catch (error) {
-    log('ERROR', 'UNIVERSAL', 'Falha no RapidAPI Universal', { error: error.message });
+    log('ERROR', 'UNIVERSAL', 'Falha no RapidAPI Universal', { error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -274,7 +282,7 @@ async function downloadInstagram(url: string): Promise<{ downloadUrl: string; fi
   try {
     return await downloadUniversal(url, 'instagram');
   } catch (error) {
-    log('WARN', 'INSTAGRAM', 'Falha no downloader universal, tentando métodos alternativos', { error: error.message });
+    log('WARN', 'INSTAGRAM', 'Falha no downloader universal, tentando métodos alternativos', { error: getErrorMessage(error) });
   }
   
   const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY');
@@ -319,7 +327,7 @@ async function downloadInstagram(url: string): Promise<{ downloadUrl: string; fi
       
       throw new Error('Nenhum vídeo encontrado na resposta da API');
     } catch (error) {
-      log('WARN', 'INSTAGRAM', 'Falha no RapidAPI', { error: error.message });
+      log('WARN', 'INSTAGRAM', 'Falha no RapidAPI', { error: getErrorMessage(error) });
     }
   }
   
@@ -361,7 +369,7 @@ async function downloadInstagram(url: string): Promise<{ downloadUrl: string; fi
     
     throw new Error('Nenhum vídeo encontrado');
   } catch (error) {
-    log('WARN', 'INSTAGRAM', 'Falha na API alternativa', { error: error.message });
+    log('WARN', 'INSTAGRAM', 'Falha na API alternativa', { error: getErrorMessage(error) });
   }
   
   // Estratégia 3: Scraping direto (último recurso)
@@ -407,7 +415,7 @@ async function downloadInstagram(url: string): Promise<{ downloadUrl: string; fi
     
     throw new Error('Não foi possível extrair URL do vídeo via scraping');
   } catch (error) {
-    log('ERROR', 'INSTAGRAM', 'Todas as estratégias falharam', { error: error.message });
+    log('ERROR', 'INSTAGRAM', 'Todas as estratégias falharam', { error: getErrorMessage(error) });
     throw new Error(
       'Não foi possível baixar o vídeo do Instagram. Verifique se: ' +
       '1) A URL está correta, ' +
@@ -431,7 +439,7 @@ async function downloadYouTube(url: string): Promise<{ downloadUrl: string; file
   try {
     return await downloadUniversal(url, 'youtube');
   } catch (error) {
-    log('WARN', 'YOUTUBE', 'Falha no downloader universal, tentando métodos alternativos', { error: error.message });
+    log('WARN', 'YOUTUBE', 'Falha no downloader universal, tentando métodos alternativos', { error: getErrorMessage(error) });
   }
   
   const videoId = extractYouTubeId(url);
@@ -476,7 +484,7 @@ async function downloadYouTube(url: string): Promise<{ downloadUrl: string; file
       
       throw new Error('URL de download não encontrada na resposta');
     } catch (error) {
-      log('WARN', 'YOUTUBE', 'Falha no RapidAPI', { error: error.message });
+      log('WARN', 'YOUTUBE', 'Falha no RapidAPI', { error: getErrorMessage(error) });
     }
   }
   
@@ -519,7 +527,7 @@ async function downloadYouTube(url: string): Promise<{ downloadUrl: string; file
       
       throw new Error('Nenhum stream de vídeo encontrado');
     } catch (error) {
-      log('WARN', 'YOUTUBE', `Falha no Piped ${instance}`, { error: error.message });
+      log('WARN', 'YOUTUBE', `Falha no Piped ${instance}`, { error: getErrorMessage(error) });
       continue;
     }
   }
@@ -545,7 +553,7 @@ async function downloadMetaAds(url: string): Promise<{ downloadUrl: string; file
   try {
     return await downloadUniversal(url, 'meta');
   } catch (error) {
-    log('WARN', 'META', 'Falha no downloader universal, tentando scraping direto', { error: error.message });
+    log('WARN', 'META', 'Falha no downloader universal, tentando scraping direto', { error: getErrorMessage(error) });
   }
   
   try {
@@ -588,7 +596,7 @@ async function downloadMetaAds(url: string): Promise<{ downloadUrl: string; file
     
     throw new Error('Não foi possível extrair URL do vídeo');
   } catch (error) {
-    log('ERROR', 'META', 'Erro no download', { error: error.message });
+    log('ERROR', 'META', 'Erro no download', { error: getErrorMessage(error) });
     throw new Error(
       'Não foi possível baixar o anúncio do Meta. ' +
       'Verifique se a URL está correta e o anúncio contém vídeo.'
@@ -597,7 +605,11 @@ async function downloadMetaAds(url: string): Promise<{ downloadUrl: string; file
 }
 
 // ==================== SERVIDOR PRINCIPAL ====================
+log('INFO', 'STARTUP', 'Edge function download-video iniciada');
+
 serve(async (req) => {
+  log('INFO', 'REQUEST', 'Requisição recebida', { method: req.method, url: req.url });
+  
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -655,15 +667,15 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    log('ERROR', 'SERVER', 'Erro na requisição', { error: error.message });
+    log('ERROR', 'SERVER', 'Erro na requisição', { error: getErrorMessage(error) });
     
     // Retorna 200 com success:false para evitar erro genérico no frontend
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: `Não conseguimos baixar este vídeo. ${error.message || 'Tente novamente mais tarde.'}`,
+        error: `Não conseguimos baixar este vídeo. ${getErrorMessage(error) || 'Tente novamente mais tarde.'}`,
         debug: {
-          originalError: error.message,
+          originalError: getErrorMessage(error),
           timestamp: new Date().toISOString(),
         }
       }),
