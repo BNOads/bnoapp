@@ -119,9 +119,79 @@ function extractYouTubeId(url: string): string | null {
   return null;
 }
 
+// ==================== UNIVERSAL DOWNLOADER (RAPID API) ====================
+async function downloadUniversal(url: string, platform: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
+  log('INFO', 'UNIVERSAL', 'Tentando RapidAPI best-all-in-one-video-downloader', { url, platform });
+  const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY');
+  
+  if (!RAPIDAPI_KEY) {
+    throw new Error('RAPIDAPI_KEY não configurada');
+  }
+  
+  try {
+    const params = new URLSearchParams();
+    params.append('url', url);
+    
+    const response = await fetchWithRetry(
+      'https://best-all-in-one-video-downloader.p.rapidapi.com/download',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-RapidAPI-Key': RAPIDAPI_KEY,
+          'X-RapidAPI-Host': 'best-all-in-one-video-downloader.p.rapidapi.com',
+        },
+        body: params.toString(),
+      },
+      3,
+      'UNIVERSAL'
+    );
+    
+    const data = await response.json();
+    log('INFO', 'UNIVERSAL', 'Resposta da API', { data });
+    
+    // Processa diferentes formatos de resposta da API
+    if (data.url || data.downloadUrl || data.download_url) {
+      const downloadUrl = data.url || data.downloadUrl || data.download_url;
+      const filename = data.filename || data.title || `${platform}_${Date.now()}.mp4`;
+      
+      log('INFO', 'UNIVERSAL', 'Download bem-sucedido via RapidAPI Universal');
+      return {
+        downloadUrl,
+        filename,
+        method: 'RapidAPI (best-all-in-one)'
+      };
+    }
+    
+    // Se a API retornou múltiplos formatos
+    if (data.formats && Array.isArray(data.formats) && data.formats.length > 0) {
+      const bestFormat = data.formats.find((f: any) => f.quality === 'best') || data.formats[0];
+      log('INFO', 'UNIVERSAL', 'Download bem-sucedido via RapidAPI Universal (formato múltiplo)');
+      return {
+        downloadUrl: bestFormat.url || bestFormat.downloadUrl,
+        filename: data.title || `${platform}_${Date.now()}.mp4`,
+        method: 'RapidAPI (best-all-in-one)'
+      };
+    }
+    
+    throw new Error('Formato de resposta não reconhecido');
+  } catch (error) {
+    log('ERROR', 'UNIVERSAL', 'Falha no RapidAPI Universal', { error: error.message });
+    throw error;
+  }
+}
+
 // ==================== INSTAGRAM ====================
 async function downloadInstagram(url: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
   log('INFO', 'INSTAGRAM', 'Iniciando download do Instagram', { url });
+  
+  // Tenta primeiro o downloader universal
+  try {
+    return await downloadUniversal(url, 'instagram');
+  } catch (error) {
+    log('WARN', 'INSTAGRAM', 'Falha no downloader universal, tentando métodos alternativos', { error: error.message });
+  }
+  
   const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY');
   
   // Estratégia 1: RapidAPI - instagram-video-downloader13 (com multipart/form-data)
@@ -266,6 +336,13 @@ async function downloadInstagram(url: string): Promise<{ downloadUrl: string; fi
 async function downloadYouTube(url: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
   log('INFO', 'YOUTUBE', 'Iniciando download do YouTube', { url });
   
+  // Tenta primeiro o downloader universal
+  try {
+    return await downloadUniversal(url, 'youtube');
+  } catch (error) {
+    log('WARN', 'YOUTUBE', 'Falha no downloader universal, tentando métodos alternativos', { error: error.message });
+  }
+  
   const videoId = extractYouTubeId(url);
   if (!videoId) {
     throw new Error('ID do vídeo inválido. Verifique a URL do YouTube.');
@@ -366,6 +443,13 @@ async function downloadYouTube(url: string): Promise<{ downloadUrl: string; file
 // ==================== META ADS ====================
 async function downloadMetaAds(url: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
   log('INFO', 'META', 'Iniciando download do Meta Ad Library', { url });
+  
+  // Tenta primeiro o downloader universal
+  try {
+    return await downloadUniversal(url, 'meta');
+  } catch (error) {
+    log('WARN', 'META', 'Falha no downloader universal, tentando scraping direto', { error: error.message });
+  }
   
   try {
     const response = await fetchWithRetry(
