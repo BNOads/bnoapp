@@ -49,18 +49,18 @@ export function PDICard({ pdi, onViewDetails, isCompleted = false }: PDICardProp
   };
 
   return (
-    <Card className={`h-full hover:shadow-lg transition-shadow ${isCompleted ? 'bg-green-50 border-green-200' : ''}`}>
+    <Card className={`h-full hover:shadow-lg transition-shadow ${isCompleted ? 'bg-green-500/10 border-green-500/30' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <CardTitle className={`text-lg ${isCompleted ? 'text-green-800' : ''}`}>
+            <CardTitle className="text-lg">
               {pdi.titulo}
             </CardTitle>
-            <CardDescription className={`line-clamp-2 ${isCompleted ? 'text-green-600' : ''}`}>
+            <CardDescription className="line-clamp-2">
               {pdi.descricao}
             </CardDescription>
             {isCompleted && pdi.updated_at && (
-              <p className="text-sm text-green-600">
+              <p className="text-sm text-muted-foreground">
                 Concluído em {new Date(pdi.updated_at).toLocaleDateString('pt-BR')}
               </p>
             )}
@@ -100,7 +100,7 @@ export function PDICard({ pdi, onViewDetails, isCompleted = false }: PDICardProp
         </div>
         
         {progresso === 100 && (
-          <div className="flex items-center gap-2 text-green-600 text-sm">
+          <div className="flex items-center gap-2 text-green-500 dark:text-green-400 text-sm">
             <CheckCircle className="h-4 w-4" />
             <span>PDI concluído!</span>
           </div>
