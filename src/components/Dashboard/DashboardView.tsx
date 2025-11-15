@@ -341,19 +341,19 @@ export function DashboardView() {
             </Button>
             
             {showColorPicker && (
-              <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border p-4 z-10 min-w-[280px]">
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Escolha uma cor:</h3>
+              <div className="absolute right-0 top-full mt-2 bg-popover rounded-lg shadow-lg border p-4 z-10 min-w-[280px]">
+                <h3 className="text-sm font-medium text-foreground mb-3">Escolha uma cor:</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {colorOptions.map((color) => (
                     <button
                       key={color.id}
                       onClick={() => handleColorChange(color.id)}
-                      className={`flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors ${
-                        selectedBgColor === color.id ? 'ring-2 ring-blue-500' : ''
+                      className={`flex items-center gap-2 p-2 rounded-lg hover:bg-accent transition-colors ${
+                        selectedBgColor === color.id ? 'ring-2 ring-primary' : ''
                       }`}
                     >
                       <div className={`w-6 h-6 rounded-full ${color.preview}`}></div>
-                      <span className="text-sm text-gray-700">{color.name}</span>
+                      <span className="text-sm text-foreground">{color.name}</span>
                     </button>
                   ))}
                 </div>
@@ -367,7 +367,7 @@ export function DashboardView() {
             variant="secondary" 
             size="sm" 
             onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')} 
-            className="flex-1 border border-white/20 bg-slate-50 text-sky-900 text-sm"
+            className="flex-1 border border-white/20 bg-secondary text-secondary-foreground text-sm"
           >
             Preencher conversa franca
           </Button>
@@ -375,7 +375,7 @@ export function DashboardView() {
             variant="secondary" 
             size="sm" 
             onClick={() => window.open('https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0cWtPyvaNzPZUaGIaDsYjDGshuYHKA_BhbvCN1YOWxny-lU4EfOpteOvNPjfzj8aBxfbP9baoo', '_blank')} 
-            className="flex-1 border border-white/20 bg-slate-50 text-blue-950 text-sm"
+            className="flex-1 border border-white/20 bg-secondary text-secondary-foreground text-sm"
           >
             Marcar 1x1
           </Button>

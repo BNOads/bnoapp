@@ -59,13 +59,13 @@ export function PDIEquipeCard({ pdi }: PDIEquipeCardProps) {
   const atrasado = diasRestantes < 0 && pdi.status !== 'concluido';
 
   return (
-    <Card className={`${concluido ? 'bg-green-50 border-green-200' : atrasado ? 'bg-red-50 border-red-200' : ''}`}>
+    <Card className={`${concluido ? 'bg-green-500/10 border-green-500/30' : atrasado ? 'bg-red-500/10 border-red-500/30' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <CardTitle className="text-lg">{pdi.titulo}</CardTitle>
-              <Badge variant={getStatusBadgeVariant()} className={concluido ? 'bg-green-500 hover:bg-green-600' : ''}>
+              <Badge variant={getStatusBadgeVariant()} className={concluido ? 'bg-green-500 hover:bg-green-600 text-white' : ''}>
                 {getStatusText()}
               </Badge>
             </div>
@@ -116,7 +116,7 @@ export function PDIEquipeCard({ pdi }: PDIEquipeCardProps) {
 
         {/* Indicador de PDI concluído */}
         {concluido && (
-          <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+          <div className="flex items-center gap-2 text-green-500 dark:text-green-400 text-sm font-medium">
             <CheckCircle className="h-4 w-4" />
             <span>
               Concluído em {new Date(pdi.data_limite).toLocaleDateString('pt-BR')}
