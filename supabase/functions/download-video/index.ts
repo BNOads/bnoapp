@@ -133,7 +133,7 @@ async function downloadUniversal(url: string, platform: string): Promise<{ downl
     params.append('url', url);
     
     const response = await fetchWithRetry(
-      'https://best-all-in-one-video-downloader.p.rapidapi.com/download',
+      'https://best-all-in-one-video-downloader.p.rapidapi.com/index.php',
       {
         method: 'POST',
         headers: {
