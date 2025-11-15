@@ -1,8 +1,5 @@
 project_id = "tbdooscfrrkwfutkdjha"
 
-[functions.download-video]
-verify_jwt = false
-
 [auth]
 enabled = true
 external_email_redirect_urls = []
