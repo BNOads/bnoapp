@@ -120,17 +120,28 @@ function extractYouTubeId(url: string): string | null {
 }
 
 // ==================== COBALT.TOOLS API (FREE & RELIABLE) ====================
-async function downloadViaCobalt(url: string, platform: string): Promise<{ downloadUrl: string; filename: string; method: string } | null> {
-  log('INFO', platform, 'Tentando Cobalt.tools API', { url });
+const COBALT_ENDPOINTS = [
+  'https://api.cobalt.tools/api/json',
+  'https://co.wuk.sh/api/json',
+  'https://cobalt-api.hyper.lol/api/json',
+  'https://api-dl.cgm.rs/api/json',
+];
 
-  try {
-    const response = await fetchWithRetry(
-      'https://api.cobalt.tools/api/json',
-      {
+async function downloadViaCobalt(url: string, platform: string): Promise<{ downloadUrl: string; filename: string; method: string } | null> {
+  log('INFO', platform, 'Tentando Cobalt.tools API com múltiplas instâncias', { url });
+
+  for (let i = 0; i < COBALT_ENDPOINTS.length; i++) {
+    const endpoint = COBALT_ENDPOINTS[i];
+    try {
+      log('INFO', platform, `Testando Cobalt instância ${i + 1}/${COBALT_ENDPOINTS.length}`, { endpoint });
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; BNOapp/1.0; +https://bnoads.com.br)',
+          'Accept-Language': 'en-US,en;q=0.9'
         },
         body: JSON.stringify({
           url: url,
@@ -140,38 +151,51 @@ async function downloadViaCobalt(url: string, platform: string): Promise<{ downl
           filenamePattern: 'basic',
           isAudioOnly: false,
         }),
-      },
-      2,
-      platform
-    );
+      });
 
-    const data = await response.json();
-    log('INFO', platform, 'Resposta Cobalt.tools', { status: data.status });
+      if (!response.ok) {
+        const errorText = await response.text();
+        log('WARN', platform, `Cobalt instância ${i + 1} retornou ${response.status}`, { endpoint, error: errorText.substring(0, 200) });
+        continue; // Tenta próxima instância
+      }
 
-    // Cobalt retorna status: "redirect" com URL direta
-    if (data.status === 'redirect' && data.url) {
-      return {
-        downloadUrl: data.url,
-        filename: data.filename || `video_${Date.now()}.mp4`,
-        method: 'Cobalt.tools'
-      };
+      const data = await response.json();
+      log('INFO', platform, `Resposta Cobalt instância ${i + 1}`, { endpoint, status: data.status });
+
+      // Cobalt retorna status: "redirect" com URL direta
+      if (data.status === 'redirect' && data.url) {
+        return {
+          downloadUrl: data.url,
+          filename: data.filename || `video_${Date.now()}.mp4`,
+          method: `Cobalt.tools (${endpoint.split('//')[1].split('/')[0]})`
+        };
+      }
+
+      // Cobalt retorna status: "picker" com múltiplas qualidades
+      if (data.status === 'picker' && data.picker && data.picker.length > 0) {
+        const bestQuality = data.picker[0]; // Primeira opção geralmente é a melhor
+        return {
+          downloadUrl: bestQuality.url,
+          filename: bestQuality.filename || `video_${Date.now()}.mp4`,
+          method: `Cobalt.tools (${endpoint.split('//')[1].split('/')[0]})`
+        };
+      }
+
+      // Cobalt retorna status: "error"
+      if (data.status === 'error') {
+        const errorMsg = data.text || data.error || 'Erro desconhecido';
+        log('WARN', platform, `Cobalt instância ${i + 1} retornou erro`, { endpoint, error: errorMsg });
+        continue; // Tenta próxima instância
+      }
+
+      log('WARN', platform, `Cobalt instância ${i + 1} status inesperado: ${data.status}`, { endpoint });
+    } catch (error) {
+      log('WARN', platform, `Falha ao conectar com Cobalt instância ${i + 1}`, { endpoint, error: error.message });
     }
-
-    // Cobalt retorna status: "picker" com múltiplas qualidades
-    if (data.status === 'picker' && data.picker && data.picker.length > 0) {
-      const bestQuality = data.picker[0]; // Primeira opção geralmente é a melhor
-      return {
-        downloadUrl: bestQuality.url,
-        filename: bestQuality.filename || `video_${Date.now()}.mp4`,
-        method: 'Cobalt.tools'
-      };
-    }
-
-    throw new Error(`Cobalt status inesperado: ${data.status}`);
-  } catch (error) {
-    log('WARN', platform, 'Falha no Cobalt.tools', { error: error.message });
-    return null; // Retorna null para permitir fallback
   }
+
+  log('WARN', platform, 'Todas as instâncias do Cobalt.tools falharam');
+  return null; // Retorna null para permitir fallback
 }
 
 // ==================== UNIVERSAL DOWNLOADER (RAPID API) ====================
@@ -632,13 +656,18 @@ serve(async (req) => {
 
   } catch (error) {
     log('ERROR', 'SERVER', 'Erro na requisição', { error: error.message });
+    
+    // Retorna 200 com success:false para evitar erro genérico no frontend
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error.message || 'Erro desconhecido ao processar o download',
-        timestamp: new Date().toISOString(),
+        error: `Não conseguimos baixar este vídeo. ${error.message || 'Tente novamente mais tarde.'}`,
+        debug: {
+          originalError: error.message,
+          timestamp: new Date().toISOString(),
+        }
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   }
 });

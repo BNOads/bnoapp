@@ -102,13 +102,21 @@ export const DownloaderCriativosView = () => {
           description: `Método: ${data.method || "padrão"}`
         });
       } else {
+        // Exibe mensagem de erro específica vinda da função
         throw new Error(data.error || "Erro ao processar vídeo");
       }
     } catch (error: any) {
       console.error("❌ Erro no download:", error);
+      
+      // Mensagem mais amigável baseada no tipo de erro
+      let errorMessage = error.message;
+      if (error.message === "Failed to send a request to the Edge Function") {
+        errorMessage = "Não conseguimos contatar o serviço de download. Tente novamente em alguns segundos.";
+      }
+      
       toast({
         title: "Erro ao baixar vídeo",
-        description: error.message || "Tente novamente mais tarde.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
