@@ -119,6 +119,61 @@ function extractYouTubeId(url: string): string | null {
   return null;
 }
 
+// ==================== COBALT.TOOLS API (FREE & RELIABLE) ====================
+async function downloadViaCobalt(url: string, platform: string): Promise<{ downloadUrl: string; filename: string; method: string } | null> {
+  log('INFO', platform, 'Tentando Cobalt.tools API', { url });
+
+  try {
+    const response = await fetchWithRetry(
+      'https://api.cobalt.tools/api/json',
+      {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: url,
+          vCodec: 'h264',
+          vQuality: '720',
+          aFormat: 'mp3',
+          filenamePattern: 'basic',
+          isAudioOnly: false,
+        }),
+      },
+      2,
+      platform
+    );
+
+    const data = await response.json();
+    log('INFO', platform, 'Resposta Cobalt.tools', { status: data.status });
+
+    // Cobalt retorna status: "redirect" com URL direta
+    if (data.status === 'redirect' && data.url) {
+      return {
+        downloadUrl: data.url,
+        filename: data.filename || `video_${Date.now()}.mp4`,
+        method: 'Cobalt.tools'
+      };
+    }
+
+    // Cobalt retorna status: "picker" com múltiplas qualidades
+    if (data.status === 'picker' && data.picker && data.picker.length > 0) {
+      const bestQuality = data.picker[0]; // Primeira opção geralmente é a melhor
+      return {
+        downloadUrl: bestQuality.url,
+        filename: bestQuality.filename || `video_${Date.now()}.mp4`,
+        method: 'Cobalt.tools'
+      };
+    }
+
+    throw new Error(`Cobalt status inesperado: ${data.status}`);
+  } catch (error) {
+    log('WARN', platform, 'Falha no Cobalt.tools', { error: error.message });
+    return null; // Retorna null para permitir fallback
+  }
+}
+
 // ==================== UNIVERSAL DOWNLOADER (RAPID API) ====================
 async function downloadUniversal(url: string, platform: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
   log('INFO', 'UNIVERSAL', 'Tentando RapidAPI best-all-in-one-video-downloader', { url, platform });
@@ -185,7 +240,13 @@ async function downloadUniversal(url: string, platform: string): Promise<{ downl
 async function downloadInstagram(url: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
   log('INFO', 'INSTAGRAM', 'Iniciando download do Instagram', { url });
   
-  // Tenta primeiro o downloader universal
+  // Estratégia 1: Cobalt.tools (gratuito e confiável)
+  const cobaltResult = await downloadViaCobalt(url, 'instagram');
+  if (cobaltResult) {
+    return cobaltResult;
+  }
+  
+  // Estratégia 2: Tenta downloader universal (RapidAPI)
   try {
     return await downloadUniversal(url, 'instagram');
   } catch (error) {
@@ -336,7 +397,13 @@ async function downloadInstagram(url: string): Promise<{ downloadUrl: string; fi
 async function downloadYouTube(url: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
   log('INFO', 'YOUTUBE', 'Iniciando download do YouTube', { url });
   
-  // Tenta primeiro o downloader universal
+  // Estratégia 1: Cobalt.tools (gratuito e confiável)
+  const cobaltResult = await downloadViaCobalt(url, 'youtube');
+  if (cobaltResult) {
+    return cobaltResult;
+  }
+  
+  // Estratégia 2: Tenta downloader universal (RapidAPI)
   try {
     return await downloadUniversal(url, 'youtube');
   } catch (error) {
@@ -444,7 +511,13 @@ async function downloadYouTube(url: string): Promise<{ downloadUrl: string; file
 async function downloadMetaAds(url: string): Promise<{ downloadUrl: string; filename: string; method: string }> {
   log('INFO', 'META', 'Iniciando download do Meta Ad Library', { url });
   
-  // Tenta primeiro o downloader universal
+  // Estratégia 1: Cobalt.tools (gratuito e confiável)
+  const cobaltResult = await downloadViaCobalt(url, 'meta');
+  if (cobaltResult) {
+    return cobaltResult;
+  }
+  
+  // Estratégia 2: Tenta downloader universal (RapidAPI)
   try {
     return await downloadUniversal(url, 'meta');
   } catch (error) {
