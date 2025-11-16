@@ -188,12 +188,15 @@ export function EditarPDIModal({ open, onOpenChange, onSuccess, pdiId, pdiData }
           descricao: formData.descricao,
           colaborador_id: formData.colaborador_id,
           data_limite: formData.data_limite,
-          aulas_externas: formData.aulas_externas as any,
-          acessos_ids: formData.acessos_ids
+          aulas_externas: formData.aulas_externas.length > 0 ? formData.aulas_externas : null,
+          acessos_ids: formData.acessos_ids.length > 0 ? formData.acessos_ids : null
         })
         .eq('id', pdiId);
 
-      if (pdiError) throw pdiError;
+      if (pdiError) {
+        console.error('Erro detalhado do Supabase:', pdiError);
+        throw pdiError;
+      }
 
       // Deletar aulas antigas
       const { error: deleteError } = await supabase

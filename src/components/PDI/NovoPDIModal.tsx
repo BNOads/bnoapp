@@ -176,14 +176,19 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
           descricao: formData.descricao,
           colaborador_id: formData.colaborador_id,
           data_limite: formData.data_limite,
-          aulas_externas: formData.aulas_externas.map(a => ({ ...a, concluida: false })) as any,
-          acessos_ids: formData.acessos_ids,
+          aulas_externas: formData.aulas_externas.length > 0 
+            ? formData.aulas_externas.map(a => ({ ...a, concluida: false }))
+            : null,
+          acessos_ids: formData.acessos_ids.length > 0 ? formData.acessos_ids : null,
           created_by: (await supabase.auth.getUser()).data.user?.id
         })
         .select()
         .single();
 
-      if (pdiError) throw pdiError;
+      if (pdiError) {
+        console.error('Erro detalhado do Supabase:', pdiError);
+        throw pdiError;
+      }
 
       // Associar aulas ao PDI (se houver aulas internas selecionadas)
       if (formData.aulas_selecionadas.length > 0) {
