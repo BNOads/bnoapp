@@ -14,7 +14,7 @@ import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus, Pen
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format, startOfWeek, endOfWeek, getWeek, getYear } from "date-fns";
+import { format, startOfWeek, endOfWeek, getWeek, getYear, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
