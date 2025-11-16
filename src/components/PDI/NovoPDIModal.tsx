@@ -301,11 +301,6 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
     });
 
     setShowAulaExternaForm(false);
-
-    toast({
-      title: "Sucesso",
-      description: "Aula externa adicionada!"
-    });
   };
 
   const removerAulaExterna = (index: number) => {
