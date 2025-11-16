@@ -203,9 +203,7 @@ export const TarefasListEnhanced = ({
       const {
         error
       } = await supabase.from('tarefas').update({
-        status: 'concluida',
-        data_conclusao: new Date().toISOString(),
-        concluida_por: user.data.user.id
+        status: 'concluida'
       }).eq('id', tarefaId);
       if (error) throw error;
       toast({
