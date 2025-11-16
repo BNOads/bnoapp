@@ -37,7 +37,7 @@ const PainelCliente = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [brandingModalOpen, setBrandingModalOpen] = useState(false);
-  const { canManageBudgets } = useUserPermissions();
+  const { canManageBudgets, canCreateContent } = useUserPermissions();
   useEffect(() => {
     console.log('=== PAINEL CLIENTE DEBUG ===');
     console.log('clienteId from useParams:', clienteId);
@@ -242,7 +242,7 @@ const PainelCliente = () => {
                 </Button>
               )}
               
-              {isAuthenticated && canManageBudgets && (
+              {isAuthenticated && canCreateContent && (
                 <>
                   <Button 
                     variant="outline" 
