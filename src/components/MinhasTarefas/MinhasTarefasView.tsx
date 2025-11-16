@@ -85,9 +85,19 @@ export function MinhasTarefasView() {
       }
     } catch (error: any) {
       console.error("Erro ao carregar tarefas:", error);
+      
+      let errorMessage = error.message || "Tente novamente mais tarde";
+      
+      // Melhorar mensagens de erro específicas
+      if (error.message?.includes('missing_clickup_config')) {
+        errorMessage = "Configure sua API Key do ClickUp para ver suas tarefas";
+      } else if (error.message?.includes('clickup_api_error')) {
+        errorMessage = "Erro na API do ClickUp. Verifique se sua API Key está correta.";
+      }
+      
       toast({
         title: "Erro ao carregar tarefas",
-        description: error.message || "Tente novamente mais tarde",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
