@@ -243,7 +243,9 @@ export const PerfilColaborador = () => {
       <Card className="p-6 text-center">
         <div className="relative inline-block">
           <Avatar className="w-24 h-24 mx-auto">
-            <AvatarImage src={colaborador?.avatar_url} />
+            <AvatarImage 
+              src={colaborador?.avatar_url}
+            />
             <AvatarFallback className="text-2xl">
               <User className="w-12 h-12" />
             </AvatarFallback>
