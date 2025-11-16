@@ -1,4 +1,4 @@
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -54,6 +54,12 @@ export const Header = ({}: HeaderProps) => {
       icon: Rocket,
       path: '/ferramentas'
     },
+    {
+      id: 'minhas-tarefas',
+      label: 'Minhas Tarefas',
+      icon: ListChecks,
+      path: '/minhas-tarefas'
+    },
   ];
 
   const getActiveTab = () => {
@@ -62,6 +68,11 @@ export const Header = ({}: HeaderProps) => {
     // Check for ferramentas sub-routes
     if (currentPath.startsWith('/ferramentas')) {
       return 'ferramentas';
+    }
+    
+    // Check for minhas-tarefas route
+    if (currentPath.startsWith('/minhas-tarefas')) {
+      return 'minhas-tarefas';
     }
     
     const tab = tabs.find(t => t.path === currentPath);
