@@ -267,6 +267,7 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
     // Contrato de resposta conforme PRD
     return new Response(
       JSON.stringify({ 
+        success: true,
         tasks: allTasks, 
         page: 0,
         total: allTasks.length,
