@@ -37,11 +37,13 @@ const ThemeSwitch = ({ className, ...props }: ThemeSwitchProps) => {
         checked={checked}
         onCheckedChange={handleCheckedChange}
         className={cn(
-          "peer absolute inset-0 h-full w-full rounded-full bg-input/50 transition-colors",
+          "peer absolute inset-0 h-full w-full rounded-full transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           "[&>span]:h-7 [&>span]:w-7 [&>span]:rounded-full [&>span]:bg-background [&>span]:shadow [&>span]:z-10",
           "data-[state=unchecked]:[&>span]:translate-x-1",
-          "data-[state=checked]:[&>span]:translate-x-[44px]"
+          "data-[state=checked]:[&>span]:translate-x-[44px]",
+          "data-[state=unchecked]:bg-input/50",
+          "data-[state=checked]:bg-black"
         )}
       />
 
@@ -55,7 +57,7 @@ const ThemeSwitch = ({ className, ...props }: ThemeSwitchProps) => {
           size={16}
           className={cn(
             "transition-all duration-200 ease-out",
-            checked ? "text-muted-foreground/70" : "text-foreground scale-110"
+            checked ? "text-white" : "text-foreground scale-110"
           )}
         />
       </span>
@@ -70,7 +72,7 @@ const ThemeSwitch = ({ className, ...props }: ThemeSwitchProps) => {
           size={16}
           className={cn(
             "transition-all duration-200 ease-out",
-            checked ? "text-foreground scale-110" : "text-muted-foreground/70"
+            checked ? "text-white scale-110" : "text-muted-foreground/70"
           )}
         />
       </span>
