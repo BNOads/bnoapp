@@ -253,12 +253,17 @@ export function EditarPDIModal({ open, onOpenChange, onSuccess, pdiId, pdiData }
   };
 
   const toggleAula = (aulaId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      aulas_selecionadas: prev.aulas_selecionadas.includes(aulaId)
+    setFormData(prev => {
+      const isSelected = prev.aulas_selecionadas.includes(aulaId);
+      const newSelection = isSelected
         ? prev.aulas_selecionadas.filter(id => id !== aulaId)
-        : [...prev.aulas_selecionadas, aulaId]
-    }));
+        : [...prev.aulas_selecionadas, aulaId];
+      
+      return {
+        ...prev,
+        aulas_selecionadas: newSelection
+      };
+    });
   };
 
   const validateUrl = (url: string): boolean => {
@@ -459,7 +464,19 @@ export function EditarPDIModal({ open, onOpenChange, onSuccess, pdiId, pdiData }
                           <Checkbox
                             id={`aula-${currentAula.id}`}
                             checked={formData.aulas_selecionadas.includes(currentAula.id)}
-                            onCheckedChange={() => toggleAula(currentAula.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  aulas_selecionadas: [...prev.aulas_selecionadas, currentAula.id]
+                                }));
+                              } else {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  aulas_selecionadas: prev.aulas_selecionadas.filter(id => id !== currentAula.id)
+                                }));
+                              }
+                            }}
                           />
                           <div className="flex-1">
                             <label 
