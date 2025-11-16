@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, RefreshCw } from "lucide-react";
+import { Plus, Loader2, RefreshCw, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { TarefaCard } from "./TarefaCard";
 import { NovaTarefaModal } from "./NovaTarefaModal";
+import { ClickUpConfigModal } from "./ClickUpConfigModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, isToday, isTomorrow, isThisWeek, isFuture, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -32,8 +33,29 @@ export function MinhasTarefasView() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [hasConfig, setHasConfig] = useState<boolean | null>(null);
   const [filtro, setFiltro] = useState<"ativas" | "todas">("ativas");
   const { toast } = useToast();
+
+  const verificarConfiguracao = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      const { data, error } = await supabase
+        .from("clickup_config")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return !!data;
+    } catch (error) {
+      console.error("Erro ao verificar configuração:", error);
+      return false;
+    }
+  };
 
   const carregarTarefas = async (showRefreshToast = false) => {
     try {
@@ -75,8 +97,28 @@ export function MinhasTarefasView() {
   };
 
   useEffect(() => {
-    carregarTarefas();
+    const init = async () => {
+      const temConfig = await verificarConfiguracao();
+      setHasConfig(temConfig);
+      
+      if (temConfig) {
+        carregarTarefas();
+      } else {
+        setLoading(false);
+        setConfigModalOpen(true);
+      }
+    };
+    
+    init();
   }, []);
+
+  const handleConfigSaved = async () => {
+    const temConfig = await verificarConfiguracao();
+    setHasConfig(temConfig);
+    if (temConfig) {
+      carregarTarefas();
+    }
+  };
 
   const handleTarefaConcluida = async (taskId: string) => {
     try {
@@ -156,11 +198,36 @@ export function MinhasTarefasView() {
 
   const gruposTarefas = agruparTarefasPorData(tarefasFiltradas);
 
-  if (loading) {
+  if (loading || hasConfig === null) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  if (hasConfig === false) {
+    return (
+      <>
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+          <Settings className="h-16 w-16 text-muted-foreground" />
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-semibold">Configure sua integração com ClickUp</h3>
+            <p className="text-sm text-muted-foreground max-w-md">
+              Para visualizar suas tarefas, você precisa conectar sua conta do ClickUp
+            </p>
+          </div>
+          <Button onClick={() => setConfigModalOpen(true)}>
+            <Settings className="mr-2 h-4 w-4" />
+            Configurar ClickUp
+          </Button>
+        </div>
+        <ClickUpConfigModal
+          open={configModalOpen}
+          onOpenChange={setConfigModalOpen}
+          onConfigSaved={handleConfigSaved}
+        />
+      </>
     );
   }
 
@@ -189,6 +256,15 @@ export function MinhasTarefasView() {
               <RefreshCw className="h-4 w-4" />
             )}
             <span className="ml-2">Atualizar</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setConfigModalOpen(true)}
+          >
+            <Settings className="h-4 w-4" />
+            <span className="ml-2">Configurar</span>
           </Button>
           
           <Button onClick={() => setModalOpen(true)}>
@@ -247,6 +323,12 @@ export function MinhasTarefasView() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         onTarefaCriada={() => carregarTarefas()}
+      />
+
+      <ClickUpConfigModal
+        open={configModalOpen}
+        onOpenChange={setConfigModalOpen}
+        onConfigSaved={handleConfigSaved}
       />
     </div>
   );

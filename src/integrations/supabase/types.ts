@@ -627,8 +627,36 @@ export type Database = {
           },
         ]
       }
+      clickup_config: {
+        Row: {
+          clickup_api_key: string
+          clickup_team_id: string
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          clickup_api_key: string
+          clickup_team_id: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          clickup_api_key?: string
+          clickup_team_id?: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       clickup_user_mappings: {
         Row: {
+          clickup_api_key: string | null
           clickup_email: string
           clickup_profile_picture: string | null
           clickup_team_id: string
@@ -640,6 +668,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          clickup_api_key?: string | null
           clickup_email: string
           clickup_profile_picture?: string | null
           clickup_team_id: string
@@ -651,6 +680,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          clickup_api_key?: string | null
           clickup_email?: string
           clickup_profile_picture?: string | null
           clickup_team_id?: string
