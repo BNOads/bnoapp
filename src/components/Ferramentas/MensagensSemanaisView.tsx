@@ -154,6 +154,11 @@ export function MensagensSemanaisView() {
     }
   };
   const carregarMensagens = async () => {
+    // Não carregar se o filtro de semana ainda não foi definido
+    if (!filtroWeekStart) {
+      return;
+    }
+    
     setLoading(true);
     try {
       let query = supabase.from("mensagens_semanais").select(`
@@ -170,18 +175,17 @@ export function MensagensSemanaisView() {
         });
       }
 
-      // Aplicar filtros
-      if (filtroWeekStart) {
-        // Calcular o fim da semana (6 dias após o início)
-        const weekStartDate = new Date(filtroWeekStart);
-        const weekEndDate = endOfWeek(weekStartDate, { weekStartsOn: 1 });
-        const weekEnd = format(weekEndDate, "yyyy-MM-dd");
-        
-        // Filtrar mensagens que estejam dentro do intervalo da semana
-        query = query
-          .gte("semana_referencia", filtroWeekStart)
-          .lte("semana_referencia", weekEnd);
-      }
+      // Aplicar filtros - usar parse para evitar problemas de timezone
+      // Parse a data como string "yyyy-MM-dd" sem considerar timezone
+      const weekStartDate = parse(filtroWeekStart, "yyyy-MM-dd", new Date());
+      const weekEndDate = endOfWeek(weekStartDate, { weekStartsOn: 1 });
+      const weekEnd = format(weekEndDate, "yyyy-MM-dd");
+      
+      // Filtrar mensagens que estejam dentro do intervalo da semana
+      query = query
+        .gte("semana_referencia", filtroWeekStart)
+        .lte("semana_referencia", weekEnd);
+      
       if (filtroGestor && filtroGestor !== "all") {
         query = query.eq("gestor_id", filtroGestor);
       }
