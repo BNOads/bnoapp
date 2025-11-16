@@ -62,17 +62,29 @@ serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     const { data: userData } = await supabaseClient.auth.getUser(token);
 
-    const clickupApiKey = Deno.env.get('CLICKUP_API_KEY');
-    if (!clickupApiKey) {
-      console.error('CLICKUP_API_KEY not found in environment');
-      const duration = Date.now() - startTime;
-      console.log(`Request completed in ${duration}ms with missing token error`);
-      
+    if (!userData?.user?.id) {
       return new Response(JSON.stringify({ 
-        error: 'missing_clickup_token',
-        detail: 'Token do ClickUp não configurado no servidor'
-      }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        error: 'unauthorized',
+        detail: 'Usuário não autenticado'
+      }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    // Buscar configuração do ClickUp do usuário
+    const { data: clickupConfig } = await supabaseClient
+      .from('clickup_config')
+      .select('clickup_api_key, clickup_team_id')
+      .eq('user_id', userData.user.id)
+      .maybeSingle();
+
+    if (!clickupConfig?.clickup_api_key) {
+      return new Response(JSON.stringify({ 
+        error: 'missing_clickup_config',
+        detail: 'Configuração do ClickUp não encontrada. Configure sua API key primeiro.'
+      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const clickupApiKey = clickupConfig.clickup_api_key;
+    const configuredTeamId = clickupConfig.clickup_team_id;
 
     const url = new URL(req.url);
     // Suporta ação via body (POST) ou querystring
@@ -81,7 +93,7 @@ serve(async (req) => {
       try { body = await req.json(); } catch { /* body pode estar vazio */ }
     }
     const action = (body?.action || body?.mode || url.searchParams.get('action') || url.searchParams.get('mode') || 'getTasks') as string;
-    const teamId = (body?.teamId || url.searchParams.get('teamId') || '90140307863') as string;
+    const teamId = (body?.teamId || url.searchParams.get('teamId') || configuredTeamId) as string;
 
     // Buscar dados do colaborador se houver usuário autenticado
     let colaboradorEmail: string | null = null;
