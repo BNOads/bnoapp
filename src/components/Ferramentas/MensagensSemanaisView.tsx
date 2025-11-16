@@ -172,8 +172,15 @@ export function MensagensSemanaisView() {
 
       // Aplicar filtros
       if (filtroWeekStart) {
-        // Filtrar pela semana de referência (campo que armazena o início da semana)
-        query = query.eq("semana_referencia", filtroWeekStart);
+        // Calcular o fim da semana (6 dias após o início)
+        const weekStartDate = new Date(filtroWeekStart);
+        const weekEndDate = endOfWeek(weekStartDate, { weekStartsOn: 1 });
+        const weekEnd = format(weekEndDate, "yyyy-MM-dd");
+        
+        // Filtrar mensagens que estejam dentro do intervalo da semana
+        query = query
+          .gte("semana_referencia", filtroWeekStart)
+          .lte("semana_referencia", weekEnd);
       }
       if (filtroGestor && filtroGestor !== "all") {
         query = query.eq("gestor_id", filtroGestor);
