@@ -246,7 +246,7 @@ export const ColaboradoresView = () => {
                       <Avatar className="h-12 w-12 ring-2 ring-border">
                         {colaborador.avatar_url && (
                           <AvatarImage 
-                            src={colaborador.avatar_url} 
+                            src={colaborador.avatar_url}
                             alt={colaborador.nome} 
                           />
                         )}
