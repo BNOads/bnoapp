@@ -123,6 +123,9 @@ serve(async (req) => {
       case 'updateTask':
         return await updateTask(clickupApiKey, body);
       
+      case 'createTask':
+        return await createTask(clickupApiKey, teamId, effectiveEmail, body);
+      
       case 'addComment':
         return await addComment(clickupApiKey, body);
       
@@ -333,6 +336,163 @@ async function updateTask(apiKey: string, updateData: any) {
   } catch (error) {
     console.error('Error updating task:', error);
     throw error;
+  }
+}
+
+async function createTask(apiKey: string, teamId: string, userEmail: string, body: any) {
+  console.log('Creating new task for user:', userEmail);
+
+  const corsHeaders = getCorsHeaders(null);
+
+  try {
+    const headers = {
+      'Authorization': apiKey,
+      'Content-Type': 'application/json',
+    };
+
+    // 1. Buscar o userId do ClickUp pelo email
+    const teamsResp = await fetch('https://api.clickup.com/api/v2/team', { headers });
+    if (!teamsResp.ok) {
+      throw new Error(`Failed to fetch teams: ${teamsResp.status}`);
+    }
+    const teamsData = await teamsResp.json();
+    const teams = teamsData.teams || [];
+
+    let userId: string | null = null;
+    let selectedTeamId: string | null = teamId;
+    const emailToUse = userEmail.toLowerCase().trim();
+    const alias = emailToUse.split('@')[0];
+
+    // Buscar userId no time especificado ou em todos os times
+    const candidateTeamIds = [teamId, ...teams.map((t: any) => String(t.id))];
+    
+    for (const tid of candidateTeamIds) {
+      try {
+        const m = await fetch(`https://api.clickup.com/api/v2/team/${tid}/member`, { headers });
+        if (!m.ok) continue;
+        
+        const mdata = await m.json();
+        const member = mdata.members?.find((mm: any) =>
+          mm.user?.email?.toLowerCase() === emailToUse ||
+          mm.user?.username?.toLowerCase() === emailToUse ||
+          mm.user?.username?.toLowerCase() === alias
+        );
+        
+        if (member) {
+          selectedTeamId = String(tid);
+          userId = String(member.user?.id);
+          console.log(`User found in team ${selectedTeamId}: userId=${userId}`);
+          break;
+        }
+      } catch (e) {
+        console.warn(`Error searching team ${tid}:`, e);
+      }
+    }
+
+    if (!userId) {
+      throw new Error('User not found in any ClickUp team');
+    }
+
+    // 2. Buscar spaces do time
+    const spacesResp = await fetch(`https://api.clickup.com/api/v2/team/${selectedTeamId}/space?archived=false`, { headers });
+    if (!spacesResp.ok) {
+      throw new Error(`Failed to fetch spaces: ${spacesResp.status}`);
+    }
+    const spacesData = await spacesResp.json();
+    const spaces = spacesData.spaces || [];
+
+    if (spaces.length === 0) {
+      throw new Error('No spaces found in team');
+    }
+
+    // 3. Buscar primeira lista disponível no primeiro space
+    const firstSpace = spaces[0];
+    const foldersResp = await fetch(`https://api.clickup.com/api/v2/space/${firstSpace.id}/folder?archived=false`, { headers });
+    
+    let listId: string | null = null;
+
+    if (foldersResp.ok) {
+      const foldersData = await foldersResp.json();
+      const folders = foldersData.folders || [];
+      
+      // Tentar encontrar lista em uma pasta
+      for (const folder of folders) {
+        const listsResp = await fetch(`https://api.clickup.com/api/v2/folder/${folder.id}/list?archived=false`, { headers });
+        if (listsResp.ok) {
+          const listsData = await listsResp.json();
+          const lists = listsData.lists || [];
+          if (lists.length > 0) {
+            listId = lists[0].id;
+            break;
+          }
+        }
+      }
+    }
+
+    // Se não encontrou lista em pastas, buscar listas diretas no space
+    if (!listId) {
+      const listsResp = await fetch(`https://api.clickup.com/api/v2/space/${firstSpace.id}/list?archived=false`, { headers });
+      if (listsResp.ok) {
+        const listsData = await listsResp.json();
+        const lists = listsData.lists || [];
+        if (lists.length > 0) {
+          listId = lists[0].id;
+        }
+      }
+    }
+
+    if (!listId) {
+      throw new Error('No list found to create task');
+    }
+
+    console.log(`Creating task in list ${listId} for user ${userId}`);
+
+    // 4. Criar a tarefa
+    const taskData: any = {
+      name: body.taskData.name,
+      assignees: [parseInt(userId)],
+    };
+
+    if (body.taskData.description) {
+      taskData.description = body.taskData.description;
+    }
+
+    if (body.taskData.due_date) {
+      taskData.due_date = body.taskData.due_date;
+    }
+
+    const createResp = await fetch(`https://api.clickup.com/api/v2/list/${listId}/task`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(taskData),
+    });
+
+    if (!createResp.ok) {
+      const errorText = await createResp.text();
+      throw new Error(`Failed to create task: ${createResp.status} - ${errorText}`);
+    }
+
+    const newTask = await createResp.json();
+
+    return new Response(
+      JSON.stringify({ success: true, task: newTask }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+
+  } catch (error: any) {
+    console.error('Error creating task:', error);
+    return new Response(
+      JSON.stringify({ 
+        success: false,
+        error: error.message || 'Failed to create task'
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   }
 }
 
