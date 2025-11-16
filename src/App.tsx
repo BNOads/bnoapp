@@ -36,7 +36,6 @@ import DebriefingPublico from "./pages/DebriefingPublico";
 import Gamificacao from "./pages/Gamificacao";
 import NPS from "./pages/NPS";
 import ArquivoReuniao from "./pages/ArquivoReuniao";
-import MinhasTarefas from "./pages/MinhasTarefas";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient({
@@ -175,11 +174,6 @@ function App() {
                 <Route path="/nps" element={
                   <ProtectedRoute>
                     <NPS />
-                  </ProtectedRoute>
-                } />
-                <Route path="/minhas-tarefas" element={
-                  <ProtectedRoute>
-                    <MinhasTarefas />
                   </ProtectedRoute>
                 } />
                 <Route path="/arquivo-reuniao" element={
