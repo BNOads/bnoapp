@@ -16,6 +16,7 @@ import { Top3Ranking } from "@/components/Gamificacao/Top3Ranking";
 import { RegistrarAcaoModal } from "@/components/Gamificacao/RegistrarAcaoModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import ThemeSwitch from "@/components/ui/theme-switch";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -329,36 +330,39 @@ export function DashboardView() {
               Sua central de navegação e atalhos rápidos
             </p>
           </div>
-          <div className="relative" ref={colorPickerRef}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowColorPicker(!showColorPicker)}
-              className="text-white hover:bg-white/20 border border-white/20"
-            >
-              <Palette className="h-4 w-4 mr-2" />
-              Personalizar
-            </Button>
-            
-            {showColorPicker && (
-              <div className="absolute right-0 top-full mt-2 bg-popover rounded-lg shadow-lg border p-4 z-10 min-w-[280px]">
-                <h3 className="text-sm font-medium text-foreground mb-3">Escolha uma cor:</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {colorOptions.map((color) => (
-                    <button
-                      key={color.id}
-                      onClick={() => handleColorChange(color.id)}
-                      className={`flex items-center gap-2 p-2 rounded-lg hover:bg-accent transition-colors ${
-                        selectedBgColor === color.id ? 'ring-2 ring-primary' : ''
-                      }`}
-                    >
-                      <div className={`w-6 h-6 rounded-full ${color.preview}`}></div>
-                      <span className="text-sm text-foreground">{color.name}</span>
-                    </button>
-                  ))}
+          <div className="flex items-center gap-3">
+            <ThemeSwitch className="scale-90" />
+            <div className="relative" ref={colorPickerRef}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowColorPicker(!showColorPicker)}
+                className="text-white hover:bg-white/20 border border-white/20"
+              >
+                <Palette className="h-4 w-4 mr-2" />
+                Personalizar
+              </Button>
+              
+              {showColorPicker && (
+                <div className="absolute right-0 top-full mt-2 bg-popover rounded-lg shadow-lg border p-4 z-10 min-w-[280px]">
+                  <h3 className="text-sm font-medium text-foreground mb-3">Escolha uma cor:</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {colorOptions.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => handleColorChange(color.id)}
+                        className={`flex items-center gap-2 p-2 rounded-lg hover:bg-accent transition-colors ${
+                          selectedBgColor === color.id ? 'ring-2 ring-primary' : ''
+                        }`}
+                      >
+                        <div className={`w-6 h-6 rounded-full ${color.preview}`}></div>
+                        <span className="text-sm text-foreground">{color.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
         
