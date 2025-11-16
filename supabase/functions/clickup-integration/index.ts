@@ -63,28 +63,43 @@ serve(async (req) => {
     const { data: userData } = await supabaseClient.auth.getUser(token);
 
     if (!userData?.user?.id) {
+      console.error('Usuário não autenticado');
       return new Response(JSON.stringify({ 
         error: 'unauthorized',
         detail: 'Usuário não autenticado'
       }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    console.log(`Usuário autenticado: ${userData.user.id} (${userData.user.email})`);
+
     // Buscar configuração do ClickUp do usuário
-    const { data: clickupConfig } = await supabaseClient
+    const { data: clickupConfig, error: configError } = await supabaseClient
       .from('clickup_config')
       .select('clickup_api_key, clickup_team_id')
       .eq('user_id', userData.user.id)
       .maybeSingle();
 
+    if (configError) {
+      console.error('Erro ao buscar configuração do ClickUp:', configError);
+      return new Response(JSON.stringify({ 
+        error: 'database_error',
+        detail: 'Erro ao buscar configuração: ' + configError.message
+      }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     if (!clickupConfig?.clickup_api_key) {
+      console.warn('Configuração do ClickUp não encontrada para o usuário');
       return new Response(JSON.stringify({ 
         error: 'missing_clickup_config',
-        detail: 'Configuração do ClickUp não encontrada. Configure sua API key primeiro.'
+        detail: 'Configuração do ClickUp não encontrada. Configure sua API key primeiro.',
+        success: false
       }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const clickupApiKey = clickupConfig.clickup_api_key;
     const configuredTeamId = clickupConfig.clickup_team_id;
+
+    console.log(`Configuração encontrada - Team ID: ${configuredTeamId}`);
 
     const url = new URL(req.url);
     // Suporta ação via body (POST) ou querystring
@@ -201,12 +216,15 @@ async function getTasks(apiKey: string, teamId: string, userEmail: string, prefe
     
     if (!teamsResponse.ok) {
       const duration = Date.now() - requestStart;
+      const errorText = await teamsResponse.text();
       console.error(`Erro ao buscar teams: ${teamsResponse.status} ${teamsResponse.statusText} in ${duration}ms`);
+      console.error(`Resposta da API: ${errorText}`);
       
       return new Response(JSON.stringify({ 
-        error: 'upstream_error',
-        detail: `ClickUp API retornou ${teamsResponse.status}: ${teamsResponse.statusText}`
-      }), { status: teamsResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        error: 'clickup_api_error',
+        detail: `ClickUp API retornou ${teamsResponse.status}. Verifique se sua API Key está correta.`,
+        success: false
+      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     
     const teamsData = await teamsResponse.json();
