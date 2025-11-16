@@ -256,12 +256,17 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
   const currentAula = filteredAulas[currentAulaIndex];
 
   const toggleAula = (aulaId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      aulas_selecionadas: prev.aulas_selecionadas.includes(aulaId)
+    setFormData(prev => {
+      const isSelected = prev.aulas_selecionadas.includes(aulaId);
+      const newSelection = isSelected
         ? prev.aulas_selecionadas.filter(id => id !== aulaId)
-        : [...prev.aulas_selecionadas, aulaId]
-    }));
+        : [...prev.aulas_selecionadas, aulaId];
+      
+      return {
+        ...prev,
+        aulas_selecionadas: newSelection
+      };
+    });
   };
 
   const validateUrl = (url: string): boolean => {
@@ -523,7 +528,19 @@ export function NovoPDIModal({ open, onOpenChange, onSuccess }: NovoPDIModalProp
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           checked={formData.aulas_selecionadas.includes(currentAula.id)}
-                          onCheckedChange={() => toggleAula(currentAula.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setFormData(prev => ({
+                                ...prev,
+                                aulas_selecionadas: [...prev.aulas_selecionadas, currentAula.id]
+                              }));
+                            } else {
+                              setFormData(prev => ({
+                                ...prev,
+                                aulas_selecionadas: prev.aulas_selecionadas.filter(id => id !== currentAula.id)
+                              }));
+                            }
+                          }}
                           onClick={(e) => e.stopPropagation()}
                         />
                         <div className="space-y-1 flex-1">
