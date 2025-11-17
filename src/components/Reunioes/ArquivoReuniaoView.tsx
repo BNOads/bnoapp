@@ -334,9 +334,10 @@ export function ArquivoReuniaoView() {
       clearTimeout(saveTimeoutRef.current);
     }
 
+    // Debounce reduzido para 1 segundo para evitar perda de dados
     saveTimeoutRef.current = setTimeout(async () => {
       await saveContent(pendingContentRef.current);
-    }, 3000);
+    }, 1000);
   };
 
   const saveContent = async (content: any, retryCount = 0): Promise<boolean> => {
