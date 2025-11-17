@@ -223,6 +223,35 @@ export function ArquivoReuniaoView() {
     setCurrentResultIndex(0);
   };
 
+  // Salvamento antes de sair da página
+  useEffect(() => {
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      if (pendingContentRef.current && arquivoId) {
+        e.preventDefault();
+        await saveContent(pendingContentRef.current);
+      }
+    };
+
+    const handleVisibilityChange = async () => {
+      if (document.hidden && pendingContentRef.current && arquivoId) {
+        await saveContent(pendingContentRef.current);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Salvar conteúdo pendente ao desmontar componente
+      if (pendingContentRef.current && arquivoId) {
+        saveContent(pendingContentRef.current);
+      }
+    };
+  }, [arquivoId]);
+
   // Setup presence channel
   useEffect(() => {
     if (!userData || !user?.id) return;
@@ -334,10 +363,10 @@ export function ArquivoReuniaoView() {
       clearTimeout(saveTimeoutRef.current);
     }
 
-    // Debounce reduzido para 1 segundo para evitar perda de dados
+    // Debounce de 300ms - salva rapidamente quando usuário para de digitar
     saveTimeoutRef.current = setTimeout(async () => {
       await saveContent(pendingContentRef.current);
-    }, 1000);
+    }, 300);
   };
 
   const saveContent = async (content: any, retryCount = 0): Promise<boolean> => {
