@@ -177,6 +177,7 @@ export const TarefasListEnhanced = ({
       } = await supabase.from('tarefas').update({
         titulo: editingTarefa.titulo,
         descricao: editingTarefa.descricao,
+        prioridade: editingTarefa.prioridade as 'brasileirao' | 'libertadores' | 'copa_mundo',
         data_vencimento: editingTarefa.data_vencimento
       }).eq('id', editingTarefa.id);
       if (error) throw error;
@@ -501,10 +502,27 @@ export const TarefasListEnhanced = ({
             ...editingTarefa,
             descricao: e.target.value
           })} />
-              <Input type="date" value={editingTarefa.data_vencimento ? new Date(editingTarefa.data_vencimento).toISOString().split('T')[0] : ''} onChange={e => setEditingTarefa({
+              <Select value={editingTarefa.prioridade} onValueChange={value => setEditingTarefa({
             ...editingTarefa,
-            data_vencimento: e.target.value
-          })} />
+            prioridade: value
+          })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Prioridade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="brasileirao">Brasileirão</SelectItem>
+                  <SelectItem value="libertadores">Libertadores</SelectItem>
+                  <SelectItem value="copa_mundo">Copa do Mundo</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input 
+                type="date" 
+                value={editingTarefa.data_vencimento ? editingTarefa.data_vencimento.split('T')[0] : ''} 
+                onChange={e => setEditingTarefa({
+                  ...editingTarefa,
+                  data_vencimento: e.target.value
+                })} 
+              />
               <div className="flex gap-2">
                 <Button onClick={editarTarefa} className="flex-1">
                   Salvar Alterações
