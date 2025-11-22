@@ -199,6 +199,12 @@ export const OrcamentosView = () => {
   };
 
   const filteredAndSortedOrcamentos = useMemo(() => {
+    // Determinar se estamos no período atual
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1;
+    const currentYear = currentDate.getFullYear();
+    const isCurrentPeriod = mesFiltro === currentMonth && anoFiltro === currentYear;
+    
     let filtered = orcamentos.filter(orcamento => {
       const matchesSearch = 
         orcamento.nome_funil.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -209,7 +215,17 @@ export const OrcamentosView = () => {
       const matchesEtapa = etapaFiltro === 'all' || orcamento.etapa_funil === etapaFiltro;
       const matchesPeriodo = orcamento.periodo_mes === mesFiltro && orcamento.periodo_ano === anoFiltro;
       
-      return matchesSearch && matchesCliente && matchesEtapa && matchesPeriodo;
+      // Lógica de status baseada no período
+      let matchesStatus = false;
+      if (isCurrentPeriod) {
+        // Período atual: apenas orçamentos ativos (ligados)
+        matchesStatus = orcamento.active === true;
+      } else {
+        // Períodos passados: ativos e pausados
+        matchesStatus = ['ativo', 'pausado'].includes(orcamento.status_orcamento);
+      }
+      
+      return matchesSearch && matchesCliente && matchesEtapa && matchesPeriodo && matchesStatus;
     });
 
     // Ordenação
