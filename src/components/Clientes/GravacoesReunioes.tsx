@@ -299,8 +299,13 @@ export const GravacoesReunioes = ({ clienteId, isPublicView = false }: Gravacoes
             {displayGravacoes.map((gravacao) => (
               <div key={gravacao.id} className="border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors">
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                  {/* Thumbnail - Responsivo */}
-                  <div className="relative w-full sm:w-20 lg:w-24 h-12 sm:h-14 lg:h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden group cursor-pointer">
+                  {/* Thumbnail - Responsivo e Clicável */}
+                  <a 
+                    href={gravacao.url_gravacao} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="relative w-full sm:w-20 lg:w-24 h-12 sm:h-14 lg:h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden group cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                  >
                     {gravacao.thumbnail_url ? (
                       <>
                         <img 
@@ -308,14 +313,10 @@ export const GravacoesReunioes = ({ clienteId, isPublicView = false }: Gravacoes
                           alt={gravacao.titulo}
                           className="w-full h-full object-cover"
                           loading="lazy"
-                          crossOrigin="anonymous"
+                          referrerPolicy="no-referrer"
                           onError={(e) => {
                             console.error('Erro ao carregar thumbnail:', gravacao.thumbnail_url);
                             e.currentTarget.style.display = 'none';
-                            const parent = e.currentTarget.parentElement;
-                            if (parent) {
-                              parent.classList.add('thumbnail-error');
-                            }
                           }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-center justify-center group-hover:from-black/80 transition-all">
@@ -329,12 +330,19 @@ export const GravacoesReunioes = ({ clienteId, isPublicView = false }: Gravacoes
                         <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-muted-foreground" />
                       </div>
                     )}
-                  </div>
+                  </a>
                   
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold mb-2 text-sm sm:text-base line-clamp-2 leading-tight">
-                      {gravacao.titulo}
-                    </h4>
+                    <a 
+                      href={gravacao.url_gravacao} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block hover:underline"
+                    >
+                      <h4 className="font-semibold mb-2 text-sm sm:text-base line-clamp-2 leading-tight hover:text-primary transition-colors">
+                        {gravacao.titulo}
+                      </h4>
+                    </a>
                     
                     {gravacao.descricao && (
                       <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
