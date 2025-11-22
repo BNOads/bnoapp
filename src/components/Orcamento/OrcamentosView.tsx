@@ -213,19 +213,18 @@ export const OrcamentosView = () => {
       
       const matchesCliente = clienteFiltro === 'all' || orcamento.cliente_id === clienteFiltro;
       const matchesEtapa = etapaFiltro === 'all' || orcamento.etapa_funil === etapaFiltro;
-      const matchesPeriodo = orcamento.periodo_mes === mesFiltro && orcamento.periodo_ano === anoFiltro;
       
-      // Lógica de status baseada no período
-      let matchesStatus = false;
+      // Lógica de período e status baseada se é período atual ou passado
       if (isCurrentPeriod) {
-        // Período atual: apenas orçamentos ativos (ligados)
-        matchesStatus = orcamento.active === true;
+        // Período atual: TODOS os orçamentos ativos (ligados), independente do período cadastrado
+        const matchesStatus = orcamento.active === true;
+        return matchesSearch && matchesCliente && matchesEtapa && matchesStatus;
       } else {
-        // Períodos passados: ativos e pausados
-        matchesStatus = ['ativo', 'pausado'].includes(orcamento.status_orcamento);
+        // Períodos passados: filtrar por período específico E considerar ativos e pausados
+        const matchesPeriodo = orcamento.periodo_mes === mesFiltro && orcamento.periodo_ano === anoFiltro;
+        const matchesStatus = ['ativo', 'pausado'].includes(orcamento.status_orcamento);
+        return matchesSearch && matchesCliente && matchesEtapa && matchesPeriodo && matchesStatus;
       }
-      
-      return matchesSearch && matchesCliente && matchesEtapa && matchesPeriodo && matchesStatus;
     });
 
     // Ordenação
