@@ -108,11 +108,48 @@ Seja direto, frases curtas, sem enrolação.`;
 
     console.log("Gerando resumo com IA...");
 
-    // Gerar resumo simples sem IA por enquanto
-    const resumo = `**Status Geral**: ${totalAtivos} lançamentos ativos hoje.
+    // Tentar usar IA, se falhar usar fallback
+    let resumo = "";
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    
+    if (LOVABLE_API_KEY) {
+      try {
+        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "Você é um assistente de gestão de lançamentos. Seja direto e conciso." },
+              { role: "user", content: prompt }
+            ],
+          }),
+        });
+        
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          resumo = aiData.choices?.[0]?.message?.content || "";
+          console.log("Resumo gerado com IA com sucesso");
+        } else {
+          console.error("Erro na API da IA:", aiResponse.status);
+        }
+      } catch (error) {
+        console.error("Erro ao chamar IA:", error);
+      }
+    } else {
+      console.log("LOVABLE_API_KEY não configurada");
+    }
+    
+    // Fallback se a IA não funcionou
+    if (!resumo) {
+      resumo = `**Status Geral**: ${totalAtivos} lançamentos ativos hoje.
 
 **Ações Prioritárias**:
 ${acoesPrioritarias.slice(0, 5).map(a => `• ${a.nome} — ${a.dias} dias restantes (${a.fase})`).join("\n") || "• Nenhuma ação urgente no momento"}`;
+    }
 
     return new Response(
       JSON.stringify({

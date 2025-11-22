@@ -2992,6 +2992,8 @@ export type Database = {
           leads_desejados: number | null
           link_briefing: string | null
           link_dashboard: string | null
+          link_publico: string | null
+          link_publico_ativo: boolean | null
           links_uteis: Json | null
           meta_custo_lead: number | null
           meta_investimento: number | null
@@ -3039,6 +3041,8 @@ export type Database = {
           leads_desejados?: number | null
           link_briefing?: string | null
           link_dashboard?: string | null
+          link_publico?: string | null
+          link_publico_ativo?: boolean | null
           links_uteis?: Json | null
           meta_custo_lead?: number | null
           meta_investimento?: number | null
@@ -3086,6 +3090,8 @@ export type Database = {
           leads_desejados?: number | null
           link_briefing?: string | null
           link_dashboard?: string | null
+          link_publico?: string | null
+          link_publico_ativo?: boolean | null
           links_uteis?: Json | null
           meta_custo_lead?: number | null
           meta_investimento?: number | null

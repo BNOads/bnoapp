@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ChevronUp, ChevronDown, ChevronsUpDown, BarChart3 } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ChevronUp, ChevronDown, ChevronsUpDown, BarChart3, Share2, Copy, Eye, EyeOff } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -154,6 +154,68 @@ export const LancamentosTable = ({
     } catch (e: any) {
       console.error('Erro ao associar cliente:', e);
       toast({ title: 'Erro ao associar cliente', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleTogglePublicLink = async (lancamento: any) => {
+    try {
+      if (!lancamento.link_publico_ativo) {
+        // Gerar slug único
+        const baseSlug = lancamento.nome_lancamento
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .substring(0, 50);
+        
+        const randomId = Math.random().toString(36).substring(2, 8);
+        const slug = `${baseSlug}-${randomId}`;
+        
+        const { error } = await supabase
+          .from('lancamentos')
+          .update({ 
+            link_publico: slug, 
+            link_publico_ativo: true 
+          })
+          .eq('id', lancamento.id);
+        
+        if (error) throw error;
+        
+        const publicUrl = `${window.location.origin}/lancamento/${slug}`;
+        await navigator.clipboard.writeText(publicUrl);
+        
+        toast({ 
+          title: 'Link público ativado!', 
+          description: 'O link foi copiado para a área de transferência.' 
+        });
+      } else {
+        const { error } = await supabase
+          .from('lancamentos')
+          .update({ link_publico_ativo: false })
+          .eq('id', lancamento.id);
+        
+        if (error) throw error;
+        
+        toast({ title: 'Link público desativado' });
+      }
+      
+      onRefresh();
+    } catch (e: any) {
+      console.error('Erro ao gerenciar link público:', e);
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleCopyPublicLink = async (lancamento: any) => {
+    if (!lancamento.link_publico) return;
+    
+    try {
+      const publicUrl = `${window.location.origin}/lancamento/${lancamento.link_publico}`;
+      await navigator.clipboard.writeText(publicUrl);
+      toast({ title: 'Link copiado!', description: 'Link público copiado para a área de transferência.' });
+    } catch (e) {
+      toast({ title: 'Erro ao copiar link', variant: 'destructive' });
     }
   };
 
@@ -404,6 +466,28 @@ export const LancamentosTable = ({
                           <Edit className="h-4 w-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
+                        
+                        <DropdownMenuItem onClick={() => handleTogglePublicLink(lancamento)}>
+                          {lancamento.link_publico_ativo ? (
+                            <>
+                              <EyeOff className="h-4 w-4 mr-2" />
+                              Desativar Link Público
+                            </>
+                          ) : (
+                            <>
+                              <Share2 className="h-4 w-4 mr-2" />
+                              Ativar Link Público
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        
+                        {lancamento.link_publico_ativo && lancamento.link_publico && (
+                          <DropdownMenuItem onClick={() => handleCopyPublicLink(lancamento)}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copiar Link Público
+                          </DropdownMenuItem>
+                        )}
+                        
                         {lancamento.link_dashboard && (
                           <DropdownMenuItem asChild>
                             <a href={lancamento.link_dashboard} target="_blank" rel="noopener noreferrer">
