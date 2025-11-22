@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { PautaReuniaoView } from "@/components/Reunioes/PautaReuniaoView";
 import { FileText, Palette, NotebookPen, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
@@ -84,14 +83,6 @@ export const FerramentasView = () => {
   const { toast } = useToast();
 
   const tools: Tool[] = [
-    {
-      id: "pauta-reuniao",
-      title: "Pauta de Reunião",
-      description: "Organize pautas e atas de reuniões por data com navegação por títulos",
-      icon: Calendar,
-      component: <PautaReuniaoView />,
-      color: "text-indigo-600"
-    },
     {
       id: "arquivo-reuniao",
       title: "Arquivo de Reunião",
