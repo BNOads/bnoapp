@@ -6,8 +6,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Folder ID da pasta de gravações passada pelo usuário
-const RECORDINGS_FOLDER_ID = '1P8nHVBmw2Qx2WXLiuT96B-cdxRnphwda'
+// Função para extrair folder ID da URL do Drive
+function extractFolderId(driveUrl: string): string | null {
+  const patterns = [
+    /\/folders\/([a-zA-Z0-9_-]+)/,
+    /id=([a-zA-Z0-9_-]+)/,
+    /^([a-zA-Z0-9_-]+)$/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = driveUrl.match(pattern);
+    if (match) return match[1];
+  }
+  
+  return null;
+}
 
 // Função para buscar arquivos do Google Drive
 async function listDriveFiles(folderId: string, pageToken?: string): Promise<any> {
@@ -34,77 +47,6 @@ async function listDriveFiles(folderId: string, pageToken?: string): Promise<any
   }
   
   return await response.json();
-}
-
-// Função para buscar todos os arquivos de gravação
-async function getAllRecordings(): Promise<any[]> {
-  let allFiles: any[] = [];
-  let nextPageToken: string | undefined;
-  
-  do {
-    const result = await listDriveFiles(RECORDINGS_FOLDER_ID, nextPageToken);
-    allFiles = allFiles.concat(result.files || []);
-    nextPageToken = result.nextPageToken;
-    
-    console.log(`Carregados ${result.files?.length || 0} arquivos. Total: ${allFiles.length}`);
-  } while (nextPageToken);
-  
-  return allFiles;
-}
-
-// Função para encontrar cliente por nome ou alias
-async function findClientByNameOrAlias(supabase: any, fileName: string): Promise<string | null> {
-  // Primeiro, buscar todos os clientes
-  const { data: clientes, error } = await supabase
-    .from('clientes')
-    .select('id, nome, aliases');
-  
-  if (error) {
-    console.error('Erro ao buscar clientes:', error);
-    return null;
-  }
-  
-  const lowerFileName = fileName.toLowerCase();
-  
-  // Buscar por correspondência no nome do arquivo
-  for (const cliente of clientes) {
-    const nomeCliente = cliente.nome.toLowerCase();
-    
-    // Verificar se o nome do cliente está no nome do arquivo
-    // Melhorar a correspondência para ser mais flexível
-    if (lowerFileName.includes(nomeCliente)) {
-      console.log(`Cliente encontrado por nome: ${cliente.nome} para arquivo: ${fileName}`);
-      return cliente.id;
-    }
-    
-    // Verificar variações do nome (sem espaços, com caracteres especiais, etc.)
-    const nomeVariations = [
-      nomeCliente.replace(/\s+/g, ''),
-      nomeCliente.replace(/\s+/g, '_'),
-      nomeCliente.replace(/\s+/g, '-'),
-      nomeCliente.replace(/[^a-z0-9]/g, ''),
-    ];
-    
-    for (const variation of nomeVariations) {
-      if (lowerFileName.includes(variation)) {
-        console.log(`Cliente encontrado por variação "${variation}": ${cliente.nome} para arquivo: ${fileName}`);
-        return cliente.id;
-      }
-    }
-    
-    // Verificar aliases se existirem
-    if (cliente.aliases && Array.isArray(cliente.aliases)) {
-      for (const alias of cliente.aliases) {
-        if (lowerFileName.includes(alias.toLowerCase())) {
-          console.log(`Cliente encontrado por alias "${alias}": ${cliente.nome} para arquivo: ${fileName}`);
-          return cliente.id;
-        }
-      }
-    }
-  }
-  
-  console.log(`Nenhum cliente encontrado para arquivo: ${fileName}`);
-  return null;
 }
 
 // Função para extrair duração do vídeo (se disponível)
@@ -137,10 +79,41 @@ serve(async (req) => {
   try {
     console.log('Iniciando sincronização de gravações de reunião...');
     
+    // Parse request body
+    const { clienteId, clienteName } = await req.json();
+    
+    if (!clienteId) {
+      throw new Error('clienteId é obrigatório');
+    }
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+    
+    // Buscar a pasta do Drive do cliente
+    const { data: clienteData, error: clienteError } = await supabase
+      .from('clientes')
+      .select('pasta_drive_url, nome')
+      .eq('id', clienteId)
+      .single();
+    
+    if (clienteError || !clienteData) {
+      throw new Error('Cliente não encontrado');
+    }
+    
+    if (!clienteData.pasta_drive_url) {
+      throw new Error('Cliente não possui pasta do Google Drive configurada');
+    }
+    
+    // Extrair folder ID da URL
+    const folderId = extractFolderId(clienteData.pasta_drive_url);
+    
+    if (!folderId) {
+      throw new Error('Não foi possível extrair o ID da pasta do Google Drive');
+    }
+    
+    console.log(`Cliente: ${clienteData.nome}, Folder ID: ${folderId}`);
     
     // Verificar se a API key está configurada
     const API_KEY = Deno.env.get('GOOGLE_DRIVE_API_KEY');
@@ -150,13 +123,29 @@ serve(async (req) => {
     
     console.log('Buscando arquivos de gravação...');
     
-    // Buscar todos os arquivos de gravação
-    const recordings = await getAllRecordings();
+    // Função auxiliar para buscar gravações usando o folderId do cliente
+    const getAllRecordingsForClient = async (): Promise<any[]> => {
+      let allFiles: any[] = [];
+      let nextPageToken: string | undefined;
+      
+      do {
+        const result = await listDriveFiles(folderId, nextPageToken);
+        allFiles = allFiles.concat(result.files || []);
+        nextPageToken = result.nextPageToken;
+        
+        console.log(`Carregados ${result.files?.length || 0} arquivos. Total: ${allFiles.length}`);
+      } while (nextPageToken);
+      
+      return allFiles;
+    };
+    
+    // Buscar todos os arquivos de gravação do cliente
+    const recordings = await getAllRecordingsForClient();
     
     console.log(`Total de gravações encontradas: ${recordings.length}`);
     
     let processedCount = 0;
-    let matchedCount = 0;
+    let insertedCount = 0;
     let errors: string[] = [];
     
     // Buscar um usuário admin para ser o created_by
@@ -173,22 +162,12 @@ serve(async (req) => {
       console.warn('Nenhum usuário admin encontrado, usando sistema como created_by');
     }
     
-    // Processar cada gravação
+    // Processar cada gravação para o cliente específico
     for (const recording of recordings) {
       try {
         processedCount++;
         
         console.log(`Processando: ${recording.name}`);
-        
-        // Encontrar cliente correspondente
-        const clienteId = await findClientByNameOrAlias(supabase, recording.name);
-        
-        if (!clienteId) {
-          console.log(`Pulando ${recording.name} - nenhum cliente correspondente encontrado`);
-          continue;
-        }
-        
-        matchedCount++;
         
         // Verificar se a gravação já existe
         const { data: existingGravacao } = await supabase
@@ -220,7 +199,7 @@ serve(async (req) => {
         const duracao = extractDuration(recording.videoMediaMetadata);
         const titulo = generateTitle(recording.name);
         
-        // Inserir nova gravação
+        // Inserir nova gravação associada ao cliente
         const { error: insertError } = await supabase
           .from('gravacoes')
           .insert({
@@ -239,6 +218,7 @@ serve(async (req) => {
           errors.push(`${recording.name}: ${insertError.message}`);
         } else {
           console.log(`Gravação inserida com sucesso: ${titulo}`);
+          insertedCount++;
         }
         
       } catch (error: any) {
@@ -251,9 +231,9 @@ serve(async (req) => {
       success: true,
       totalRecordings: recordings.length,
       processedCount,
-      matchedCount,
+      insertedCount,
       errors: errors.length > 0 ? errors : undefined,
-      message: `Sincronização concluída: ${matchedCount} gravações processadas de ${recordings.length} encontradas`
+      message: `Sincronização concluída: ${insertedCount} gravações novas de ${recordings.length} encontradas`
     };
     
     console.log('Sincronização de gravações concluída:', result);
