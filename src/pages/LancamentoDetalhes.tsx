@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Target } from "lucide-react";
+import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Target, Share2, Copy, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -97,6 +97,8 @@ interface Lancamento {
   updated_at: string;
   link_dashboard: string | null;
   resultado_obtido: number | null;
+  link_publico: string | null;
+  link_publico_ativo: boolean;
   clientes?: {
     nome: string;
     primary_gestor_user_id?: string;
@@ -127,6 +129,75 @@ export default function LancamentoDetalhes() {
   const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas' | 'metas'>('calendario');
   const [ganttView, setGanttView] = useState(false);
   const [availableClients, setAvailableClients] = useState<any[]>([]);
+
+  const handleTogglePublicLink = async () => {
+    if (!lancamento) return;
+    
+    try {
+      if (!lancamento.link_publico_ativo) {
+        // Gerar slug único
+        const baseSlug = lancamento.nome_lancamento
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .substring(0, 50);
+        
+        const randomId = Math.random().toString(36).substring(2, 8);
+        const slug = `${baseSlug}-${randomId}`;
+        
+        const { error } = await supabase
+          .from('lancamentos')
+          .update({ 
+            link_publico: slug, 
+            link_publico_ativo: true 
+          })
+          .eq('id', lancamento.id);
+        
+        if (error) throw error;
+        
+        const publicUrl = `${window.location.origin}/lancamento/${slug}`;
+        await navigator.clipboard.writeText(publicUrl);
+        
+        setLancamento(prev => prev ? {
+          ...prev,
+          link_publico: slug,
+          link_publico_ativo: true
+        } : null);
+        
+        toast.success('Link público ativado e copiado!');
+      } else {
+        const { error } = await supabase
+          .from('lancamentos')
+          .update({ link_publico_ativo: false })
+          .eq('id', lancamento.id);
+        
+        if (error) throw error;
+        
+        setLancamento(prev => prev ? {
+          ...prev,
+          link_publico_ativo: false
+        } : null);
+        
+        toast.success('Link público desativado');
+      }
+    } catch (error: any) {
+      toast.error('Erro ao gerenciar link: ' + error.message);
+    }
+  };
+
+  const handleCopyPublicLink = async () => {
+    if (!lancamento?.link_publico) return;
+    
+    try {
+      const publicUrl = `${window.location.origin}/lancamento/${lancamento.link_publico}`;
+      await navigator.clipboard.writeText(publicUrl);
+      toast.success('Link copiado!');
+    } catch (error) {
+      toast.error('Erro ao copiar link');
+    }
+  };
   const handleUpdateDates = async (campo: string, valor: string) => {
     if (!lancamento) return;
     try {
@@ -726,6 +797,37 @@ export default function LancamentoDetalhes() {
         </div>
         
         <div className="flex gap-2">
+          {lancamento.link_publico_ativo && lancamento.link_publico && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyPublicLink}
+              className="flex items-center gap-2"
+            >
+              <Copy className="h-4 w-4" />
+              Copiar Link
+            </Button>
+          )}
+          
+          <Button
+            variant={lancamento.link_publico_ativo ? "secondary" : "outline"}
+            size="sm"
+            onClick={handleTogglePublicLink}
+            className="flex items-center gap-2"
+          >
+            {lancamento.link_publico_ativo ? (
+              <>
+                <Eye className="h-4 w-4" />
+                Público
+              </>
+            ) : (
+              <>
+                <Share2 className="h-4 w-4" />
+                Compartilhar
+              </>
+            )}
+          </Button>
+          
           {editingTab === activeView ? <>
               <Button variant="outline" onClick={() => {
             setEditingTab(null);
