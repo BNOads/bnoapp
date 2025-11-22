@@ -116,7 +116,8 @@ const PainelCliente = () => {
       setCliente(data[0]);
       
       // Buscar lançamentos ativos do cliente
-      const { data: lancamentos } = await publicSupabase
+      console.log('🚀 Buscando lançamentos ativos para cliente:', data[0].id);
+      const { data: lancamentos, error: lancError } = await publicSupabase
         .from('lancamentos')
         .select('*')
         .eq('cliente_id', data[0].id)
@@ -124,7 +125,14 @@ const PainelCliente = () => {
         .in('status_lancamento', ['em_captacao', 'cpl', 'remarketing'])
         .order('data_inicio_captacao', { ascending: false });
       
+      console.log('🚀 Resultado da busca de lançamentos:', { 
+        count: lancamentos?.length || 0, 
+        lancamentos, 
+        error: lancError 
+      });
+      
       setLancamentosAtivos(lancamentos || []);
+      console.log('🚀 State atualizado com lançamentos:', lancamentos?.length || 0);
       setLoading(false);
     } catch (error: any) {
       console.error('Erro ao carregar dados do cliente:', error);
@@ -306,6 +314,12 @@ const PainelCliente = () => {
       {/* Conteúdo Principal - Mobile-First */}
       <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
         <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+          
+          {/* DEBUG: Mostrar sempre para verificar */}
+          <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
+            DEBUG: {lancamentosAtivos.length} lançamentos encontrados
+          </div>
+          
           {/* Lançamentos Ativos - Destaque visual com animação */}
           {lancamentosAtivos.length > 0 && (
             <section className="space-y-3 sm:space-y-4 animate-in fade-in-50 duration-500">
