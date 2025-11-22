@@ -68,43 +68,49 @@ export const LancamentoCard = ({
 
   return (
     <Card 
-      className={`${getBorderColor(lancamento.status_lancamento)} border-2 transition-all duration-200 hover:shadow-md`}
+      className={`${getBorderColor(lancamento.status_lancamento)} border-2 transition-all duration-200 hover:shadow-lg bg-card`}
     >
-      <CardContent className={compact ? "p-3" : "p-4"}>
+      <CardContent className={compact ? "p-3" : "p-4 sm:p-5"}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <Badge className={`${getStatusColor(lancamento.status_lancamento)} text-white`}>
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <Badge className={`${getStatusColor(lancamento.status_lancamento)} text-white text-xs px-2 py-1`}>
                 {getStatusLabel(lancamento.status_lancamento)}
               </Badge>
-              {diasRestantes > 0 && diasRestantes <= 30 && (
-                <span className={`text-xs font-medium ${diasRestantes <= 5 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                  {diasRestantes} {diasRestantes === 1 ? 'dia' : 'dias'} restantes
+              {diasRestantes > 0 && (
+                <span className={`text-xs font-semibold px-2 py-1 rounded-md ${
+                  diasRestantes <= 5 
+                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                    : 'bg-muted text-muted-foreground'
+                }`}>
+                  {diasRestantes} {diasRestantes === 1 ? 'dia' : 'dias'}
                 </span>
               )}
             </div>
             
-            <h3 className={`font-semibold ${compact ? 'text-sm' : 'text-base'} mb-1 line-clamp-1`}>
+            <h3 className={`font-bold ${compact ? 'text-sm' : 'text-base sm:text-lg'} mb-2 line-clamp-2 text-foreground`}>
               {lancamento.nome_lancamento}
             </h3>
             
             {lancamento.promessa && !compact && (
-              <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mb-3">
                 {lancamento.promessa}
               </p>
             )}
 
-            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
               {lancamento.data_inicio_captacao && (
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {new Date(lancamento.data_inicio_captacao).toLocaleDateString('pt-BR')}
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="font-medium">
+                    {new Date(lancamento.data_inicio_captacao).toLocaleDateString('pt-BR')}
+                  </span>
                 </div>
               )}
               {lancamento.investimento_total && (
-                <div className="flex items-center gap-1 text-green-600 font-medium">
-                  <DollarSign className="h-3 w-3" />
-                  R$ {Number(lancamento.investimento_total).toLocaleString('pt-BR')}
+                <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 font-semibold">
+                  <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  R$ {Number(lancamento.investimento_total).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </div>
               )}
             </div>

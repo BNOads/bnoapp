@@ -306,28 +306,44 @@ const PainelCliente = () => {
       {/* Conteúdo Principal - Mobile-First */}
       <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
         <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-          {/* Lançamentos Ativos - Destaque visual */}
+          {/* Lançamentos Ativos - Destaque visual com animação */}
           {lancamentosAtivos.length > 0 && (
-            <section className="space-y-3 sm:space-y-4">
-              <h2 
-                className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1"
-                style={{
-                  color: cliente.branding_enabled && cliente.branding_primary 
-                    ? cliente.branding_primary 
-                    : undefined
-                }}
-              >
-                <Rocket 
-                  className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" 
-                  style={{
-                    color: cliente.branding_enabled && cliente.branding_primary 
-                      ? cliente.branding_primary 
-                      : undefined
-                  }}
-                />
-                <span className="truncate">Lançamentos Ativos</span>
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
+            <section className="space-y-3 sm:space-y-4 animate-in fade-in-50 duration-500">
+              <div className="flex items-center gap-2 px-1">
+                <div className="flex items-center gap-2 flex-1">
+                  <div 
+                    className="p-2 rounded-lg"
+                    style={{
+                      backgroundColor: cliente.branding_enabled && cliente.branding_primary 
+                        ? `${cliente.branding_primary}20` 
+                        : 'hsl(var(--primary) / 0.1)'
+                    }}
+                  >
+                    <Rocket 
+                      className="h-5 w-5 sm:h-6 sm:w-6" 
+                      style={{
+                        color: cliente.branding_enabled && cliente.branding_primary 
+                          ? cliente.branding_primary 
+                          : undefined
+                      }}
+                    />
+                  </div>
+                  <h2 
+                    className="text-lg sm:text-xl lg:text-2xl font-bold"
+                    style={{
+                      color: cliente.branding_enabled && cliente.branding_primary 
+                        ? cliente.branding_primary 
+                        : undefined
+                    }}
+                  >
+                    Lançamentos Ativos
+                  </h2>
+                </div>
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  {lancamentosAtivos.length} {lancamentosAtivos.length === 1 ? 'Ativo' : 'Ativos'}
+                </Badge>
+              </div>
+              <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
                 {lancamentosAtivos.map(lanc => (
                   <LancamentoCard 
                     key={lanc.id} 
