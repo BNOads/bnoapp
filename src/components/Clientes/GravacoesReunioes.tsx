@@ -300,26 +300,28 @@ export const GravacoesReunioes = ({ clienteId, isPublicView = false }: Gravacoes
               <div key={gravacao.id} className="border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors">
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   {/* Thumbnail - Responsivo */}
-                  <div className="relative w-full sm:w-20 lg:w-24 h-12 sm:h-14 lg:h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <div className="relative w-full sm:w-20 lg:w-24 h-12 sm:h-14 lg:h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden group cursor-pointer">
                     {gravacao.thumbnail_url ? (
                       <>
                         <img 
                           src={gravacao.thumbnail_url} 
                           alt={gravacao.titulo}
                           className="w-full h-full object-cover"
+                          loading="lazy"
+                          crossOrigin="anonymous"
                           onError={(e) => {
-                            // Fallback para ícone se a imagem falhar ao carregar
+                            console.error('Erro ao carregar thumbnail:', gravacao.thumbnail_url);
                             e.currentTarget.style.display = 'none';
-                            if (e.currentTarget.nextElementSibling) {
-                              (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) {
+                              parent.classList.add('thumbnail-error');
                             }
                           }}
                         />
-                        <div className="absolute inset-0 bg-black/20 items-center justify-center hidden">
-                          <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white drop-shadow-lg" />
-                        </div>
-                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                          <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white drop-shadow-lg" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-center justify-center group-hover:from-black/80 transition-all">
+                          <div className="bg-white/90 rounded-full p-2 group-hover:scale-110 transition-transform">
+                            <Play className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-primary fill-primary" />
+                          </div>
                         </div>
                       </>
                     ) : (
