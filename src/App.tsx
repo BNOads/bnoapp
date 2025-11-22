@@ -33,6 +33,7 @@ import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import NovoDebriefing from "@/components/Debriefings/NovoDebriefing";
 import DebriefingDetalhes from "@/components/Debriefings/DebriefingDetalhes";
 import DebriefingPublico from "./pages/DebriefingPublico";
+import LancamentoPublico from "./pages/LancamentoPublico";
 import Gamificacao from "./pages/Gamificacao";
 import NPS from "./pages/NPS";
 import ArquivoReuniao from "./pages/ArquivoReuniao";
@@ -69,6 +70,7 @@ function App() {
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/auth/reset-password" element={<ResetPassword />} />
                 <Route path="/pop/publico/:id" element={<POPPublico />} />
+                <Route path="/lancamento/:linkPublico" element={<LancamentoPublico />} />
                 <Route path="/r/:slug" element={<ReferenciaPublica />} />
                 <Route path="/referencia/publica/:slug" element={<ReferenciaPublica />} />
                 <Route path="/referencias" element={

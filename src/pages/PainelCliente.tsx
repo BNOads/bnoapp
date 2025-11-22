@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Share2, Edit2, Palette } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Share2, Edit2, Palette, Rocket } from "lucide-react";
 import { MessageCircle, ArrowLeft, LogIn, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ import { NPSPopup } from "@/components/NPS/NPSPopup";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ClienteBrandingProvider } from "@/components/Clientes/ClienteBrandingProvider";
 import { ClienteBrandingHeader } from "@/components/Clientes/ClienteBrandingHeader";
+import { LancamentoCard } from "@/components/Lancamentos/LancamentoCard";
 import type { User } from "@supabase/supabase-js";
 const PainelCliente = () => {
   const { clienteId } = useParams();
@@ -31,6 +32,7 @@ const PainelCliente = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('gravacoes');
   const [cliente, setCliente] = useState<any>(null);
+  const [lancamentosAtivos, setLancamentosAtivos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [user, setUser] = useState<User | null>(null);
@@ -112,6 +114,17 @@ const PainelCliente = () => {
 
       console.log('Cliente encontrado:', data[0]);
       setCliente(data[0]);
+      
+      // Buscar lançamentos ativos do cliente
+      const { data: lancamentos } = await publicSupabase
+        .from('lancamentos')
+        .select('*')
+        .eq('cliente_id', data[0].id)
+        .eq('ativo', true)
+        .in('status_lancamento', ['em_captacao', 'cpl', 'remarketing'])
+        .order('data_inicio_captacao', { ascending: false });
+      
+      setLancamentosAtivos(lancamentos || []);
       setLoading(false);
     } catch (error: any) {
       console.error('Erro ao carregar dados do cliente:', error);
@@ -293,6 +306,39 @@ const PainelCliente = () => {
       {/* Conteúdo Principal - Mobile-First */}
       <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
         <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+          {/* Lançamentos Ativos - Destaque visual */}
+          {lancamentosAtivos.length > 0 && (
+            <section className="space-y-3 sm:space-y-4">
+              <h2 
+                className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1"
+                style={{
+                  color: cliente.branding_enabled && cliente.branding_primary 
+                    ? cliente.branding_primary 
+                    : undefined
+                }}
+              >
+                <Rocket 
+                  className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" 
+                  style={{
+                    color: cliente.branding_enabled && cliente.branding_primary 
+                      ? cliente.branding_primary 
+                      : undefined
+                  }}
+                />
+                <span className="truncate">Lançamentos Ativos</span>
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {lancamentosAtivos.map(lanc => (
+                  <LancamentoCard 
+                    key={lanc.id} 
+                    lancamento={lanc}
+                    compact={false}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Links e Tarefas - Stack em Mobile, Grid em Desktop */}
           <div className="space-y-4 sm:space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 xl:gap-6 2xl:gap-8">
             <section className="space-y-3 sm:space-y-4 min-w-0">
