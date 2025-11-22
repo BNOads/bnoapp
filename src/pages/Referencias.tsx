@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Eye, Edit2, Trash2, Copy, ExternalLink, Upload } from "lucide-react";
+import { Plus, Search, Eye, Edit2, Trash2, Copy, ExternalLink, Upload, Share2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -379,7 +379,7 @@ export default function Referencias() {
                             size="sm"
                             onClick={() => handleCopyLink(ref)}
                           >
-                            <Copy className="w-4 h-4" />
+                            <Share2 className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
