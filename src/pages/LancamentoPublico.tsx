@@ -22,10 +22,11 @@ export default function LancamentoPublico() {
     try {
       const publicSupabase = createPublicSupabaseClient();
       
+      // Buscar por ID ao invés de link_publico customizado
       const { data: lancData, error: lancError } = await publicSupabase
         .from('lancamentos')
         .select('*, clientes(nome, whatsapp_grupo_url)')
-        .eq('link_publico', linkPublico)
+        .eq('id', linkPublico)
         .eq('link_publico_ativo', true)
         .single();
 
