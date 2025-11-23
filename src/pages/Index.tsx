@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { DashboardView } from "@/components/Dashboard/DashboardView";
+import { tornarTodosLancamentosPublicos } from "@/scripts/tornarLancamentosPublicos";
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -24,6 +25,24 @@ const Index = () => {
       }
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    // Executar uma vez para tornar todos os lançamentos públicos
+    const updateLancamentos = async () => {
+      const executado = localStorage.getItem('lancamentos_publicos_executado');
+      if (!executado) {
+        try {
+          await tornarTodosLancamentosPublicos();
+          localStorage.setItem('lancamentos_publicos_executado', 'true');
+          console.log('✅ Todos os lançamentos foram tornados públicos!');
+        } catch (error) {
+          console.error('Erro ao tornar lançamentos públicos:', error);
+        }
+      }
+    };
+    
+    updateLancamentos();
+  }, []);
 
   return <DashboardView />;
 };
