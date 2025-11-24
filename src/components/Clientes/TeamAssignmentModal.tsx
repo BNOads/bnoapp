@@ -127,13 +127,33 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
     try {
       setSaving(true);
 
+      // Validar que pelo menos um membro foi selecionado
+      if (!selectedGestor && selectedCs.size === 0) {
+        toast({
+          title: "Atenção",
+          description: "Selecione pelo menos um gestor ou CS para atribuir ao cliente",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('🔄 Salvando atribuições:', {
+        clienteId,
+        selectedGestor,
+        selectedCs: Array.from(selectedCs),
+        primaryCs
+      });
+
       // Remove all current assignments
       const { error: deleteError } = await supabase
         .from('client_roles')
         .delete()
         .eq('client_id', clienteId);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('❌ Erro ao deletar atribuições antigas:', deleteError);
+        throw deleteError;
+      }
 
       const newAssignments = [];
 
@@ -157,13 +177,21 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
         });
       });
 
+      console.log('📝 Inserindo novas atribuições:', newAssignments);
+
       // Insert new assignments
       if (newAssignments.length > 0) {
-        const { error: insertError } = await supabase
+        const { error: insertError, data } = await supabase
           .from('client_roles')
-          .insert(newAssignments);
+          .insert(newAssignments)
+          .select();
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('❌ Erro ao inserir novas atribuições:', insertError);
+          throw insertError;
+        }
+
+        console.log('✅ Atribuições salvas com sucesso:', data);
       }
 
       toast({
@@ -174,11 +202,22 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
       onSuccess?.();
       onClose();
 
-    } catch (error) {
-      console.error('Error saving team assignments:', error);
+    } catch (error: any) {
+      console.error('❌ Erro ao salvar atribuições da equipe:', error);
+      
+      let errorMessage = "Erro ao salvar atribuições da equipe";
+      
+      if (error.message?.includes('foreign key')) {
+        errorMessage = "Erro ao vincular colaborador. Verifique se o colaborador possui um user_id válido.";
+      } else if (error.message?.includes('permission')) {
+        errorMessage = "Você não tem permissão para gerenciar atribuições de equipe.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Erro",
-        description: "Erro ao salvar atribuições da equipe",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
