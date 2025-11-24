@@ -61,7 +61,6 @@ export function ArquivoReuniaoView() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [currentResultIndex, setCurrentResultIndex] = useState(0);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -358,15 +357,16 @@ export function ArquivoReuniaoView() {
 
   const handleContentChange = (newContent: any) => {
     pendingContentRef.current = newContent;
+    setSaveStatus('saving');
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
-    // Debounce de 300ms - salva rapidamente quando usuário para de digitar
+    // Debounce de 2 segundos - salva automaticamente quando usuário para de digitar
     saveTimeoutRef.current = setTimeout(async () => {
       await saveContent(pendingContentRef.current);
-    }, 300);
+    }, 2000);
   };
 
   const saveContent = async (content: any, retryCount = 0): Promise<boolean> => {
@@ -378,7 +378,6 @@ export function ArquivoReuniaoView() {
 
     try {
       isSavingRef.current = true;
-      setIsSaving(true);
       setSaveStatus('saving');
       
       const { data: user } = await supabase.auth.getUser();
@@ -394,10 +393,18 @@ export function ArquivoReuniaoView() {
 
       if (error) throw error;
 
-      setLastSaved(new Date());
+      const now = new Date();
+      setLastSaved(now);
       setSaveStatus('saved');
+      pendingContentRef.current = null;
       
-      setTimeout(() => setSaveStatus('idle'), 3000);
+      // Manter status "saved" por 3 segundos
+      setTimeout(() => {
+        if (pendingContentRef.current === null) {
+          setSaveStatus('idle');
+        }
+      }, 3000);
+      
       return true;
     } catch (error: any) {
       console.error('❌ Erro ao salvar:', error);
@@ -410,14 +417,13 @@ export function ArquivoReuniaoView() {
         setSaveStatus('error');
         toast({
           title: "❌ Erro ao salvar",
-          description: "Não foi possível salvar. Use 'Salvar Manualmente'.",
+          description: "Não foi possível salvar. Tente novamente.",
           variant: "destructive"
         });
         return false;
       }
     } finally {
       isSavingRef.current = false;
-      setIsSaving(false);
     }
   };
 
@@ -592,11 +598,11 @@ export function ArquivoReuniaoView() {
 
               <Button 
                 onClick={handleManualSave} 
-                disabled={isSaving}
+                disabled={saveStatus === 'saving'}
                 variant={saveStatus === 'error' ? 'destructive' : 'default'}
                 size="sm"
               >
-                {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {saveStatus === 'saving' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 Salvar
               </Button>
             </div>
