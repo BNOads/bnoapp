@@ -36,12 +36,13 @@ export const GenerationStep = ({
       let completedTasks = 0;
 
       const allCreatives: any[] = [];
+      const errors: string[] = [];
 
       for (const image of config.images) {
         setCurrentTask(`Processando ${image.name}...`);
         
-        // Converter imagem para base64
-        const base64Image = await fileToBase64(image);
+        // Redimensionar e converter imagem para base64
+        const base64Image = await resizeAndConvertToBase64(image);
         
         // Gerar para cada formato
         for (const format of Object.keys(config.formats)) {
@@ -55,7 +56,12 @@ export const GenerationStep = ({
             setCurrentTask(`Gerando variação ${i + 1}/${config.variations} - ${dimensions}...`);
             
             try {
-              const { data, error } = await supabase.functions.invoke('gerar-criativo', {
+              // Timeout de 60 segundos
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout - A geração está demorando muito')), 60000)
+              );
+
+              const generationPromise = supabase.functions.invoke('gerar-criativo', {
                 body: {
                   imageBase64: base64Image,
                   headline: config.headline,
@@ -68,7 +74,13 @@ export const GenerationStep = ({
                 },
               });
 
-              if (error) throw error;
+              const { data, error } = await Promise.race([generationPromise, timeoutPromise]) as any;
+
+              if (error) {
+                console.error('Erro na API:', error);
+                errors.push(`${dimensions} variação ${i + 1}: ${error.message}`);
+                throw error;
+              }
 
               if (data?.imageUrl) {
                 allCreatives.push({
@@ -78,9 +90,13 @@ export const GenerationStep = ({
                   variation: i + 1,
                   originalImage: image.name,
                 });
+              } else if (data?.error) {
+                errors.push(`${dimensions} variação ${i + 1}: ${data.error}`);
               }
-            } catch (err) {
+            } catch (err: any) {
               console.error('Erro ao gerar criativo:', err);
+              const errorMsg = err.message || 'Erro desconhecido';
+              errors.push(`${dimensions} variação ${i + 1}: ${errorMsg}`);
             }
             
             completedTasks++;
@@ -91,29 +107,75 @@ export const GenerationStep = ({
 
       if (allCreatives.length > 0) {
         setStatus("success");
-        setCurrentTask(`${allCreatives.length} criativos gerados com sucesso!`);
+        const errorInfo = errors.length > 0 ? ` (${errors.length} falharam)` : '';
+        setCurrentTask(`${allCreatives.length} criativos gerados com sucesso${errorInfo}!`);
+        
+        if (errors.length > 0) {
+          toast.error(`Alguns criativos falharam: ${errors.join(', ')}`);
+        }
+        
         setTimeout(() => {
           onGenerationComplete(allCreatives);
         }, 1500);
       } else {
-        throw new Error("Nenhum criativo foi gerado");
+        const errorDetails = errors.length > 0 ? `: ${errors.join(', ')}` : '';
+        throw new Error(`Nenhum criativo foi gerado${errorDetails}`);
       }
     } catch (error: any) {
       console.error('Erro na geração:', error);
       setStatus("error");
       setErrorMessage(error.message || "Erro ao gerar criativos");
-      toast.error("Erro ao gerar criativos");
+      toast.error("Erro ao gerar criativos: " + (error.message || "Erro desconhecido"));
     }
   };
 
-  const fileToBase64 = (file: File): Promise<string> => {
+  const resizeAndConvertToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
+      const img = new Image();
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
+
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas não disponível'));
+          return;
+        }
+
+        // Redimensionar mantendo proporção (max 1080px)
+        let width = img.width;
+        let height = img.height;
+        const maxSize = 1080;
+
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = (height / width) * maxSize;
+            width = maxSize;
+          } else {
+            width = (width / height) * maxSize;
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Converter para base64 com qualidade reduzida
+        const base64 = canvas.toDataURL('image/jpeg', 0.8);
+        resolve(base64);
+      };
+
+      img.onerror = () => reject(new Error('Erro ao carregar imagem'));
+      reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
       reader.readAsDataURL(file);
     });
   };
+
 
   return (
     <div className="space-y-6">
