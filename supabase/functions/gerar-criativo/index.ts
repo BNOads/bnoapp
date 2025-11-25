@@ -26,37 +26,31 @@ serve(async (req) => {
 
     // Validar tamanho da imagem base64
     const imageSizeKB = (imageBase64.length * 3) / 4 / 1024;
-    console.log(`📊 Tamanho da imagem: ${imageSizeKB.toFixed(2)}KB`);
+    console.log(`📊 Tamanho da imagem recebida: ${imageSizeKB.toFixed(2)}KB`);
 
-    if (imageSizeKB > 5000) {
-      throw new Error('Imagem muito grande. Use imagens menores que 5MB.');
+    if (imageSizeKB > 1000) {
+      console.error(`❌ Imagem muito grande: ${imageSizeKB.toFixed(2)}KB`);
+      throw new Error(`Imagem muito grande (${imageSizeKB.toFixed(0)}KB). Otimize a imagem antes de enviar.`);
     }
 
-    // Construir prompt detalhado
-    const prompt = `Create a professional social media ad creative for ${dimensions}.
+    // Construir prompt mais conciso para reduzir processamento
+    const prompt = `Create ${dimensions} social media ad.
 
-CRITICAL REQUIREMENTS:
-1. Add this exact headline text (bold, prominent, top 20% of image): "${headline}"
-2. Add this exact body text (clear, readable, middle section): "${body}"
-3. Add this exact CTA (button or prominent text, bottom 20%): "${cta}"
+TEXT TO ADD:
+- Headline: "${headline}"
+- Body: "${body}"  
+- CTA: "${cta}"
 
-LAYOUT RULES:
-- Text must be HIGHLY READABLE with strong contrast
-- Use professional typography and spacing
-- Create balanced composition
-${protectFaces ? '- DO NOT cover faces with text or graphics' : ''}
-- This is variation #${variationIndex + 1} - make it visually DISTINCT
-
-STYLE NOTES: ${notes || 'Modern, clean, professional'}
-
-Output: High-quality ${dimensions} social media ad with all text clearly visible.`;
+STYLE: Professional, clean, readable text with strong contrast. ${notes || ''}
+${protectFaces ? 'Avoid covering faces.' : ''}
+Variation ${variationIndex + 1}.`;
 
     console.log('🤖 Chamando Lovable AI...');
     const apiStartTime = Date.now();
 
-    // Chamar Lovable AI para gerar imagem com timeout
+    // Chamar Lovable AI para gerar imagem com timeout REDUZIDO
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 50000); // 50s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout
 
     try {
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
