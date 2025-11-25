@@ -84,6 +84,14 @@ export const FerramentasView = () => {
 
   const tools: Tool[] = [
     {
+      id: "criador-criativos",
+      title: "Criador de Criativos",
+      description: "Gere variações de criativos automaticamente com IA",
+      icon: Palette,
+      component: null,
+      color: "text-purple-600"
+    },
+    {
       id: "arquivo-reuniao",
       title: "Arquivo de Reunião",
       description: "Arquivo anual de reuniões com índice de navegação e busca inteligente",
@@ -316,6 +324,11 @@ export const FerramentasView = () => {
   };
 
   const handleToolSelect = (toolId: string) => {
+    // Redirecionar para /criador-criativos
+    if (toolId === 'criador-criativos') {
+      navigate('/criador-criativos');
+      return;
+    }
     // Redirecionar para /referencias ao invés de usar ferramenta inline
     if (toolId === 'referencias') {
       navigate('/referencias');

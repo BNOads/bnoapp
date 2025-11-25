@@ -37,6 +37,7 @@ import LancamentoPublico from "./pages/LancamentoPublico";
 import Gamificacao from "./pages/Gamificacao";
 import NPS from "./pages/NPS";
 import ArquivoReuniao from "./pages/ArquivoReuniao";
+import CriadorCriativos from "./pages/CriadorCriativos";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient({
@@ -181,6 +182,11 @@ function App() {
                 <Route path="/arquivo-reuniao" element={
                   <ProtectedRoute>
                     <ArquivoReuniao />
+                  </ProtectedRoute>
+                } />
+                <Route path="/criador-criativos" element={
+                  <ProtectedRoute>
+                    <CriadorCriativos />
                   </ProtectedRoute>
                 } />
                 <Route path="/" element={

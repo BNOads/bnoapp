@@ -123,6 +123,9 @@ verify_jwt = false
 [functions.webhook-novo-lancamento]
 verify_jwt = false
 
+[functions.gerar-criativo]
+verify_jwt = true
+
 [functions.lancamentos-ai-resumo]
 verify_jwt = true
 
