@@ -146,10 +146,10 @@ export const GenerationStep = ({
           return;
         }
 
-        // Redimensionar mantendo proporção (max 1080px)
+        // Redimensionar AGRESSIVAMENTE para evitar timeout (max 600px)
         let width = img.width;
         let height = img.height;
-        const maxSize = 1080;
+        const maxSize = 600; // Reduzido de 1080 para 600
 
         if (width > maxSize || height > maxSize) {
           if (width > height) {
@@ -165,8 +165,27 @@ export const GenerationStep = ({
         canvas.height = height;
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Converter para base64 com qualidade reduzida
-        const base64 = canvas.toDataURL('image/jpeg', 0.8);
+        // Converter para JPEG com qualidade MUITO baixa (0.4)
+        let base64 = canvas.toDataURL('image/jpeg', 0.4);
+        
+        // Validar tamanho final (max 500KB em base64)
+        const sizeInKB = (base64.length * 3) / 4 / 1024;
+        console.log(`📊 Tamanho da imagem processada: ${sizeInKB.toFixed(2)}KB`);
+        
+        // Se ainda estiver muito grande, reduzir mais
+        if (sizeInKB > 500) {
+          console.warn('⚠️ Imagem ainda muito grande, reduzindo qualidade...');
+          base64 = canvas.toDataURL('image/jpeg', 0.3);
+        }
+        
+        const finalSizeInKB = (base64.length * 3) / 4 / 1024;
+        console.log(`✅ Tamanho final: ${finalSizeInKB.toFixed(2)}KB`);
+        
+        if (finalSizeInKB > 800) {
+          reject(new Error(`Imagem muito grande mesmo após otimização (${finalSizeInKB.toFixed(0)}KB). Use uma imagem menor.`));
+          return;
+        }
+        
         resolve(base64);
       };
 
