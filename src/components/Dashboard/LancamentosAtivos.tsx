@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Rocket, Calendar, DollarSign, TrendingUp, ArrowRight, User } from "lucide-react";
+import { Rocket, Calendar, DollarSign, ArrowRight, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -119,104 +118,108 @@ export function LancamentosAtivos() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
             <Rocket className="h-5 w-5" />
             Lançamentos Ativos
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          </h3>
+        </div>
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex-shrink-0 w-[400px] h-[200px] bg-muted animate-pulse rounded-xl" />
+          ))}
+        </div>
+      </div>
     );
   }
 
   if (lancamentos.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
             <Rocket className="h-5 w-5" />
             Lançamentos Ativos
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <Rocket className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">
-              {isAdmin 
-                ? 'Nenhum lançamento ativo no momento' 
-                : 'Você não possui lançamentos ativos no momento'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+          </h3>
+        </div>
+        <div className="text-center py-12 px-4 border-2 border-dashed rounded-xl">
+          <Rocket className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+          <p className="text-sm text-muted-foreground">
+            {isAdmin 
+              ? 'Nenhum lançamento ativo no momento' 
+              : 'Você não possui lançamentos ativos no momento'}
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
           <Rocket className="h-5 w-5" />
           Lançamentos Ativos
-        </CardTitle>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/ferramentas/lancamentos')}
-          className="text-sm"
-        >
-          Ver todos
-          <ArrowRight className="h-4 w-4 ml-1" />
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
+        </h3>
+        <Badge variant="secondary" className="text-sm">
+          {lancamentos.length} {lancamentos.length === 1 ? 'Ativo' : 'Ativos'}
+        </Badge>
+      </div>
+      
+      <div className="relative">
+        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           {lancamentos.map((lancamento) => (
             <div
               key={lancamento.id}
               onClick={() => navigate(`/lancamentos/${lancamento.id}`)}
-              className="group p-4 rounded-lg border bg-card hover:bg-accent/50 transition-all cursor-pointer"
+              className="group relative flex-shrink-0 w-[400px] p-5 rounded-xl border-2 bg-card hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md"
             >
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-sm group-hover:text-primary transition-colors truncate">
-                    {lancamento.nome_lancamento}
-                  </h4>
-                  {lancamento.clientes?.nome && (
-                    <p className="text-xs text-muted-foreground truncate mt-1">
-                      {lancamento.clientes.nome}
-                    </p>
-                  )}
+              {/* Ícone de link externo */}
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="p-1.5 rounded-md bg-muted hover:bg-muted/80">
+                  <ArrowRight className="h-4 w-4" />
                 </div>
+              </div>
+              
+              {/* Badge de Status */}
+              <div className="mb-3">
                 <Badge 
-                  variant="outline" 
-                  className={`${getStatusColor(lancamento.status_lancamento)} text-xs flex-shrink-0`}
+                  className={`${getStatusColor(lancamento.status_lancamento)} font-medium`}
                 >
                   {getStatusLabel(lancamento.status_lancamento)}
                 </Badge>
               </div>
               
-              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                {lancamento.investimento_total > 0 && (
-                  <div className="flex items-center gap-1">
-                    <DollarSign className="h-3 w-3" />
-                    <span>
-                      {new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL'
-                      }).format(lancamento.investimento_total)}
-                    </span>
-                  </div>
-                )}
-                
+              {/* Nome do Lançamento */}
+              <h4 className="font-bold text-lg mb-3 pr-8 line-clamp-2 group-hover:text-primary transition-colors">
+                {lancamento.nome_lancamento}
+              </h4>
+              
+              {/* Cliente */}
+              {lancamento.clientes?.nome && (
+                <p className="text-sm text-muted-foreground mb-3 truncate">
+                  {lancamento.clientes.nome}
+                </p>
+              )}
+              
+              {/* Investimento */}
+              {lancamento.investimento_total > 0 && (
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                  <span className="text-xl font-bold text-green-600">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0
+                    }).format(lancamento.investimento_total)}
+                  </span>
+                </div>
+              )}
+              
+              {/* Informações Adicionais */}
+              <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t text-xs text-muted-foreground">
                 {lancamento.data_inicio_captacao && (
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
@@ -234,7 +237,20 @@ export function LancamentosAtivos() {
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+        
+        {/* Botão Ver Todos */}
+        <div className="flex justify-center mt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/ferramentas/lancamentos')}
+            className="text-sm"
+          >
+            Ver todos os lançamentos
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
