@@ -157,10 +157,10 @@ export const GenerationStep = ({
           return;
         }
 
-        // Redimensionar MUITO AGRESSIVAMENTE para evitar timeout (max 400px)
+        // Redimensionar EXTREMAMENTE (max 250px para garantir tamanho mínimo)
         let width = img.width;
         let height = img.height;
-        const maxSize = 400; // Reduzido para 400px
+        const maxSize = 250; // Reduzido para 250px para garantir payload pequeno
 
         if (width > maxSize || height > maxSize) {
           if (width > height) {
@@ -176,24 +176,24 @@ export const GenerationStep = ({
         canvas.height = height;
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Converter para JPEG com qualidade EXTREMAMENTE baixa (0.3)
-        let base64 = canvas.toDataURL('image/jpeg', 0.3);
+        // Converter para JPEG com qualidade MÍNIMA (0.2)
+        let base64 = canvas.toDataURL('image/jpeg', 0.2);
         
-        // Validar tamanho final (max 300KB em base64)
+        // Validar tamanho final (max 150KB em base64)
         const sizeInKB = (base64.length * 3) / 4 / 1024;
         console.log(`📊 Tamanho da imagem processada: ${sizeInKB.toFixed(2)}KB`);
         
-        // Se ainda estiver muito grande, reduzir ainda mais
-        if (sizeInKB > 300) {
-          console.warn('⚠️ Imagem ainda muito grande, reduzindo qualidade drasticamente...');
-          base64 = canvas.toDataURL('image/jpeg', 0.2);
+        // Se ainda estiver muito grande, reduzir qualidade ao mínimo absoluto
+        if (sizeInKB > 150) {
+          console.warn('⚠️ Imagem ainda muito grande, usando qualidade mínima...');
+          base64 = canvas.toDataURL('image/jpeg', 0.1);
         }
         
         const finalSizeInKB = (base64.length * 3) / 4 / 1024;
         console.log(`✅ Tamanho final: ${finalSizeInKB.toFixed(2)}KB`);
         
-        if (finalSizeInKB > 400) {
-          reject(new Error(`Imagem muito grande mesmo após otimização (${finalSizeInKB.toFixed(0)}KB). Use uma imagem menor ou simplifique a imagem.`));
+        if (finalSizeInKB > 200) {
+          reject(new Error(`Imagem muito grande (${finalSizeInKB.toFixed(0)}KB). Por favor, use uma imagem mais simples ou menor.`));
           return;
         }
         
