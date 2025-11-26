@@ -128,6 +128,7 @@ export default function LancamentoDetalhes() {
   const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas'>('calendario');
   const [ganttView, setGanttView] = useState(false);
   const [availableClients, setAvailableClients] = useState<any[]>([]);
+  const [catalogoUrl, setCatalogoUrl] = useState<string | null>(null);
 
   const handleTogglePublicLink = async () => {
     if (!lancamento) return;
@@ -318,6 +319,23 @@ export default function LancamentoDetalhes() {
   useEffect(() => {
     loadAvailableClients();
   }, []);
+  
+  useEffect(() => {
+    const fetchCatalogoUrl = async () => {
+      if (lancamento?.cliente_id) {
+        const { data } = await supabase
+          .from('clientes')
+          .select('catalogo_criativos_url')
+          .eq('id', lancamento.cliente_id)
+          .single();
+        setCatalogoUrl(data?.catalogo_criativos_url || null);
+      } else {
+        setCatalogoUrl(null);
+      }
+    };
+    fetchCatalogoUrl();
+  }, [lancamento?.cliente_id]);
+  
   useEffect(() => {
     fetchLancamento();
   }, [id]);
@@ -938,43 +956,21 @@ export default function LancamentoDetalhes() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {(() => {
-                        const [catalogoUrl, setCatalogoUrl] = useState<string | null>(null);
-                        
-                        useEffect(() => {
-                          const fetchCatalogoUrl = async () => {
-                            if (lancamento.cliente_id) {
-                              const { data } = await supabase
-                                .from('clientes')
-                                .select('catalogo_criativos_url')
-                                .eq('id', lancamento.cliente_id)
-                                .single();
-                              setCatalogoUrl(data?.catalogo_criativos_url || null);
-                            }
-                          };
-                          fetchCatalogoUrl();
-                        }, [lancamento.cliente_id]);
-                        
-                        if (!catalogoUrl) {
-                          return (
-                            <p className="text-xs text-muted-foreground">
-                              Sem planilha configurada
-                            </p>
-                          );
-                        }
-                        
-                        return (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(catalogoUrl, '_blank')}
-                            className="w-full bg-white dark:bg-emerald-950/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/50 border-emerald-300 dark:border-emerald-700"
-                          >
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Planilha
-                          </Button>
-                        );
-                      })()}
+                      {!catalogoUrl ? (
+                        <p className="text-xs text-muted-foreground">
+                          Sem planilha configurada
+                        </p>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(catalogoUrl, '_blank')}
+                          className="w-full bg-white dark:bg-emerald-950/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/50 border-emerald-300 dark:border-emerald-700"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Planilha
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 )}
