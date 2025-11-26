@@ -99,6 +99,7 @@ interface Lancamento {
   resultado_obtido: number | null;
   link_publico: string | null;
   link_publico_ativo: boolean;
+  checklist_configuracao?: any;
   clientes?: {
     nome: string;
     primary_gestor_user_id?: string;
@@ -126,7 +127,7 @@ export default function LancamentoDetalhes() {
   const [editing, setEditing] = useState(false);
   const [editingTab, setEditingTab] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas'>('calendario');
+  const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas' | 'checklist'>('calendario');
   const [ganttView, setGanttView] = useState(false);
   const [availableClients, setAvailableClients] = useState<any[]>([]);
   const [catalogoUrl, setCatalogoUrl] = useState<string | null>(null);
@@ -897,6 +898,10 @@ export default function LancamentoDetalhes() {
             <Calculator className="h-4 w-4" />
             Verbas
           </TabsTrigger>
+          <TabsTrigger value="checklist" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Checklist
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendario" className="space-y-6">
@@ -1302,6 +1307,100 @@ export default function LancamentoDetalhes() {
 
         <TabsContent value="verbas" className="space-y-6">
           {renderVerbas()}
+        </TabsContent>
+
+        <TabsContent value="checklist" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Checklist de Configuração</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Marque os itens conforme forem sendo concluídos
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[
+                  { key: 'pixel_api', label: 'Configurar Pixel e API', description: 'Configurar pixels de rastreamento e integrações de API' },
+                  { key: 'pagina_obrigado', label: 'Testar página de obrigado', description: 'Verificar se a página de agradecimento está funcionando corretamente' },
+                  { key: 'planilha_leads', label: 'Criar planilha de leads UTM', description: 'Configurar planilha para rastreamento de leads com parâmetros UTM' },
+                  { key: 'planilha_vendas', label: 'Criar planilha de vendas', description: 'Configurar planilha para controle de vendas' },
+                  { key: 'pesquisa', label: 'Criar pesquisa para o lançamento', description: 'Criar formulário de pesquisa para coletar feedback' },
+                  { key: 'email_boas_vindas', label: 'Conferir email de boas-vindas', description: 'Revisar e testar email automático de boas-vindas' }
+                ].map((item) => {
+                  const checklist = (lancamento.checklist_configuracao as any) || {};
+                  const isChecked = checklist[item.key] || false;
+                  
+                  return (
+                    <div key={item.key} className="flex items-start gap-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        id={item.key}
+                        checked={isChecked}
+                        onChange={async (e) => {
+                          const newChecklist = {
+                            ...checklist,
+                            [item.key]: e.target.checked
+                          };
+                          
+                          const { error } = await supabase
+                            .from('lancamentos')
+                            .update({ checklist_configuracao: newChecklist })
+                            .eq('id', lancamento.id);
+                          
+                          if (error) {
+                            toast.error('Erro ao atualizar checklist');
+                            return;
+                          }
+                          
+                          setLancamento(prev => prev ? {
+                            ...prev,
+                            checklist_configuracao: newChecklist
+                          } : null);
+                          
+                          toast.success(e.target.checked ? 'Item marcado como concluído' : 'Item desmarcado');
+                        }}
+                        className="mt-1 h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <label htmlFor={item.key} className="font-medium cursor-pointer">
+                          {item.label}
+                        </label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className="mt-6 pt-6 border-t">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Progresso</span>
+                  <span className="text-sm text-muted-foreground">
+                    {(() => {
+                      const checklist = (lancamento.checklist_configuracao as any) || {};
+                      const completed = Object.values(checklist).filter(Boolean).length;
+                      const total = 6;
+                      return `${completed}/${total} concluídos`;
+                    })()}
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2 mt-2">
+                  <div 
+                    className="bg-primary h-2 rounded-full transition-all duration-500"
+                    style={{ 
+                      width: `${(() => {
+                        const checklist = (lancamento.checklist_configuracao as any) || {};
+                        const completed = Object.values(checklist).filter(Boolean).length;
+                        return (completed / 6) * 100;
+                      })()}%`
+                    }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>;

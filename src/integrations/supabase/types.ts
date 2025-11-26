@@ -2975,6 +2975,7 @@ export type Database = {
       lancamentos: {
         Row: {
           ativo: boolean
+          checklist_configuracao: Json | null
           cliente_id: string | null
           created_at: string
           created_by: string | null
@@ -3024,6 +3025,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          checklist_configuracao?: Json | null
           cliente_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3073,6 +3075,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          checklist_configuracao?: Json | null
           cliente_id?: string | null
           created_at?: string
           created_by?: string | null
