@@ -380,8 +380,14 @@ export default function LancamentoDetalhes() {
         publico_alvo: lancamento.publico_alvo,
         meta_custo_lead: lancamento.meta_custo_lead,
         observacoes: lancamento.observacoes,
+        data_inicio_captacao: lancamento.data_inicio_captacao,
+        data_fim_captacao: lancamento.data_fim_captacao,
+        data_inicio_aquecimento: lancamento.data_inicio_aquecimento,
+        data_fim_aquecimento: lancamento.data_fim_aquecimento,
         data_inicio_cpl: lancamento.data_inicio_cpl,
         data_fim_cpl: lancamento.data_fim_cpl,
+        data_inicio_lembrete: lancamento.data_inicio_lembrete,
+        data_fim_lembrete: lancamento.data_fim_lembrete,
         data_inicio_carrinho: lancamento.data_inicio_carrinho,
         data_fim_carrinho: lancamento.data_fim_carrinho,
         data_fechamento: lancamento.data_fechamento,
@@ -393,6 +399,7 @@ export default function LancamentoDetalhes() {
       if (error) throw error;
       toast.success('Lançamento salvo com sucesso');
       setEditing(false);
+      setEditingTab(null);
       fetchLancamento();
     } catch (error) {
       console.error('Erro ao salvar:', error);
