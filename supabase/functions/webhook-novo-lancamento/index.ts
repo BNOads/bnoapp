@@ -9,9 +9,9 @@ const corsHeaders = {
 interface WebhookPayload {
   nome_lancamento: string;
   status_lancamento?: string;
-  data_inicio_captacao: string;
+  data_inicio_captacao?: string;
   data_cpls?: string;
-  investimento: number;
+  investimento?: number;
   descricao?: string;
   tipo_lancamento?: 'orgânico' | 'pago' | 'híbrido';
 }
@@ -35,11 +35,11 @@ serve(async (req) => {
     const payload: WebhookPayload = await req.json();
     console.log('Payload recebido:', payload);
 
-    // Validate required fields
-    if (!payload.nome_lancamento || !payload.data_inicio_captacao || !payload.investimento) {
-      console.error('Campos obrigatórios ausentes');
+    // Validate required fields - apenas nome_lancamento é obrigatório
+    if (!payload.nome_lancamento) {
+      console.error('Campo obrigatório ausente: nome_lancamento');
       return new Response(
-        JSON.stringify({ error: 'Campos obrigatórios: nome_lancamento, data_inicio_captacao, investimento' }),
+        JSON.stringify({ error: 'Campo obrigatório: nome_lancamento' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -51,7 +51,7 @@ serve(async (req) => {
     console.log('Detectando cliente pelo nome do lançamento...');
     const { data: clientes, error: clientesError } = await supabase
       .from('clientes')
-      .select('id, nome, aliases')
+      .select('id, nome, aliases, primary_gestor_user_id')
       .eq('ativo', true);
 
     if (clientesError) {
@@ -109,16 +109,18 @@ serve(async (req) => {
     const mappedStatus = statusMapping[(payload.status_lancamento || 'ativo').toLowerCase()] || 'em_captacao';
     console.log(`Status mapeado: ${payload.status_lancamento || 'ativo'} -> ${mappedStatus}`);
 
-    // Prepare launch data
+    // Prepare launch data with optional fields
     const lancamentoData = {
       nome_lancamento: payload.nome_lancamento.trim(),
       status_lancamento: mappedStatus,
       tipo_lancamento: payload.tipo_lancamento || 'pago',
-      data_inicio_captacao: payload.data_inicio_captacao,
+      data_inicio_captacao: payload.data_inicio_captacao || null,
       datas_cpls: payload.data_cpls ? [payload.data_cpls] : null,
-      investimento_total: payload.investimento,
+      investimento_total: payload.investimento || 0,
       cliente_id: clienteDetectado?.id || null,
+      gestor_responsavel_id: clienteDetectado?.primary_gestor_user_id || null,
       descricao: payload.descricao || null,
+      created_by: null, // Webhook criado automaticamente
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -145,6 +147,60 @@ serve(async (req) => {
 
     console.log('Lançamento criado com sucesso:', novoLancamento);
 
+    // Buscar gestor para incluir na notificação
+    let gestorInfo = null;
+    if (clienteDetectado?.primary_gestor_user_id) {
+      const { data: gestor } = await supabase
+        .from('colaboradores')
+        .select('id, nome, user_id')
+        .eq('user_id', clienteDetectado.primary_gestor_user_id)
+        .eq('ativo', true)
+        .single();
+      
+      if (gestor) {
+        gestorInfo = { id: gestor.id, nome: gestor.nome };
+      }
+    }
+
+    // Criar notificação para alertar equipe
+    console.log('Criando notificação de novo lançamento...');
+    
+    // Buscar primeiro admin para ser o created_by da notificação
+    const { data: adminUser } = await supabase
+      .from('colaboradores')
+      .select('user_id')
+      .eq('nivel_acesso', 'admin')
+      .eq('ativo', true)
+      .limit(1)
+      .single();
+
+    const notificacaoData = {
+      titulo: `🚀 Novo Lançamento: ${payload.nome_lancamento.trim()}`,
+      conteudo: `Um novo lançamento foi criado via webhook${clienteDetectado ? ` para o cliente **${clienteDetectado.nome}**` : ''}.\n\n` +
+                `📊 Investimento: ${payload.investimento ? `R$ ${payload.investimento.toLocaleString('pt-BR')}` : 'Não informado'}\n` +
+                `📅 Status: ${mappedStatus}\n\n` +
+                `⚙️ Configure as datas e detalhes do lançamento.`,
+      tipo: 'warning',
+      prioridade: 'alta',
+      destinatarios: gestorInfo ? [gestorInfo.id] : ['gestor_trafego'],
+      ativo: true,
+      created_by: adminUser?.user_id || null,
+      canais: { sistema: true, email: false }
+    };
+
+    const { data: notificacao, error: notifError } = await supabase
+      .from('avisos')
+      .insert([notificacaoData])
+      .select()
+      .single();
+
+    if (notifError) {
+      console.error('Erro ao criar notificação:', notifError);
+      // Não falha o webhook se a notificação falhar
+    } else {
+      console.log('Notificação criada com sucesso:', notificacao?.id);
+    }
+
     // Return success response
     const response = {
       success: true,
@@ -157,8 +213,12 @@ serve(async (req) => {
           id: clienteDetectado.id,
           nome: clienteDetectado.nome
         } : null,
-        investimento_total: novoLancamento.investimento_total
-      }
+        gestor_associado: gestorInfo,
+        investimento_total: novoLancamento.investimento_total,
+        data_inicio_captacao: novoLancamento.data_inicio_captacao
+      },
+      notificacao_criada: !!notificacao,
+      aviso: !payload.data_inicio_captacao ? 'Configure as datas do lançamento' : null
     };
 
     console.log('Webhook processado com sucesso:', response);

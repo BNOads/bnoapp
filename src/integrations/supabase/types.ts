@@ -2967,7 +2967,7 @@ export type Database = {
           ativo: boolean
           cliente_id: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
           data_fechamento: string | null
           data_fim_aquecimento: string | null
           data_fim_captacao: string | null
@@ -2976,7 +2976,7 @@ export type Database = {
           data_fim_lembrete: string | null
           data_fim_remarketing: string | null
           data_inicio_aquecimento: string | null
-          data_inicio_captacao: string
+          data_inicio_captacao: string | null
           data_inicio_carrinho: string | null
           data_inicio_cpl: string | null
           data_inicio_lembrete: string | null
@@ -3016,7 +3016,7 @@ export type Database = {
           ativo?: boolean
           cliente_id?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
           data_fechamento?: string | null
           data_fim_aquecimento?: string | null
           data_fim_captacao?: string | null
@@ -3025,7 +3025,7 @@ export type Database = {
           data_fim_lembrete?: string | null
           data_fim_remarketing?: string | null
           data_inicio_aquecimento?: string | null
-          data_inicio_captacao: string
+          data_inicio_captacao?: string | null
           data_inicio_carrinho?: string | null
           data_inicio_cpl?: string | null
           data_inicio_lembrete?: string | null
@@ -3065,7 +3065,7 @@ export type Database = {
           ativo?: boolean
           cliente_id?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           data_fechamento?: string | null
           data_fim_aquecimento?: string | null
           data_fim_captacao?: string | null
@@ -3074,7 +3074,7 @@ export type Database = {
           data_fim_lembrete?: string | null
           data_fim_remarketing?: string | null
           data_inicio_aquecimento?: string | null
-          data_inicio_captacao?: string
+          data_inicio_captacao?: string | null
           data_inicio_carrinho?: string | null
           data_inicio_cpl?: string | null
           data_inicio_lembrete?: string | null
