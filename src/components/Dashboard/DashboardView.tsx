@@ -17,6 +17,7 @@ import { RegistrarAcaoModal } from "@/components/Gamificacao/RegistrarAcaoModal"
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ThemeSwitch from "@/components/ui/theme-switch";
+import { LancamentosAtivos } from "@/components/Dashboard/LancamentosAtivos";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -385,6 +386,13 @@ export function DashboardView() {
           </Button>
         </div>
       </div>
+
+      {/* Lançamentos Ativos Section - Only for Admin and Managers */}
+      {(isAdmin || isMaster) && (
+        <section className="space-y-6">
+          <LancamentosAtivos />
+        </section>
+      )}
 
       {/* Desafio do Mês Section */}
       <section className="space-y-6">
