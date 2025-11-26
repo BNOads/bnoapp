@@ -854,7 +854,7 @@ export default function LancamentoDetalhes() {
             )}
           </Button>
           
-          {activeView !== 'calendario' && (
+          {activeView === 'informacoes' && (
             <>
               {editingTab === activeView ? <>
                 <Button variant="outline" onClick={() => {
@@ -876,7 +876,7 @@ export default function LancamentoDetalhes() {
                 setEditing(true);
               }}>
                 <Edit className="h-4 w-4 mr-2" />
-                Editar {activeView === 'informacoes' ? 'Informações' : 'Verbas'}
+                Editar Informações
               </Button>}
             </>
           )}
@@ -1457,7 +1457,7 @@ export default function LancamentoDetalhes() {
               </p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   { key: 'pixel_api', label: 'Configurar Pixel e API', description: 'Configurar pixels de rastreamento e integrações de API' },
                   { key: 'pagina_obrigado', label: 'Testar página de obrigado', description: 'Verificar se a página de agradecimento está funcionando corretamente' },
@@ -1480,27 +1480,33 @@ export default function LancamentoDetalhes() {
                         id={item.key}
                         checked={isChecked}
                         onChange={async (e) => {
-                          const newChecklist = {
-                            ...checklist,
-                            [item.key]: e.target.checked
-                          };
-                          
-                          const { error } = await supabase
-                            .from('lancamentos')
-                            .update({ checklist_configuracao: newChecklist })
-                            .eq('id', lancamento.id);
-                          
-                          if (error) {
+                          try {
+                            const newChecklist = {
+                              ...(checklist || {}),
+                              [item.key]: e.target.checked
+                            };
+                            
+                            const { error } = await supabase
+                              .from('lancamentos')
+                              .update({ checklist_configuracao: newChecklist })
+                              .eq('id', lancamento.id);
+                            
+                            if (error) {
+                              console.error('Erro ao atualizar checklist:', error);
+                              toast.error('Erro ao atualizar checklist');
+                              return;
+                            }
+                            
+                            setLancamento(prev => prev ? {
+                              ...prev,
+                              checklist_configuracao: newChecklist
+                            } : null);
+                            
+                            toast.success(e.target.checked ? 'Item marcado como concluído' : 'Item desmarcado');
+                          } catch (err) {
+                            console.error('Erro inesperado:', err);
                             toast.error('Erro ao atualizar checklist');
-                            return;
                           }
-                          
-                          setLancamento(prev => prev ? {
-                            ...prev,
-                            checklist_configuracao: newChecklist
-                          } : null);
-                          
-                          toast.success(e.target.checked ? 'Item marcado como concluído' : 'Item desmarcado');
                         }}
                         className="mt-1 h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
                       />
