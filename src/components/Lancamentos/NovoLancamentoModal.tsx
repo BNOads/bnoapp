@@ -85,32 +85,55 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     }
     
     const nomeNormalizado = nomeLancamento.toLowerCase().trim();
+    const palavrasLancamento = nomeNormalizado.split(/[\s\-_|]+/).filter(p => p.length > 2);
     
-    // Procurar cliente pelo slug, aliases ou nome
-    const clienteEncontrado = clientes.find(cliente => {
-      // Verificar pelo slug
-      if (cliente.slug && nomeNormalizado.includes(cliente.slug.toLowerCase())) {
-        return true;
-      }
-      
-      // Verificar pelos aliases
-      if (cliente.aliases && Array.isArray(cliente.aliases)) {
-        const encontrouAlias = cliente.aliases.some(alias => 
-          nomeNormalizado.includes(alias.toLowerCase())
+    // Função auxiliar para verificar match de palavras
+    const temMatchPalavras = (texto: string, palavras: string[]): boolean => {
+      const textoLower = texto.toLowerCase().trim();
+      const palavrasTexto = textoLower.split(/[\s\-_|]+/).filter(p => p.length > 2);
+      return palavrasTexto.some(pt => palavras.includes(pt));
+    };
+
+    // 1ª Prioridade: Match exato do nome do cliente
+    let clienteEncontrado = clientes.find(cliente => {
+      const nomeClienteLower = cliente.nome.toLowerCase().trim();
+      return temMatchPalavras(nomeClienteLower, palavrasLancamento);
+    });
+
+    // 2ª Prioridade: Match exato com aliases
+    if (!clienteEncontrado) {
+      clienteEncontrado = clientes.find(cliente => {
+        if (!cliente.aliases || !Array.isArray(cliente.aliases)) return false;
+        return cliente.aliases.some(alias => 
+          temMatchPalavras(alias, palavrasLancamento)
         );
-        if (encontrouAlias) {
+      });
+    }
+
+    // 3ª Prioridade: Match parcial (contains)
+    if (!clienteEncontrado) {
+      clienteEncontrado = clientes.find(cliente => {
+        // Verificar pelo slug
+        if (cliente.slug && nomeNormalizado.includes(cliente.slug.toLowerCase())) {
           return true;
         }
-      }
-      
-      // Verificar pelo nome do cliente
-      const nomeCliente = cliente.nome.toLowerCase();
-      if (nomeNormalizado.includes(nomeCliente)) {
-        return true;
-      }
-      
-      return false;
-    });
+        
+        // Verificar pelo nome do cliente
+        const nomeCliente = cliente.nome.toLowerCase();
+        if (nomeNormalizado.includes(nomeCliente)) {
+          return true;
+        }
+        
+        // Verificar pelos aliases
+        if (cliente.aliases && Array.isArray(cliente.aliases)) {
+          return cliente.aliases.some(alias => 
+            nomeNormalizado.includes(alias.toLowerCase())
+          );
+        }
+        
+        return false;
+      });
+    }
 
     if (clienteEncontrado) {
       let gestorId = '';
