@@ -66,38 +66,97 @@ serve(async (req) => {
     }
 
     let clienteDetectado = null;
-    const nomeLancamentoLower = payload.nome_lancamento.toLowerCase();
+    const nomeLancamentoLower = payload.nome_lancamento.toLowerCase().trim();
+    const palavrasLancamento = nomeLancamentoLower.split(/[\s\-_|]+/).filter(p => p.length > 2);
     
     console.log(`Buscando cliente para lançamento: "${payload.nome_lancamento}"`);
+    console.log(`Palavras do lançamento: ${JSON.stringify(palavrasLancamento)}`);
     console.log(`Total de clientes ativos: ${clientes.length}`);
 
-    // Search for client name in launch name
+    // Função auxiliar para verificar match exato de palavras
+    const temMatchExato = (texto: string, palavras: string[]): boolean => {
+      const textoLower = texto.toLowerCase().trim();
+      return palavras.some(palavra => 
+        textoLower === palavra || 
+        palavrasLancamento.some(p => p === textoLower)
+      );
+    };
+
+    // Função auxiliar para verificar match parcial
+    const temMatchParcial = (texto: string, nomeLancamento: string): boolean => {
+      const textoLower = texto.toLowerCase().trim();
+      return nomeLancamento.includes(textoLower);
+    };
+
+    // 1ª Prioridade: Match exato do nome do cliente
     for (const cliente of clientes) {
-      const nomeClienteLower = cliente.nome.toLowerCase();
+      const nomeClienteLower = cliente.nome.toLowerCase().trim();
+      const palavrasNomeCliente = nomeClienteLower.split(/[\s\-_|]+/).filter(p => p.length > 2);
       
-      console.log(`Verificando cliente: ${cliente.nome}`);
-      console.log(`  - Aliases: ${cliente.aliases ? JSON.stringify(cliente.aliases) : 'nenhum'}`);
+      console.log(`\nVerificando cliente: ${cliente.nome}`);
+      console.log(`  Palavras do nome: ${JSON.stringify(palavrasNomeCliente)}`);
       
-      // Check if client name is in launch name
-      if (nomeLancamentoLower.includes(nomeClienteLower)) {
+      // Verificar se alguma palavra significativa do nome do cliente está no lançamento
+      const matchNome = palavrasNomeCliente.some(palavraCliente => 
+        palavrasLancamento.includes(palavraCliente)
+      );
+      
+      if (matchNome) {
         clienteDetectado = cliente;
-        console.log(`✅ Cliente detectado pelo nome: ${cliente.nome}`);
+        console.log(`✅ Cliente detectado por match exato no nome: ${cliente.nome}`);
         break;
       }
-      
-      // Check aliases if available
-      if (cliente.aliases && Array.isArray(cliente.aliases)) {
-        for (const alias of cliente.aliases) {
-          const aliasLower = alias.toLowerCase();
-          console.log(`  - Testando alias: "${alias}" em "${payload.nome_lancamento}"`);
+    }
+
+    // 2ª Prioridade: Match exato com aliases
+    if (!clienteDetectado) {
+      for (const cliente of clientes) {
+        if (cliente.aliases && Array.isArray(cliente.aliases)) {
+          console.log(`  Testando aliases de ${cliente.nome}: ${JSON.stringify(cliente.aliases)}`);
           
-          if (nomeLancamentoLower.includes(aliasLower)) {
-            clienteDetectado = cliente;
-            console.log(`✅ Cliente detectado pelo alias: ${alias} -> ${cliente.nome}`);
-            break;
+          for (const alias of cliente.aliases) {
+            const aliasLower = alias.toLowerCase().trim();
+            const palavrasAlias = aliasLower.split(/[\s\-_|]+/).filter(p => p.length > 2);
+            
+            // Match exato de palavras do alias
+            const matchAlias = palavrasAlias.some(palavraAlias => 
+              palavrasLancamento.includes(palavraAlias)
+            );
+            
+            if (matchAlias) {
+              clienteDetectado = cliente;
+              console.log(`✅ Cliente detectado por match exato no alias: "${alias}" -> ${cliente.nome}`);
+              break;
+            }
           }
+          if (clienteDetectado) break;
         }
-        if (clienteDetectado) break;
+      }
+    }
+
+    // 3ª Prioridade: Match parcial (contains) - apenas se não encontrou match exato
+    if (!clienteDetectado) {
+      for (const cliente of clientes) {
+        const nomeClienteLower = cliente.nome.toLowerCase().trim();
+        
+        // Match parcial do nome
+        if (temMatchParcial(nomeClienteLower, nomeLancamentoLower)) {
+          clienteDetectado = cliente;
+          console.log(`✅ Cliente detectado por match parcial no nome: ${cliente.nome}`);
+          break;
+        }
+        
+        // Match parcial dos aliases
+        if (cliente.aliases && Array.isArray(cliente.aliases)) {
+          for (const alias of cliente.aliases) {
+            if (temMatchParcial(alias, nomeLancamentoLower)) {
+              clienteDetectado = cliente;
+              console.log(`✅ Cliente detectado por match parcial no alias: "${alias}" -> ${cliente.nome}`);
+              break;
+            }
+          }
+          if (clienteDetectado) break;
+        }
       }
     }
 
