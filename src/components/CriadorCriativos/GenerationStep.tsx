@@ -67,7 +67,15 @@ export const GenerationStep = ({
         setCurrentTask(`Processando ${image.name}...`);
         
         // Redimensionar e converter imagem para base64
-        const base64Image = await resizeAndConvertToBase64(image);
+        let base64Image;
+        try {
+          base64Image = await resizeAndConvertToBase64(image);
+        } catch (err: any) {
+          console.error('Erro ao processar imagem:', err);
+          errors.push(`${image.name}: ${err.message}`);
+          toast.error(`Erro ao processar ${image.name}: ${err.message}`);
+          continue; // Pular esta imagem
+        }
         
         // Gerar para cada formato
         for (const format of Object.keys(config.formats)) {
@@ -172,10 +180,10 @@ export const GenerationStep = ({
           return;
         }
 
-        // Redimensionar AGRESSIVAMENTE para evitar timeout (max 600px)
+        // Redimensionar MUITO AGRESSIVAMENTE para evitar timeout (max 400px)
         let width = img.width;
         let height = img.height;
-        const maxSize = 600; // Reduzido de 1080 para 600
+        const maxSize = 400; // Reduzido para 400px
 
         if (width > maxSize || height > maxSize) {
           if (width > height) {
@@ -191,24 +199,24 @@ export const GenerationStep = ({
         canvas.height = height;
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Converter para JPEG com qualidade MUITO baixa (0.4)
-        let base64 = canvas.toDataURL('image/jpeg', 0.4);
+        // Converter para JPEG com qualidade EXTREMAMENTE baixa (0.3)
+        let base64 = canvas.toDataURL('image/jpeg', 0.3);
         
-        // Validar tamanho final (max 500KB em base64)
+        // Validar tamanho final (max 300KB em base64)
         const sizeInKB = (base64.length * 3) / 4 / 1024;
         console.log(`📊 Tamanho da imagem processada: ${sizeInKB.toFixed(2)}KB`);
         
-        // Se ainda estiver muito grande, reduzir mais
-        if (sizeInKB > 500) {
-          console.warn('⚠️ Imagem ainda muito grande, reduzindo qualidade...');
-          base64 = canvas.toDataURL('image/jpeg', 0.3);
+        // Se ainda estiver muito grande, reduzir ainda mais
+        if (sizeInKB > 300) {
+          console.warn('⚠️ Imagem ainda muito grande, reduzindo qualidade drasticamente...');
+          base64 = canvas.toDataURL('image/jpeg', 0.2);
         }
         
         const finalSizeInKB = (base64.length * 3) / 4 / 1024;
         console.log(`✅ Tamanho final: ${finalSizeInKB.toFixed(2)}KB`);
         
-        if (finalSizeInKB > 800) {
-          reject(new Error(`Imagem muito grande mesmo após otimização (${finalSizeInKB.toFixed(0)}KB). Use uma imagem menor.`));
+        if (finalSizeInKB > 400) {
+          reject(new Error(`Imagem muito grande mesmo após otimização (${finalSizeInKB.toFixed(0)}KB). Use uma imagem menor ou simplifique a imagem.`));
           return;
         }
         
