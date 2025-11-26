@@ -852,28 +852,32 @@ export default function LancamentoDetalhes() {
             )}
           </Button>
           
-          {editingTab === activeView ? <>
-              <Button variant="outline" onClick={() => {
-            setEditingTab(null);
-            setEditing(false);
-          }} disabled={saving}>
-                Cancelar
-              </Button>
-              <Button onClick={async () => {
-            await handleSave();
-            setEditingTab(null);
-            setEditing(false);
-          }} disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </> : <Button onClick={() => {
-          setEditingTab(activeView);
-          setEditing(true);
-        }}>
-              <Edit className="h-4 w-4 mr-2" />
-              Editar {activeView === 'calendario' ? 'Cronograma' : activeView === 'informacoes' ? 'Informações' : 'Verbas'}
-            </Button>}
+          {activeView !== 'calendario' && (
+            <>
+              {editingTab === activeView ? <>
+                <Button variant="outline" onClick={() => {
+                  setEditingTab(null);
+                  setEditing(false);
+                }} disabled={saving}>
+                  Cancelar
+                </Button>
+                <Button onClick={async () => {
+                  await handleSave();
+                  setEditingTab(null);
+                  setEditing(false);
+                }} disabled={saving}>
+                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </> : <Button onClick={() => {
+                setEditingTab(activeView);
+                setEditing(true);
+              }}>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar {activeView === 'informacoes' ? 'Informações' : 'Verbas'}
+              </Button>}
+            </>
+          )}
         </div>
       </div>
 
@@ -951,37 +955,7 @@ export default function LancamentoDetalhes() {
 
             {/* 2b. Cronograma + Links */}
             <div className="lg:col-span-2 space-y-6">
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <LinksUteis lancamentoId={lancamento.id} />
-                </div>
-                {lancamento.clientes && (
-                  <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200 dark:border-emerald-800">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                        Criativos
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {!catalogoUrl ? (
-                        <p className="text-xs text-muted-foreground">
-                          Sem planilha configurada
-                        </p>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(catalogoUrl, '_blank')}
-                          className="w-full bg-white dark:bg-emerald-950/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/50 border-emerald-300 dark:border-emerald-700"
-                        >
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          Planilha
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+              <LinksUteis lancamentoId={lancamento.id} />
               
               <GanttChartAvancado lancamento={lancamento} onUpdateDates={handleUpdateDates} />
               
