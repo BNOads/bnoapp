@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock } from "lucide-react";
+import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock, Info, Target } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -988,67 +988,83 @@ export default function LancamentoDetalhes() {
 
         <TabsContent value="informacoes" className="space-y-6">
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Informações Básicas */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Informações Básicas</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Nome do Lançamento</Label>
-                  {editingTab === 'informacoes' ? <Input value={lancamento.nome_lancamento} onChange={e => setLancamento({
-                  ...lancamento,
-                  nome_lancamento: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">{lancamento.nome_lancamento}</p>}
+          {/* Dados Gerais */}
+          <Card>
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
+              <CardTitle className="flex items-center gap-2 text-blue-900 dark:text-blue-100">
+                <Info className="h-5 w-5" />
+                Dados Gerais
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Nome do Lançamento</Label>
+                  {editingTab === 'informacoes' ? (
+                    <Input 
+                      value={lancamento.nome_lancamento} 
+                      onChange={e => setLancamento({...lancamento, nome_lancamento: e.target.value})}
+                      className="font-medium"
+                    />
+                  ) : (
+                    <p className="text-base font-medium">{lancamento.nome_lancamento}</p>
+                  )}
                 </div>
 
-                <div>
-                  <Label>Promessa</Label>
-                  {editingTab === 'informacoes' ? <Textarea value={lancamento.promessa || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  promessa: e.target.value
-                })} placeholder="Descreva a promessa do lançamento" /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.promessa || 'Não informado'}
-                    </p>}
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Cliente</Label>
+                  {editingTab === 'informacoes' ? (
+                    <select 
+                      value={lancamento.cliente_id || ''} 
+                      onChange={e => {
+                        if (e.target.value) {
+                          handleClientChange(e.target.value);
+                        } else {
+                          setLancamento({...lancamento, cliente_id: null, clientes: null});
+                        }
+                      }} 
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="">Selecione um cliente</option>
+                      {availableClients.map(cliente => (
+                        <option key={cliente.id} value={cliente.id}>{cliente.nome}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-base font-medium">{lancamento.clientes?.nome || 'Não vinculado'}</p>
+                  )}
                 </div>
 
-                <div>
-                  <Label>Tipo de Aulas</Label>
-                  {editingTab === 'informacoes' ? <select value={lancamento.tipo_aulas} onChange={e => setLancamento({
-                  ...lancamento,
-                  tipo_aulas: e.target.value
-                })} className="w-full p-2 border rounded-md">
-                      <option value="ao_vivo">Ao Vivo</option>
-                      <option value="gravadas">Gravadas</option>
-                    </select> : <p className="text-sm text-muted-foreground">
-                      {lancamento.tipo_aulas === 'ao_vivo' ? 'Ao Vivo' : 'Gravadas'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Status do Lançamento</Label>
-                  {editingTab === 'informacoes' ? <select value={lancamento.status_lancamento} onChange={e => setLancamento({
-                  ...lancamento,
-                  status_lancamento: e.target.value
-                })} className="w-full p-2 border rounded-md">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Status</Label>
+                  {editingTab === 'informacoes' ? (
+                    <select 
+                      value={lancamento.status_lancamento} 
+                      onChange={e => setLancamento({...lancamento, status_lancamento: e.target.value})} 
+                      className="w-full p-2 border rounded-md"
+                    >
                       <option value="em_captacao">Em Captação</option>
                       <option value="em_cpl">Em CPL</option>
                       <option value="em_carrinho">Em Carrinho</option>
                       <option value="finalizado">Finalizado</option>
                       <option value="pausado">Pausado</option>
                       <option value="cancelado">Cancelado</option>
-                    </select> : <p className="text-sm text-muted-foreground">
+                    </select>
+                  ) : (
+                    <Badge className={getStatusColor(lancamento.status_lancamento)}>
                       {lancamento.status_lancamento}
-                    </p>}
+                    </Badge>
+                  )}
                 </div>
 
-                <div>
-                  <Label>Tipo de Lançamento</Label>
-                  {editingTab === 'informacoes' ? <select value={lancamento.tipo_lancamento} onChange={e => setLancamento({
-                  ...lancamento,
-                  tipo_lancamento: e.target.value
-                })} className="w-full p-2 border rounded-md">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tipo de Lançamento</Label>
+                  {editingTab === 'informacoes' ? (
+                    <select 
+                      value={lancamento.tipo_lancamento} 
+                      onChange={e => setLancamento({...lancamento, tipo_lancamento: e.target.value})} 
+                      className="w-full p-2 border rounded-md"
+                    >
                       <option value="semente">Semente</option>
                       <option value="interno">Interno</option>
                       <option value="externo">Externo</option>
@@ -1058,251 +1074,374 @@ export default function LancamentoDetalhes() {
                       <option value="tradicional">Lançamento Tradicional</option>
                       <option value="captacao_simples">Captação simples</option>
                       <option value="outro">Outro</option>
-                    </select> : <p className="text-sm text-muted-foreground">
-                      {lancamento.tipo_lancamento}
-                    </p>}
+                    </select>
+                  ) : (
+                    <p className="text-base font-medium capitalize">{lancamento.tipo_lancamento}</p>
+                  )}
                 </div>
 
-                <div>
-                  <Label>Data de Início da Captação</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_inicio_captacao} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_inicio_captacao: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_inicio_captacao ? format(parseISO(lancamento.data_inicio_captacao), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tipo de Aulas</Label>
+                  {editingTab === 'informacoes' ? (
+                    <select 
+                      value={lancamento.tipo_aulas} 
+                      onChange={e => setLancamento({...lancamento, tipo_aulas: e.target.value})} 
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="ao_vivo">Ao Vivo</option>
+                      <option value="gravadas">Gravadas</option>
+                    </select>
+                  ) : (
+                    <p className="text-base font-medium">{lancamento.tipo_aulas === 'ao_vivo' ? 'Ao Vivo' : 'Gravadas'}</p>
+                  )}
                 </div>
 
-                <div>
-                  <Label>Data de Fim da Captação</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fim_captacao || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_fim_captacao: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_fim_captacao ? format(parseISO(lancamento.data_fim_captacao), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Data de Início do Aquecimento</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_inicio_aquecimento || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_inicio_aquecimento: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_inicio_aquecimento ? format(parseISO(lancamento.data_inicio_aquecimento), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Data de Fim do Aquecimento</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fim_aquecimento || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_fim_aquecimento: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_fim_aquecimento ? format(parseISO(lancamento.data_fim_aquecimento), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Data de Início do CPL</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_inicio_cpl || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_inicio_cpl: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_inicio_cpl ? format(parseISO(lancamento.data_inicio_cpl), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Data de Fim do CPL</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fim_cpl || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_fim_cpl: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_fim_cpl ? format(parseISO(lancamento.data_fim_cpl), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Data de Início do Lembrete</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_inicio_lembrete || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_inicio_lembrete: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_inicio_lembrete ? format(parseISO(lancamento.data_inicio_lembrete), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Data de Fim do Lembrete</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fim_lembrete || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_fim_lembrete: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_fim_lembrete ? format(parseISO(lancamento.data_fim_lembrete), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Data de Início do Carrinho</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_inicio_carrinho || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_inicio_carrinho: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_inicio_carrinho ? format(parseISO(lancamento.data_inicio_carrinho), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Data de Fim do Carrinho</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fim_carrinho || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_fim_carrinho: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_fim_carrinho ? format(parseISO(lancamento.data_fim_carrinho), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Data de Fechamento</Label>
-                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fechamento || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  data_fechamento: e.target.value
-                })} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.data_fechamento ? format(parseISO(lancamento.data_fechamento), 'dd/MM/yyyy', {
-                    locale: ptBR
-                  }) : 'Não informado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Cliente</Label>
-                  {editingTab === 'informacoes' ? <select value={lancamento.cliente_id || ''} onChange={e => {
-                  if (e.target.value) {
-                    handleClientChange(e.target.value);
-                  } else {
-                    setLancamento({
-                      ...lancamento,
-                      cliente_id: null,
-                      clientes: null
-                    });
-                  }
-                }} className="w-full p-2 border rounded-md">
-                      <option value="">Selecione um cliente</option>
-                      {availableClients.map(cliente => <option key={cliente.id} value={cliente.id}>
-                          {cliente.nome}
-                        </option>)}
-                    </select> : <p className="text-sm text-muted-foreground">
-                      {lancamento.clientes?.nome || 'Não vinculado'}
-                    </p>}
-                </div>
-
-                <div>
-                  <Label>Gestor Responsável</Label>
-                  <p className="text-sm text-muted-foreground">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Gestor Responsável</Label>
+                  <p className="text-base font-medium">
                     {lancamento.gestor?.nome || lancamento.primary_gestor?.[0]?.primary_gestor?.nome || 'Não atribuído'}
                   </p>
                 </div>
 
-                <div>
-                  <Label>Observações</Label>
-                  {editingTab === 'informacoes' ? <Textarea value={lancamento.observacoes || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  observacoes: e.target.value
-                })} placeholder="Adicione observações sobre o lançamento" rows={3} /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.observacoes || 'Nenhuma observação'}
-                    </p>}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Métricas e Metas */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Métricas e Metas</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Ticket do Produto</Label>
-                  {editingTab === 'informacoes' ? <Input type="number" value={lancamento.ticket_produto || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  ticket_produto: e.target.value ? Number(e.target.value) : null
-                })} placeholder="R$ 0,00" /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.ticket_produto ? `R$ ${lancamento.ticket_produto.toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2
-                  })}` : 'Não informado'}
-                    </p>}
+                <div className="md:col-span-2 space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Promessa</Label>
+                  {editingTab === 'informacoes' ? (
+                    <Textarea 
+                      value={lancamento.promessa || ''} 
+                      onChange={e => setLancamento({...lancamento, promessa: e.target.value})} 
+                      placeholder="Descreva a promessa do lançamento" 
+                      rows={3}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{lancamento.promessa || 'Não informado'}</p>
+                  )}
                 </div>
 
-                <div>
-                  <Label>Leads Desejados</Label>
-                  {editingTab === 'informacoes' ? <Input type="number" value={lancamento.leads_desejados || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  leads_desejados: e.target.value ? Number(e.target.value) : null
-                })} placeholder="Ex: 1000" /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.leads_desejados || 'Não informado'}
-                    </p>}
+                <div className="md:col-span-2 space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Observações</Label>
+                  {editingTab === 'informacoes' ? (
+                    <Textarea 
+                      value={lancamento.observacoes || ''} 
+                      onChange={e => setLancamento({...lancamento, observacoes: e.target.value})} 
+                      placeholder="Adicione observações sobre o lançamento" 
+                      rows={3}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{lancamento.observacoes || 'Nenhuma observação'}</p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Datas do Lançamento */}
+          <Card>
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
+              <CardTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-100">
+                <Calendar className="h-5 w-5" />
+                Datas do Lançamento
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-6">
+                {/* Captação */}
+                <div className="border-l-4 border-blue-500 pl-4 space-y-4">
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    Captação
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Data de Início</Label>
+                      {editingTab === 'informacoes' ? (
+                        <Input 
+                          type="date" 
+                          value={lancamento.data_inicio_captacao} 
+                          onChange={e => setLancamento({...lancamento, data_inicio_captacao: e.target.value})}
+                        />
+                      ) : (
+                        <p className="font-medium">
+                          {lancamento.data_inicio_captacao ? format(parseISO(lancamento.data_inicio_captacao), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Data de Fim</Label>
+                      {editingTab === 'informacoes' ? (
+                        <Input 
+                          type="date" 
+                          value={lancamento.data_fim_captacao || ''} 
+                          onChange={e => setLancamento({...lancamento, data_fim_captacao: e.target.value})}
+                        />
+                      ) : (
+                        <p className="font-medium">
+                          {lancamento.data_fim_captacao ? format(parseISO(lancamento.data_fim_captacao), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <Label>Investimento Previsto</Label>
-                  <p className="text-sm text-muted-foreground">
-                    R$ {lancamento.investimento_total.toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2
-                  })}
+                {/* Aquecimento */}
+                <div className="border-l-4 border-orange-500 pl-4 space-y-4">
+                  <h4 className="font-semibold text-orange-900 dark:text-orange-100 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    Aquecimento
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Data de Início</Label>
+                      {editingTab === 'informacoes' ? (
+                        <Input 
+                          type="date" 
+                          value={lancamento.data_inicio_aquecimento || ''} 
+                          onChange={e => setLancamento({...lancamento, data_inicio_aquecimento: e.target.value})}
+                        />
+                      ) : (
+                        <p className="font-medium">
+                          {lancamento.data_inicio_aquecimento ? format(parseISO(lancamento.data_inicio_aquecimento), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Data de Fim</Label>
+                      {editingTab === 'informacoes' ? (
+                        <Input 
+                          type="date" 
+                          value={lancamento.data_fim_aquecimento || ''} 
+                          onChange={e => setLancamento({...lancamento, data_fim_aquecimento: e.target.value})}
+                        />
+                      ) : (
+                        <p className="font-medium">
+                          {lancamento.data_fim_aquecimento ? format(parseISO(lancamento.data_fim_aquecimento), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* CPL / Aulas */}
+                <div className="border-l-4 border-yellow-500 pl-4 space-y-4">
+                  <h4 className="font-semibold text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    CPL / Aulas
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Data de Início</Label>
+                      {editingTab === 'informacoes' ? (
+                        <Input 
+                          type="date" 
+                          value={lancamento.data_inicio_cpl || ''} 
+                          onChange={e => setLancamento({...lancamento, data_inicio_cpl: e.target.value})}
+                        />
+                      ) : (
+                        <p className="font-medium">
+                          {lancamento.data_inicio_cpl ? format(parseISO(lancamento.data_inicio_cpl), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Data de Fim</Label>
+                      {editingTab === 'informacoes' ? (
+                        <Input 
+                          type="date" 
+                          value={lancamento.data_fim_cpl || ''} 
+                          onChange={e => setLancamento({...lancamento, data_fim_cpl: e.target.value})}
+                        />
+                      ) : (
+                        <p className="font-medium">
+                          {lancamento.data_fim_cpl ? format(parseISO(lancamento.data_fim_cpl), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lembrete */}
+                <div className="border-l-4 border-indigo-500 pl-4 space-y-4">
+                  <h4 className="font-semibold text-indigo-900 dark:text-indigo-100 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                    Lembrete
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Data de Início</Label>
+                      {editingTab === 'informacoes' ? (
+                        <Input 
+                          type="date" 
+                          value={lancamento.data_inicio_lembrete || ''} 
+                          onChange={e => setLancamento({...lancamento, data_inicio_lembrete: e.target.value})}
+                        />
+                      ) : (
+                        <p className="font-medium">
+                          {lancamento.data_inicio_lembrete ? format(parseISO(lancamento.data_inicio_lembrete), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Data de Fim</Label>
+                      {editingTab === 'informacoes' ? (
+                        <Input 
+                          type="date" 
+                          value={lancamento.data_fim_lembrete || ''} 
+                          onChange={e => setLancamento({...lancamento, data_fim_lembrete: e.target.value})}
+                        />
+                      ) : (
+                        <p className="font-medium">
+                          {lancamento.data_fim_lembrete ? format(parseISO(lancamento.data_fim_lembrete), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Carrinho / Vendas */}
+                <div className="border-l-4 border-green-500 pl-4 space-y-4">
+                  <h4 className="font-semibold text-green-900 dark:text-green-100 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    Carrinho / Vendas
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Data de Início</Label>
+                      {editingTab === 'informacoes' ? (
+                        <Input 
+                          type="date" 
+                          value={lancamento.data_inicio_carrinho || ''} 
+                          onChange={e => setLancamento({...lancamento, data_inicio_carrinho: e.target.value})}
+                        />
+                      ) : (
+                        <p className="font-medium">
+                          {lancamento.data_inicio_carrinho ? format(parseISO(lancamento.data_inicio_carrinho), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Data de Fim</Label>
+                      {editingTab === 'informacoes' ? (
+                        <Input 
+                          type="date" 
+                          value={lancamento.data_fim_carrinho || ''} 
+                          onChange={e => setLancamento({...lancamento, data_fim_carrinho: e.target.value})}
+                        />
+                      ) : (
+                        <p className="font-medium">
+                          {lancamento.data_fim_carrinho ? format(parseISO(lancamento.data_fim_carrinho), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fechamento */}
+                <div className="border-l-4 border-red-500 pl-4 space-y-4">
+                  <h4 className="font-semibold text-red-900 dark:text-red-100 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    Fechamento
+                  </h4>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Data de Fechamento</Label>
+                    {editingTab === 'informacoes' ? (
+                      <Input 
+                        type="date" 
+                        value={lancamento.data_fechamento || ''} 
+                        onChange={e => setLancamento({...lancamento, data_fechamento: e.target.value})}
+                      />
+                    ) : (
+                      <p className="font-medium">
+                        {lancamento.data_fechamento ? format(parseISO(lancamento.data_fechamento), 'dd/MM/yyyy', {locale: ptBR}) : 'Não informado'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Métricas e Metas */}
+          <Card>
+            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
+              <CardTitle className="flex items-center gap-2 text-green-900 dark:text-green-100">
+                <Target className="h-5 w-5" />
+                Métricas e Metas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Ticket do Produto</Label>
+                  {editingTab === 'informacoes' ? (
+                    <Input 
+                      type="number" 
+                      value={lancamento.ticket_produto || ''} 
+                      onChange={e => setLancamento({...lancamento, ticket_produto: e.target.value ? Number(e.target.value) : null})} 
+                      placeholder="R$ 0,00"
+                    />
+                  ) : (
+                    <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                      {lancamento.ticket_produto ? `R$ ${lancamento.ticket_produto.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : 'Não informado'}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Leads Desejados</Label>
+                  {editingTab === 'informacoes' ? (
+                    <Input 
+                      type="number" 
+                      value={lancamento.leads_desejados || ''} 
+                      onChange={e => setLancamento({...lancamento, leads_desejados: e.target.value ? Number(e.target.value) : null})} 
+                      placeholder="Ex: 1000"
+                    />
+                  ) : (
+                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                      {lancamento.leads_desejados?.toLocaleString('pt-BR') || 'Não informado'}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Investimento Previsto</Label>
+                  <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                    R$ {lancamento.investimento_total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                   </p>
                 </div>
 
-                <div>
-                  <Label>Meta de Custo por Lead</Label>
-                  {editingTab === 'informacoes' ? <Input type="number" step="0.01" value={lancamento.meta_custo_lead || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  meta_custo_lead: e.target.value ? Number(e.target.value) : null
-                })} placeholder="R$ 0,00" /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.meta_custo_lead ? `R$ ${lancamento.meta_custo_lead.toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2
-                  })}` : 'Não informado'}
-                    </p>}
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Meta de CPL</Label>
+                  {editingTab === 'informacoes' ? (
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      value={lancamento.meta_custo_lead || ''} 
+                      onChange={e => setLancamento({...lancamento, meta_custo_lead: e.target.value ? Number(e.target.value) : null})} 
+                      placeholder="R$ 0,00"
+                    />
+                  ) : (
+                    <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                      {lancamento.meta_custo_lead ? `R$ ${lancamento.meta_custo_lead.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : 'Não informado'}
+                    </p>
+                  )}
                 </div>
 
-                <div>
-                  <Label>Público-alvo</Label>
-                  {editingTab === 'informacoes' ? <Textarea value={lancamento.publico_alvo || ''} onChange={e => setLancamento({
-                  ...lancamento,
-                  publico_alvo: e.target.value
-                })} placeholder="Descreva o público-alvo" /> : <p className="text-sm text-muted-foreground">
-                      {lancamento.publico_alvo || 'Não informado'}
-                    </p>}
+                <div className="md:col-span-2 space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Público-alvo</Label>
+                  {editingTab === 'informacoes' ? (
+                    <Textarea 
+                      value={lancamento.publico_alvo || ''} 
+                      onChange={e => setLancamento({...lancamento, publico_alvo: e.target.value})} 
+                      placeholder="Descreva o público-alvo"
+                      rows={3}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{lancamento.publico_alvo || 'Não informado'}</p>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Links Úteis */}
-            <Card>
-              
-              
-            </Card>
-          </div>
         </TabsContent>
 
         <TabsContent value="verbas" className="space-y-6">
