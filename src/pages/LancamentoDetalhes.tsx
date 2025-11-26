@@ -20,6 +20,7 @@ import DashboardField from "@/components/Lancamentos/DashboardField";
 import VerbaDestaque from "@/components/Lancamentos/VerbaDestaque";
 import TimerCPL from "@/components/Lancamentos/TimerCPL";
 import InformacoesBasicas from "@/components/Lancamentos/InformacoesBasicas";
+import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
 interface VerbaFase {
   captacao: {
     percentual: number;
@@ -970,6 +971,13 @@ export default function LancamentoDetalhes() {
             }} />
             </div>
           </div>
+
+          {/* 3. Diário de Bordo */}
+          {lancamento.cliente_id && (
+            <div className="mt-6">
+              <DiarioBordo clienteId={lancamento.cliente_id} lancamentoId={lancamento.id} />
+            </div>
+          )}
         </TabsContent>
 
 

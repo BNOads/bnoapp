@@ -19,6 +19,7 @@ import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
 import { HistoricoMensagensCliente } from "@/components/Clientes/HistoricoMensagensCliente";
 import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
 import { ChecklistCriativosView } from "@/components/Clientes/ChecklistCriativos";
+import { MessageSquare } from "lucide-react";
 import { NPSPopup } from "@/components/NPS/NPSPopup";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ClienteBrandingProvider } from "@/components/Clientes/ClienteBrandingProvider";
@@ -436,7 +437,7 @@ const PainelCliente = () => {
               
               {/* Diário de Bordo - Positioned below checklist on the right side */}
               <div className="mt-6">
-                <DiarioBordo clienteId={cliente.id} />
+                <DiarioBordo clienteId={cliente.id} showLancamentoSelector={true} />
               </div>
             </section>
           </div>

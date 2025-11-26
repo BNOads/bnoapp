@@ -33,11 +33,15 @@ interface DiarioBordoEntry {
   author_nome?: string;
   author_avatar?: string;
   parent_id?: string;
+  lancamento_id?: string;
+  lancamento_nome?: string;
   replies?: DiarioBordoEntry[];
 }
 
 interface DiarioBordoProps {
   clienteId: string;
+  lancamentoId?: string;
+  showLancamentoSelector?: boolean;
 }
 
 const EMOJIS = [
@@ -49,7 +53,7 @@ const EMOJIS = [
   { emoji: "✅", label: "Verificado" },
 ];
 
-export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
+export const DiarioBordo = ({ clienteId, lancamentoId, showLancamentoSelector = false }: DiarioBordoProps) => {
   const { user } = useAuth();
   const { userData } = useCurrentUser();
   const { isAdmin, canCreateContent } = useUserPermissions();
@@ -67,6 +71,8 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
   const [submittingReply, setSubmittingReply] = useState(false);
   const [showMaximizeModal, setShowMaximizeModal] = useState(false);
   const [allEntries, setAllEntries] = useState<DiarioBordoEntry[]>([]);
+  const [lancamentos, setLancamentos] = useState<Array<{id: string; nome_lancamento: string}>>([]);
+  const [selectedLancamentoId, setSelectedLancamentoId] = useState<string | undefined>(lancamentoId);
 
   const canWrite = isAdmin || canCreateContent;
   const isPublicAccess = !user;
@@ -74,17 +80,43 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
   useEffect(() => {
     if (clienteId) {
       loadEntries();
+      if (showLancamentoSelector) {
+        loadLancamentos();
+      }
     }
-  }, [clienteId]);
+  }, [clienteId, lancamentoId]);
+
+  const loadLancamentos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('lancamentos')
+        .select('id, nome_lancamento')
+        .eq('cliente_id', clienteId)
+        .eq('ativo', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setLancamentos(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar lançamentos:', error);
+    }
+  };
 
   const loadEntries = async () => {
     try {
       // Buscar entradas do diário de bordo (apenas principais - sem parent_id)
-      const { data: entriesData, error: entriesError } = await supabase
+      let query = supabase
         .from('diario_bordo')
         .select('*')
         .eq('cliente_id', clienteId)
-        .is('parent_id', null)
+        .is('parent_id', null);
+
+      // Se estamos em um lançamento específico, filtrar por ele
+      if (lancamentoId) {
+        query = query.eq('lancamento_id', lancamentoId);
+      }
+
+      const { data: entriesData, error: entriesError } = await query
         .order('created_at', { ascending: false });
 
       if (entriesError) throw entriesError;
@@ -99,6 +131,17 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
             .select('nome, avatar_url')
             .eq('user_id', entry.autor_id)
             .maybeSingle();
+
+          // Buscar informações do lançamento se houver
+          let lancamentoNome;
+          if (entry.lancamento_id) {
+            const { data: lancamentoData } = await supabase
+              .from('lancamentos')
+              .select('nome_lancamento')
+              .eq('id', entry.lancamento_id)
+              .maybeSingle();
+            lancamentoNome = lancamentoData?.nome_lancamento;
+          }
 
           // Buscar replies para esta entrada
           const { data: repliesData } = await supabase
@@ -131,6 +174,7 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
             reacoes: (entry.reacoes as Record<string, string[]>) || {},
             author_nome: colaboradorData?.nome || 'Usuário',
             author_avatar: colaboradorData?.avatar_url,
+            lancamento_nome: lancamentoNome,
             replies: repliesWithAuthor
           });
         }
@@ -156,29 +200,49 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
 
     setSubmitting(true);
     try {
+      const insertData: any = {
+        cliente_id: clienteId,
+        autor_id: user.id,
+        texto: newEntryText.trim(),
+      };
+
+      // Se estiver em contexto de lançamento ou tiver um selecionado, adicionar
+      if (lancamentoId || selectedLancamentoId) {
+        insertData.lancamento_id = lancamentoId || selectedLancamentoId;
+      }
+
       const { data, error } = await supabase
         .from('diario_bordo')
-        .insert({
-          cliente_id: clienteId,
-          autor_id: user.id,
-          texto: newEntryText.trim(),
-        })
+        .insert(insertData)
         .select()
         .single();
 
       if (error) throw error;
+
+      // Buscar nome do lançamento se houver
+      let lancamentoNome;
+      if (data.lancamento_id) {
+        const { data: lancamentoData } = await supabase
+          .from('lancamentos')
+          .select('nome_lancamento')
+          .eq('id', data.lancamento_id)
+          .maybeSingle();
+        lancamentoNome = lancamentoData?.nome_lancamento;
+      }
 
       const newEntry: DiarioBordoEntry = {
         ...data,
         reacoes: {},
         author_nome: userData?.nome || 'Usuário',
         author_avatar: userData?.avatar_url,
+        lancamento_nome: lancamentoNome,
         replies: []
       };
 
       setEntries(prev => [newEntry, ...prev]);
       setAllEntries(prev => [newEntry, ...prev]);
       setNewEntryText("");
+      setSelectedLancamentoId(undefined);
       
       toast({
         title: "Sucesso",
@@ -529,6 +593,12 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
           </div>
         )}
 
+        {entry.lancamento_nome && (
+          <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
+            🚀 {entry.lancamento_nome}
+          </div>
+        )}
+
         <div className="flex items-center justify-between pt-2">
           <div className="flex items-center gap-2">
             {EMOJIS.map(({ emoji, label }) => {
@@ -747,7 +817,26 @@ export const DiarioBordo = ({ clienteId }: DiarioBordoProps) => {
                   }
                 }}
               />
-              <Button 
+              {showLancamentoSelector && lancamentos.length > 0 && !lancamentoId && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Associar a um lançamento (opcional)
+                  </label>
+                  <select
+                    value={selectedLancamentoId || ""}
+                    onChange={(e) => setSelectedLancamentoId(e.target.value || undefined)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="">Sem lançamento específico</option>
+                    {lancamentos.map((lanc) => (
+                      <option key={lanc.id} value={lanc.id}>
+                        {lanc.nome_lancamento}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <Button
                 type="submit" 
                 disabled={!newEntryText.trim() || submitting}
                 className="w-full"
