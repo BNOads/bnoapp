@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent } from "@/components/ui/card";
-import { Smartphone, Square, Wand2, Shield } from "lucide-react";
+import { Smartphone, Square, Wand2, Shield, Sparkles } from "lucide-react";
 import { CreativeConfig } from "./CriadorCriativosView";
 
 interface ConfigStepProps {
@@ -11,6 +11,7 @@ interface ConfigStepProps {
   variations: number;
   useAI: boolean;
   protectFaces: boolean;
+  varyHeadlines: boolean;
   onUpdate: (updates: Partial<CreativeConfig>) => void;
   onNext: () => void;
   onBack: () => void;
@@ -21,6 +22,7 @@ export const ConfigStep = ({
   variations,
   useAI,
   protectFaces,
+  varyHeadlines,
   onUpdate,
   onNext,
   onBack,
@@ -155,6 +157,27 @@ export const ConfigStep = ({
                 onCheckedChange={(checked) => onUpdate({ protectFaces: checked })}
               />
             </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-orange-500/10">
+                  <Sparkles className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <Label htmlFor="varyHeadlines" className="font-medium">
+                    Variar headlines com IA
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Gera variações criativas da headline original
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="varyHeadlines"
+                checked={varyHeadlines}
+                onCheckedChange={(checked) => onUpdate({ varyHeadlines: checked })}
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -177,6 +200,9 @@ export const ConfigStep = ({
               </p>
               <p>
                 • <strong>Proteção de rostos:</strong> {protectFaces ? "Sim" : "Não"}
+              </p>
+              <p>
+                • <strong>Variar headlines:</strong> {varyHeadlines ? "Sim" : "Não"}
               </p>
             </div>
           </CardContent>

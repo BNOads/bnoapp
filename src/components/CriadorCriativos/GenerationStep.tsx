@@ -38,6 +38,31 @@ export const GenerationStep = ({
       const allCreatives: any[] = [];
       const errors: string[] = [];
 
+      // Gerar variações de headline se necessário
+      let headlines = [config.headline];
+      if (config.varyHeadlines && config.variations > 1) {
+        setCurrentTask('Gerando variações de headlines...');
+        try {
+          const { data: headlineData, error: headlineError } = await supabase.functions.invoke('gerar-variacoes-headline', {
+            body: {
+              headline: config.headline,
+              quantidade: config.variations - 1, // -1 porque já temos a original
+            },
+          });
+
+          if (headlineError) {
+            console.error('Erro ao gerar variações de headline:', headlineError);
+            toast.error('Não foi possível gerar variações de headline. Usando headline original.');
+          } else if (headlineData?.variacoes) {
+            headlines = [config.headline, ...headlineData.variacoes];
+            console.log(`✅ ${headlines.length} headlines geradas:`, headlines);
+          }
+        } catch (err) {
+          console.error('Erro ao gerar variações de headline:', err);
+          toast.error('Erro ao gerar variações de headline. Usando headline original.');
+        }
+      }
+
       for (const image of config.images) {
         setCurrentTask(`Processando ${image.name}...`);
         
@@ -53,6 +78,7 @@ export const GenerationStep = ({
           
           // Gerar variações
           for (let i = 0; i < config.variations; i++) {
+            const currentHeadline = headlines[i] || config.headline;
             setCurrentTask(`Gerando variação ${i + 1}/${config.variations} - ${dimensions}...`);
             
             try {
@@ -64,7 +90,7 @@ export const GenerationStep = ({
               const generationPromise = supabase.functions.invoke('gerar-criativo', {
                 body: {
                   imageBase64: base64Image,
-                  headline: config.headline,
+                  headline: currentHeadline,
                   body: config.body,
                   cta: config.cta,
                   notes: config.notes,
