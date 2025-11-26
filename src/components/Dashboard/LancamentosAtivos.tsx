@@ -182,7 +182,7 @@ export function LancamentosAtivos() {
           {lancamentos.map((lancamento) => (
             <div
               key={lancamento.id}
-              onClick={() => navigate(`/lancamento/${lancamento.id}`)}
+              onClick={() => navigate(`/lancamentos/${lancamento.id}`)}
               className="group p-4 rounded-lg border bg-card hover:bg-accent/50 transition-all cursor-pointer"
             >
               <div className="flex items-start justify-between gap-3 mb-2">
