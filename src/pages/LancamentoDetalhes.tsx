@@ -1325,9 +1325,13 @@ export default function LancamentoDetalhes() {
                   { key: 'planilha_leads', label: 'Criar planilha de leads UTM', description: 'Configurar planilha para rastreamento de leads com parâmetros UTM' },
                   { key: 'planilha_vendas', label: 'Criar planilha de vendas', description: 'Configurar planilha para controle de vendas' },
                   { key: 'pesquisa', label: 'Criar pesquisa para o lançamento', description: 'Criar formulário de pesquisa para coletar feedback' },
-                  { key: 'email_boas_vindas', label: 'Conferir email de boas-vindas', description: 'Revisar e testar email automático de boas-vindas' }
+                  { key: 'email_boas_vindas', label: 'Conferir email de boas-vindas', description: 'Revisar e testar email automático de boas-vindas' },
+                  { key: 'cpl_aulas', label: 'Conferir CPL das aulas', description: 'Verificar e validar o custo por lead de cada aula do lançamento' },
+                  { key: 'etapas_lancamento', label: 'Conferir quais etapas do lançamento terá', description: 'Definir se terá Aquecimento, Lembrete e Remarketing' },
+                  { key: 'checklist_criativos', label: 'Enviar pro cliente Checklist de criativos', description: 'Compartilhar o checklist de criativos com o cliente' },
+                  { key: 'utms_organicas', label: 'Criar UTMs orgânicas para o lançamento', description: 'Configurar UTMs para rastreamento de tráfego orgânico' }
                 ].map((item) => {
-                  const checklist = (lancamento.checklist_configuracao as any) || {};
+                  const checklist = (lancamento.checklist_configuracao || {}) as Record<string, boolean>;
                   const isChecked = checklist[item.key] || false;
                   
                   return (
@@ -1379,9 +1383,9 @@ export default function LancamentoDetalhes() {
                   <span className="text-sm font-medium">Progresso</span>
                   <span className="text-sm text-muted-foreground">
                     {(() => {
-                      const checklist = (lancamento.checklist_configuracao as any) || {};
+                      const checklist = (lancamento.checklist_configuracao || {}) as Record<string, boolean>;
                       const completed = Object.values(checklist).filter(Boolean).length;
-                      const total = 6;
+                      const total = 10;
                       return `${completed}/${total} concluídos`;
                     })()}
                   </span>
@@ -1391,9 +1395,9 @@ export default function LancamentoDetalhes() {
                     className="bg-primary h-2 rounded-full transition-all duration-500"
                     style={{ 
                       width: `${(() => {
-                        const checklist = (lancamento.checklist_configuracao as any) || {};
+                        const checklist = (lancamento.checklist_configuracao || {}) as Record<string, boolean>;
                         const completed = Object.values(checklist).filter(Boolean).length;
-                        return (completed / 6) * 100;
+                        return (completed / 10) * 100;
                       })()}%`
                     }}
                   />
