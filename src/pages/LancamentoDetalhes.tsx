@@ -1480,31 +1480,50 @@ export default function LancamentoDetalhes() {
                         id={item.key}
                         checked={isChecked}
                         onChange={async (e) => {
+                          const checked = e.target.checked;
+                          
                           try {
+                            // Atualizar estado localmente primeiro
                             const newChecklist = {
                               ...(checklist || {}),
-                              [item.key]: e.target.checked
+                              [item.key]: checked
                             };
-                            
-                            const { error } = await supabase
-                              .from('lancamentos')
-                              .update({ checklist_configuracao: newChecklist })
-                              .eq('id', lancamento.id);
-                            
-                            if (error) {
-                              console.error('Erro ao atualizar checklist:', error);
-                              toast.error('Erro ao atualizar checklist');
-                              return;
-                            }
                             
                             setLancamento(prev => prev ? {
                               ...prev,
                               checklist_configuracao: newChecklist
                             } : null);
                             
-                            toast.success(e.target.checked ? 'Item marcado como concluído' : 'Item desmarcado');
+                            // Fazer update no banco
+                            const { error } = await supabase
+                              .from('lancamentos')
+                              .update({ 
+                                checklist_configuracao: newChecklist,
+                                updated_at: new Date().toISOString()
+                              })
+                              .eq('id', lancamento.id)
+                              .select()
+                              .single();
+                            
+                            if (error) {
+                              console.error('Erro ao atualizar checklist:', error);
+                              // Reverter estado local em caso de erro
+                              setLancamento(prev => prev ? {
+                                ...prev,
+                                checklist_configuracao: checklist
+                              } : null);
+                              toast.error('Erro ao atualizar checklist');
+                              return;
+                            }
+                            
+                            toast.success(checked ? 'Item marcado como concluído' : 'Item desmarcado');
                           } catch (err) {
                             console.error('Erro inesperado:', err);
+                            // Reverter estado local em caso de erro
+                            setLancamento(prev => prev ? {
+                              ...prev,
+                              checklist_configuracao: checklist
+                            } : null);
                             toast.error('Erro ao atualizar checklist');
                           }
                         }}
