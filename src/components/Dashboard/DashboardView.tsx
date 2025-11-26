@@ -21,7 +21,7 @@ import { LancamentosAtivos } from "@/components/Dashboard/LancamentosAtivos";
 
 export function DashboardView() {
   const navigate = useNavigate();
-  const { canCreateContent, isAdmin, isMaster } = useUserPermissions();
+  const { canCreateContent, isAdmin, isMaster, canManageBudgets } = useUserPermissions();
   const { recentTabs } = useRecentTabs();
   const [showOrcamentos, setShowOrcamentos] = useState(false);
   const [pdis, setPdis] = useState<any[]>([]);
@@ -387,8 +387,8 @@ export function DashboardView() {
         </div>
       </div>
 
-      {/* Lançamentos Ativos Section - Only for Admin and Managers */}
-      {(isAdmin || isMaster) && (
+      {/* Lançamentos Ativos Section - For Admin, Master and Traffic Managers */}
+      {(isAdmin || isMaster || canManageBudgets) && (
         <section className="space-y-6">
           <LancamentosAtivos />
         </section>
