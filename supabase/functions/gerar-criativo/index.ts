@@ -28,9 +28,9 @@ serve(async (req) => {
     const imageSizeKB = (imageBase64.length * 3) / 4 / 1024;
     console.log(`📊 Tamanho da imagem recebida: ${imageSizeKB.toFixed(2)}KB`);
 
-    if (imageSizeKB > 500) {
+    if (imageSizeKB > 250) {
       console.error(`❌ Imagem muito grande: ${imageSizeKB.toFixed(2)}KB`);
-      throw new Error(`Imagem muito grande (${imageSizeKB.toFixed(0)}KB). A imagem deve ser menor que 500KB.`);
+      throw new Error(`Imagem muito grande (${imageSizeKB.toFixed(0)}KB). A imagem deve ser menor que 250KB após otimização.`);
     }
 
     // Construir prompt mais conciso para reduzir processamento
