@@ -10,7 +10,8 @@ interface WebhookPayload {
   nome_lancamento: string;
   status_lancamento?: string;
   data_inicio_captacao?: string;
-  data_cpls?: string;
+  data_inicio_cpls?: string; // Data da primeira aula (formato: YYYY-MM-DD)
+  data_cpls?: string; // Mantido para retrocompatibilidade (vai para array datas_cpls)
   investimento?: number;
   descricao?: string;
   tipo_lancamento?: 'orgânico' | 'pago' | 'híbrido';
@@ -184,7 +185,8 @@ serve(async (req) => {
       status_lancamento: mappedStatus,
       tipo_lancamento: payload.tipo_lancamento || 'pago',
       data_inicio_captacao: payload.data_inicio_captacao || null,
-      datas_cpls: payload.data_cpls ? [payload.data_cpls] : null,
+      data_inicio_cpls: payload.data_inicio_cpls || null, // Data da primeira aula
+      datas_cpls: payload.data_cpls ? [payload.data_cpls] : null, // Array de datas (retrocompatibilidade)
       investimento_total: payload.investimento || 0,
       cliente_id: clienteDetectado?.id || null,
       gestor_responsavel_id: clienteDetectado?.primary_gestor_user_id || null,
@@ -308,7 +310,8 @@ serve(async (req) => {
         } : null,
         gestor_associado: gestorInfo,
         investimento_total: novoLancamento.investimento_total,
-        data_inicio_captacao: novoLancamento.data_inicio_captacao
+        data_inicio_captacao: novoLancamento.data_inicio_captacao,
+        data_inicio_cpls: novoLancamento.data_inicio_cpls
       },
       notificacao_criada: !!notificacao,
       aviso: !payload.data_inicio_captacao ? 'Configure as datas do lançamento' : null
