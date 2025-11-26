@@ -8,12 +8,14 @@ import { toast } from "sonner";
 
 interface GenerationStepProps {
   config: CreativeConfig;
+  headlines: string[];
   onGenerationComplete: (creatives: any[]) => void;
   onBack: () => void;
 }
 
 export const GenerationStep = ({
   config,
+  headlines,
   onGenerationComplete,
   onBack,
 }: GenerationStepProps) => {
@@ -37,31 +39,6 @@ export const GenerationStep = ({
 
       const allCreatives: any[] = [];
       const errors: string[] = [];
-
-      // Gerar variações de headline se necessário
-      let headlines = [config.headline];
-      if (config.varyHeadlines && config.variations > 1) {
-        setCurrentTask('Gerando variações de headlines...');
-        try {
-          const { data: headlineData, error: headlineError } = await supabase.functions.invoke('gerar-variacoes-headline', {
-            body: {
-              headline: config.headline,
-              quantidade: config.variations - 1, // -1 porque já temos a original
-            },
-          });
-
-          if (headlineError) {
-            console.error('Erro ao gerar variações de headline:', headlineError);
-            toast.error('Não foi possível gerar variações de headline. Usando headline original.');
-          } else if (headlineData?.variacoes) {
-            headlines = [config.headline, ...headlineData.variacoes];
-            console.log(`✅ ${headlines.length} headlines geradas:`, headlines);
-          }
-        } catch (err) {
-          console.error('Erro ao gerar variações de headline:', err);
-          toast.error('Erro ao gerar variações de headline. Usando headline original.');
-        }
-      }
 
       for (const image of config.images) {
         setCurrentTask(`Processando ${image.name}...`);
