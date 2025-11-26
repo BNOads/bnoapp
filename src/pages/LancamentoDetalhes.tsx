@@ -9,13 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Target, Share2, Copy, Eye, EyeOff } from "lucide-react";
+import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import * as XLSX from 'xlsx';
 import GanttChartAvancado from "@/components/Lancamentos/GanttChartAvancado";
-import MetasAcelerometro from "@/components/Lancamentos/MetasAcelerometro";
 import LinksUteis from "@/components/Lancamentos/LinksUteis";
 import DashboardField from "@/components/Lancamentos/DashboardField";
 import VerbaDestaque from "@/components/Lancamentos/VerbaDestaque";
@@ -126,7 +125,7 @@ export default function LancamentoDetalhes() {
   const [editing, setEditing] = useState(false);
   const [editingTab, setEditingTab] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas' | 'metas'>('calendario');
+  const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas'>('calendario');
   const [ganttView, setGanttView] = useState(false);
   const [availableClients, setAvailableClients] = useState<any[]>([]);
 
@@ -754,7 +753,7 @@ export default function LancamentoDetalhes() {
             <CardTitle>Observações sobre Verbas</CardTitle>
           </CardHeader>
           <CardContent>
-            {editing ? <Textarea value={lancamento.observacoes_verbas || ''} onChange={e => setLancamento({
+            {editingTab === 'verbas' ? <Textarea value={lancamento.observacoes_verbas || ''} onChange={e => setLancamento({
             ...lancamento,
             observacoes_verbas: e.target.value
           })} placeholder="Adicione observações sobre a distribuição de verbas..." rows={4} /> : <p className="text-sm text-muted-foreground">
@@ -848,7 +847,7 @@ export default function LancamentoDetalhes() {
           setEditing(true);
         }}>
               <Edit className="h-4 w-4 mr-2" />
-              Editar {activeView === 'calendario' ? 'Cronograma' : activeView === 'metas' ? 'Metas' : activeView === 'informacoes' ? 'Informações' : 'Verbas'}
+              Editar {activeView === 'calendario' ? 'Cronograma' : activeView === 'informacoes' ? 'Informações' : 'Verbas'}
             </Button>}
         </div>
       </div>
@@ -859,10 +858,6 @@ export default function LancamentoDetalhes() {
           <TabsTrigger value="calendario" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             Visão geral
-          </TabsTrigger>
-          <TabsTrigger value="metas" className="flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Metas
           </TabsTrigger>
           <TabsTrigger value="informacoes" className="flex items-center gap-2">
             <CalendarClock className="h-4 w-4" />
@@ -875,10 +870,51 @@ export default function LancamentoDetalhes() {
         </TabsList>
 
         <TabsContent value="calendario" className="space-y-6">
-          {/* 1. Verba em Destaque + Timer CPL lado a lado */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 1. Verba em Destaque + Timer CPL + Contador Primeira Aula */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <VerbaDestaque investimentoTotal={lancamento.investimento_total} metaInvestimento={lancamento.meta_investimento} verbasPorFase={lancamento.verba_por_fase || {}} />
             <TimerCPL dataInicioCaptacao={lancamento.data_inicio_captacao} dataFimCaptacao={lancamento.data_fim_captacao} dataInicioAquecimento={lancamento.data_inicio_aquecimento} dataInicioCPL={lancamento.data_inicio_cpl} dataInicioCarrinho={lancamento.data_inicio_carrinho} dataFechamento={lancamento.data_fechamento} />
+            
+            {/* Contador para Primeira Aula */}
+            {lancamento.data_inicio_cpl && (
+              <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 border-purple-200 dark:border-purple-800">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                    <Clock className="h-4 w-4" />
+                    Primeira Aula
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const dataAula = parseISO(lancamento.data_inicio_cpl);
+                    const hoje = new Date();
+                    const diasRestantes = differenceInDays(dataAula, hoje);
+                    const jaPassou = diasRestantes < 0;
+                    
+                    return (
+                      <div className="space-y-2">
+                        <div className="text-3xl font-bold text-purple-900 dark:text-purple-100">
+                          {jaPassou ? 'Concluído' : `${Math.abs(diasRestantes)}d`}
+                        </div>
+                        <div className="text-sm text-purple-600 dark:text-purple-400">
+                          {format(dataAula, "dd 'de' MMMM", { locale: ptBR })}
+                        </div>
+                        {!jaPassou && (
+                          <div className="w-full bg-purple-200 dark:bg-purple-900/50 rounded-full h-2 mt-3">
+                            <div 
+                              className="bg-purple-600 dark:bg-purple-400 h-2 rounded-full transition-all duration-500"
+                              style={{ 
+                                width: `${Math.max(0, Math.min(100, ((differenceInDays(hoje, parseISO(lancamento.data_inicio_captacao || lancamento.data_inicio_cpl)) / differenceInDays(dataAula, parseISO(lancamento.data_inicio_captacao || lancamento.data_inicio_cpl))) * 100)))}%`
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* 2. Layout com Informações + Cronograma */}
@@ -890,7 +926,59 @@ export default function LancamentoDetalhes() {
 
             {/* 2b. Cronograma + Links */}
             <div className="lg:col-span-2 space-y-6">
-              <LinksUteis lancamentoId={lancamento.id} />
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <LinksUteis lancamentoId={lancamento.id} />
+                </div>
+                {lancamento.clientes && (
+                  <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200 dark:border-emerald-800">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                        Criativos
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {(() => {
+                        const [catalogoUrl, setCatalogoUrl] = useState<string | null>(null);
+                        
+                        useEffect(() => {
+                          const fetchCatalogoUrl = async () => {
+                            if (lancamento.cliente_id) {
+                              const { data } = await supabase
+                                .from('clientes')
+                                .select('catalogo_criativos_url')
+                                .eq('id', lancamento.cliente_id)
+                                .single();
+                              setCatalogoUrl(data?.catalogo_criativos_url || null);
+                            }
+                          };
+                          fetchCatalogoUrl();
+                        }, [lancamento.cliente_id]);
+                        
+                        if (!catalogoUrl) {
+                          return (
+                            <p className="text-xs text-muted-foreground">
+                              Sem planilha configurada
+                            </p>
+                          );
+                        }
+                        
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(catalogoUrl, '_blank')}
+                            className="w-full bg-white dark:bg-emerald-950/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/50 border-emerald-300 dark:border-emerald-700"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Planilha
+                          </Button>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
               
               <GanttChartAvancado lancamento={lancamento} onUpdateDates={handleUpdateDates} />
               
@@ -907,40 +995,6 @@ export default function LancamentoDetalhes() {
           </div>
         </TabsContent>
 
-        <TabsContent value="metas" className="space-y-6">
-          <MetasAcelerometro kpis={[{
-          label: 'Faturamento',
-          valorAtual: lancamento.resultado_obtido || 0,
-          meta: lancamento.investimento_total * 3,
-          formato: 'moeda'
-        }, {
-          label: 'Leads',
-          valorAtual: 500,
-          meta: lancamento.leads_desejados || 1000,
-          formato: 'numero'
-        }, {
-          label: 'CPL',
-          valorAtual: 45,
-          meta: lancamento.meta_custo_lead || 30,
-          formato: 'moeda',
-          invertido: true
-        }, {
-          label: 'ROAS',
-          valorAtual: 2.5,
-          meta: 3.0,
-          formato: 'numero'
-        }, {
-          label: 'Vendas',
-          valorAtual: 50,
-          meta: 100,
-          formato: 'numero'
-        }, {
-          label: 'Taxa de Conversão',
-          valorAtual: 8.5,
-          meta: 10,
-          formato: 'percentual'
-        }]} />
-        </TabsContent>
 
         <TabsContent value="informacoes" className="space-y-6">
           
@@ -971,7 +1025,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Tipo de Aulas</Label>
-                  {editing ? <select value={lancamento.tipo_aulas} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <select value={lancamento.tipo_aulas} onChange={e => setLancamento({
                   ...lancamento,
                   tipo_aulas: e.target.value
                 })} className="w-full p-2 border rounded-md">
@@ -984,7 +1038,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Status do Lançamento</Label>
-                  {editing ? <select value={lancamento.status_lancamento} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <select value={lancamento.status_lancamento} onChange={e => setLancamento({
                   ...lancamento,
                   status_lancamento: e.target.value
                 })} className="w-full p-2 border rounded-md">
@@ -1001,7 +1055,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Tipo de Lançamento</Label>
-                  {editing ? <select value={lancamento.tipo_lancamento} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <select value={lancamento.tipo_lancamento} onChange={e => setLancamento({
                   ...lancamento,
                   tipo_lancamento: e.target.value
                 })} className="w-full p-2 border rounded-md">
@@ -1021,7 +1075,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Início da Captação</Label>
-                  {editing ? <Input type="date" value={lancamento.data_inicio_captacao} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_inicio_captacao} onChange={e => setLancamento({
                   ...lancamento,
                   data_inicio_captacao: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1033,7 +1087,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Fim da Captação</Label>
-                  {editing ? <Input type="date" value={lancamento.data_fim_captacao || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fim_captacao || ''} onChange={e => setLancamento({
                   ...lancamento,
                   data_fim_captacao: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1045,7 +1099,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Início do Aquecimento</Label>
-                  {editing ? <Input type="date" value={lancamento.data_inicio_aquecimento || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_inicio_aquecimento || ''} onChange={e => setLancamento({
                   ...lancamento,
                   data_inicio_aquecimento: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1057,7 +1111,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Fim do Aquecimento</Label>
-                  {editing ? <Input type="date" value={lancamento.data_fim_aquecimento || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fim_aquecimento || ''} onChange={e => setLancamento({
                   ...lancamento,
                   data_fim_aquecimento: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1069,7 +1123,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Início do CPL</Label>
-                  {editing ? <Input type="date" value={lancamento.data_inicio_cpl || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_inicio_cpl || ''} onChange={e => setLancamento({
                   ...lancamento,
                   data_inicio_cpl: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1081,7 +1135,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Fim do CPL</Label>
-                  {editing ? <Input type="date" value={lancamento.data_fim_cpl || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fim_cpl || ''} onChange={e => setLancamento({
                   ...lancamento,
                   data_fim_cpl: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1093,7 +1147,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Início do Lembrete</Label>
-                  {editing ? <Input type="date" value={lancamento.data_inicio_lembrete || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_inicio_lembrete || ''} onChange={e => setLancamento({
                   ...lancamento,
                   data_inicio_lembrete: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1105,7 +1159,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Fim do Lembrete</Label>
-                  {editing ? <Input type="date" value={lancamento.data_fim_lembrete || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fim_lembrete || ''} onChange={e => setLancamento({
                   ...lancamento,
                   data_fim_lembrete: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1117,7 +1171,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Início do Carrinho</Label>
-                  {editing ? <Input type="date" value={lancamento.data_inicio_carrinho || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_inicio_carrinho || ''} onChange={e => setLancamento({
                   ...lancamento,
                   data_inicio_carrinho: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1129,7 +1183,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Fim do Carrinho</Label>
-                  {editing ? <Input type="date" value={lancamento.data_fim_carrinho || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fim_carrinho || ''} onChange={e => setLancamento({
                   ...lancamento,
                   data_fim_carrinho: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1141,7 +1195,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Data de Fechamento</Label>
-                  {editing ? <Input type="date" value={lancamento.data_fechamento || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="date" value={lancamento.data_fechamento || ''} onChange={e => setLancamento({
                   ...lancamento,
                   data_fechamento: e.target.value
                 })} /> : <p className="text-sm text-muted-foreground">
@@ -1153,7 +1207,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Cliente</Label>
-                  {editing ? <select value={lancamento.cliente_id || ''} onChange={e => {
+                  {editingTab === 'informacoes' ? <select value={lancamento.cliente_id || ''} onChange={e => {
                   if (e.target.value) {
                     handleClientChange(e.target.value);
                   } else {
@@ -1182,7 +1236,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Observações</Label>
-                  {editing ? <Textarea value={lancamento.observacoes || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Textarea value={lancamento.observacoes || ''} onChange={e => setLancamento({
                   ...lancamento,
                   observacoes: e.target.value
                 })} placeholder="Adicione observações sobre o lançamento" rows={3} /> : <p className="text-sm text-muted-foreground">
@@ -1200,7 +1254,7 @@ export default function LancamentoDetalhes() {
               <CardContent className="space-y-4">
                 <div>
                   <Label>Ticket do Produto</Label>
-                  {editing ? <Input type="number" value={lancamento.ticket_produto || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="number" value={lancamento.ticket_produto || ''} onChange={e => setLancamento({
                   ...lancamento,
                   ticket_produto: e.target.value ? Number(e.target.value) : null
                 })} placeholder="R$ 0,00" /> : <p className="text-sm text-muted-foreground">
@@ -1212,7 +1266,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Leads Desejados</Label>
-                  {editing ? <Input type="number" value={lancamento.leads_desejados || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="number" value={lancamento.leads_desejados || ''} onChange={e => setLancamento({
                   ...lancamento,
                   leads_desejados: e.target.value ? Number(e.target.value) : null
                 })} placeholder="Ex: 1000" /> : <p className="text-sm text-muted-foreground">
@@ -1231,7 +1285,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Meta de Custo por Lead</Label>
-                  {editing ? <Input type="number" step="0.01" value={lancamento.meta_custo_lead || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Input type="number" step="0.01" value={lancamento.meta_custo_lead || ''} onChange={e => setLancamento({
                   ...lancamento,
                   meta_custo_lead: e.target.value ? Number(e.target.value) : null
                 })} placeholder="R$ 0,00" /> : <p className="text-sm text-muted-foreground">
@@ -1243,7 +1297,7 @@ export default function LancamentoDetalhes() {
 
                 <div>
                   <Label>Público-alvo</Label>
-                  {editing ? <Textarea value={lancamento.publico_alvo || ''} onChange={e => setLancamento({
+                  {editingTab === 'informacoes' ? <Textarea value={lancamento.publico_alvo || ''} onChange={e => setLancamento({
                   ...lancamento,
                   publico_alvo: e.target.value
                 })} placeholder="Descreva o público-alvo" /> : <p className="text-sm text-muted-foreground">
