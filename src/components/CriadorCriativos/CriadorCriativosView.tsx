@@ -22,6 +22,7 @@ export interface CreativeConfig {
   variations: number;
   useAI: boolean;
   protectFaces: boolean;
+  varyHeadlines: boolean;
 }
 
 interface GeneratedCreative {
@@ -55,6 +56,7 @@ export const CriadorCriativosView = () => {
     variations: 3,
     useAI: true,
     protectFaces: true,
+    varyHeadlines: false,
   });
   const [generatedCreatives, setGeneratedCreatives] = useState<GeneratedCreative[]>([]);
 
@@ -89,6 +91,7 @@ export const CriadorCriativosView = () => {
       variations: 3,
       useAI: true,
       protectFaces: true,
+      varyHeadlines: false,
     });
     setGeneratedCreatives([]);
   };
@@ -172,6 +175,7 @@ export const CriadorCriativosView = () => {
               variations={config.variations}
               useAI={config.useAI}
               protectFaces={config.protectFaces}
+              varyHeadlines={config.varyHeadlines}
               onUpdate={updateConfig}
               onNext={handleNext}
               onBack={handleBack}
