@@ -222,16 +222,22 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
           url: newLink.url,
           ordem: links.length,
           criado_por: userData.user.id
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao adicionar link:', error);
+        throw error;
+      }
       
       toast.success('Link adicionado');
       setNewLink({ nome: '', url: '' });
       setAdding(false);
-      fetchLinks();
+      await fetchLinks();
     } catch (error: any) {
-      toast.error('Erro ao adicionar link');
+      console.error('Erro ao adicionar link:', error);
+      toast.error('Erro ao adicionar link: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
@@ -242,21 +248,36 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
 
   const handleSaveEdit = async () => {
     if (!editingLink) return;
+    
+    if (!editingLink.nome || !editingLink.url) {
+      toast.error('Preencha nome e URL');
+      return;
+    }
 
     try {
       const { error } = await supabase
         .from('lancamento_links')
-        .update({ nome: editingLink.nome, url: editingLink.url })
-        .eq('id', editingLink.id);
+        .update({ 
+          nome: editingLink.nome, 
+          url: editingLink.url,
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', editingLink.id)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao atualizar link:', error);
+        throw error;
+      }
       
       toast.success('Link atualizado');
       setEditing(false);
       setEditingLink(null);
-      fetchLinks();
+      await fetchLinks();
     } catch (error: any) {
-      toast.error('Erro ao atualizar link');
+      console.error('Erro ao atualizar link:', error);
+      toast.error('Erro ao atualizar link: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
@@ -336,14 +357,20 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
           url: url,
           ordem: links.length,
           criado_por: userData.user.id
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao adicionar link:', error);
+        throw error;
+      }
       
       toast.success('Link adicionado');
-      fetchLinks();
+      await fetchLinks();
     } catch (error: any) {
-      toast.error('Erro ao adicionar link');
+      console.error('Erro ao adicionar link:', error);
+      toast.error('Erro ao adicionar link: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
