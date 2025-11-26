@@ -67,24 +67,33 @@ serve(async (req) => {
 
     let clienteDetectado = null;
     const nomeLancamentoLower = payload.nome_lancamento.toLowerCase();
+    
+    console.log(`Buscando cliente para lançamento: "${payload.nome_lancamento}"`);
+    console.log(`Total de clientes ativos: ${clientes.length}`);
 
     // Search for client name in launch name
     for (const cliente of clientes) {
       const nomeClienteLower = cliente.nome.toLowerCase();
       
+      console.log(`Verificando cliente: ${cliente.nome}`);
+      console.log(`  - Aliases: ${cliente.aliases ? JSON.stringify(cliente.aliases) : 'nenhum'}`);
+      
       // Check if client name is in launch name
       if (nomeLancamentoLower.includes(nomeClienteLower)) {
         clienteDetectado = cliente;
-        console.log(`Cliente detectado pelo nome: ${cliente.nome}`);
+        console.log(`✅ Cliente detectado pelo nome: ${cliente.nome}`);
         break;
       }
       
       // Check aliases if available
       if (cliente.aliases && Array.isArray(cliente.aliases)) {
         for (const alias of cliente.aliases) {
-          if (nomeLancamentoLower.includes(alias.toLowerCase())) {
+          const aliasLower = alias.toLowerCase();
+          console.log(`  - Testando alias: "${alias}" em "${payload.nome_lancamento}"`);
+          
+          if (nomeLancamentoLower.includes(aliasLower)) {
             clienteDetectado = cliente;
-            console.log(`Cliente detectado pelo alias: ${alias} -> ${cliente.nome}`);
+            console.log(`✅ Cliente detectado pelo alias: ${alias} -> ${cliente.nome}`);
             break;
           }
         }
@@ -93,7 +102,8 @@ serve(async (req) => {
     }
 
     if (!clienteDetectado) {
-      console.warn('Nenhum cliente detectado no nome do lançamento');
+      console.warn('❌ Nenhum cliente detectado no nome do lançamento');
+      console.warn('Para detectar automaticamente, adicione aliases ao cliente ou inclua o nome do cliente no nome do lançamento');
     }
 
     // Map incoming status to database enum values
@@ -149,16 +159,24 @@ serve(async (req) => {
 
     // Buscar gestor para incluir na notificação
     let gestorInfo = null;
+    let gestorUserId = null;
+    
     if (clienteDetectado?.primary_gestor_user_id) {
-      const { data: gestor } = await supabase
+      const { data: gestor, error: gestorError } = await supabase
         .from('colaboradores')
         .select('id, nome, user_id')
         .eq('user_id', clienteDetectado.primary_gestor_user_id)
         .eq('ativo', true)
         .single();
       
+      if (gestorError) {
+        console.error('Erro ao buscar gestor:', gestorError);
+      }
+      
       if (gestor) {
         gestorInfo = { id: gestor.id, nome: gestor.nome };
+        gestorUserId = gestor.user_id;
+        console.log('Gestor encontrado:', gestor.nome);
       }
     }
 
@@ -174,19 +192,34 @@ serve(async (req) => {
       .limit(1)
       .single();
 
+    // Construir destinatários corretamente
+    let destinatarios: string[];
+    if (gestorUserId) {
+      // Se tem gestor, notificar o gestor (user_id)
+      destinatarios = [gestorUserId];
+      console.log('Notificação será enviada para gestor:', gestorUserId);
+    } else {
+      // Senão, notificar todos gestores de tráfego
+      destinatarios = ['gestor_trafego'];
+      console.log('Notificação será enviada para nível: gestor_trafego');
+    }
+
     const notificacaoData = {
       titulo: `🚀 Novo Lançamento: ${payload.nome_lancamento.trim()}`,
-      conteudo: `Um novo lançamento foi criado via webhook${clienteDetectado ? ` para o cliente **${clienteDetectado.nome}**` : ''}.\n\n` +
+      conteudo: `Um novo lançamento foi criado via webhook${clienteDetectado ? ` para o cliente **${clienteDetectado.nome}**` : ' mas **nenhum cliente foi detectado**'}.\n\n` +
                 `📊 Investimento: ${payload.investimento ? `R$ ${payload.investimento.toLocaleString('pt-BR')}` : 'Não informado'}\n` +
                 `📅 Status: ${mappedStatus}\n\n` +
+                `${!clienteDetectado ? '⚠️ **ATENÇÃO:** Associe manualmente um cliente ao lançamento.\n' : ''}` +
                 `⚙️ Configure as datas e detalhes do lançamento.`,
       tipo: 'warning',
       prioridade: 'alta',
-      destinatarios: gestorInfo ? [gestorInfo.id] : ['gestor_trafego'],
+      destinatarios: destinatarios,
       ativo: true,
       created_by: adminUser?.user_id || null,
       canais: { sistema: true, email: false }
     };
+
+    console.log('Dados da notificação:', JSON.stringify(notificacaoData, null, 2));
 
     const { data: notificacao, error: notifError } = await supabase
       .from('avisos')
@@ -196,6 +229,7 @@ serve(async (req) => {
 
     if (notifError) {
       console.error('Erro ao criar notificação:', notifError);
+      console.error('Detalhes do erro:', JSON.stringify(notifError, null, 2));
       // Não falha o webhook se a notificação falhar
     } else {
       console.log('Notificação criada com sucesso:', notificacao?.id);
