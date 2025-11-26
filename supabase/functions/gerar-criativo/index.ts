@@ -48,9 +48,9 @@ Variation ${variationIndex + 1}.`;
     console.log('🤖 Chamando Lovable AI...');
     const apiStartTime = Date.now();
 
-    // Chamar Lovable AI para gerar imagem com timeout REDUZIDO
+    // Chamar Lovable AI para gerar imagem com timeout de 55s
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s timeout
 
     try {
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -123,8 +123,8 @@ Variation ${variationIndex + 1}.`;
       clearTimeout(timeoutId);
       
       if (fetchError.name === 'AbortError') {
-        console.error('⏰ Timeout na API (50s)');
-        throw new Error('Geração demorou muito tempo. Tente com imagens menores ou menos variações.');
+        console.error('⏰ Timeout na API (55s)');
+        throw new Error('Timeout: geração demorou muito. Tente com imagens menores.');
       }
       
       throw fetchError;
