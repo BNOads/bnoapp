@@ -6,7 +6,6 @@ import { Sparkles, Upload, Type, Settings, Wand2, Download } from "lucide-react"
 import { UploadStep } from "./UploadStep";
 import { TextsStep } from "./TextsStep";
 import { ConfigStep } from "./ConfigStep";
-import { HeadlinesStep } from "./HeadlinesStep";
 import { GenerationStep } from "./GenerationStep";
 import { ResultsStep } from "./ResultsStep";
 
@@ -23,7 +22,6 @@ export interface CreativeConfig {
   variations: number;
   useAI: boolean;
   protectFaces: boolean;
-  varyHeadlines: boolean;
 }
 
 interface GeneratedCreative {
@@ -38,9 +36,8 @@ const STEPS = [
   { id: 1, title: "Upload", icon: Upload, description: "Envie suas imagens" },
   { id: 2, title: "Textos", icon: Type, description: "Chamada, corpo e CTA" },
   { id: 3, title: "Configurações", icon: Settings, description: "Formatos e variações" },
-  { id: 4, title: "Headlines", icon: Sparkles, description: "Revise as headlines" },
-  { id: 5, title: "Geração", icon: Wand2, description: "Criando criativos" },
-  { id: 6, title: "Resultados", icon: Download, description: "Download dos criativos" },
+  { id: 4, title: "Geração", icon: Wand2, description: "Criando criativos" },
+  { id: 5, title: "Resultados", icon: Download, description: "Download dos criativos" },
 ];
 
 export const CriadorCriativosView = () => {
@@ -58,10 +55,8 @@ export const CriadorCriativosView = () => {
     variations: 3,
     useAI: true,
     protectFaces: true,
-    varyHeadlines: false,
   });
   const [generatedCreatives, setGeneratedCreatives] = useState<GeneratedCreative[]>([]);
-  const [approvedHeadlines, setApprovedHeadlines] = useState<string[]>([]);
 
   const updateConfig = (updates: Partial<CreativeConfig>) => {
     setConfig(prev => ({ ...prev, ...updates }));
@@ -94,10 +89,8 @@ export const CriadorCriativosView = () => {
       variations: 3,
       useAI: true,
       protectFaces: true,
-      varyHeadlines: false,
     });
     setGeneratedCreatives([]);
-    setApprovedHeadlines([]);
   };
 
   const progress = (currentStep / STEPS.length) * 100;
@@ -179,7 +172,6 @@ export const CriadorCriativosView = () => {
               variations={config.variations}
               useAI={config.useAI}
               protectFaces={config.protectFaces}
-              varyHeadlines={config.varyHeadlines}
               onUpdate={updateConfig}
               onNext={handleNext}
               onBack={handleBack}
@@ -187,22 +179,8 @@ export const CriadorCriativosView = () => {
           )}
           
           {currentStep === 4 && (
-            <HeadlinesStep
-              originalHeadline={config.headline}
-              variations={config.variations}
-              varyHeadlines={config.varyHeadlines}
-              onHeadlinesReady={(headlines) => {
-                setApprovedHeadlines(headlines);
-                handleNext();
-              }}
-              onBack={handleBack}
-            />
-          )}
-          
-          {currentStep === 5 && (
             <GenerationStep
               config={config}
-              headlines={approvedHeadlines}
               onGenerationComplete={(creatives) => {
                 setGeneratedCreatives(creatives);
                 handleNext();
@@ -211,7 +189,7 @@ export const CriadorCriativosView = () => {
             />
           )}
           
-          {currentStep === 6 && (
+          {currentStep === 5 && (
             <ResultsStep
               creatives={generatedCreatives}
               onReset={handleReset}
@@ -221,7 +199,7 @@ export const CriadorCriativosView = () => {
       </Card>
 
       {/* Action Buttons - só mostrar nos steps que precisam */}
-      {currentStep !== 4 && currentStep !== 5 && currentStep !== 6 && (
+      {currentStep !== 4 && currentStep !== 5 && (
         <div className="flex justify-between">
           <Button
             variant="outline"

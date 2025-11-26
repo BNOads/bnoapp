@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
@@ -8,20 +8,12 @@ import { toast } from "sonner";
 
 interface GenerationStepProps {
   config: CreativeConfig;
-  headlines: string[];
   onGenerationComplete: (creatives: any[]) => void;
   onBack: () => void;
 }
 
-interface ProcessedImage {
-  file: File;
-  base64: string;
-  name: string;
-}
-
 export const GenerationStep = ({
   config,
-  headlines,
   onGenerationComplete,
   onBack,
 }: GenerationStepProps) => {
@@ -29,198 +21,111 @@ export const GenerationStep = ({
   const [progress, setProgress] = useState(0);
   const [currentTask, setCurrentTask] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const hasStarted = useRef(false);
-  const isGenerating = useRef(false);
 
   useEffect(() => {
-    // Prevenir execução dupla (React StrictMode em desenvolvimento)
-    if (hasStarted.current) {
-      console.log('⏭️ Geração já iniciada, ignorando execução duplicada');
-      return;
-    }
-    
-    hasStarted.current = true;
     generateCreatives();
   }, []);
 
   const generateCreatives = async () => {
-    // Prevenir execução múltipla simultânea
-    if (isGenerating.current) {
-      console.log('⏭️ Geração já em andamento, ignorando chamada duplicada');
-      return;
-    }
-    
-    isGenerating.current = true;
     setStatus("generating");
     setProgress(0);
     
     try {
-      // ETAPA 1: PRÉ-PROCESSAR TODAS AS IMAGENS
-      console.log('📸 ETAPA 1: Pré-processando todas as imagens...');
-      setCurrentTask('Preparando imagens...');
-      
-      const processedImages: ProcessedImage[] = [];
-      
-      for (const image of config.images) {
-        setCurrentTask(`Processando ${image.name}...`);
-        try {
-          const base64 = await resizeAndConvertToBase64(image);
-          processedImages.push({
-            file: image,
-            base64,
-            name: image.name,
-          });
-          console.log(`✅ Imagem processada: ${image.name}`);
-        } catch (err: any) {
-          console.error(`❌ Erro ao processar ${image.name}:`, err);
-          toast.error(`Erro ao processar ${image.name}: ${err.message}`);
-          // Continuar com as outras imagens
-        }
-      }
-      
-      if (processedImages.length === 0) {
-        throw new Error('Nenhuma imagem pôde ser processada');
-      }
-      
-      console.log(`✅ ${processedImages.length}/${config.images.length} imagens processadas`);
-      
-      // ETAPA 2: CALCULAR TAREFAS E GERAR CRIATIVOS SEQUENCIALMENTE
-      console.log('🎨 ETAPA 2: Iniciando geração de criativos...');
-      
       const totalFormats = (config.formats.feed1080 ? 1 : 0) + (config.formats.story1920 ? 1 : 0);
-      const totalTasks = processedImages.length * totalFormats * config.variations;
+      const totalTasks = config.images.length * totalFormats * config.variations;
       let completedTasks = 0;
 
       const allCreatives: any[] = [];
       const errors: string[] = [];
 
-      // Gerar criativos de forma COMPLETAMENTE SEQUENCIAL
-      for (const processedImage of processedImages) {
+      for (const image of config.images) {
+        setCurrentTask(`Processando ${image.name}...`);
+        
+        // Redimensionar e converter imagem para base64
+        const base64Image = await resizeAndConvertToBase64(image);
+        
+        // Gerar para cada formato
         for (const format of Object.keys(config.formats)) {
           if (!config.formats[format as keyof typeof config.formats]) continue;
           
           const dimensions = format === "feed1080" ? "1080x1080" : "1080x1920";
+          setCurrentTask(`Gerando ${dimensions} - ${image.name}...`);
           
+          // Gerar variações
           for (let i = 0; i < config.variations; i++) {
-            const currentHeadline = headlines[i] || config.headline;
-            const taskLabel = `${dimensions} - ${processedImage.name} - Variação ${i + 1}/${config.variations}`;
-            setCurrentTask(`Gerando ${taskLabel}...`);
+            setCurrentTask(`Gerando variação ${i + 1}/${config.variations} - ${dimensions}...`);
             
-            let retries = 0;
-            const maxRetries = 2;
-            let success = false;
-            
-            // Tentar gerar com retry
-            while (retries <= maxRetries && !success) {
-              try {
-                const attemptLabel = retries > 0 ? ` (tentativa ${retries + 1}/${maxRetries + 1})` : '';
-                console.log(`🎨 Gerando: ${taskLabel}${attemptLabel}`);
-                const startTime = Date.now();
+            try {
+              // Timeout de 60 segundos
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout - A geração está demorando muito')), 60000)
+              );
 
-                // Timeout de 60 segundos para cada requisição
-                const timeoutPromise = new Promise((_, reject) => {
-                  setTimeout(() => reject(new Error('Timeout ao gerar criativo (60s)')), 60000);
-                });
+              const generationPromise = supabase.functions.invoke('gerar-criativo', {
+                body: {
+                  imageBase64: base64Image,
+                  headline: config.headline,
+                  body: config.body,
+                  cta: config.cta,
+                  notes: config.notes,
+                  dimensions,
+                  protectFaces: config.protectFaces,
+                  variationIndex: i,
+                },
+              });
 
-                const generationPromise = supabase.functions.invoke('gerar-criativo', {
-                  body: {
-                    imageBase64: processedImage.base64,
-                    headline: currentHeadline,
-                    body: config.body,
-                    cta: config.cta,
-                    notes: config.notes,
-                    dimensions,
-                    protectFaces: config.protectFaces,
-                    variationIndex: i,
-                  },
-                });
+              const { data, error } = await Promise.race([generationPromise, timeoutPromise]) as any;
 
-                const { data, error } = await Promise.race([
-                  generationPromise,
-                  timeoutPromise,
-                ]) as any;
-
-                const duration = Date.now() - startTime;
-                console.log(`⏱️ Requisição levou ${duration}ms`);
-
-                if (error) {
-                  throw new Error(error.message || 'Erro na API');
-                }
-                
-                if (data?.imageUrl) {
-                  allCreatives.push({
-                    id: `${processedImage.name}-${format}-${i}`,
-                    imageUrl: data.imageUrl,
-                    format: dimensions,
-                    variation: i + 1,
-                    originalImage: processedImage.name,
-                    headline: currentHeadline,
-                  });
-                  console.log(`✅ Criativo gerado com sucesso em ${duration}ms`);
-                  success = true;
-                } else if (data?.error) {
-                  throw new Error(data.error);
-                } else {
-                  throw new Error('API não retornou imagem');
-                }
-
-              } catch (err: any) {
-                retries++;
-                const errorMsg = err.message || 'Erro desconhecido';
-                console.error(`❌ Erro na geração (tentativa ${retries}/${maxRetries + 1}):`, errorMsg);
-                
-                if (retries > maxRetries) {
-                  errors.push(`${taskLabel}: ${errorMsg}`);
-                  toast.error(`Falha após ${maxRetries + 1} tentativas: ${taskLabel}`);
-                } else {
-                  console.log(`⏳ Aguardando 3s antes de retry ${retries}...`);
-                  await new Promise(resolve => setTimeout(resolve, 3000));
-                }
+              if (error) {
+                console.error('Erro na API:', error);
+                errors.push(`${dimensions} variação ${i + 1}: ${error.message}`);
+                throw error;
               }
+
+              if (data?.imageUrl) {
+                allCreatives.push({
+                  id: `${image.name}-${format}-${i}`,
+                  imageUrl: data.imageUrl,
+                  format: dimensions,
+                  variation: i + 1,
+                  originalImage: image.name,
+                });
+              } else if (data?.error) {
+                errors.push(`${dimensions} variação ${i + 1}: ${data.error}`);
+              }
+            } catch (err: any) {
+              console.error('Erro ao gerar criativo:', err);
+              const errorMsg = err.message || 'Erro desconhecido';
+              errors.push(`${dimensions} variação ${i + 1}: ${errorMsg}`);
             }
             
             completedTasks++;
             setProgress((completedTasks / totalTasks) * 100);
-            
-            // Delay de 2 segundos entre cada criativo para evitar sobrecarga
-            if (completedTasks < totalTasks) {
-              console.log('⏸️ Aguardando 2s antes do próximo criativo...');
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
           }
         }
       }
 
-      // ETAPA 3: FINALIZAR
       if (allCreatives.length > 0) {
         setStatus("success");
-        const successCount = allCreatives.length;
         const errorInfo = errors.length > 0 ? ` (${errors.length} falharam)` : '';
-        setCurrentTask(`${successCount} criativos gerados${errorInfo}!`);
+        setCurrentTask(`${allCreatives.length} criativos gerados com sucesso${errorInfo}!`);
         
         if (errors.length > 0) {
-          console.warn(`⚠️ Geração finalizada com ${errors.length} erros:`, errors);
-          toast.warning(`${successCount} criativos gerados. ${errors.length} falharam.`);
-        } else {
-          console.log(`🎉 Sucesso total: ${successCount} criativos gerados!`);
-          toast.success(`Todos os ${successCount} criativos foram gerados!`);
+          toast.error(`Alguns criativos falharam: ${errors.join(', ')}`);
         }
         
         setTimeout(() => {
           onGenerationComplete(allCreatives);
         }, 1500);
       } else {
-        const errorSummary = errors.slice(0, 3).join('; ');
-        throw new Error(`Nenhum criativo gerado. Erros: ${errorSummary}`);
+        const errorDetails = errors.length > 0 ? `: ${errors.join(', ')}` : '';
+        throw new Error(`Nenhum criativo foi gerado${errorDetails}`);
       }
-      
     } catch (error: any) {
-      console.error('❌ Erro crítico:', error);
+      console.error('Erro na geração:', error);
       setStatus("error");
       setErrorMessage(error.message || "Erro ao gerar criativos");
-      toast.error(error.message || "Erro ao gerar criativos");
-    } finally {
-      isGenerating.current = false;
+      toast.error("Erro ao gerar criativos: " + (error.message || "Erro desconhecido"));
     }
   };
 
@@ -241,10 +146,10 @@ export const GenerationStep = ({
           return;
         }
 
-        // Otimização agressiva: max 300px
+        // Redimensionar AGRESSIVAMENTE para evitar timeout (max 600px)
         let width = img.width;
         let height = img.height;
-        const maxSize = 300;
+        const maxSize = 600; // Reduzido de 1080 para 600
 
         if (width > maxSize || height > maxSize) {
           if (width > height) {
@@ -260,19 +165,24 @@ export const GenerationStep = ({
         canvas.height = height;
         ctx.drawImage(img, 0, 0, width, height);
 
-        // JPEG com qualidade 0.3
-        let base64 = canvas.toDataURL('image/jpeg', 0.3);
-        let sizeInKB = (base64.length * 3) / 4 / 1024;
+        // Converter para JPEG com qualidade MUITO baixa (0.4)
+        let base64 = canvas.toDataURL('image/jpeg', 0.4);
         
-        // Se > 150KB, reduzir para 0.15
-        if (sizeInKB > 150) {
-          base64 = canvas.toDataURL('image/jpeg', 0.15);
-          sizeInKB = (base64.length * 3) / 4 / 1024;
+        // Validar tamanho final (max 500KB em base64)
+        const sizeInKB = (base64.length * 3) / 4 / 1024;
+        console.log(`📊 Tamanho da imagem processada: ${sizeInKB.toFixed(2)}KB`);
+        
+        // Se ainda estiver muito grande, reduzir mais
+        if (sizeInKB > 500) {
+          console.warn('⚠️ Imagem ainda muito grande, reduzindo qualidade...');
+          base64 = canvas.toDataURL('image/jpeg', 0.3);
         }
         
-        // Validação final
-        if (sizeInKB > 200) {
-          reject(new Error(`Imagem muito grande (${sizeInKB.toFixed(0)}KB). Use uma imagem menor.`));
+        const finalSizeInKB = (base64.length * 3) / 4 / 1024;
+        console.log(`✅ Tamanho final: ${finalSizeInKB.toFixed(2)}KB`);
+        
+        if (finalSizeInKB > 800) {
+          reject(new Error(`Imagem muito grande mesmo após otimização (${finalSizeInKB.toFixed(0)}KB). Use uma imagem menor.`));
           return;
         }
         
