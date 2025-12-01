@@ -55,46 +55,77 @@ export async function uploadImage({
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
-      console.error('Erro ao obter sessão:', sessionError);
+      console.error('❌ Erro ao obter sessão:', sessionError);
       throw new Error('Erro ao obter sessão de autenticação');
     }
     
     if (!session) {
+      console.error('❌ Usuário não autenticado');
       throw new Error('Usuário não autenticado. Faça login para fazer upload de imagens.');
     }
 
-    console.log('Sessão obtida, fazendo upload...');
+    console.log('✅ Sessão obtida, iniciando upload...', {
+      fileType: file.type,
+      fileSize: `${(file.size / 1024).toFixed(2)}KB`,
+      context,
+      entityId
+    });
+
+    const uploadUrl = 'https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/upload-richtext-image';
+    console.log('📤 Enviando para:', uploadUrl);
 
     // Fazer chamada HTTP direta para garantir que o token é passado corretamente
-    const response = await fetch(
-      'https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/upload-richtext-image',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: formData,
-      }
-    );
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: formData,
+    });
+
+    console.log('📥 Resposta recebida:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
+    });
 
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Erro no upload:', data);
-      throw new Error(data.error || `Erro HTTP ${response.status}`);
+      console.error('❌ Erro no upload:', {
+        status: response.status,
+        statusText: response.statusText,
+        data
+      });
+      throw new Error(data.error || data.details || `Erro HTTP ${response.status}: ${response.statusText}`);
     }
 
     if (!data || !data.url) {
-      throw new Error('Resposta inválida do servidor');
+      console.error('❌ Resposta inválida:', data);
+      throw new Error('Resposta inválida do servidor - URL não retornada');
     }
 
     if (onProgress) onProgress(100);
 
-    console.log('Upload concluído com sucesso:', data.url);
+    console.log('✅ Upload concluído com sucesso:', {
+      url: data.url,
+      fileName: data.fileName,
+      fileSize: data.fileSize
+    });
 
     return data as UploadImageResult;
   } catch (error: any) {
-    console.error('Erro ao fazer upload:', error);
+    console.error('❌ Erro ao fazer upload:', {
+      message: error.message,
+      stack: error.stack,
+      error
+    });
+    
+    // Melhorar mensagens de erro específicas
+    if (error.message?.includes('Failed to fetch')) {
+      throw new Error('Erro de conexão. Verifique sua internet e tente novamente.');
+    }
+    
     throw new Error(error.message || 'Erro ao fazer upload da imagem');
   }
 }
