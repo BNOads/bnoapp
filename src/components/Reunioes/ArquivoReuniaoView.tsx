@@ -140,26 +140,56 @@ export function ArquivoReuniaoView() {
     setCurrentResultIndex(0);
   }, [searchQuery, indicesTitulos]);
 
-  // Rolar para o último índice ao carregar a página
-  useEffect(() => {
-    if (indicesTitulos.length > 0 && !searchQuery) {
-      const timer = setTimeout(() => {
-        const lastHeading = indicesTitulos[indicesTitulos.length - 1];
-        const editorElement = document.querySelector('.prose');
-        if (editorElement) {
-          const headings = editorElement.querySelectorAll('h1, h2, h3');
-          const targetHeading = Array.from(headings || []).find(
-            h => h.textContent?.trim() === lastHeading.text
-          );
-          if (targetHeading) {
-            targetHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }
-      }, 300); // Pequeno delay para garantir que o editor renderizou
+  // Ref para controlar se é a primeira carga
+  const isFirstLoadRef = useRef(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-      return () => clearTimeout(timer);
+  // Salvar posição de scroll ao sair da página
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      const scrollPos = scrollContainer.scrollTop;
+      sessionStorage.setItem(`arquivo-reuniao-scroll-${anoAtual}`, String(scrollPos));
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll);
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  }, [anoAtual]);
+
+  // Restaurar posição de scroll ao voltar para a página
+  useEffect(() => {
+    if (!loading && arquivoId && scrollContainerRef.current) {
+      const savedScroll = sessionStorage.getItem(`arquivo-reuniao-scroll-${anoAtual}`);
+      if (savedScroll) {
+        // Pequeno delay para garantir que o editor renderizou
+        const timer = setTimeout(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
+          }
+        }, 100);
+        return () => clearTimeout(timer);
+      } else if (isFirstLoadRef.current && indicesTitulos.length > 0) {
+        // Apenas na primeira carga sem scroll salvo, ir para o último título
+        const timer = setTimeout(() => {
+          const lastHeading = indicesTitulos[indicesTitulos.length - 1];
+          const editorElement = document.querySelector('.prose');
+          if (editorElement) {
+            const headings = editorElement.querySelectorAll('h1, h2, h3');
+            const targetHeading = Array.from(headings || []).find(
+              h => h.textContent?.trim() === lastHeading.text
+            );
+            if (targetHeading) {
+              targetHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }
+          isFirstLoadRef.current = false;
+        }, 300);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [indicesTitulos.length]); // Só executa quando o número de índices muda (primeira carga)
+  }, [loading, arquivoId, anoAtual, indicesTitulos.length]);
 
   // Navegar pelos resultados
   const navigateToResult = (index: number) => {
@@ -671,7 +701,7 @@ export function ArquivoReuniaoView() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto" ref={scrollContainerRef}>
           <div className="max-w-4xl mx-auto py-8">
             <ArquivoReuniaoEditor
               arquivoId={arquivoId || ''}

@@ -34,97 +34,82 @@ export async function uploadImage({
     throw new Error(`Arquivo muito grande (${sizeMB}MB). Máximo: 5MB`);
   }
 
-  // Preparar FormData
-  const formData = new FormData();
-  formData.append('file', file);
-  if (context) formData.append('context', context);
-  if (entityId) formData.append('entityId', entityId);
-
-  // Simular progresso (já que fetch não suporta nativamente)
-  if (onProgress) {
-    const progressInterval = setInterval(() => {
-      onProgress(Math.random() * 40 + 30); // 30-70%
-    }, 500);
-
-    // Limpar intervalo após timeout
-    setTimeout(() => clearInterval(progressInterval), 10000);
-  }
-
   try {
-    // Obter sessão para passar token de autenticação
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // Obter usuário autenticado
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (sessionError) {
-      console.error('❌ Erro ao obter sessão:', sessionError);
-      throw new Error('Erro ao obter sessão de autenticação');
-    }
-    
-    if (!session) {
-      console.error('❌ Usuário não autenticado');
+    if (userError || !user) {
+      console.error('❌ Usuário não autenticado:', userError);
       throw new Error('Usuário não autenticado. Faça login para fazer upload de imagens.');
     }
 
-    console.log('✅ Sessão obtida, iniciando upload...', {
+    if (onProgress) onProgress(20);
+
+    // Gerar nome único para o arquivo
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(7);
+    const extension = file.type.split('/')[1] || 'png';
+    const fileName = `${timestamp}-${randomString}.${extension}`;
+
+    // Construir caminho: {userId}/{context}/{entityId}/{yyyy}/{mm}/{fileName}
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    
+    const filePath = entityId
+      ? `${user.id}/${context || 'general'}/${entityId}/${yyyy}/${mm}/${fileName}`
+      : `${user.id}/${context || 'general'}/${yyyy}/${mm}/${fileName}`;
+
+    console.log('📤 Fazendo upload direto para Storage:', {
+      bucket: 'richtext-uploads',
+      path: filePath,
       fileType: file.type,
-      fileSize: `${(file.size / 1024).toFixed(2)}KB`,
-      context,
-      entityId
+      fileSize: `${(file.size / 1024).toFixed(2)}KB`
     });
 
-    const uploadUrl = 'https://tbdooscfrrkwfutkdjha.supabase.co/functions/v1/upload-richtext-image';
-    console.log('📤 Enviando para:', uploadUrl);
+    if (onProgress) onProgress(40);
 
-    // Fazer chamada HTTP direta para garantir que o token é passado corretamente
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: formData,
-    });
-
-    console.log('📥 Resposta recebida:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries())
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('❌ Erro no upload:', {
-        status: response.status,
-        statusText: response.statusText,
-        data
+    // Upload direto para o Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('richtext-uploads')
+      .upload(filePath, file, {
+        contentType: file.type,
+        cacheControl: '31536000', // 1 ano
+        upsert: false,
       });
-      throw new Error(data.error || data.details || `Erro HTTP ${response.status}: ${response.statusText}`);
+
+    if (uploadError) {
+      console.error('❌ Erro no upload:', uploadError);
+      throw new Error(uploadError.message || 'Erro ao fazer upload da imagem');
     }
 
-    if (!data || !data.url) {
-      console.error('❌ Resposta inválida:', data);
-      throw new Error('Resposta inválida do servidor - URL não retornada');
-    }
+    if (onProgress) onProgress(80);
+
+    // Obter URL pública
+    const { data: { publicUrl } } = supabase.storage
+      .from('richtext-uploads')
+      .getPublicUrl(filePath);
 
     if (onProgress) onProgress(100);
 
     console.log('✅ Upload concluído com sucesso:', {
-      url: data.url,
-      fileName: data.fileName,
-      fileSize: data.fileSize
+      url: publicUrl,
+      fileName,
+      fileSize: file.size
     });
 
-    return data as UploadImageResult;
+    return {
+      url: publicUrl,
+      fileName,
+      fileSize: file.size,
+      fileType: file.type,
+    };
   } catch (error: any) {
     console.error('❌ Erro ao fazer upload:', {
       message: error.message,
       stack: error.stack,
       error
     });
-    
-    // Melhorar mensagens de erro específicas
-    if (error.message?.includes('Failed to fetch')) {
-      throw new Error('Erro de conexão. Verifique sua internet e tente novamente.');
-    }
     
     throw new Error(error.message || 'Erro ao fazer upload da imagem');
   }
