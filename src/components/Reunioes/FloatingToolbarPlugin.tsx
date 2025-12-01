@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getSelection,
@@ -24,13 +24,18 @@ import {
 import { $createLinkNode, $isLinkNode } from '@lexical/link';
 import { Toolbar } from '@/components/ui/toolbar';
 import { LinkInsertModal } from './LinkInsertModal';
+import { $createImageNode } from './ImageNode';
+import { uploadImage } from '@/lib/imageUpload';
+import { toast } from 'sonner';
 import { mergeRegister } from '@lexical/utils';
 
 interface FloatingToolbarPluginProps {
   onAddToIndex: (text: string) => void;
+  context?: string;
+  entityId?: string;
 }
 
-export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginProps) {
+export function FloatingToolbarPlugin({ onAddToIndex, context, entityId }: FloatingToolbarPluginProps) {
   const [editor] = useLexicalComposerContext();
   const [toolbarVisible, setToolbarVisible] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
@@ -43,6 +48,7 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
     italic: false,
     underline: false,
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateToolbar = useCallback(() => {
     const selection = $getSelection();
@@ -234,8 +240,70 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
     editor.dispatchCommand(REDO_COMMAND, undefined);
   }, [editor]);
 
+  const handleImageUpload = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validar se é imagem
+    if (!file.type.startsWith('image/')) {
+      toast.error('Apenas imagens são permitidas');
+      return;
+    }
+
+    const toastId = toast.loading("Enviando imagem...");
+
+    try {
+      const result = await uploadImage({
+        file,
+        context: context || 'arquivo_reuniao',
+        entityId,
+      });
+
+      editor.update(() => {
+        const imageNode = $createImageNode({
+          src: result.url,
+          altText: result.fileName,
+          maxWidth: 800,
+        });
+        
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          selection.insertNodes([imageNode]);
+        }
+      });
+
+      toast.success("Imagem inserida!", {
+        id: toastId,
+        description: `${result.fileName} enviada com sucesso.`,
+      });
+    } catch (error: any) {
+      console.error('Erro ao fazer upload da imagem:', error);
+      toast.error("Erro ao inserir imagem", {
+        id: toastId,
+        description: error.message || 'Tente novamente',
+      });
+    }
+
+    // Limpar input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [editor, context, entityId]);
+
   return (
     <>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+      
       <Toolbar
         visible={toolbarVisible}
         position={toolbarPosition}
@@ -243,6 +311,7 @@ export function FloatingToolbarPlugin({ onAddToIndex }: FloatingToolbarPluginPro
         onFixarIndice={handleFixarIndice}
         onColorChange={handleColorChange}
         onLinkInsert={handleLinkInsert}
+        onImageUpload={handleImageUpload}
         onUndo={handleUndo}
         onRedo={handleRedo}
         canUndo={canUndo}

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bold, Italic, Underline, List, ListOrdered, Pin, Palette, Link2, Undo2, Redo2 } from 'lucide-react';
+import { Bold, Italic, Underline, List, ListOrdered, Pin, Palette, Link2, Undo2, Redo2, Image } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -12,6 +12,7 @@ interface ToolbarProps {
   onFixarIndice: () => void;
   onColorChange: (color: string) => void;
   onLinkInsert: () => void;
+  onImageUpload?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
   canUndo?: boolean;
@@ -83,7 +84,8 @@ export function Toolbar({
   onFormat, 
   onFixarIndice, 
   onColorChange, 
-  onLinkInsert, 
+  onLinkInsert,
+  onImageUpload,
   onUndo,
   onRedo,
   canUndo = false,
@@ -196,6 +198,16 @@ export function Toolbar({
             onClick={onLinkInsert}
             tooltip="Inserir link"
           />
+          
+          {onImageUpload && (
+            <ToolbarButton
+              label="Imagem"
+              icon={Image}
+              isActive={false}
+              onClick={onImageUpload}
+              tooltip="Inserir imagem"
+            />
+          )}
           
           <div className="w-px h-6 bg-border mx-1" />
           
