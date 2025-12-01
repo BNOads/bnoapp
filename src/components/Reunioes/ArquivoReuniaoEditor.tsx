@@ -16,6 +16,8 @@ import { useToast } from '@/hooks/use-toast';
 import { HeadingsPlugin, HeadingInfo } from './HeadingsPlugin';
 import { FloatingToolbarPlugin } from './FloatingToolbarPlugin';
 import { MarkdownHeadingPlugin } from './MarkdownHeadingPlugin';
+import { ImageNode } from './ImageNode';
+import { ImagePastePlugin } from './ImagePastePlugin';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface ArquivoReuniaoEditorProps {
@@ -55,8 +57,9 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
         listitem: 'mb-1',
       },
       link: 'text-primary underline hover:text-primary/80',
+      image: 'my-2',
     },
-    nodes: [HeadingNode, ListNode, ListItemNode, LinkNode],
+    nodes: [HeadingNode, ListNode, ListItemNode, LinkNode, ImageNode],
     editorState: initialContent ? JSON.stringify(initialContent) : undefined,
     onError: (error: Error) => {
       console.error('Lexical error:', error);
@@ -155,8 +158,9 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
         <ListPlugin />
         <LinkPlugin />
         <MarkdownHeadingPlugin />
+        <ImagePastePlugin context="arquivo_reuniao" entityId={arquivoId} />
         {onHeadingsChange && <HeadingsPlugin onHeadingsChange={onHeadingsChange} />}
-        {onAddToIndex && <FloatingToolbarPlugin onAddToIndex={onAddToIndex} />}
+        {onAddToIndex && <FloatingToolbarPlugin onAddToIndex={onAddToIndex} context="arquivo_reuniao" entityId={arquivoId} />}
         <OnChangePlugin onChange={handleEditorChange} />
       </div>
     </LexicalComposer>
