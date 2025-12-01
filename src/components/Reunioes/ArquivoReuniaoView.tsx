@@ -140,11 +140,11 @@ export function ArquivoReuniaoView() {
     setCurrentResultIndex(0);
   }, [searchQuery, indicesTitulos]);
 
-  // Ref para controlar se é a primeira carga
-  const isFirstLoadRef = useRef(true);
+  // Ref para controlar se já restaurou o scroll
+  const scrollRestoredRef = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Salvar posição de scroll ao sair da página
+  // Salvar posição de scroll ao mudar
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer) return;
@@ -158,38 +158,24 @@ export function ArquivoReuniaoView() {
     return () => scrollContainer.removeEventListener('scroll', handleScroll);
   }, [anoAtual]);
 
-  // Restaurar posição de scroll ao voltar para a página
+  // Restaurar posição de scroll APENAS uma vez após o carregamento
   useEffect(() => {
-    if (!loading && arquivoId && scrollContainerRef.current) {
-      const savedScroll = sessionStorage.getItem(`arquivo-reuniao-scroll-${anoAtual}`);
-      if (savedScroll) {
-        // Pequeno delay para garantir que o editor renderizou
-        const timer = setTimeout(() => {
-          if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
-          }
-        }, 100);
-        return () => clearTimeout(timer);
-      } else if (isFirstLoadRef.current && indicesTitulos.length > 0) {
-        // Apenas na primeira carga sem scroll salvo, ir para o último título
-        const timer = setTimeout(() => {
-          const lastHeading = indicesTitulos[indicesTitulos.length - 1];
-          const editorElement = document.querySelector('.prose');
-          if (editorElement) {
-            const headings = editorElement.querySelectorAll('h1, h2, h3');
-            const targetHeading = Array.from(headings || []).find(
-              h => h.textContent?.trim() === lastHeading.text
-            );
-            if (targetHeading) {
-              targetHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-          }
-          isFirstLoadRef.current = false;
-        }, 300);
-        return () => clearTimeout(timer);
-      }
+    if (loading || !arquivoId || scrollRestoredRef.current) return;
+    
+    const savedScroll = sessionStorage.getItem(`arquivo-reuniao-scroll-${anoAtual}`);
+    if (savedScroll) {
+      // Delay maior para garantir que o editor renderizou completamente
+      const timer = setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
+          scrollRestoredRef.current = true;
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      scrollRestoredRef.current = true;
     }
-  }, [loading, arquivoId, anoAtual, indicesTitulos.length]);
+  }, [loading, arquivoId, anoAtual]);
 
   // Navegar pelos resultados
   const navigateToResult = (index: number) => {
