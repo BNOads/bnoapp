@@ -8,9 +8,10 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
+import { AutoLinkPlugin, createLinkMatcherWithRegExp } from '@lexical/react/LexicalAutoLinkPlugin';
 import { HeadingNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
-import { LinkNode } from '@lexical/link';
+import { LinkNode, AutoLinkNode } from '@lexical/link';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { HeadingsPlugin, HeadingInfo } from './HeadingsPlugin';
@@ -19,6 +20,14 @@ import { MarkdownHeadingPlugin } from './MarkdownHeadingPlugin';
 import { ImageNode } from './ImageNode';
 import { ImagePastePlugin } from './ImagePastePlugin';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+
+// Matcher para URLs que começam com https:// ou http://
+const URL_MATCHER = createLinkMatcherWithRegExp(
+  /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi,
+  (text) => text
+);
+
+const URL_MATCHERS = [URL_MATCHER];
 
 interface ArquivoReuniaoEditorProps {
   arquivoId: string;
@@ -59,7 +68,7 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
       link: 'text-primary underline hover:text-primary/80',
       image: 'my-2',
     },
-    nodes: [HeadingNode, ListNode, ListItemNode, LinkNode, ImageNode],
+    nodes: [HeadingNode, ListNode, ListItemNode, LinkNode, AutoLinkNode, ImageNode],
     editorState: initialContent ? JSON.stringify(initialContent) : undefined,
     onError: (error: Error) => {
       console.error('Lexical error:', error);
@@ -157,6 +166,7 @@ export function ArquivoReuniaoEditor({ arquivoId, ano, initialContent, onContent
         <HistoryPlugin />
         <ListPlugin />
         <LinkPlugin />
+        <AutoLinkPlugin matchers={URL_MATCHERS} />
         <MarkdownHeadingPlugin />
         <ImagePastePlugin context="arquivo_reuniao" entityId={arquivoId} />
         {onHeadingsChange && <HeadingsPlugin onHeadingsChange={onHeadingsChange} />}
