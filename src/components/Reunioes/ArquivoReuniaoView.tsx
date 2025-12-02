@@ -163,18 +163,18 @@ export function ArquivoReuniaoView() {
     if (loading || !arquivoId || scrollRestoredRef.current) return;
     
     const savedScroll = sessionStorage.getItem(`arquivo-reuniao-scroll-${anoAtual}`);
-    if (savedScroll) {
-      // Delay maior para garantir que o editor renderizou completamente
-      const timer = setTimeout(() => {
-        if (scrollContainerRef.current) {
+    const timer = setTimeout(() => {
+      if (scrollContainerRef.current) {
+        if (savedScroll) {
           scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
-          scrollRestoredRef.current = true;
+        } else {
+          // Sem scroll salvo, ir para o final do documento
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
         }
-      }, 500);
-      return () => clearTimeout(timer);
-    } else {
-      scrollRestoredRef.current = true;
-    }
+        scrollRestoredRef.current = true;
+      }
+    }, 500);
+    return () => clearTimeout(timer);
   }, [loading, arquivoId, anoAtual]);
 
   // Navegar pelos resultados

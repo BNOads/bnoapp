@@ -196,17 +196,24 @@ All colors MUST be HSL.
   filter: brightness(0.9);
 }
 
-/* Links no editor visual (tiptap) */
+/* Links no editor visual (tiptap/lexical) */
+.prose a,
 .prose a[href],
-.ProseMirror a[href] {
-  color: #2563EB;
-  text-decoration: underline;
+.ProseMirror a,
+.ProseMirror a[href],
+[contenteditable] a,
+.editor-link {
+  color: #2563EB !important;
+  text-decoration: underline !important;
   cursor: pointer;
 }
 
+.prose a:hover,
 .prose a[href]:hover,
-.ProseMirror a[href]:hover {
-  filter: brightness(0.9);
+.ProseMirror a:hover,
+.ProseMirror a[href]:hover,
+[contenteditable] a:hover {
+  color: #1d4ed8 !important;
 }
 
 /* Estilos para links nas páginas de referência */
