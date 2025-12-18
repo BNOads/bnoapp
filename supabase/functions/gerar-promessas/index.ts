@@ -12,16 +12,26 @@ serve(async (req) => {
   }
 
   try {
-    const { cliente, nomeProduto, avatar, goal, interval, container, tom } = await req.json();
+    console.log('📥 Recebendo requisição para gerar promessas...');
+    
+    const body = await req.json();
+    console.log('📋 Body recebido:', JSON.stringify(body));
+    
+    const { cliente, nomeProduto, avatar, goal, interval, container, tom } = body;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY não configurada');
+      console.error('❌ LOVABLE_API_KEY não configurada');
+      return new Response(
+        JSON.stringify({ error: 'LOVABLE_API_KEY não configurada' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (!cliente || !nomeProduto || !goal) {
+      console.error('❌ Campos obrigatórios faltando:', { cliente: !!cliente, nomeProduto: !!nomeProduto, goal: !!goal });
       return new Response(
-        JSON.stringify({ error: 'Campos obrigatórios faltando' }),
+        JSON.stringify({ error: 'Campos obrigatórios faltando: cliente, nomeProduto e goal são obrigatórios' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -116,7 +126,25 @@ Seja direto, use linguagem impactante e adaptada ao tom de comunicação solicit
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ Erro na API Lovable:', response.status, errorText);
-      throw new Error(`Erro na API: ${response.status}`);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Limite de requisições excedido. Tente novamente em alguns minutos.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'Créditos insuficientes no Lovable AI. Adicione créditos na sua conta.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ error: `Erro na API de IA: ${response.status}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const data = await response.json();

@@ -101,6 +101,16 @@ export default function GeradorPromessasModal({
     try {
       const clienteSelecionado = clientes.find((c) => c.id === formData.clienteId);
 
+      console.log('Chamando gerar-promessas com:', {
+        cliente: clienteSelecionado,
+        nomeProduto: formData.nomeProduto,
+        avatar: formData.avatar,
+        goal: formData.goal,
+        interval: formData.interval,
+        container: formData.container,
+        tom: formData.tom,
+      });
+
       const { data, error } = await supabase.functions.invoke('gerar-promessas', {
         body: {
           cliente: clienteSelecionado,
@@ -113,9 +123,18 @@ export default function GeradorPromessasModal({
         },
       });
 
-      if (error) throw error;
+      console.log('Resposta da edge function:', { data, error });
 
-      setResultado(data.resultado || '');
+      if (error) {
+        console.error('Erro da edge function:', error);
+        throw new Error(error.message || 'Erro ao chamar a função');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      setResultado(data?.resultado || '');
     } catch (error: any) {
       console.error('Erro ao gerar promessa:', error);
       toast({
