@@ -168,14 +168,16 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('❌ Erro não tratado:', error);
-    console.error('Stack trace:', error.stack);
+    console.error('Stack trace:', errorStack);
     return new Response(
       JSON.stringify({ 
         error: 'Erro interno do servidor', 
-        details: error.message,
-        stack: error.stack 
+        details: errorMessage,
+        stack: errorStack 
       }),
       {
         status: 500,

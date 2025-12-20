@@ -110,6 +110,13 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   }, [clienteId]);
 
   const carregarCreatives = async () => {
+    // Validar clienteId antes de fazer a requisição
+    if (!clienteId || clienteId === ':clienteId' || !clienteId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      console.error('clienteId inválido:', clienteId);
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       
@@ -147,11 +154,12 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
       setLastSync(data.lastSync);
       setSyncError(data.syncError);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erro ao carregar criativos do Google Drive";
       console.error('Erro ao carregar criativos:', error);
       toast({
         title: "Erro",
-        description: error.message || "Erro ao carregar criativos do Google Drive",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

@@ -265,11 +265,12 @@ serve(async (req) => {
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const supabase = createClient(supabaseUrl, supabaseKey);
         
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
         await supabase
           .from('clientes')
           .update({
             google_sheet_sync_status: 'erro',
-            google_sheet_erro: error.message
+            google_sheet_erro: errorMessage
           })
           .eq('id', clienteId);
       } catch (updateError) {
@@ -277,11 +278,12 @@ serve(async (req) => {
       }
     }
 
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     // Always return 200 with success: false to avoid generic Supabase errors
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: errorMessage 
       }),
       { 
         status: 200,

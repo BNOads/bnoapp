@@ -310,7 +310,7 @@ serve(async (req) => {
 
       const zipFileName = `criativos_${clientData?.nome || 'cliente'}_${new Date().toISOString().split('T')[0]}.zip`;
 
-      return new Response(zipBlob, {
+      return new Response(new Blob([zipBlob]), {
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/zip',
