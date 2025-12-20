@@ -92,13 +92,13 @@ serve(async (req) => {
     // 1ª Prioridade: Match exato do nome do cliente
     for (const cliente of clientes) {
       const nomeClienteLower = cliente.nome.toLowerCase().trim();
-      const palavrasNomeCliente = nomeClienteLower.split(/[\s\-_|]+/).filter(p => p.length > 2);
+      const palavrasNomeCliente = nomeClienteLower.split(/[\s\-_|]+/).filter((p: string) => p.length > 2);
       
       console.log(`\nVerificando cliente: ${cliente.nome}`);
       console.log(`  Palavras do nome: ${JSON.stringify(palavrasNomeCliente)}`);
       
       // Verificar se alguma palavra significativa do nome do cliente está no lançamento
-      const matchNome = palavrasNomeCliente.some(palavraCliente => 
+      const matchNome = palavrasNomeCliente.some((palavraCliente: string) => 
         palavrasLancamento.includes(palavraCliente)
       );
       
@@ -117,10 +117,10 @@ serve(async (req) => {
           
           for (const alias of cliente.aliases) {
             const aliasLower = alias.toLowerCase().trim();
-            const palavrasAlias = aliasLower.split(/[\s\-_|]+/).filter(p => p.length > 2);
+            const palavrasAlias = aliasLower.split(/[\s\-_|]+/).filter((p: string) => p.length > 2);
             
             // Match exato de palavras do alias
-            const matchAlias = palavrasAlias.some(palavraAlias => 
+            const matchAlias = palavrasAlias.some((palavraAlias: string) => 
               palavrasLancamento.includes(palavraAlias)
             );
             
