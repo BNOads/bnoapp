@@ -4,15 +4,38 @@ import { Helmet } from "react-helmet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, DollarSign, Target, TrendingUp, MessageCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Calendar, DollarSign, Target, TrendingUp, MessageCircle, Edit, Save, X } from "lucide-react";
 import { createPublicSupabaseClient } from "@/lib/supabase-public";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/Auth/AuthContext";
+import { toast } from "sonner";
+
+interface VerbaFaseItem {
+  percentual: number;
+}
+
+interface VerbaFase {
+  captacao?: VerbaFaseItem;
+  aquecimento?: VerbaFaseItem;
+  evento?: VerbaFaseItem;
+  lembrete?: VerbaFaseItem;
+  impulsionar?: VerbaFaseItem;
+  venda?: VerbaFaseItem;
+  [key: string]: VerbaFaseItem | undefined;
+}
 
 export default function LancamentoPublico() {
   const { linkPublico } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [lancamento, setLancamento] = useState<any>(null);
   const [cliente, setCliente] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [editingVerbas, setEditingVerbas] = useState(false);
+  const [verbas, setVerbas] = useState<VerbaFase>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     carregarDados();
@@ -22,11 +45,11 @@ export default function LancamentoPublico() {
     try {
       const publicSupabase = createPublicSupabaseClient();
       
-      // Buscar por ID ao invés de link_publico customizado
+      // Buscar por link_publico (slug) ao invés de id
       const { data: lancData, error: lancError } = await publicSupabase
         .from('lancamentos')
         .select('*, clientes(nome, whatsapp_grupo_url)')
-        .eq('id', linkPublico)
+        .eq('link_publico', linkPublico)
         .eq('link_publico_ativo', true)
         .single();
 
@@ -34,11 +57,45 @@ export default function LancamentoPublico() {
       
       setLancamento(lancData);
       setCliente(lancData?.clientes);
+      const verbaData = lancData?.verba_por_fase;
+      setVerbas(verbaData && typeof verbaData === 'object' && !Array.isArray(verbaData) 
+        ? (verbaData as unknown as VerbaFase) 
+        : {});
     } catch (error) {
       console.error('Erro ao carregar lançamento:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveVerbas = async () => {
+    if (!lancamento || !user) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('lancamentos')
+        .update({ verba_por_fase: verbas as any })
+        .eq('id', lancamento.id);
+
+      if (error) throw error;
+
+      setLancamento((prev: any) => ({ ...prev, verba_por_fase: verbas }));
+      setEditingVerbas(false);
+      toast.success('Distribuição de verba atualizada!');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast.error('Erro ao salvar: ' + message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleVerbaChange = (fase: string, valor: number) => {
+    setVerbas(prev => ({
+      ...prev,
+      [fase]: { percentual: valor }
+    }));
   };
 
   const calcularDiasRestantes = () => {
@@ -72,6 +129,24 @@ export default function LancamentoPublico() {
     return labels[status] || status;
   };
 
+  const fasesNomes: Record<string, string> = {
+    captacao: "Captação",
+    aquecimento: "Aquecimento",
+    evento: "Evento",
+    lembrete: "Lembrete",
+    impulsionar: "Impulsionar",
+    venda: "Venda"
+  };
+
+  const fasesCores: Record<string, string> = {
+    captacao: "bg-blue-500",
+    aquecimento: "bg-purple-500",
+    evento: "bg-yellow-500",
+    lembrete: "bg-orange-500",
+    impulsionar: "bg-pink-500",
+    venda: "bg-green-500"
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -94,6 +169,7 @@ export default function LancamentoPublico() {
   }
 
   const diasRestantes = calcularDiasRestantes();
+  const totalPercentual = Object.values(verbas).reduce((sum, fase: any) => sum + (fase?.percentual || 0), 0);
 
   return (
     <>
@@ -222,6 +298,82 @@ export default function LancamentoPublico() {
               </Card>
             )}
           </div>
+
+          {/* Distribuição de Verba */}
+          {lancamento.investimento_total && (
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    Distribuição de Verba
+                    {totalPercentual !== 100 && (
+                      <Badge variant={totalPercentual > 100 ? "destructive" : "secondary"}>
+                        {totalPercentual}%
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  {user && !editingVerbas && (
+                    <Button variant="outline" size="sm" onClick={() => setEditingVerbas(true)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </Button>
+                  )}
+                  {user && editingVerbas && (
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        setEditingVerbas(false);
+                        setVerbas(lancamento.verba_por_fase || {});
+                      }}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" onClick={handleSaveVerbas} disabled={saving}>
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? 'Salvando...' : 'Salvar'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {Object.entries(fasesNomes).map(([fase, nome]) => {
+                    const percentual = (verbas as any)[fase]?.percentual || 0;
+                    const valor = lancamento.investimento_total * (percentual / 100);
+                    
+                    return (
+                      <div key={fase} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded ${fasesCores[fase]}`}></div>
+                          <span className="text-sm font-medium">{nome}</span>
+                        </div>
+                        {editingVerbas ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={percentual}
+                              onChange={(e) => handleVerbaChange(fase, Number(e.target.value))}
+                              className="w-20 h-8"
+                              min={0}
+                              max={100}
+                            />
+                            <span className="text-sm text-muted-foreground">%</span>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-lg font-semibold">
+                              R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{percentual}%</p>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Metas */}
           {(lancamento.meta_custo_lead || lancamento.meta_investimento) && (
