@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Calendar, DollarSign, Target, TrendingUp, MessageCircle, Edit, Save, X, Calculator, BarChart3 } from "lucide-react";
+import { ArrowLeft, Calendar, DollarSign, Target, TrendingUp, MessageCircle, Edit, Save, X, Calculator, BarChart3, FileText, User, Users, Megaphone, CalendarDays, Clock, ExternalLink, Copy, Link as LinkIcon } from "lucide-react";
 import { createPublicSupabaseClient } from "@/lib/supabase-public";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { toast } from "sonner";
-import { differenceInDays, parseISO } from "date-fns";
+import { differenceInDays, parseISO, format, formatDistanceToNow, isBefore, isAfter, isToday } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface VerbaFaseItem {
   percentual: number;
@@ -35,6 +36,142 @@ interface DistribuicaoCanais {
   [key: string]: { percentual: number } | undefined;
 }
 
+// Componente para exibir próximo evento com countdown
+const ProximoEventoCard = ({ lancamento }: { lancamento: any }) => {
+  const [countdown, setCountdown] = useState({ dias: 0, horas: 0, minutos: 0, segundos: 0 });
+  
+  // Determinar qual é o próximo evento importante
+  const getProximoEvento = () => {
+    const hoje = new Date();
+    const eventos = [
+      { nome: 'Início da Captação', data: lancamento.data_inicio_captacao, cor: 'blue' },
+      { nome: 'Fim da Captação', data: lancamento.data_fim_captacao, cor: 'blue' },
+      { nome: 'Início do Aquecimento', data: lancamento.data_inicio_aquecimento, cor: 'purple' },
+      { nome: 'Primeira Aula (CPL)', data: lancamento.data_inicio_cpl, cor: 'green' },
+      { nome: 'Fim do CPL', data: lancamento.data_fim_cpl, cor: 'green' },
+      { nome: 'Abertura do Carrinho', data: lancamento.data_inicio_carrinho, cor: 'orange' },
+      { nome: 'Fechamento', data: lancamento.data_fechamento, cor: 'red' },
+    ].filter(e => e.data);
+
+    // Encontrar o próximo evento (data >= hoje)
+    for (const evento of eventos) {
+      const dataEvento = parseISO(evento.data);
+      if (isToday(dataEvento)) {
+        return { ...evento, status: 'hoje', dataEvento };
+      }
+      if (isAfter(dataEvento, hoje)) {
+        return { ...evento, status: 'futuro', dataEvento };
+      }
+    }
+    
+    // Se não há eventos futuros, retornar o último evento (lançamento finalizado)
+    if (eventos.length > 0) {
+      const ultimoEvento = eventos[eventos.length - 1];
+      return { ...ultimoEvento, status: 'passado', dataEvento: parseISO(ultimoEvento.data) };
+    }
+    
+    return null;
+  };
+
+  const proximoEvento = getProximoEvento();
+
+  useEffect(() => {
+    if (!proximoEvento || proximoEvento.status === 'passado') return;
+
+    const calcularCountdown = () => {
+      const agora = new Date();
+      const diff = proximoEvento.dataEvento.getTime() - agora.getTime();
+      
+      if (diff <= 0) {
+        setCountdown({ dias: 0, horas: 0, minutos: 0, segundos: 0 });
+        return;
+      }
+
+      const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const segundos = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setCountdown({ dias, horas, minutos, segundos });
+    };
+
+    calcularCountdown();
+    const interval = setInterval(calcularCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [proximoEvento]);
+
+  if (!proximoEvento) return null;
+
+  const corClasses: Record<string, string> = {
+    blue: 'bg-blue-500',
+    purple: 'bg-purple-500',
+    green: 'bg-green-500',
+    orange: 'bg-orange-500',
+    red: 'bg-red-500',
+  };
+
+  return (
+    <Card className={`border-2 ${proximoEvento.status === 'hoje' ? 'border-yellow-500 bg-yellow-50/50 dark:bg-yellow-950/20' : 'border-primary/30'}`}>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <Clock className="h-4 w-4" />
+          Próximo Evento
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full ${corClasses[proximoEvento.cor]}`} />
+            <div>
+              <h4 className="font-bold text-lg">{proximoEvento.nome}</h4>
+              <p className="text-sm text-muted-foreground">
+                {format(proximoEvento.dataEvento, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              </p>
+            </div>
+          </div>
+
+          {proximoEvento.status === 'hoje' && (
+            <Badge className="bg-yellow-500 text-white animate-pulse">
+              🎉 Hoje é o dia!
+            </Badge>
+          )}
+
+          {proximoEvento.status === 'futuro' && (
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="bg-primary/10 rounded-lg p-3">
+                <div className="text-2xl font-bold text-primary">{countdown.dias}</div>
+                <div className="text-xs text-muted-foreground">dias</div>
+              </div>
+              <div className="bg-primary/10 rounded-lg p-3">
+                <div className="text-2xl font-bold text-primary">{countdown.horas}</div>
+                <div className="text-xs text-muted-foreground">horas</div>
+              </div>
+              <div className="bg-primary/10 rounded-lg p-3">
+                <div className="text-2xl font-bold text-primary">{countdown.minutos}</div>
+                <div className="text-xs text-muted-foreground">min</div>
+              </div>
+              <div className="bg-primary/10 rounded-lg p-3">
+                <div className="text-2xl font-bold text-primary">{countdown.segundos}</div>
+                <div className="text-xs text-muted-foreground">seg</div>
+              </div>
+            </div>
+          )}
+
+          {proximoEvento.status === 'passado' && (
+            <Badge variant="secondary">Lançamento Finalizado</Badge>
+          )}
+
+          {proximoEvento.status === 'futuro' && (
+            <p className="text-sm text-muted-foreground text-center">
+              Faltam {formatDistanceToNow(proximoEvento.dataEvento, { locale: ptBR })}
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function LancamentoPublico() {
   const { linkPublico } = useParams();
   const navigate = useNavigate();
@@ -50,6 +187,7 @@ export default function LancamentoPublico() {
     outras_fontes: { percentual: 10 }
   });
   const [saving, setSaving] = useState(false);
+  const [links, setLinks] = useState<any[]>([]);
 
   useEffect(() => {
     carregarDados();
@@ -61,7 +199,7 @@ export default function LancamentoPublico() {
       
       const { data: lancData, error: lancError } = await publicSupabase
         .from('lancamentos')
-        .select('*, clientes(nome, whatsapp_grupo_url)')
+        .select('*, clientes(nome, whatsapp_grupo_url), colaboradores!lancamentos_gestor_id_fkey(nome)')
         .eq('link_publico', linkPublico)
         .eq('link_publico_ativo', true)
         .single();
@@ -78,6 +216,16 @@ export default function LancamentoPublico() {
       const canaisData = lancData?.distribuicao_canais;
       if (canaisData && typeof canaisData === 'object' && !Array.isArray(canaisData)) {
         setCanais(canaisData as unknown as DistribuicaoCanais);
+      }
+      
+      // Carregar links úteis
+      if (lancData?.id) {
+        const { data: linksData } = await publicSupabase
+          .from('lancamento_links')
+          .select('*')
+          .eq('lancamento_id', lancData.id)
+          .order('ordem');
+        setLinks(linksData || []);
       }
     } catch (error) {
       console.error('Erro ao carregar lançamento:', error);
@@ -297,85 +445,242 @@ export default function LancamentoPublico() {
             </div>
           </div>
 
-          {/* Promessa */}
-          {lancamento.promessa && (
-            <Card className="mb-6 border-primary/20">
+          {/* Grid principal - Informações Básicas + Próximo Evento */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Informações Básicas */}
+            <Card className="h-full">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FileText className="h-5 w-5" />
+                  Informações Básicas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Nome e Status */}
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Nome do Lançamento</div>
+                      <h3 className="text-lg font-bold">{lancamento.nome_lancamento}</h3>
+                    </div>
+                    <Badge className={getStatusColor(lancamento.status_lancamento) + ' text-white'}>
+                      {getStatusLabel(lancamento.status_lancamento)}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Grid de informações - 2 colunas */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <Calendar className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Tipo de Aulas</div>
+                      <div className="text-sm font-medium truncate">
+                        {lancamento.tipo_aulas === 'ao_vivo' ? 'Ao Vivo' : lancamento.tipo_aulas || 'Não informado'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <Megaphone className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Tipo de Lançamento</div>
+                      <div className="text-sm font-medium truncate">
+                        {lancamento.tipo_lancamento === 'tradicional' ? 'Tradicional' : lancamento.tipo_lancamento || 'Não informado'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <User className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Gestor</div>
+                      <div className="text-sm font-medium truncate">
+                        {lancamento.colaboradores?.nome || 'Não atribuído'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <Users className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Cliente</div>
+                      <div className="text-sm font-medium truncate">{cliente?.nome || 'Não informado'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Promessa */}
+                {lancamento.promessa && (
+                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <div className="text-xs font-medium text-muted-foreground mb-1">Promessa</div>
+                    <p className="text-sm">{lancamento.promessa}</p>
+                  </div>
+                )}
+
+                {/* Metas e Valores */}
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">Metas e Valores</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {lancamento.ticket_produto && (
+                      <div className="p-2 rounded bg-muted/50">
+                        <div className="text-xs text-muted-foreground">Ticket Produto</div>
+                        <div className="text-sm font-bold">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lancamento.ticket_produto)}
+                        </div>
+                      </div>
+                    )}
+                    {lancamento.leads_desejados && (
+                      <div className="p-2 rounded bg-muted/50">
+                        <div className="text-xs text-muted-foreground">Leads Desejados</div>
+                        <div className="text-sm font-bold">{lancamento.leads_desejados.toLocaleString('pt-BR')}</div>
+                      </div>
+                    )}
+                    {lancamento.meta_custo_lead && (
+                      <div className="p-2 rounded bg-muted/50">
+                        <div className="text-xs text-muted-foreground">Meta CPL</div>
+                        <div className="text-sm font-bold">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lancamento.meta_custo_lead)}
+                        </div>
+                      </div>
+                    )}
+                    {lancamento.investimento_total && (
+                      <div className="p-2 rounded bg-muted/50">
+                        <div className="text-xs text-muted-foreground">Investimento Total</div>
+                        <div className="text-sm font-bold text-green-600">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lancamento.investimento_total)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Público-alvo */}
+                {lancamento.publico_alvo && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <Target className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Público-Alvo</div>
+                      <div className="text-sm font-medium">{lancamento.publico_alvo}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Observações */}
+                {lancamento.observacoes && (
+                  <div className="p-3 rounded-lg bg-muted/30 border">
+                    <div className="text-xs font-medium text-muted-foreground mb-1">Observações</div>
+                    <p className="text-sm text-muted-foreground">{lancamento.observacoes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Próximo Evento + Datas */}
+            <div className="space-y-6">
+              {/* Card de Próximo Evento com Countdown */}
+              <ProximoEventoCard lancamento={lancamento} />
+
+              {/* Datas do Lançamento */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <CalendarDays className="h-4 w-4" />
+                    Datas do Lançamento
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {lancamento.data_inicio_captacao && (
+                    <div className="flex justify-between items-center p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                      <span className="text-xs text-muted-foreground">Início Captação</span>
+                      <span className="text-xs font-medium">{format(parseISO(lancamento.data_inicio_captacao), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                    </div>
+                  )}
+                  {lancamento.data_fim_captacao && (
+                    <div className="flex justify-between items-center p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                      <span className="text-xs text-muted-foreground">Fim Captação</span>
+                      <span className="text-xs font-medium">{format(parseISO(lancamento.data_fim_captacao), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                    </div>
+                  )}
+                  {lancamento.data_inicio_aquecimento && (
+                    <div className="flex justify-between items-center p-2 rounded bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+                      <span className="text-xs text-muted-foreground">Início Aquecimento</span>
+                      <span className="text-xs font-medium">{format(parseISO(lancamento.data_inicio_aquecimento), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                    </div>
+                  )}
+                  {lancamento.data_inicio_cpl && (
+                    <div className="flex justify-between items-center p-2 rounded bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                      <span className="text-xs text-muted-foreground">Início CPL (Primeira Aula)</span>
+                      <span className="text-xs font-medium">{format(parseISO(lancamento.data_inicio_cpl), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                    </div>
+                  )}
+                  {lancamento.data_fim_cpl && (
+                    <div className="flex justify-between items-center p-2 rounded bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                      <span className="text-xs text-muted-foreground">Fim CPL</span>
+                      <span className="text-xs font-medium">{format(parseISO(lancamento.data_fim_cpl), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                    </div>
+                  )}
+                  {lancamento.data_inicio_carrinho && (
+                    <div className="flex justify-between items-center p-2 rounded bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                      <span className="text-xs text-muted-foreground">Abertura Carrinho</span>
+                      <span className="text-xs font-medium">{format(parseISO(lancamento.data_inicio_carrinho), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                    </div>
+                  )}
+                  {lancamento.data_fechamento && (
+                    <div className="flex justify-between items-center p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                      <span className="text-xs text-muted-foreground">Fechamento</span>
+                      <span className="text-xs font-medium">{format(parseISO(lancamento.data_fechamento), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Links Úteis */}
+          {links.length > 0 && (
+            <Card className="mb-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-primary" />
-                  Promessa do Lançamento
+                  <LinkIcon className="h-5 w-5" />
+                  Links Úteis
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-lg">{lancamento.promessa}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {links.map((link) => (
+                    <div key={link.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                      <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">{link.nome}</div>
+                        <div className="text-xs text-muted-foreground truncate">{link.url}</div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(link.url);
+                            toast.success('Link copiado!');
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          asChild
+                          className="h-8 w-8 p-0"
+                        >
+                          <a href={link.url.startsWith('http') ? link.url : `https://${link.url}`} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
-
-          {/* Informações principais */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  Data de Início
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {new Date(lancamento.data_inicio_captacao).toLocaleDateString('pt-BR')}
-                </p>
-              </CardContent>
-            </Card>
-
-            {lancamento.data_inicio_cpl && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    Início CPL
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">
-                    {new Date(lancamento.data_inicio_cpl).toLocaleDateString('pt-BR')}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {lancamento.investimento_total && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                    Investimento Total
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-green-600">
-                    R$ {Number(lancamento.investimento_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {lancamento.leads_desejados && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Target className="h-4 w-4 text-muted-foreground" />
-                    Leads Desejados
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">
-                    {Number(lancamento.leads_desejados).toLocaleString('pt-BR')}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
 
           {/* Cálculo de Verbas */}
           {lancamento.investimento_total && (
