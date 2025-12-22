@@ -854,12 +854,13 @@ export default function LancamentoDetalhes() {
             )}
           </Button>
           
-          {activeView === 'informacoes' && (
+          {(activeView === 'informacoes' || activeView === 'verbas') && (
             <>
               {editingTab === activeView ? <>
                 <Button variant="outline" onClick={() => {
                   setEditingTab(null);
                   setEditing(false);
+                  fetchLancamento();
                 }} disabled={saving}>
                   Cancelar
                 </Button>
@@ -876,7 +877,7 @@ export default function LancamentoDetalhes() {
                 setEditing(true);
               }}>
                 <Edit className="h-4 w-4 mr-2" />
-                Editar Informações
+                {activeView === 'verbas' ? 'Editar Verbas' : 'Editar Informações'}
               </Button>}
             </>
           )}
