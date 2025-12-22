@@ -5,15 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ArrowLeft, Calendar, DollarSign, Target, TrendingUp, MessageCircle, Edit, Save, X } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowLeft, Calendar, DollarSign, Target, TrendingUp, MessageCircle, Edit, Save, X, Calculator, BarChart3 } from "lucide-react";
 import { createPublicSupabaseClient } from "@/lib/supabase-public";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { toast } from "sonner";
+import { differenceInDays, parseISO } from "date-fns";
 
 interface VerbaFaseItem {
   percentual: number;
+  dias?: number;
 }
 
 interface VerbaFase {
@@ -26,6 +28,13 @@ interface VerbaFase {
   [key: string]: VerbaFaseItem | undefined;
 }
 
+interface DistribuicaoCanais {
+  meta_ads?: { percentual: number };
+  google_ads?: { percentual: number };
+  outras_fontes?: { percentual: number };
+  [key: string]: { percentual: number } | undefined;
+}
+
 export default function LancamentoPublico() {
   const { linkPublico } = useParams();
   const navigate = useNavigate();
@@ -35,6 +44,11 @@ export default function LancamentoPublico() {
   const [loading, setLoading] = useState(true);
   const [editingVerbas, setEditingVerbas] = useState(false);
   const [verbas, setVerbas] = useState<VerbaFase>({});
+  const [canais, setCanais] = useState<DistribuicaoCanais>({
+    meta_ads: { percentual: 70 },
+    google_ads: { percentual: 20 },
+    outras_fontes: { percentual: 10 }
+  });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -45,7 +59,6 @@ export default function LancamentoPublico() {
     try {
       const publicSupabase = createPublicSupabaseClient();
       
-      // Buscar por link_publico (slug) ao invés de id
       const { data: lancData, error: lancError } = await publicSupabase
         .from('lancamentos')
         .select('*, clientes(nome, whatsapp_grupo_url)')
@@ -57,15 +70,61 @@ export default function LancamentoPublico() {
       
       setLancamento(lancData);
       setCliente(lancData?.clientes);
+      
       const verbaData = lancData?.verba_por_fase;
-      setVerbas(verbaData && typeof verbaData === 'object' && !Array.isArray(verbaData) 
-        ? (verbaData as unknown as VerbaFase) 
-        : {});
+      const processedVerbas = calcularVerbas(lancData, verbaData);
+      setVerbas(processedVerbas);
+      
+      const canaisData = lancData?.distribuicao_canais;
+      if (canaisData && typeof canaisData === 'object' && !Array.isArray(canaisData)) {
+        setCanais(canaisData as unknown as DistribuicaoCanais);
+      }
     } catch (error) {
       console.error('Erro ao carregar lançamento:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const calcularDiasFase = (dataInicio: string | null, dataFim: string | null) => {
+    if (!dataInicio || !dataFim) return 0;
+    return Math.max(1, differenceInDays(parseISO(dataFim), parseISO(dataInicio)) + 1);
+  };
+
+  const calcularVerbas = (lanc: any, verbaData: any): VerbaFase => {
+    const baseVerbas: VerbaFase = verbaData && typeof verbaData === 'object' && !Array.isArray(verbaData)
+      ? (verbaData as unknown as VerbaFase)
+      : {
+          captacao: { percentual: 40, dias: 0 },
+          aquecimento: { percentual: 10, dias: 0 },
+          evento: { percentual: 30, dias: 0 },
+          lembrete: { percentual: 10, dias: 0 },
+          impulsionar: { percentual: 5, dias: 0 },
+          venda: { percentual: 5, dias: 0 }
+        };
+
+    if (lanc) {
+      if (baseVerbas.captacao) {
+        baseVerbas.captacao.dias = calcularDiasFase(lanc.data_inicio_captacao, lanc.data_fim_captacao);
+      }
+      if (baseVerbas.aquecimento) {
+        baseVerbas.aquecimento.dias = calcularDiasFase(lanc.data_inicio_aquecimento, lanc.data_fim_aquecimento);
+      }
+      if (baseVerbas.evento) {
+        baseVerbas.evento.dias = calcularDiasFase(lanc.data_inicio_cpl, lanc.data_fim_cpl);
+      }
+      if (baseVerbas.lembrete) {
+        baseVerbas.lembrete.dias = calcularDiasFase(lanc.data_inicio_lembrete, lanc.data_fim_lembrete);
+      }
+      if (baseVerbas.impulsionar) {
+        baseVerbas.impulsionar.dias = 1;
+      }
+      if (baseVerbas.venda) {
+        baseVerbas.venda.dias = calcularDiasFase(lanc.data_inicio_carrinho, lanc.data_fechamento);
+      }
+    }
+
+    return baseVerbas;
   };
 
   const handleSaveVerbas = async () => {
@@ -75,12 +134,19 @@ export default function LancamentoPublico() {
     try {
       const { error } = await supabase
         .from('lancamentos')
-        .update({ verba_por_fase: verbas as any })
+        .update({ 
+          verba_por_fase: verbas as any,
+          distribuicao_canais: canais as any
+        })
         .eq('id', lancamento.id);
 
       if (error) throw error;
 
-      setLancamento((prev: any) => ({ ...prev, verba_por_fase: verbas }));
+      setLancamento((prev: any) => ({ 
+        ...prev, 
+        verba_por_fase: verbas,
+        distribuicao_canais: canais 
+      }));
       setEditingVerbas(false);
       toast.success('Distribuição de verba atualizada!');
     } catch (error: unknown) {
@@ -94,7 +160,14 @@ export default function LancamentoPublico() {
   const handleVerbaChange = (fase: string, valor: number) => {
     setVerbas(prev => ({
       ...prev,
-      [fase]: { percentual: valor }
+      [fase]: { ...prev[fase], percentual: valor }
+    }));
+  };
+
+  const handleCanalChange = (canal: string, valor: number) => {
+    setCanais(prev => ({
+      ...prev,
+      [canal]: { percentual: valor }
     }));
   };
 
@@ -139,12 +212,24 @@ export default function LancamentoPublico() {
   };
 
   const fasesCores: Record<string, string> = {
-    captacao: "bg-blue-500",
-    aquecimento: "bg-purple-500",
-    evento: "bg-yellow-500",
-    lembrete: "bg-orange-500",
-    impulsionar: "bg-pink-500",
-    venda: "bg-green-500"
+    captacao: '#2563EB',
+    aquecimento: '#7C3AED',
+    evento: '#10B981',
+    lembrete: '#F59E0B',
+    impulsionar: '#EF4444',
+    venda: '#8B5CF6'
+  };
+
+  const canaisNomes: Record<string, string> = {
+    meta_ads: 'META ADS',
+    google_ads: 'GOOGLE ADS',
+    outras_fontes: 'OUTRAS FONTES'
+  };
+
+  const canaisCores: Record<string, string> = {
+    meta_ads: '#1877F2',
+    google_ads: '#4285F4',
+    outras_fontes: '#8B5CF6'
   };
 
   if (loading) {
@@ -169,7 +254,9 @@ export default function LancamentoPublico() {
   }
 
   const diasRestantes = calcularDiasRestantes();
-  const totalPercentual = Object.values(verbas).reduce((sum, fase: any) => sum + (fase?.percentual || 0), 0);
+  const totalPercentualVerbas = Object.values(verbas).reduce((sum, fase: any) => sum + (fase?.percentual || 0), 0);
+  const totalPercentualCanais = Object.values(canais).reduce((sum, canal: any) => sum + (canal?.percentual || 0), 0);
+  const diasTotalCampanha = Object.values(verbas).reduce((sum, fase: any) => sum + (fase?.dias || 0), 0);
 
   return (
     <>
@@ -181,7 +268,7 @@ export default function LancamentoPublico() {
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="container mx-auto px-4 py-8 max-w-5xl">
           {/* Header */}
           <div className="mb-8">
             <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
@@ -225,17 +312,8 @@ export default function LancamentoPublico() {
             </Card>
           )}
 
-          {/* Descrição */}
-          {lancamento.descricao && (
-            <Card className="mb-6">
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground whitespace-pre-line">{lancamento.descricao}</p>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Informações principais */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -299,80 +377,217 @@ export default function LancamentoPublico() {
             )}
           </div>
 
-          {/* Distribuição de Verba */}
+          {/* Cálculo de Verbas */}
           {lancamento.investimento_total && (
-            <Card className="mb-6">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-primary" />
-                    Distribuição de Verba
-                    {totalPercentual !== 100 && (
-                      <Badge variant={totalPercentual > 100 ? "destructive" : "secondary"}>
-                        {totalPercentual}%
-                      </Badge>
-                    )}
-                  </CardTitle>
-                  {user && !editingVerbas && (
-                    <Button variant="outline" size="sm" onClick={() => setEditingVerbas(true)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar
+            <div className="space-y-6 mb-6">
+              {/* Header com botões */}
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Cálculo de Verbas</h3>
+                {user && !editingVerbas && (
+                  <Button variant="outline" size="sm" onClick={() => setEditingVerbas(true)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
+                  </Button>
+                )}
+                {user && editingVerbas && (
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setEditingVerbas(false);
+                      const processedVerbas = calcularVerbas(lancamento, lancamento.verba_por_fase);
+                      setVerbas(processedVerbas);
+                      setCanais(lancamento.distribuicao_canais || {
+                        meta_ads: { percentual: 70 },
+                        google_ads: { percentual: 20 },
+                        outras_fontes: { percentual: 10 }
+                      });
+                    }}>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancelar
                     </Button>
-                  )}
-                  {user && editingVerbas && (
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        setEditingVerbas(false);
-                        setVerbas(lancamento.verba_por_fase || {});
-                      }}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" onClick={handleSaveVerbas} disabled={saving}>
-                        <Save className="h-4 w-4 mr-2" />
-                        {saving ? 'Salvando...' : 'Salvar'}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {Object.entries(fasesNomes).map(([fase, nome]) => {
-                    const percentual = (verbas as any)[fase]?.percentual || 0;
-                    const valor = lancamento.investimento_total * (percentual / 100);
-                    
-                    return (
-                      <div key={fase} className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded ${fasesCores[fase]}`}></div>
-                          <span className="text-sm font-medium">{nome}</span>
-                        </div>
-                        {editingVerbas ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              value={percentual}
-                              onChange={(e) => handleVerbaChange(fase, Number(e.target.value))}
-                              className="w-20 h-8"
-                              min={0}
-                              max={100}
-                            />
-                            <span className="text-sm text-muted-foreground">%</span>
-                          </div>
-                        ) : (
-                          <>
-                            <p className="text-lg font-semibold">
-                              R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{percentual}%</p>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+                    <Button size="sm" onClick={handleSaveVerbas} disabled={saving}>
+                      <Save className="h-4 w-4 mr-2" />
+                      {saving ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Alertas de validação */}
+              {totalPercentualVerbas > 100 && (
+                <Card className="border-destructive bg-destructive/10">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-destructive font-medium">
+                      ⚠️ Atenção: A soma das porcentagens de verbas está acima de 100% (Total: {totalPercentualVerbas.toFixed(1)}%)
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {totalPercentualCanais > 100 && (
+                <Card className="border-destructive bg-destructive/10">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-destructive font-medium">
+                      ⚠️ Atenção: A soma das porcentagens de canais está acima de 100% (Total: {totalPercentualCanais.toFixed(1)}%)
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Tabela de Verbas por Fase */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="h-5 w-5" />
+                    Distribuição por Fase
+                    <Badge variant={totalPercentualVerbas === 100 ? "default" : totalPercentualVerbas > 100 ? "destructive" : "secondary"}>
+                      Total: {totalPercentualVerbas}%
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Etapa</TableHead>
+                        <TableHead>% Verba</TableHead>
+                        <TableHead>Investimento Total (R$)</TableHead>
+                        <TableHead>Investimento Diário (R$)</TableHead>
+                        <TableHead>Quantidade de Dias</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.entries(fasesNomes).map(([fase, nome]) => {
+                        const percentual = verbas[fase]?.percentual || 0;
+                        const dias = verbas[fase]?.dias || 0;
+                        const investimentoTotal = lancamento.investimento_total * percentual / 100;
+                        const investimentoDiario = dias > 0 ? investimentoTotal / dias : 0;
+                        
+                        return (
+                          <TableRow key={fase}>
+                            <TableCell className="font-medium">{nome}</TableCell>
+                            <TableCell>
+                              {editingVerbas ? (
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="number"
+                                    value={percentual}
+                                    onChange={(e) => handleVerbaChange(fase, Number(e.target.value))}
+                                    className="w-20"
+                                    min={0}
+                                    max={100}
+                                  />
+                                  <div 
+                                    className="h-2 rounded-full" 
+                                    style={{
+                                      width: '60px',
+                                      background: `linear-gradient(90deg, ${fasesCores[fase]} ${percentual}%, #E5E7EB ${percentual}%)`
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span>{percentual}%</span>
+                                  <div 
+                                    className="h-2 rounded-full" 
+                                    style={{
+                                      width: '60px',
+                                      background: `linear-gradient(90deg, ${fasesCores[fase]} ${percentual}%, #E5E7EB ${percentual}%)`
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              R$ {investimentoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell>
+                              R$ {investimentoDiario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell>{dias} dias</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Tabela de Distribuição por Canal */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Distribuição por Canal
+                    <Badge variant={totalPercentualCanais === 100 ? "default" : "destructive"}>
+                      Total: {totalPercentualCanais}%
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Canal</TableHead>
+                        <TableHead>% Distribuição</TableHead>
+                        <TableHead>Valor (R$)</TableHead>
+                        <TableHead>Valor Diário Médio (R$)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.entries(canaisNomes).map(([canal, nome]) => {
+                        const percentual = canais[canal]?.percentual || 0;
+                        const valorTotal = lancamento.investimento_total * percentual / 100;
+                        const valorDiario = diasTotalCampanha > 0 ? valorTotal / diasTotalCampanha : 0;
+                        
+                        return (
+                          <TableRow key={canal}>
+                            <TableCell className="font-medium">{nome}</TableCell>
+                            <TableCell>
+                              {editingVerbas ? (
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="number"
+                                    value={percentual}
+                                    onChange={(e) => handleCanalChange(canal, Number(e.target.value))}
+                                    className="w-20"
+                                    min={0}
+                                    max={100}
+                                  />
+                                  <div 
+                                    className="h-2 rounded-full" 
+                                    style={{
+                                      width: '60px',
+                                      background: `linear-gradient(90deg, ${canaisCores[canal]} ${percentual}%, #E5E7EB ${percentual}%)`
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span>{percentual}%</span>
+                                  <div 
+                                    className="h-2 rounded-full" 
+                                    style={{
+                                      width: '60px',
+                                      background: `linear-gradient(90deg, ${canaisCores[canal]} ${percentual}%, #E5E7EB ${percentual}%)`
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              R$ {valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell>
+                              R$ {valorDiario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* Metas */}
