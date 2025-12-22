@@ -27,6 +27,15 @@ export function AppLayout({ children }: AppLayoutProps) {
     '/painel'
   ];
   
+  // Rotas completamente standalone - sem header NUNCA (nem logado nem deslogado)
+  const standaloneRoutes = [
+    '/lancamento/'
+  ];
+  
+  const isStandaloneRoute = standaloneRoutes.some(route => 
+    location.pathname.startsWith(route)
+  );
+  
   // Check if current route is a client panel NPS page
   const isClientNPSRoute = location.pathname.match(/^\/painel\/[^/]+\/nps$/);
   
@@ -36,9 +45,14 @@ export function AppLayout({ children }: AppLayoutProps) {
   
   const shouldShowHeader = !hideHeaderRoutes.some(route => 
     location.pathname.startsWith(route)
-  ) && !(isPublicViewRoute && !user) && !isClientNPSRoute;
+  ) && !(isPublicViewRoute && !user) && !isClientNPSRoute && !isStandaloneRoute;
   
   const shouldShowFAB = shouldShowHeader;
+
+  // Rotas standalone renderizam apenas o conteúdo
+  if (isStandaloneRoute) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-screen bg-background">
