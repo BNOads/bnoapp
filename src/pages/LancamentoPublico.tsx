@@ -199,12 +199,17 @@ export default function LancamentoPublico() {
       
       const { data: lancData, error: lancError } = await publicSupabase
         .from('lancamentos')
-        .select('*, clientes(nome, whatsapp_grupo_url), colaboradores!lancamentos_gestor_id_fkey(nome)')
+        .select('*, clientes(nome, whatsapp_grupo_url), colaboradores!lancamentos_gestor_responsavel_id_fkey(nome)')
         .eq('link_publico', linkPublico)
         .eq('link_publico_ativo', true)
-        .single();
+        .maybeSingle();
 
       if (lancError) throw lancError;
+      if (!lancData) {
+        setLancamento(null);
+        setCliente(null);
+        return;
+      }
       
       setLancamento(lancData);
       setCliente(lancData?.clientes);
