@@ -22,13 +22,6 @@ export function MeusClientesCard() {
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState<'gestor' | 'cs' | 'admin' | null>(null);
-    const [debug, setDebug] = useState<{
-        authId?: string;
-        colabId?: string;
-        rawCount?: number;
-        roleCount?: number;
-        error?: string;
-    }>({});
 
     useEffect(() => {
         const fetchUserRoleAndClients = async () => {
@@ -36,7 +29,6 @@ export function MeusClientesCard() {
 
             try {
                 setLoading(true);
-                setDebug({ authId: user.id });
 
                 if (isAdmin || isMaster) {
                     setUserRole('admin');
@@ -66,7 +58,6 @@ export function MeusClientesCard() {
 
                 if (colabErr) console.error("Error fetching colab:", colabErr);
                 const colaboradorId = colaborador?.id;
-                setDebug(prev => ({ ...prev, colabId: colaboradorId }));
 
                 // 2. Fetch ALL active clients (using correct table columns)
                 const { data: allClients, error: clientsError } = await supabase
@@ -78,9 +69,6 @@ export function MeusClientesCard() {
                     console.error("Clients Fetch Error:", clientsError);
                     throw clientsError;
                 }
-
-                const rawFetched = allClients?.length || 0;
-                setDebug(prev => ({ ...prev, rawCount: rawFetched }));
 
                 // 3. Filter clients in memory
                 const idsToCheck = [user.id, colaboradorId]
@@ -108,9 +96,6 @@ export function MeusClientesCard() {
 
                 if (rolesError) console.error("Roles Fetch Error:", rolesError);
 
-                const roleResults = roleClients?.length || 0;
-                setDebug(prev => ({ ...prev, roleCount: roleResults }));
-
                 // 5. Merge and Unique
                 const allMyClients = [
                     ...directClients.map(c => ({
@@ -137,7 +122,6 @@ export function MeusClientesCard() {
 
             } catch (error: any) {
                 console.error("Erro ao carregar clientes:", error);
-                setDebug(prev => ({ ...prev, error: error.message }));
             } finally {
                 setLoading(false);
             }
@@ -171,14 +155,6 @@ export function MeusClientesCard() {
                             <p className="text-xs text-muted-foreground/60 max-w-[200px]">
                                 Você não possui clientes atribuídos ao seu usuário.
                             </p>
-                        </div>
-
-                        {/* Safe Debug UI */}
-                        <div className="mt-4 pt-4 border-t border-muted w-full text-[9px] text-muted-foreground/40 font-mono space-y-1">
-                            <p>UID: {debug.authId?.slice(0, 8)}...</p>
-                            <p>CID: {debug.colabId ? debug.colabId.slice(0, 8) + '...' : 'NONE'}</p>
-                            <p>Raw: {debug.rawCount ?? 0} | Role: {debug.roleCount ?? 0}</p>
-                            {debug.error && <p className="text-red-300">Err: {debug.error.slice(0, 30)}</p>}
                         </div>
                     </div>
                 </CardContent>
