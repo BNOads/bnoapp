@@ -18,6 +18,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ThemeSwitch from "@/components/ui/theme-switch";
 import { LancamentosAtivos } from "@/components/Dashboard/LancamentosAtivos";
+import { AtalhosRapidos } from "@/components/Dashboard/AtalhosRapidos";
+import { MeusClientesCard } from "@/components/Dashboard/MeusClientesCard";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -164,13 +166,13 @@ export function DashboardView() {
           data_conclusao: pa.data_conclusao
         }))
       }));
-      
+
       const formattedActivePdis = formatarPdis(pdisAtivos);
       const formattedCompletedPdis = formatarPdis(pdisCompletos);
-      
+
       setPdis(formattedActivePdis);
       setPdisFinalizados(formattedCompletedPdis);
-      
+
       // Combine all PDIs for unified view
       setAllPdis([...formattedActivePdis, ...formattedCompletedPdis]);
     } catch (error) {
@@ -184,13 +186,13 @@ export function DashboardView() {
       setLoadingPdis(false);
     }
   };
-  
+
   const carregarPdisEquipe = async () => {
     if (!isAdmin) {
       setLoadingPdisEquipe(false);
       return;
     }
-    
+
     try {
       setLoadingPdisEquipe(true);
 
@@ -214,7 +216,7 @@ export function DashboardView() {
 
       const formatarPdisEquipe = (data || []).map(pdi => {
         const totalAulas = (pdi.pdi_aulas?.length || 0) + (Array.isArray(pdi.aulas_externas) ? pdi.aulas_externas.length : 0);
-        const aulasConcluidas = (pdi.pdi_aulas?.filter((a: any) => a.concluida).length || 0) + 
+        const aulasConcluidas = (pdi.pdi_aulas?.filter((a: any) => a.concluida).length || 0) +
           (Array.isArray(pdi.aulas_externas) ? pdi.aulas_externas.filter((a: any) => a.concluida).length : 0);
         const progresso = totalAulas > 0 ? (aulasConcluidas / totalAulas) * 100 : 0;
 
@@ -246,7 +248,7 @@ export function DashboardView() {
       setLoadingPdisEquipe(false);
     }
   };
-  
+
   const carregarDesafioAtual = async () => {
     try {
       const { data, error } = await supabase
@@ -321,274 +323,192 @@ export function DashboardView() {
     );
   }
 
-    return <div className="space-y-6">
-      {/* Header Section */}
-      <div className={`${getCurrentColorClass()} rounded-xl p-6 text-white shadow-glow relative`}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-2xl lg:text-3xl font-bold mb-2 leading-tight">Bem-vindo à BNOads!</h2>
-            <p className="text-white/80 text-base lg:text-lg leading-relaxed">
-              Sua central de navegação e atalhos rápidos
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <ThemeSwitch className="scale-90" />
-            <div className="relative" ref={colorPickerRef}>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                className="text-white hover:bg-white/20 border border-white/20"
-              >
-                <Palette className="h-4 w-4 mr-2" />
-                Personalizar
-              </Button>
-              
-              {showColorPicker && (
-                <div className="absolute right-0 top-full mt-2 bg-popover rounded-lg shadow-lg border p-4 z-10 min-w-[280px]">
-                  <h3 className="text-sm font-medium text-foreground mb-3">Escolha uma cor:</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {colorOptions.map((color) => (
-                      <button
-                        key={color.id}
-                        onClick={() => handleColorChange(color.id)}
-                        className={`flex items-center gap-2 p-2 rounded-lg hover:bg-accent transition-colors ${
-                          selectedBgColor === color.id ? 'ring-2 ring-primary' : ''
-                        }`}
-                      >
-                        <div className={`w-6 h-6 rounded-full ${color.preview}`}></div>
-                        <span className="text-sm text-foreground">{color.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+  return <div className="space-y-6">
+    {/* Header Section */}
+    <div className={`${getCurrentColorClass()} rounded-xl p-6 text-white shadow-glow relative`}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-2xl lg:text-3xl font-bold mb-2 leading-tight">Bem-vindo à BNOads!</h2>
+          <p className="text-white/80 text-base lg:text-lg leading-relaxed">
+            Sua central de navegação e atalhos rápidos
+          </p>
         </div>
-        
-        <div className="flex flex-col sm:flex-row gap-3 mt-6">
-          <Button 
-            variant="secondary" 
-            size="sm" 
-            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')} 
-            className="flex-1 border border-white/20 bg-secondary text-secondary-foreground text-sm"
-          >
-            Preencher conversa franca
-          </Button>
-          <Button 
-            variant="secondary" 
-            size="sm" 
-            onClick={() => window.open('https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0cWtPyvaNzPZUaGIaDsYjDGshuYHKA_BhbvCN1YOWxny-lU4EfOpteOvNPjfzj8aBxfbP9baoo', '_blank')} 
-            className="flex-1 border border-white/20 bg-secondary text-secondary-foreground text-sm"
-          >
-            Marcar 1x1
-          </Button>
+        <div className="flex items-center gap-3">
+          <ThemeSwitch className="scale-90" />
+          <div className="relative" ref={colorPickerRef}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="text-white hover:bg-white/20 border border-white/20"
+            >
+              <Palette className="h-4 w-4 mr-2" />
+              Personalizar
+            </Button>
+
+            {showColorPicker && (
+              <div className="absolute right-0 top-full mt-2 bg-popover rounded-lg shadow-lg border p-4 z-10 min-w-[280px]">
+                <h3 className="text-sm font-medium text-foreground mb-3">Escolha uma cor:</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color.id}
+                      onClick={() => handleColorChange(color.id)}
+                      className={`flex items-center gap-2 p-2 rounded-lg hover:bg-accent transition-colors ${selectedBgColor === color.id ? 'ring-2 ring-primary' : ''
+                        }`}
+                    >
+                      <div className={`w-6 h-6 rounded-full ${color.preview}`}></div>
+                      <span className="text-sm text-foreground">{color.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Lançamentos Ativos Section - For Admin, Master and Traffic Managers */}
-      {(isAdmin || isMaster || canManageBudgets) && (
-        <section className="space-y-6">
-          <LancamentosAtivos />
-        </section>
-      )}
+      <div className="flex flex-col sm:flex-row gap-3 mt-6">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')}
+          className="flex-1 border border-white/20 bg-secondary text-secondary-foreground text-sm"
+        >
+          Preencher conversa franca
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => window.open('https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0cWtPyvaNzPZUaGIaDsYjDGshuYHKA_BhbvCN1YOWxny-lU4EfOpteOvNPjfzj8aBxfbP9baoo', '_blank')}
+          className="flex-1 border border-white/20 bg-secondary text-secondary-foreground text-sm"
+        >
+          Marcar 1x1
+        </Button>
+      </div>
+    </div>
 
-      {/* Desafio do Mês Section */}
-      <section className="space-y-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h3 className="text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
-              <Trophy className="h-6 w-6 flex-shrink-0 text-yellow-600" />
-              <span className="truncate">Desafio do Mês</span>
-            </h3>
-            <p className="text-muted-foreground mt-1">
-              Participe dos desafios e suba no ranking!
-            </p>
-          </div>
-          <Button
-            onClick={() => navigate('/gamificacao')}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            Ver Desafio Completo
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <Card>
-          <CardContent className="pt-6">
-            {desafioAtual ? (
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-lg mb-2">{desafioAtual.titulo}</h4>
-                    <p className="text-sm text-muted-foreground mb-3">{desafioAtual.descricao}</p>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {format(new Date(desafioAtual.data_inicio), "dd/MM", { locale: ptBR })} - {format(new Date(desafioAtual.data_fim), "dd/MM/yyyy", { locale: ptBR })}
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => setShowRegistrarAcao(true)}
-                    className="flex items-center gap-1 flex-shrink-0"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Registrar
-                  </Button>
-                </div>
-                <div className="border-t pt-3">
-                  <p className="text-xs text-muted-foreground mb-3">Top 3 no ranking:</p>
-                  <Top3Ranking />
-                </div>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-4">
-                Nenhum desafio ativo no momento
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Sidebar - Atalhos Rápidos (Desktop) */}
+      <aside className="hidden lg:block w-1/4 min-w-[250px] space-y-4">
+        <AtalhosRapidos variant="sidebar" />
+        <MeusClientesCard />
+      </aside>
 
-      {/* PDI Section */}
-      <section className="space-y-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h3 className="text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
-              <GraduationCap className="h-6 w-6 flex-shrink-0" />
-              <span className="truncate">Meus PDIs</span>
-            </h3>
-            <p className="text-muted-foreground mt-1">
-              Acompanhe seus Planos de Desenvolvimento Individual
-            </p>
-          </div>
-        </div>
-        
-        {/* Filter Buttons */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={pdiFilter === 'todos' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setPdiFilter('todos')}
-            className="flex items-center gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Todos
-          </Button>
-          <Button
-            variant={pdiFilter === 'ativos' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setPdiFilter('ativos')}
-            className="flex items-center gap-2"
-          >
-            <Clock className="h-4 w-4" />
-            Ativos
-          </Button>
-          <Button
-            variant={pdiFilter === 'finalizados' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setPdiFilter('finalizados')}
-            className="flex items-center gap-2"
-          >
-            <CheckCircle className="h-4 w-4" />
-            Finalizados
-          </Button>
+      {/* Main Content Area */}
+      <div className="flex-1 space-y-6">
+
+        {/* Atalhos Rápidos & Meus Clientes (Mobile Only) */}
+        <div className="space-y-6 lg:hidden">
+          <AtalhosRapidos variant="grid" />
+          <MeusClientesCard />
         </div>
 
-        {loadingPdis ? 
-          <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div> 
-        : pdis.length === 0 ? 
-          <Card className="p-8 text-center">
-            <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h4 className="text-lg font-semibold text-foreground mb-2">
-              Nenhum PDI encontrado
-            </h4>
-            <p className="text-muted-foreground">
-              Você não possui PDIs ativos no momento.
-            </p>
-          </Card> 
-        : (() => {
-            const filteredPdis = allPdis.filter(pdi => {
-              if (pdiFilter === 'ativos') return pdi.status === 'ativo';
-              if (pdiFilter === 'finalizados') return pdi.status === 'concluido';
-              return true; // todos
-            });
-            
-            return filteredPdis.length === 0 ? (
-              <Card className="p-8 text-center">
-                <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h4 className="text-lg font-semibold text-foreground mb-2">
-                  {pdiFilter === 'todos' ? 'Nenhum PDI encontrado' : 
-                   pdiFilter === 'ativos' ? 'Nenhum PDI ativo' : 
-                   'Nenhum PDI finalizado'}
-                </h4>
-                <p className="text-muted-foreground">
-                  {pdiFilter === 'todos' ? 'Você não possui PDIs no momento.' :
-                   pdiFilter === 'ativos' ? 'Você não possui PDIs ativos no momento.' :
-                   'Você ainda não finalizou nenhum PDI.'}
-                </p>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredPdis.map(pdi => (
-                  <PDICard 
-                    key={pdi.id} 
-                    pdi={pdi} 
-                    onViewDetails={handleViewPdiDetails} 
-                    isCompleted={pdi.status === 'concluido'}
-                  />
-                ))}
-              </div>
-            );
-          })()
-        }
-      </section>
+        {/* Lançamentos Ativos Section */}
+        {(isAdmin || isMaster || canManageBudgets) && (
+          <section className="space-y-6">
+            <LancamentosAtivos />
+          </section>
+        )}
 
-      {/* PDIs da Equipe Section - Apenas para Admins */}
-      {isAdmin && (
+        {/* Desafio do Mês Section */}
         <section className="space-y-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h3 className="text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
-                <Users className="h-6 w-6 flex-shrink-0" />
-                <span className="truncate">PDIs da Equipe</span>
+                <Trophy className="h-6 w-6 flex-shrink-0 text-yellow-600" />
+                <span className="truncate">Desafio do Mês</span>
               </h3>
               <p className="text-muted-foreground mt-1">
-                Acompanhe o desenvolvimento de todos os colaboradores
+                Participe dos desafios e suba no ranking!
+              </p>
+            </div>
+            <Button
+              onClick={() => navigate('/gamificacao')}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              Ver Desafio Completo
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6">
+              {desafioAtual ? (
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-lg mb-2">{desafioAtual.titulo}</h4>
+                      <p className="text-sm text-muted-foreground mb-3">{desafioAtual.descricao}</p>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          {format(new Date(desafioAtual.data_inicio), "dd/MM", { locale: ptBR })} - {format(new Date(desafioAtual.data_fim), "dd/MM/yyyy", { locale: ptBR })}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowRegistrarAcao(true)}
+                      className="flex items-center gap-1 flex-shrink-0"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Registrar
+                    </Button>
+                  </div>
+                  <div className="border-t pt-3">
+                    <p className="text-xs text-muted-foreground mb-3">Top 3 no ranking:</p>
+                    <Top3Ranking />
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">
+                  Nenhum desafio ativo no momento
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </section >
+
+        {/* PDI Section */}
+        < section className="space-y-6" >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h3 className="text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
+                <GraduationCap className="h-6 w-6 flex-shrink-0" />
+                <span className="truncate">Meus PDIs</span>
+              </h3>
+              <p className="text-muted-foreground mt-1">
+                Acompanhe seus Planos de Desenvolvimento Individual
               </p>
             </div>
           </div>
-          
+
           {/* Filter Buttons */}
           <div className="flex flex-wrap gap-2">
             <Button
-              variant={pdiEquipeFilter === 'todos' ? 'default' : 'outline'}
+              variant={pdiFilter === 'todos' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setPdiEquipeFilter('todos')}
+              onClick={() => setPdiFilter('todos')}
               className="flex items-center gap-2"
             >
               <Filter className="h-4 w-4" />
               Todos
             </Button>
             <Button
-              variant={pdiEquipeFilter === 'ativos' ? 'default' : 'outline'}
+              variant={pdiFilter === 'ativos' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setPdiEquipeFilter('ativos')}
+              onClick={() => setPdiFilter('ativos')}
               className="flex items-center gap-2"
             >
               <Clock className="h-4 w-4" />
               Ativos
             </Button>
             <Button
-              variant={pdiEquipeFilter === 'finalizados' ? 'default' : 'outline'}
+              variant={pdiFilter === 'finalizados' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setPdiEquipeFilter('finalizados')}
+              onClick={() => setPdiFilter('finalizados')}
               className="flex items-center gap-2"
             >
               <CheckCircle className="h-4 w-4" />
@@ -596,72 +516,176 @@ export function DashboardView() {
             </Button>
           </div>
 
-          {loadingPdisEquipe ? 
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div> 
-          : pdisEquipe.length === 0 ? 
-            <Card className="p-8 text-center">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h4 className="text-lg font-semibold text-foreground mb-2">
-                Nenhum PDI encontrado
-              </h4>
-              <p className="text-muted-foreground">
-                Não há PDIs criados para a equipe no momento.
-              </p>
-            </Card> 
-          : (() => {
-              const filteredPdisEquipe = pdisEquipe.filter(pdi => {
-                if (pdiEquipeFilter === 'ativos') return pdi.status !== 'concluido';
-                if (pdiEquipeFilter === 'finalizados') return pdi.status === 'concluido';
-                return true; // todos
-              });
-              
-              return filteredPdisEquipe.length === 0 ? (
+          {
+            loadingPdis ?
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+              : pdis.length === 0 ?
                 <Card className="p-8 text-center">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h4 className="text-lg font-semibold text-foreground mb-2">
-                    {pdiEquipeFilter === 'todos' ? 'Nenhum PDI encontrado' : 
-                     pdiEquipeFilter === 'ativos' ? 'Nenhum PDI ativo' : 
-                     'Nenhum PDI finalizado'}
+                    Nenhum PDI encontrado
                   </h4>
                   <p className="text-muted-foreground">
-                    {pdiEquipeFilter === 'todos' ? 'Não há PDIs criados no momento.' :
-                     pdiEquipeFilter === 'ativos' ? 'Não há PDIs ativos no momento.' :
-                     'Não há PDIs finalizados no momento.'}
+                    Você não possui PDIs ativos no momento.
                   </p>
                 </Card>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredPdisEquipe.map(pdi => (
-                    <PDIEquipeCard 
-                      key={pdi.id} 
-                      pdi={pdi}
-                    />
-                  ))}
-                </div>
-              );
-            })()
-          }
-        </section>
-      )}
+                : (() => {
+                  const filteredPdis = allPdis.filter(pdi => {
+                    if (pdiFilter === 'ativos') return pdi.status === 'ativo';
+                    if (pdiFilter === 'finalizados') return pdi.status === 'concluido';
+                    return true; // todos
+                  });
 
-      {/* View Only Badge */}
-      {!canCreateContent && <ViewOnlyBadge />}
-      
-      {desafioAtual && (
-        <RegistrarAcaoModal
-          open={showRegistrarAcao}
-          onOpenChange={(open) => {
-            setShowRegistrarAcao(open);
-            if (!open) carregarDesafioAtual();
-          }}
-          desafioId={desafioAtual.id}
-          onSuccess={() => {
-            carregarDesafioAtual();
-          }}
-        />
-      )}
-    </div>;
+                  return filteredPdis.length === 0 ? (
+                    <Card className="p-8 text-center">
+                      <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h4 className="text-lg font-semibold text-foreground mb-2">
+                        {pdiFilter === 'todos' ? 'Nenhum PDI encontrado' :
+                          pdiFilter === 'ativos' ? 'Nenhum PDI ativo' :
+                            'Nenhum PDI finalizado'}
+                      </h4>
+                      <p className="text-muted-foreground">
+                        {pdiFilter === 'todos' ? 'Você não possui PDIs no momento.' :
+                          pdiFilter === 'ativos' ? 'Você não possui PDIs ativos no momento.' :
+                            'Você ainda não finalizou nenhum PDI.'}
+                      </p>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                      {filteredPdis.map(pdi => (
+                        <PDICard
+                          key={pdi.id}
+                          pdi={pdi}
+                          onViewDetails={handleViewPdiDetails}
+                          isCompleted={pdi.status === 'concluido'}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()
+          }
+        </section >
+
+        {/* PDIs da Equipe Section - Apenas para Admins */}
+        {
+          isAdmin && (
+            <section className="space-y-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <h3 className="text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
+                    <Users className="h-6 w-6 flex-shrink-0" />
+                    <span className="truncate">PDIs da Equipe</span>
+                  </h3>
+                  <p className="text-muted-foreground mt-1">
+                    Acompanhe o desenvolvimento de todos os colaboradores
+                  </p>
+                </div>
+              </div>
+
+              {/* Filter Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={pdiEquipeFilter === 'todos' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPdiEquipeFilter('todos')}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  Todos
+                </Button>
+                <Button
+                  variant={pdiEquipeFilter === 'ativos' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPdiEquipeFilter('ativos')}
+                  className="flex items-center gap-2"
+                >
+                  <Clock className="h-4 w-4" />
+                  Ativos
+                </Button>
+                <Button
+                  variant={pdiEquipeFilter === 'finalizados' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPdiEquipeFilter('finalizados')}
+                  className="flex items-center gap-2"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Finalizados
+                </Button>
+              </div>
+
+              {loadingPdisEquipe ?
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+                : pdisEquipe.length === 0 ?
+                  <Card className="p-8 text-center">
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-foreground mb-2">
+                      Nenhum PDI encontrado
+                    </h4>
+                    <p className="text-muted-foreground">
+                      Não há PDIs criados para a equipe no momento.
+                    </p>
+                  </Card>
+                  : (() => {
+                    const filteredPdisEquipe = pdisEquipe.filter(pdi => {
+                      if (pdiEquipeFilter === 'ativos') return pdi.status !== 'concluido';
+                      if (pdiEquipeFilter === 'finalizados') return pdi.status === 'concluido';
+                      return true; // todos
+                    });
+
+                    return filteredPdisEquipe.length === 0 ? (
+                      <Card className="p-8 text-center">
+                        <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-foreground mb-2">
+                          {pdiEquipeFilter === 'todos' ? 'Nenhum PDI encontrado' :
+                            pdiEquipeFilter === 'ativos' ? 'Nenhum PDI ativo' :
+                              'Nenhum PDI finalizado'}
+                        </h4>
+                        <p className="text-muted-foreground">
+                          {pdiEquipeFilter === 'todos' ? 'Não há PDIs criados no momento.' :
+                            pdiEquipeFilter === 'ativos' ? 'Não há PDIs ativos no momento.' :
+                              'Não há PDIs finalizados no momento.'}
+                        </p>
+                      </Card>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {filteredPdisEquipe.map(pdi => (
+                          <PDIEquipeCard
+                            key={pdi.id}
+                            pdi={pdi}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()
+              }
+            </section>
+          )
+        }
+
+        {/* View Only Badge */}
+        {!canCreateContent && <ViewOnlyBadge />}
+
+        {
+          desafioAtual && (
+            <RegistrarAcaoModal
+              open={showRegistrarAcao}
+              onOpenChange={(open) => {
+                setShowRegistrarAcao(open);
+                if (!open) carregarDesafioAtual();
+              }}
+              desafioId={desafioAtual.id}
+              onSuccess={() => {
+                carregarDesafioAtual();
+              }}
+            />
+          )
+        }
+      </div>
+    </div>
+  </div>;
 }
 ;

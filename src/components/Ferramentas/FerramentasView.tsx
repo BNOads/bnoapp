@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { FileText, Palette, NotebookPen, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen } from "lucide-react";
+import { FileText, Palette, NotebookPen, DollarSign, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -25,12 +25,13 @@ interface Tool {
   icon: any;
   component: React.ReactNode;
   color: string;
+  comingSoon?: boolean;
 }
 
 // Componente de card draggable
 const SortableToolCard = ({ tool, onSelect, isEditMode }: { tool: Tool; onSelect: (id: string) => void; isEditMode: boolean }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tool.id });
-  
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -40,17 +41,32 @@ const SortableToolCard = ({ tool, onSelect, isEditMode }: { tool: Tool; onSelect
   const Icon = tool.icon;
 
   return (
-    <Card 
+    <Card
       ref={setNodeRef}
       style={style}
-      className={`cursor-pointer hover:shadow-lg transition-all duration-200 group ${!isEditMode && 'hover:scale-[1.02]'}`}
-      onClick={() => !isEditMode && onSelect(tool.id)}
+      className={`
+        relative duration-200 group
+        ${tool.comingSoon
+          ? 'cursor-not-allowed opacity-80 bg-muted/30 grayscale-[0.8]'
+          : `cursor-pointer hover:shadow-lg ${!isEditMode && 'hover:scale-[1.02]'}`
+        }
+      `}
+      onClick={() => !isEditMode && !tool.comingSoon && onSelect(tool.id)}
     >
+      {tool.comingSoon && (
+        <div className="absolute top-3 right-3 z-10">
+          <div className="bg-gray-100 text-gray-500 text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1 border border-gray-200">
+            <Clock className="w-3 h-3" />
+            Em Breve
+          </div>
+        </div>
+      )}
+
       <CardHeader className="pb-4">
         <div className="flex items-center gap-3 mb-2">
           {isEditMode && (
-            <div 
-              {...attributes} 
+            <div
+              {...attributes}
               {...listeners}
               className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
               onClick={(e) => e.stopPropagation()}
@@ -58,11 +74,11 @@ const SortableToolCard = ({ tool, onSelect, isEditMode }: { tool: Tool; onSelect
               <GripVertical className="h-5 w-5 text-muted-foreground" />
             </div>
           )}
-          <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-muted transition-colors">
-            <Icon className={`h-6 w-6 ${tool.color}`} />
+          <div className={`p-2 rounded-lg transition-colors ${tool.comingSoon ? 'bg-gray-100' : 'bg-muted/50 group-hover:bg-muted'}`}>
+            <Icon className={`h-6 w-6 ${tool.comingSoon ? 'text-gray-400' : tool.color}`} />
           </div>
         </div>
-        <CardTitle className="text-xl">{tool.title}</CardTitle>
+        <CardTitle className={`text-xl ${tool.comingSoon ? 'text-gray-500' : ''}`}>{tool.title}</CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-muted-foreground text-sm leading-relaxed">
@@ -102,18 +118,19 @@ export const FerramentasView = () => {
     {
       id: "referencias",
       title: "Referências",
-      description: "Gerencie documentos multimídia para referência da equipe criativa",
+      description: "Gerencie documentos multimédia para referência da equipe criativa",
       icon: Palette,
       component: null, // Redirecionamento para /referencias
       color: "text-purple-600"
     },
     {
-      id: "debriefings", 
+      id: "debriefings",
       title: "Debriefings",
       description: "Crie e analise relatórios detalhados de campanhas e resultados",
       icon: FileText,
       component: <DebriefingsView />,
-      color: "text-blue-600"
+      color: "text-gray-400",
+      comingSoon: true
     },
     {
       id: "notas",
@@ -177,7 +194,8 @@ export const FerramentasView = () => {
       description: "Acompanhe e gerencie a satisfação dos clientes com NPS",
       icon: BarChart3,
       component: null, // Redirecionamento para /nps
-      color: "text-pink-600"
+      color: "text-gray-400",
+      comingSoon: true
     },
     {
       id: "desafio",
@@ -186,6 +204,22 @@ export const FerramentasView = () => {
       icon: Trophy,
       component: null, // Redirecionamento para /gamificacao
       color: "text-yellow-600"
+    },
+    {
+      id: "assistente",
+      title: "Assistente IA",
+      description: "Assistente virtual para auxílio em tarefas e dúvidas",
+      icon: MessageCircle,
+      component: null, // Redirecionamento para /assistente
+      color: "text-rose-500"
+    },
+    {
+      id: "equipe",
+      title: "Equipe",
+      description: "Gerencie colaboradores e visualize a estrutura da equipe",
+      icon: Users,
+      component: null, // Redirecionamento para /colaboradores
+      color: "text-blue-600"
     },
   ];
 
@@ -229,26 +263,26 @@ export const FerramentasView = () => {
       if (data) {
         const positions = data.positions as Array<{ tool_key: string; index: number }>;
         const hidden = data.hidden as string[];
-        
+
         if (positions && positions.length > 0) {
           // Pegar IDs salvos
           const savedIds = positions.map(p => p.tool_key);
-          
+
           // Adicionar novos cards que não estavam salvos (como "desafio")
           const allToolIds = tools.map(t => t.id);
           const newTools = allToolIds.filter(id => !savedIds.includes(id));
-          
+
           // Criar ordem completa: salvos primeiro, depois novos
           const orderedIds = [
             ...positions.sort((a, b) => a.index - b.index).map(p => p.tool_key),
             ...newTools
           ];
-          
+
           setToolsOrder(orderedIds);
         } else {
           setToolsOrder(tools.map(t => t.id));
         }
-        
+
         setHiddenTools(hidden || []);
       } else {
         setToolsOrder(tools.map(t => t.id));
@@ -293,12 +327,12 @@ export const FerramentasView = () => {
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
-    
+
     if (!over || active.id === over.id) return;
 
     const oldIndex = toolsOrder.indexOf(active.id);
     const newIndex = toolsOrder.indexOf(over.id);
-    
+
     const newOrder = arrayMove(toolsOrder, oldIndex, newIndex);
     setToolsOrder(newOrder);
   };
@@ -307,7 +341,7 @@ export const FerramentasView = () => {
     const newHidden = hiddenTools.includes(toolId)
       ? hiddenTools.filter(id => id !== toolId)
       : [...hiddenTools, toolId];
-    
+
     setHiddenTools(newHidden);
   };
 
@@ -349,6 +383,16 @@ export const FerramentasView = () => {
       navigate('/arquivo-reuniao');
       return;
     }
+    // Redirecionamento para /assistente
+    if (toolId === 'assistente') {
+      navigate('/assistente');
+      return;
+    }
+    // Redirecionamento para /colaboradores (Equipe)
+    if (toolId === 'equipe') {
+      navigate('/colaboradores');
+      return;
+    }
     setSelectedTool(toolId);
     navigate(`/ferramentas/${toolId}`);
   };
@@ -365,8 +409,8 @@ export const FerramentasView = () => {
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button
-            variant="outline" 
-            size="sm" 
+            variant="outline"
+            size="sm"
             onClick={handleBackToTools}
             className="flex items-center gap-2"
           >
@@ -391,12 +435,14 @@ export const FerramentasView = () => {
   // Ordenar ferramentas de acordo com a ordem salva
   const orderedTools = toolsOrder.length > 0
     ? toolsOrder
-        .map(id => tools.find(t => t.id === id))
-        .filter((t): t is Tool => t !== undefined)
+      .map(id => tools.find(t => t.id === id))
+      .filter((t): t is Tool => t !== undefined)
     : tools;
 
-  // Filtrar ferramentas ocultas
-  const visibleTools = orderedTools.filter(t => !hiddenTools.includes(t.id));
+  // Filtrar ferramentas ocultas e separar ativas de "em breve"
+  const allVisibleTools = orderedTools.filter(t => !hiddenTools.includes(t.id));
+  const activeTools = allVisibleTools.filter(t => !t.comingSoon);
+  const comingSoonTools = allVisibleTools.filter(t => t.comingSoon);
 
   return (
     <div className="space-y-6">
@@ -407,7 +453,7 @@ export const FerramentasView = () => {
             Centro de ferramentas para produtividade e criação
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {isEditMode ? (
             <>
@@ -461,12 +507,12 @@ export const FerramentasView = () => {
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext items={visibleTools.map(t => t.id)} strategy={rectSortingStrategy}>
+        <SortableContext items={activeTools.map(t => t.id)} strategy={rectSortingStrategy}>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleTools.map((tool) => (
+            {activeTools.map((tool) => (
               <div key={tool.id} className="relative group">
-                <SortableToolCard 
-                  tool={tool} 
+                <SortableToolCard
+                  tool={tool}
                   onSelect={handleToolSelect}
                   isEditMode={isEditMode}
                 />
@@ -488,6 +534,25 @@ export const FerramentasView = () => {
           </div>
         </SortableContext>
       </DndContext>
+
+      {comingSoonTools.length > 0 && (
+        <div className="mt-12 pt-8 border-t">
+          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-muted-foreground">
+            <Clock className="h-5 w-5" />
+            Próximas Atualizações
+          </h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 opacity-60">
+            {comingSoonTools.map((tool) => (
+              <SortableToolCard
+                key={tool.id}
+                tool={tool}
+                onSelect={() => { }} // Disabled interaction
+                isEditMode={false} // Never editable in this section
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
