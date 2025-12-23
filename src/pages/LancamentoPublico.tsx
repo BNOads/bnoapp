@@ -39,7 +39,7 @@ interface DistribuicaoCanais {
 // Componente para exibir próximo evento com countdown
 const ProximoEventoCard = ({ lancamento }: { lancamento: any }) => {
   const [countdown, setCountdown] = useState({ dias: 0, horas: 0, minutos: 0, segundos: 0 });
-  
+
   // Determinar qual é o próximo evento importante
   const getProximoEvento = () => {
     const hoje = new Date();
@@ -63,13 +63,13 @@ const ProximoEventoCard = ({ lancamento }: { lancamento: any }) => {
         return { ...evento, status: 'futuro', dataEvento };
       }
     }
-    
+
     // Se não há eventos futuros, retornar o último evento (lançamento finalizado)
     if (eventos.length > 0) {
       const ultimoEvento = eventos[eventos.length - 1];
       return { ...ultimoEvento, status: 'passado', dataEvento: parseISO(ultimoEvento.data) };
     }
-    
+
     return null;
   };
 
@@ -81,7 +81,7 @@ const ProximoEventoCard = ({ lancamento }: { lancamento: any }) => {
     const calcularCountdown = () => {
       const agora = new Date();
       const diff = proximoEvento.dataEvento.getTime() - agora.getTime();
-      
+
       if (diff <= 0) {
         setCountdown({ dias: 0, horas: 0, minutos: 0, segundos: 0 });
         return;
@@ -196,12 +196,11 @@ export default function LancamentoPublico() {
   const carregarDados = async () => {
     try {
       const publicSupabase = createPublicSupabaseClient();
-      
+
       const { data: lancData, error: lancError } = await publicSupabase
         .from('lancamentos')
         .select('*, clientes(nome, whatsapp_grupo_url), colaboradores!lancamentos_gestor_responsavel_id_fkey(nome)')
         .eq('link_publico', linkPublico)
-        .eq('link_publico_ativo', true)
         .maybeSingle();
 
       if (lancError) throw lancError;
@@ -210,19 +209,19 @@ export default function LancamentoPublico() {
         setCliente(null);
         return;
       }
-      
+
       setLancamento(lancData);
       setCliente(lancData?.clientes);
-      
+
       const verbaData = lancData?.verba_por_fase;
       const processedVerbas = calcularVerbas(lancData, verbaData);
       setVerbas(processedVerbas);
-      
+
       const canaisData = lancData?.distribuicao_canais;
       if (canaisData && typeof canaisData === 'object' && !Array.isArray(canaisData)) {
         setCanais(canaisData as unknown as DistribuicaoCanais);
       }
-      
+
       // Carregar links úteis
       if (lancData?.id) {
         const { data: linksData } = await publicSupabase
@@ -248,13 +247,13 @@ export default function LancamentoPublico() {
     const baseVerbas: VerbaFase = verbaData && typeof verbaData === 'object' && !Array.isArray(verbaData)
       ? (verbaData as unknown as VerbaFase)
       : {
-          captacao: { percentual: 40, dias: 0 },
-          aquecimento: { percentual: 10, dias: 0 },
-          evento: { percentual: 30, dias: 0 },
-          lembrete: { percentual: 10, dias: 0 },
-          impulsionar: { percentual: 5, dias: 0 },
-          venda: { percentual: 5, dias: 0 }
-        };
+        captacao: { percentual: 40, dias: 0 },
+        aquecimento: { percentual: 10, dias: 0 },
+        evento: { percentual: 30, dias: 0 },
+        lembrete: { percentual: 10, dias: 0 },
+        impulsionar: { percentual: 5, dias: 0 },
+        venda: { percentual: 5, dias: 0 }
+      };
 
     if (lanc) {
       if (baseVerbas.captacao) {
@@ -282,12 +281,12 @@ export default function LancamentoPublico() {
 
   const handleSaveVerbas = async () => {
     if (!lancamento || !user) return;
-    
+
     setSaving(true);
     try {
       const { error } = await supabase
         .from('lancamentos')
-        .update({ 
+        .update({
           verba_por_fase: verbas as any,
           distribuicao_canais: canais as any
         })
@@ -295,10 +294,10 @@ export default function LancamentoPublico() {
 
       if (error) throw error;
 
-      setLancamento((prev: any) => ({ 
-        ...prev, 
+      setLancamento((prev: any) => ({
+        ...prev,
         verba_por_fase: verbas,
-        distribuicao_canais: canais 
+        distribuicao_canais: canais
       }));
       setEditingVerbas(false);
       toast.success('Distribuição de verba atualizada!');
@@ -428,7 +427,7 @@ export default function LancamentoPublico() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
             </Button>
-            
+
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1">
                 <h1 className="text-3xl sm:text-4xl font-bold mb-2">{lancamento.nome_lancamento}</h1>
@@ -436,7 +435,7 @@ export default function LancamentoPublico() {
                   <p className="text-lg text-muted-foreground">{cliente.nome}</p>
                 )}
               </div>
-              
+
               <div className="flex flex-col gap-2">
                 <Badge className={`${getStatusColor(lancamento.status_lancamento)} text-white w-fit`}>
                   {getStatusLabel(lancamento.status_lancamento)}
@@ -771,7 +770,7 @@ export default function LancamentoPublico() {
                         const dias = verbas[fase]?.dias || 0;
                         const investimentoTotal = lancamento.investimento_total * percentual / 100;
                         const investimentoDiario = dias > 0 ? investimentoTotal / dias : 0;
-                        
+
                         return (
                           <TableRow key={fase}>
                             <TableCell className="font-medium">{nome}</TableCell>
@@ -786,8 +785,8 @@ export default function LancamentoPublico() {
                                     min={0}
                                     max={100}
                                   />
-                                  <div 
-                                    className="h-2 rounded-full" 
+                                  <div
+                                    className="h-2 rounded-full"
                                     style={{
                                       width: '60px',
                                       background: `linear-gradient(90deg, ${fasesCores[fase]} ${percentual}%, #E5E7EB ${percentual}%)`
@@ -797,8 +796,8 @@ export default function LancamentoPublico() {
                               ) : (
                                 <div className="flex items-center gap-2">
                                   <span>{percentual}%</span>
-                                  <div 
-                                    className="h-2 rounded-full" 
+                                  <div
+                                    className="h-2 rounded-full"
                                     style={{
                                       width: '60px',
                                       background: `linear-gradient(90deg, ${fasesCores[fase]} ${percentual}%, #E5E7EB ${percentual}%)`
@@ -848,7 +847,7 @@ export default function LancamentoPublico() {
                         const percentual = canais[canal]?.percentual || 0;
                         const valorTotal = lancamento.investimento_total * percentual / 100;
                         const valorDiario = diasTotalCampanha > 0 ? valorTotal / diasTotalCampanha : 0;
-                        
+
                         return (
                           <TableRow key={canal}>
                             <TableCell className="font-medium">{nome}</TableCell>
@@ -863,8 +862,8 @@ export default function LancamentoPublico() {
                                     min={0}
                                     max={100}
                                   />
-                                  <div 
-                                    className="h-2 rounded-full" 
+                                  <div
+                                    className="h-2 rounded-full"
                                     style={{
                                       width: '60px',
                                       background: `linear-gradient(90deg, ${canaisCores[canal]} ${percentual}%, #E5E7EB ${percentual}%)`
@@ -874,8 +873,8 @@ export default function LancamentoPublico() {
                               ) : (
                                 <div className="flex items-center gap-2">
                                   <span>{percentual}%</span>
-                                  <div 
-                                    className="h-2 rounded-full" 
+                                  <div
+                                    className="h-2 rounded-full"
                                     style={{
                                       width: '60px',
                                       background: `linear-gradient(90deg, ${canaisCores[canal]} ${percentual}%, #E5E7EB ${percentual}%)`
@@ -934,8 +933,8 @@ export default function LancamentoPublico() {
           {cliente?.whatsapp_grupo_url && (
             <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20">
               <CardContent className="pt-6">
-                <Button 
-                  asChild 
+                <Button
+                  asChild
                   className="w-full bg-green-600 hover:bg-green-700"
                   size="lg"
                 >
