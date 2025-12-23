@@ -144,11 +144,7 @@ function App() {
                     <LancamentosPage />
                   </ProtectedRoute>
                 } />
-                <Route path="/lancamentos/:id" element={
-                  <ProtectedRoute>
-                    <LancamentoDetalhes />
-                  </ProtectedRoute>
-                } />
+                <Route path="/lancamentos/:id" element={<LancamentoDetalhes />} />
                 <Route path="/assistente" element={
                   <ProtectedRoute>
                     <AssistentePage />
