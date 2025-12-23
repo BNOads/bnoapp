@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle, ChevronDown } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle, ChevronDown, MoreHorizontal } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
@@ -97,6 +97,44 @@ export const ClientesView = () => {
   const [clientesSelecionados, setClientesSelecionados] = useState<string[]>([]);
   const [sortField, setSortField] = useState<string>('nome');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Definição das colunas configuráveis
+  const columnDefinitions = [
+    { id: 'categoria', label: 'Categoria', default: true },
+    { id: 'serie', label: 'Série', default: true },
+    { id: 'situacao_cliente', label: 'Situação do Cliente', default: true },
+    { id: 'etapa_onboarding', label: 'Etapa Onboarding', default: true },
+    { id: 'etapa_trafego', label: 'Etapas de Tráfego', default: true },
+    { id: 'gestor', label: 'Gestor', default: true },
+    { id: 'cs', label: 'CS', default: true },
+  ];
+
+  // Estado para colunas visíveis (carrega do localStorage)
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('clientes_visible_columns');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return columnDefinitions.filter(c => c.default).map(c => c.id);
+      }
+    }
+    return columnDefinitions.filter(c => c.default).map(c => c.id);
+  });
+
+  // Persistir preferências de colunas no localStorage
+  const toggleColumn = (columnId: string) => {
+    setVisibleColumns(prev => {
+      const newColumns = prev.includes(columnId)
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId];
+      localStorage.setItem('clientes_visible_columns', JSON.stringify(newColumns));
+      return newColumns;
+    });
+  };
+
+  const isColumnVisible = (columnId: string) => visibleColumns.includes(columnId);
+
   const {
     toast
   } = useToast();
@@ -244,7 +282,7 @@ export const ClientesView = () => {
     });
     setDeleteModalOpen(true);
   };
-  
+
   const handleDeleteSuccess = () => {
     setDeleteModalOpen(false);
     setClienteToDelete(null);
@@ -390,47 +428,102 @@ export const ClientesView = () => {
       });
     }
   };
+
+  // Opções para Situação do Cliente
+  const situacaoClienteOptions = [
+    { value: 'nao_iniciado', label: 'Não Iniciado', color: 'bg-gray-500' },
+    { value: 'alerta', label: 'Alerta', color: 'bg-red-500' },
+    { value: 'ponto_de_atencao', label: 'Ponto de Atenção', color: 'bg-yellow-500' },
+    { value: 'resultados_normais', label: 'Resultados Normais', color: 'bg-blue-500' },
+    { value: 'indo_bem', label: 'Indo bem', color: 'bg-green-500' },
+  ];
+
+  // Opções para Etapa Onboarding
+  const etapaOnboardingOptions = [
+    { value: 'onboarding', label: 'Onboarding', color: 'bg-orange-500' },
+    { value: 'ongoing', label: 'Ongoing', color: 'bg-green-500' },
+    { value: 'pausa_temporaria', label: 'Pausa Temporária', color: 'bg-red-500' },
+  ];
+
+  // Opções para Etapas de Tráfego
+  const etapaTrafegoOptions = [
+    { value: 'estrategia', label: 'Estratégia', color: 'bg-gray-500' },
+    { value: 'distribuicao_criativos', label: 'Distribuição de Criativos', color: 'bg-blue-500' },
+    { value: 'conversao_iniciada', label: 'Conversão Iniciada', color: 'bg-yellow-500' },
+    { value: 'voo_de_cruzeiro', label: 'Voo de Cruzeiro', color: 'bg-green-500' },
+    { value: 'campanhas_pausadas', label: 'Campanhas Pausadas', color: 'bg-red-500' },
+  ];
+
+  const getStatusOption = (options: typeof situacaoClienteOptions, value: string | null) => {
+    return options.find(o => o.value === value) || options[0];
+  };
+
+  // Função genérica para atualizar status do cliente
+  const handleStatusChange = async (clienteId: string, field: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('clientes')
+        .update({ [field]: value } as any)
+        .eq('id', clienteId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Status atualizado",
+        description: "O status do cliente foi atualizado com sucesso.",
+      });
+
+      carregarClientes();
+    } catch (error: any) {
+      console.error('Erro ao atualizar status:', error);
+      toast({
+        title: "Erro ao atualizar status",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
   return <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-        <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Clientes</h2>
-          <p className="text-muted-foreground mt-1 text-sm lg:text-base">
-            Gerencie painéis, alocações e acompanhe o acesso dos clientes
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:space-x-2">
-          {canCreateContent && <>
-              <Button variant="outline" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => window.open('https://forms.clickup.com/36694061/f/12zu1d-44913/5SA3APCY8WF3WVCL8N', '_blank')}>
-                <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                <span className="hidden sm:inline">Criar Novo Cliente</span>
-                <span className="sm:hidden">Novo Cliente</span>
-              </Button>
-              <Button variant="hero" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => setModalOpen(true)}>
-                <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Novo Painel
-              </Button>
-            </>}
-        </div>
+    {/* Header */}
+    <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+      <div>
+        <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Clientes</h2>
+        <p className="text-muted-foreground mt-1 text-sm lg:text-base">
+          Gerencie painéis, alocações e acompanhe o acesso dos clientes
+        </p>
       </div>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:space-x-2">
+        {canCreateContent && <>
+          <Button variant="outline" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => window.open('https://forms.clickup.com/36694061/f/12zu1d-44913/5SA3APCY8WF3WVCL8N', '_blank')}>
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+            <span className="hidden sm:inline">Criar Novo Cliente</span>
+            <span className="sm:hidden">Novo Cliente</span>
+          </Button>
+          <Button variant="hero" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => setModalOpen(true)}>
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+            Novo Painel
+          </Button>
+        </>}
+      </div>
+    </div>
 
-      {/* Indicator para usuários não-admin */}
-      {!canCreateContent && <ViewOnlyBadge />}
+    {/* Indicator para usuários não-admin */}
+    {!canCreateContent && <ViewOnlyBadge />}
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'ativos' | 'desativados')} className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="ativos">
-            Ativos
-          </TabsTrigger>
-          <TabsTrigger value="desativados" className="data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive">
-            Desativados {clientes.length > 0 && activeTab === 'desativados' && (
-              <Badge className="ml-2 bg-destructive text-destructive-foreground">{clientes.length}</Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
+    {/* Tabs */}
+    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'ativos' | 'desativados')} className="space-y-6">
+      <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsTrigger value="ativos">
+          Ativos
+        </TabsTrigger>
+        <TabsTrigger value="desativados" className="data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive">
+          Desativados {clientes.length > 0 && activeTab === 'desativados' && (
+            <Badge className="ml-2 bg-destructive text-destructive-foreground">{clientes.length}</Badge>
+          )}
+        </TabsTrigger>
+      </TabsList>
 
-        <TabsContent value={activeTab} className="space-y-6">
+      <TabsContent value={activeTab} className="space-y-6">
 
         <div className="space-y-6">
           {/* Search and Filters */}
@@ -439,7 +532,7 @@ export const ClientesView = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar clientes por nome, série ou categoria..." className="pl-10 bg-background border-border" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-2">
               <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]">
@@ -476,336 +569,510 @@ export const ClientesView = () => {
             </div>
           </div>
 
-      {/* Tabela de Clientes */}
-      <Card className={`bg-card border shadow-card ${activeTab === 'desativados' ? 'border-destructive/30' : 'border-border'}`}>
-        <div className={`p-6 border-b ${activeTab === 'desativados' ? 'bg-destructive/5 border-destructive/30' : 'border-border'}`}>
-          <div className="flex items-center justify-between">
-            <h3 className={`text-lg font-semibold ${activeTab === 'desativados' ? 'text-destructive' : 'text-foreground'}`}>
-              {activeTab === 'ativos' ? 'Clientes Ativos' : 'Clientes Desativados'} ({sortedAndFilteredClientes.length})
-            </h3>
-            {clientesSelecionados.length > 0 && canCreateContent && <Button onClick={() => setEdicaoMassaModalOpen(true)} variant="outline" size="sm">
-                <EditIcon className="h-4 w-4 mr-2" />
-                Editar {clientesSelecionados.length} selecionado(s)
-              </Button>}
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          {loading ? <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div> : sortedAndFilteredClientes.length === 0 ? <div className="text-center py-8">
-              <p className="text-muted-foreground">
-                {clientes.length === 0 ? "Nenhum cliente encontrado." : "Nenhum cliente corresponde aos filtros aplicados."}
-              </p>
-              {clientes.length === 0 && canCreateContent && <Button onClick={() => setModalOpen(true)} className="mt-4">
+          {/* Tabela de Clientes */}
+          <Card className={`bg-card border shadow-card ${activeTab === 'desativados' ? 'border-destructive/30' : 'border-border'}`}>
+            <div className={`p-6 border-b ${activeTab === 'desativados' ? 'bg-destructive/5 border-destructive/30' : 'border-border'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className={`text-lg font-semibold ${activeTab === 'desativados' ? 'text-destructive' : 'text-foreground'}`}>
+                    {activeTab === 'ativos' ? 'Clientes Ativos' : 'Clientes Desativados'} ({sortedAndFilteredClientes.length})
+                  </h3>
+                  {/* Dropdown de configuração de colunas */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Configurar colunas visíveis">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                      <div className="px-2 py-1.5 text-sm font-semibold">Colunas Visíveis</div>
+                      {columnDefinitions.map((column) => (
+                        <DropdownMenuItem
+                          key={column.id}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            toggleColumn(column.id);
+                          }}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={isColumnVisible(column.id)}
+                            onCheckedChange={() => toggleColumn(column.id)}
+                          />
+                          <span>{column.label}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                {clientesSelecionados.length > 0 && canCreateContent && <Button onClick={() => setEdicaoMassaModalOpen(true)} variant="outline" size="sm">
+                  <EditIcon className="h-4 w-4 mr-2" />
+                  Editar {clientesSelecionados.length} selecionado(s)
+                </Button>}
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              {loading ? <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div> : sortedAndFilteredClientes.length === 0 ? <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  {clientes.length === 0 ? "Nenhum cliente encontrado." : "Nenhum cliente corresponde aos filtros aplicados."}
+                </p>
+                {clientes.length === 0 && canCreateContent && <Button onClick={() => setModalOpen(true)} className="mt-4">
                   Criar Primeiro Painel
                 </Button>}
-              {clientes.length > 0 && <Button onClick={limparFiltros} variant="outline" className="mt-4">
+                {clientes.length > 0 && <Button onClick={limparFiltros} variant="outline" className="mt-4">
                   Limpar Filtros
                 </Button>}
-            </div> : <Table>
-              <TableHeader>
-                <TableRow>
-                     {canCreateContent && activeTab === 'ativos' && <TableHead className="w-12">
+              </div> : <Table>
+                <TableHeader>
+                  <TableRow>
+                    {canCreateContent && activeTab === 'ativos' && <TableHead className="w-12">
                       <Checkbox checked={clientesSelecionados.length === sortedAndFilteredClientes.length} onCheckedChange={toggleSelectAll} />
                     </TableHead>}
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('nome')}>
-                    <div className="flex items-center">
-                      Cliente
-                      <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('categoria')}>
-                    <div className="flex items-center">
-                      Categoria
-                      <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('serie')}>
-                    <div className="flex items-center">
-                      Série
-                      <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                   <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('gestor')}>
-                     <div className="flex items-center justify-center">
-                       Gestor
-                       <ArrowUpDown className="ml-2 h-4 w-4" />
-                     </div>
-                   </TableHead>
-                   <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('cs')}>
-                     <div className="flex items-center justify-center">
-                       CS
-                       <ArrowUpDown className="ml-2 h-4 w-4" />
-                     </div>
-                   </TableHead>
-                   <TableHead className="text-center">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedAndFilteredClientes.map(cliente => <TableRow key={cliente.id} className={`hover:bg-muted/50 ${activeTab === 'desativados' ? 'opacity-70' : ''}`}>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('nome')}>
+                      <div className="flex items-center">
+                        Cliente
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </div>
+                    </TableHead>
+                    {isColumnVisible('categoria') && <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('categoria')}>
+                      <div className="flex items-center">
+                        Categoria
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </div>
+                    </TableHead>}
+                    {isColumnVisible('serie') && <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('serie')}>
+                      <div className="flex items-center">
+                        Série
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </div>
+                    </TableHead>}
+                    {isColumnVisible('situacao_cliente') && <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('situacao_cliente')}>
+                      <div className="flex items-center justify-center">
+                        Situação
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </div>
+                    </TableHead>}
+                    {isColumnVisible('etapa_onboarding') && <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('etapa_onboarding')}>
+                      <div className="flex items-center justify-center">
+                        Onboarding
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </div>
+                    </TableHead>}
+                    {isColumnVisible('etapa_trafego') && <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('etapa_trafego')}>
+                      <div className="flex items-center justify-center">
+                        Tráfego
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </div>
+                    </TableHead>}
+                    {isColumnVisible('gestor') && <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('gestor')}>
+                      <div className="flex items-center justify-center">
+                        Gestor
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </div>
+                    </TableHead>}
+                    {isColumnVisible('cs') && <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('cs')}>
+                      <div className="flex items-center justify-center">
+                        CS
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </div>
+                    </TableHead>}
+                    <TableHead className="text-center">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedAndFilteredClientes.map(cliente => <TableRow key={cliente.id} className={`hover:bg-muted/50 ${activeTab === 'desativados' ? 'opacity-70' : ''}`}>
                     {canCreateContent && activeTab === 'ativos' && <TableCell>
-                        <Checkbox checked={clientesSelecionados.includes(cliente.id)} onCheckedChange={() => toggleClienteSelection(cliente.id)} />
-                      </TableCell>}
-                     <TableCell>
+                      <Checkbox checked={clientesSelecionados.includes(cliente.id)} onCheckedChange={() => toggleClienteSelection(cliente.id)} />
+                    </TableCell>}
+                    <TableCell>
                       <div>
                         <div className="flex items-center gap-2">
                           <a href={`/painel/${cliente.id}`} onClick={e => {
-                          // Se não for ctrl+click nem cmd+click, prevenir o comportamento padrão e navegar programaticamente
-                          if (!e.ctrlKey && !e.metaKey) {
-                            e.preventDefault();
-                            navigate(`/painel/${cliente.id}`, {
-                              state: {
-                                from: '/?tab=clientes'
-                              }
-                            });
-                          }
-                          // Para ctrl+click ou cmd+click, deixar o comportamento padrão do navegador
-                        }} className="font-medium text-foreground hover:text-primary transition-colors">
+                            // Se não for ctrl+click nem cmd+click, prevenir o comportamento padrão e navegar programaticamente
+                            if (!e.ctrlKey && !e.metaKey) {
+                              e.preventDefault();
+                              navigate(`/painel/${cliente.id}`, {
+                                state: {
+                                  from: '/?tab=clientes'
+                                }
+                              });
+                            }
+                            // Para ctrl+click ou cmd+click, deixar o comportamento padrão do navegador
+                          }} className="font-medium text-foreground hover:text-primary transition-colors">
                             {cliente.nome}
                           </a>
-                          
+
                           {/* Ícone de Catálogo de Criativos ao lado do nome */}
-                          
+
                         </div>
                         {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && <div className="flex flex-wrap gap-1 mt-1">
-                            {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => <Badge key={index} variant="outline" className="text-xs">
-                                {funil}
-                              </Badge>)}
-                            {cliente.funis_trabalhando.length > 2 && <Badge variant="outline" className="text-xs">
-                                +{cliente.funis_trabalhando.length - 2}
-                              </Badge>}
-                          </div>}
+                          {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => <Badge key={index} variant="outline" className="text-xs">
+                            {funil}
+                          </Badge>)}
+                          {cliente.funis_trabalhando.length > 2 && <Badge variant="outline" className="text-xs">
+                            +{cliente.funis_trabalhando.length - 2}
+                          </Badge>}
+                        </div>}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    {isColumnVisible('categoria') && <TableCell>
                       <Badge variant="outline" className={`text-xs ${cliente.categoria === 'negocio_local' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}>
                         {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
                       </Badge>
-                    </TableCell>
-                     <TableCell>
-                       {canCreateContent && activeTab === 'ativos' ? (
-                         <DropdownMenu>
-                           <DropdownMenuTrigger asChild>
-                             <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                               <Badge className={`${getSerieColor(cliente.serie || 'Serie A')} text-xs cursor-pointer hover:opacity-80 flex items-center gap-1`}>
-                                 {cliente.serie || 'Serie A'}
-                                 <ChevronDown className="h-3 w-3" />
-                               </Badge>
-                             </Button>
-                           </DropdownMenuTrigger>
-                           <DropdownMenuContent align="start" className="bg-background">
-                             {series.map((serie) => (
-                               <DropdownMenuItem
-                                 key={serie}
-                                 onClick={() => handleSerieChange(cliente.id, serie)}
-                                 className={cliente.serie === serie ? 'bg-muted' : ''}
-                               >
-                                 <Badge className={`${getSerieColor(serie)} text-xs w-full justify-center`}>
-                                   {serie}
-                                 </Badge>
-                               </DropdownMenuItem>
-                             ))}
-                           </DropdownMenuContent>
-                         </DropdownMenu>
-                       ) : (
-                         cliente.serie ? (
-                           <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
-                             {cliente.serie}
-                           </Badge>
-                         ) : (
-                           <span className="text-xs text-muted-foreground">-</span>
-                         )
-                       )}
-                     </TableCell>
-                     
-                     {/* Gestor Column */}
-                     <TableCell className="text-center">
-                       {cliente.primary_gestor ? <div className="flex justify-center">
-                           <Avatar className="h-8 w-8 cursor-pointer hover:opacity-80" onClick={() => {
-                        setClienteTeam({
-                          id: cliente.id,
-                          nome: cliente.nome
-                        });
-                        setTeamModalOpen(true);
-                      }}>
-                             <AvatarImage src={cliente.primary_gestor.avatar_url} />
-                             <AvatarFallback className="text-xs">
-                               {cliente.primary_gestor.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                             </AvatarFallback>
-                           </Avatar>
-                         </div> : <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" onClick={() => {
-                      setClienteTeam({
-                        id: cliente.id,
-                        nome: cliente.nome
-                      });
-                      setTeamModalOpen(true);
-                    }}>
-                           <Users className="h-4 w-4" />
-                         </Button>}
-                     </TableCell>
+                    </TableCell>}
+                    {isColumnVisible('serie') && <TableCell>
+                      {canCreateContent && activeTab === 'ativos' ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                              <Badge className={`${getSerieColor(cliente.serie || 'Serie A')} text-xs cursor-pointer hover:opacity-80 flex items-center gap-1`}>
+                                {cliente.serie || 'Serie A'}
+                                <ChevronDown className="h-3 w-3" />
+                              </Badge>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="bg-background">
+                            {series.map((serie) => (
+                              <DropdownMenuItem
+                                key={serie}
+                                onClick={() => handleSerieChange(cliente.id, serie)}
+                                className={cliente.serie === serie ? 'bg-muted' : ''}
+                              >
+                                <Badge className={`${getSerieColor(serie)} text-xs w-full justify-center`}>
+                                  {serie}
+                                </Badge>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        cliente.serie ? (
+                          <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
+                            {cliente.serie}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )
+                      )}
+                    </TableCell>}
 
-                     {/* CS Column */}
-                     <TableCell className="text-center">
-                       {(() => {
-                      const csTeam = cliente.client_roles?.filter(cr => cr.role === 'cs') || [];
-                      const primaryCs = cliente.primary_cs;
-                      if (primaryCs) {
-                        return <div className="flex justify-center items-center gap-1">
-                               <Avatar className="h-8 w-8 cursor-pointer hover:opacity-80" onClick={() => {
-                            setClienteTeam({
-                              id: cliente.id,
-                              nome: cliente.nome
-                            });
-                            setTeamModalOpen(true);
-                          }}>
-                                 <AvatarImage src={primaryCs.avatar_url} />
-                                 <AvatarFallback className="text-xs">
-                                   {primaryCs.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                                 </AvatarFallback>
-                               </Avatar>
-                               {csTeam.length > 1 && <Badge variant="secondary" className="text-xs px-1 h-5">
-                                   +{csTeam.length - 1}
-                                 </Badge>}
-                             </div>;
-                      } else {
-                        return <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" onClick={() => {
+                    {/* Situação do Cliente Column */}
+                    {isColumnVisible('situacao_cliente') && <TableCell className="text-center">
+                      {canCreateContent && activeTab === 'ativos' ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                              <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-xs cursor-pointer hover:opacity-80 flex items-center gap-1`}>
+                                {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
+                                <ChevronDown className="h-3 w-3" />
+                              </Badge>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="bg-background">
+                            {situacaoClienteOptions.map((option) => (
+                              <DropdownMenuItem
+                                key={option.value}
+                                onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.value)}
+                                className={cliente.situacao_cliente === option.value ? 'bg-muted' : ''}
+                              >
+                                <Badge className={`${option.color} text-white text-xs w-full justify-center`}>
+                                  {option.label}
+                                </Badge>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-xs`}>
+                          {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
+                        </Badge>
+                      )}
+                    </TableCell>}
+
+                    {/* Etapa Onboarding Column */}
+                    {isColumnVisible('etapa_onboarding') && <TableCell className="text-center">
+                      {canCreateContent && activeTab === 'ativos' ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                              <Badge className={`${getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).color} text-white text-xs cursor-pointer hover:opacity-80 flex items-center gap-1`}>
+                                {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
+                                <ChevronDown className="h-3 w-3" />
+                              </Badge>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="bg-background">
+                            {etapaOnboardingOptions.map((option) => (
+                              <DropdownMenuItem
+                                key={option.value}
+                                onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.value)}
+                                className={cliente.etapa_onboarding === option.value ? 'bg-muted' : ''}
+                              >
+                                <Badge className={`${option.color} text-white text-xs w-full justify-center`}>
+                                  {option.label}
+                                </Badge>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <Badge className={`${getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).color} text-white text-xs`}>
+                          {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
+                        </Badge>
+                      )}
+                    </TableCell>}
+
+                    {/* Etapa Tráfego Column */}
+                    {isColumnVisible('etapa_trafego') && <TableCell className="text-center">
+                      {canCreateContent && activeTab === 'ativos' ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                              <Badge className={`${getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).color} text-white text-xs cursor-pointer hover:opacity-80 flex items-center gap-1`}>
+                                {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
+                                <ChevronDown className="h-3 w-3" />
+                              </Badge>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="bg-background">
+                            {etapaTrafegoOptions.map((option) => (
+                              <DropdownMenuItem
+                                key={option.value}
+                                onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.value)}
+                                className={cliente.etapa_trafego === option.value ? 'bg-muted' : ''}
+                              >
+                                <Badge className={`${option.color} text-white text-xs w-full justify-center`}>
+                                  {option.label}
+                                </Badge>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <Badge className={`${getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).color} text-white text-xs`}>
+                          {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
+                        </Badge>
+                      )}
+                    </TableCell>}
+
+                    {/* Gestor Column */}
+                    {isColumnVisible('gestor') && <TableCell className="text-center">
+                      {cliente.primary_gestor ? <div className="flex justify-center">
+                        <Avatar className="h-8 w-8 cursor-pointer hover:opacity-80" onClick={() => {
                           setClienteTeam({
                             id: cliente.id,
                             nome: cliente.nome
                           });
                           setTeamModalOpen(true);
                         }}>
-                               <Users className="h-4 w-4" />
-                             </Button>;
-                      }
-                    })()}
-                     </TableCell>
-                     
-                       <TableCell>
-                       <div className="flex items-center justify-center space-x-1">
-                          
-                         {/* Ações diferentes para ativos vs desativados */}
-                         {activeTab === 'ativos' ? (
-                           <>
-                             {/* Ícone de Catálogo de Criativos */}
-                             <Button variant="ghost" size="sm" onClick={e => handleCatalogoClick(cliente, e)} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Abrir Catálogo de Criativos">
-                               <Sheet className="h-4 w-4" />
-                             </Button>
-     
-                             {canCreateContent && <Button variant="ghost" size="sm" onClick={() => {
-                            setClienteKickoff({
+                          <AvatarImage src={cliente.primary_gestor.avatar_url} />
+                          <AvatarFallback className="text-xs">
+                            {cliente.primary_gestor.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div> : <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" onClick={() => {
+                        setClienteTeam({
+                          id: cliente.id,
+                          nome: cliente.nome
+                        });
+                        setTeamModalOpen(true);
+                      }}>
+                        <Users className="h-4 w-4" />
+                      </Button>}
+                    </TableCell>}
+
+                    {/* CS Column */}
+                    {isColumnVisible('cs') && <TableCell className="text-center">
+                      {(() => {
+                        const csTeam = cliente.client_roles?.filter(cr => cr.role === 'cs') || [];
+                        const primaryCs = cliente.primary_cs;
+                        if (primaryCs) {
+                          return <div className="flex justify-center items-center gap-1">
+                            <Avatar className="h-8 w-8 cursor-pointer hover:opacity-80" onClick={() => {
+                              setClienteTeam({
+                                id: cliente.id,
+                                nome: cliente.nome
+                              });
+                              setTeamModalOpen(true);
+                            }}>
+                              <AvatarImage src={primaryCs.avatar_url} />
+                              <AvatarFallback className="text-xs">
+                                {primaryCs.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            {csTeam.length > 1 && <Badge variant="secondary" className="text-xs px-1 h-5">
+                              +{csTeam.length - 1}
+                            </Badge>}
+                          </div>;
+                        } else {
+                          return <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" onClick={() => {
+                            setClienteTeam({
                               id: cliente.id,
                               nome: cliente.nome
                             });
-                            setKickoffModalOpen(true);
-                          }} className="h-8 w-8 p-0" title="Kickoff">
-                                <span className="text-lg text-blue-500">📄</span>
-                              </Button>}
-                            
-                            {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleEditClick(cliente)} className="h-8 w-8 p-0">
-                                <Edit className="h-4 w-4" />
-                              </Button>}
-                            
-                            <Button variant="ghost" size="sm" onClick={() => navigate(`/painel/${cliente.id}`)} className="h-8 w-8 p-0" title="Ver Painel">
-                              <Eye className="h-4 w-4" />
+                            setTeamModalOpen(true);
+                          }}>
+                            <Users className="h-4 w-4" />
+                          </Button>;
+                        }
+                      })()}
+                    </TableCell>}
+
+                    <TableCell>
+                      <div className="flex items-center justify-center">
+                        {/* Menu de ações */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                            
-                            <Button variant="ghost" size="sm" onClick={() => {
-                            const fullLink = cliente.link_painel?.startsWith('http') ? cliente.link_painel : `${window.location.origin}${cliente.link_painel}`;
-                            copyToClipboard(fullLink);
-                          }} className="h-8 w-8 p-0" title="Copiar Link do Painel">
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            
-                            {cliente.pasta_drive_url && <Button variant="ghost" size="sm" onClick={() => window.open(cliente.pasta_drive_url, '_blank')} className="h-8 w-8 p-0" title="Pasta do Drive">
-                              <span className="text-lg">📁</span>
-                            </Button>}
-                            
-                            {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleInativarClick(cliente)} className="h-8 w-8 p-0 text-orange-500 hover:text-orange-600 hover:bg-orange-50" title="Inativar Cliente">
-                                <Pause className="h-4 w-4" />
-                              </Button>}
-                           </>
-                         ) : (
-                           <>
-                             {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleReativarClick(cliente)} className="h-8 w-8 p-0 text-green-500 hover:text-green-600 hover:bg-green-50" title="Reativar Cliente">
-                                 <CheckCircle className="h-4 w-4" />
-                               </Button>}
-                             
-                             {canCreateContent && <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(cliente)} className="h-8 w-8 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive" title="Apagar Cliente">
-                                 <Trash2 className="h-4 w-4" />
-                               </Button>}
-                           </>
-                         )}
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            {activeTab === 'ativos' ? (
+                              <>
+                                <DropdownMenuItem onClick={e => handleCatalogoClick(cliente, e as any)}>
+                                  <Sheet className="h-4 w-4 mr-2 text-green-600" />
+                                  Catálogo de Criativos
+                                </DropdownMenuItem>
+
+                                {canCreateContent && (
+                                  <DropdownMenuItem onClick={() => {
+                                    setClienteKickoff({
+                                      id: cliente.id,
+                                      nome: cliente.nome
+                                    });
+                                    setKickoffModalOpen(true);
+                                  }}>
+                                    <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                                    Kickoff
+                                  </DropdownMenuItem>
+                                )}
+
+                                {canCreateContent && (
+                                  <DropdownMenuItem onClick={() => handleEditClick(cliente)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Editar Cliente
+                                  </DropdownMenuItem>
+                                )}
+
+                                <DropdownMenuItem onClick={() => navigate(`/painel/${cliente.id}`)}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver Painel
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem onClick={() => {
+                                  const fullLink = cliente.link_painel?.startsWith('http') ? cliente.link_painel : `${window.location.origin}${cliente.link_painel}`;
+                                  copyToClipboard(fullLink);
+                                }}>
+                                  <Copy className="h-4 w-4 mr-2" />
+                                  Copiar Link do Painel
+                                </DropdownMenuItem>
+
+                                {cliente.pasta_drive_url && (
+                                  <DropdownMenuItem onClick={() => window.open(cliente.pasta_drive_url, '_blank')}>
+                                    <span className="mr-2">📁</span>
+                                    Pasta do Drive
+                                  </DropdownMenuItem>
+                                )}
+
+                                {canCreateContent && (
+                                  <DropdownMenuItem onClick={() => handleInativarClick(cliente)} className="text-orange-500">
+                                    <Pause className="h-4 w-4 mr-2" />
+                                    Inativar Cliente
+                                  </DropdownMenuItem>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {canCreateContent && (
+                                  <DropdownMenuItem onClick={() => handleReativarClick(cliente)} className="text-green-500">
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Reativar Cliente
+                                  </DropdownMenuItem>
+                                )}
+
+                                {canCreateContent && (
+                                  <DropdownMenuItem onClick={() => handleDeleteClick(cliente)} className="text-destructive">
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Apagar Cliente
+                                  </DropdownMenuItem>
+                                )}
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>)}
-              </TableBody>
-            </Table>}
-         </div>
-       </Card>
-         </div>
-       </TabsContent>
-     </Tabs>
+                </TableBody>
+              </Table>}
+            </div>
+          </Card>
+        </div>
+      </TabsContent>
+    </Tabs>
 
-      {/* Modals */}
-      <NovoClienteModal open={modalOpen} onOpenChange={setModalOpen} onSuccess={() => {
+    {/* Modals */}
+    <NovoClienteModal open={modalOpen} onOpenChange={setModalOpen} onSuccess={() => {
       carregarClientes(); // Recarregar lista após criar
     }} />
-      
-      <InativarClienteModal 
-        open={inativarModalOpen} 
-        onOpenChange={open => {
-          setInativarModalOpen(open);
-          if (!open) {
-            setClienteToInativar(null);
-          }
-        }} 
-        cliente={clienteToInativar} 
-        onSuccess={handleInativarSuccess} 
-      />
 
-      <ReativarClienteModal 
-        open={reativarModalOpen} 
-        onOpenChange={open => {
-          setReativarModalOpen(open);
-          if (!open) {
-            setClienteToReativar(null);
-          }
-        }} 
-        cliente={clienteToReativar} 
-        onSuccess={handleReativarSuccess} 
-      />
+    <InativarClienteModal
+      open={inativarModalOpen}
+      onOpenChange={open => {
+        setInativarModalOpen(open);
+        if (!open) {
+          setClienteToInativar(null);
+        }
+      }}
+      cliente={clienteToInativar}
+      onSuccess={handleInativarSuccess}
+    />
 
-      <DeleteClienteModal open={deleteModalOpen} onOpenChange={open => {
+    <ReativarClienteModal
+      open={reativarModalOpen}
+      onOpenChange={open => {
+        setReativarModalOpen(open);
+        if (!open) {
+          setClienteToReativar(null);
+        }
+      }}
+      cliente={clienteToReativar}
+      onSuccess={handleReativarSuccess}
+    />
+
+    <DeleteClienteModal open={deleteModalOpen} onOpenChange={open => {
       setDeleteModalOpen(open);
       if (!open) {
         setClienteToDelete(null);
       }
     }} cliente={clienteToDelete} onSuccess={handleDeleteSuccess} />
-      
-      <ImportarClientesModal open={importModalOpen} onOpenChange={setImportModalOpen} onSuccess={() => {
+
+    <ImportarClientesModal open={importModalOpen} onOpenChange={setImportModalOpen} onSuccess={() => {
       carregarClientes(); // Recarregar lista após importar
     }} />
-      
-      <EditarClienteModal open={editModalOpen} onOpenChange={open => {
+
+    <EditarClienteModal open={editModalOpen} onOpenChange={open => {
       setEditModalOpen(open);
       if (!open) {
         setClienteToEdit(null);
       }
     }} cliente={clienteToEdit} onSuccess={handleEditSuccess} />
 
-      <EdicaoMassaModal isOpen={edicaoMassaModalOpen} onClose={() => setEdicaoMassaModalOpen(false)} onSuccess={handleEdicaoMassaSuccess} clientesSelecionados={clientes.filter(c => clientesSelecionados.includes(c.id))} />
+    <EdicaoMassaModal isOpen={edicaoMassaModalOpen} onClose={() => setEdicaoMassaModalOpen(false)} onSuccess={handleEdicaoMassaSuccess} clientesSelecionados={clientes.filter(c => clientesSelecionados.includes(c.id))} />
 
-      {clienteKickoff && <KickoffModal isOpen={kickoffModalOpen} onClose={() => {
+    {clienteKickoff && <KickoffModal isOpen={kickoffModalOpen} onClose={() => {
       setKickoffModalOpen(false);
       setClienteKickoff(null);
     }} clienteId={clienteKickoff.id} clienteNome={clienteKickoff.nome} />}
 
-      {clienteTeam && <TeamAssignmentModal isOpen={teamModalOpen} onClose={() => {
+    {clienteTeam && <TeamAssignmentModal isOpen={teamModalOpen} onClose={() => {
       setTeamModalOpen(false);
       setClienteTeam(null);
     }} clienteId={clienteTeam.id} clienteNome={clienteTeam.nome} onSuccess={() => {
       carregarClientes();
     }} />}
-    </div>;
+  </div>;
 };
