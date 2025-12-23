@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ChevronUp, ChevronDown, ChevronsUpDown, BarChart3, Share2, Copy, Eye, EyeOff } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ChevronUp, ChevronDown, ChevronsUpDown, BarChart3, Share2, Copy, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -36,18 +36,18 @@ interface LancamentosTableProps {
   } | null;
 }
 
-export const LancamentosTable = ({ 
-  lancamentos, 
-  onRefresh, 
-  statusColors, 
-  statusLabels, 
+export const LancamentosTable = ({
+  lancamentos,
+  onRefresh,
+  statusColors,
+  statusLabels,
   tipoLabels,
   showFilters = false,
   filtros = { status: 'all', tipo: 'all', cliente: 'all' },
-  onFiltrosChange = () => {},
+  onFiltrosChange = () => { },
   selectedIds = [],
-  onSelectionChange = () => {},
-  onSort = () => {},
+  onSelectionChange = () => { },
+  onSort = () => { },
   sortConfig = null
 }: LancamentosTableProps) => {
   const [clientes, setClientes] = useState<any[]>([]);
@@ -105,7 +105,7 @@ export const LancamentosTable = ({
     if (!sortConfig || sortConfig.key !== columnKey) {
       return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />;
     }
-    return sortConfig.direction === 'asc' 
+    return sortConfig.direction === 'asc'
       ? <ChevronUp className="h-4 w-4 text-primary" />
       : <ChevronDown className="h-4 w-4 text-primary" />;
   };
@@ -168,38 +168,38 @@ export const LancamentosTable = ({
           .replace(/[^a-z0-9\s-]/g, '')
           .replace(/\s+/g, '-')
           .substring(0, 50);
-        
+
         const randomId = Math.random().toString(36).substring(2, 8);
         const slug = `${baseSlug}-${randomId}`;
-        
+
         const { error } = await supabase
           .from('lancamentos')
-          .update({ 
-            link_publico: slug, 
-            link_publico_ativo: true 
+          .update({
+            link_publico: slug,
+            link_publico_ativo: true
           })
           .eq('id', lancamento.id);
-        
+
         if (error) throw error;
-        
+
         const publicUrl = `${window.location.origin}/lancamento/${slug}`;
         await navigator.clipboard.writeText(publicUrl);
-        
-        toast({ 
-          title: 'Link público ativado!', 
-          description: 'O link foi copiado para a área de transferência.' 
+
+        toast({
+          title: 'Link público ativado!',
+          description: 'O link foi copiado para a área de transferência.'
         });
       } else {
         const { error } = await supabase
           .from('lancamentos')
           .update({ link_publico_ativo: false })
           .eq('id', lancamento.id);
-        
+
         if (error) throw error;
-        
+
         toast({ title: 'Link público desativado' });
       }
-      
+
       onRefresh();
     } catch (e: any) {
       console.error('Erro ao gerenciar link público:', e);
@@ -209,7 +209,7 @@ export const LancamentosTable = ({
 
   const handleCopyPublicLink = async (lancamento: any) => {
     if (!lancamento.link_publico) return;
-    
+
     try {
       const publicUrl = `${window.location.origin}/lancamento/${lancamento.link_publico}`;
       await navigator.clipboard.writeText(publicUrl);
@@ -219,8 +219,32 @@ export const LancamentosTable = ({
     }
   };
 
+  const handleFinalizarLancamento = async (lancamentoId: string) => {
+    try {
+      const { error } = await supabase
+        .from('lancamentos')
+        .update({ status_lancamento: 'finalizado' })
+        .eq('id', lancamentoId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Lançamento finalizado",
+        description: "O lançamento foi marcado como finalizado.",
+      });
+      onRefresh();
+    } catch (error: any) {
+      console.error('Erro ao finalizar lançamento:', error);
+      toast({
+        title: "Erro ao finalizar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const SortableHeader = ({ children, sortKey }: { children: React.ReactNode; sortKey: string }) => (
-    <TableHead 
+    <TableHead
       className="cursor-pointer hover:bg-muted/50 select-none"
       onClick={() => onSort(sortKey)}
     >
@@ -248,7 +272,7 @@ export const LancamentosTable = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">Status</label>
-                <Select value={filtros.status} onValueChange={(value) => onFiltrosChange({...filtros, status: value})}>
+                <Select value={filtros.status} onValueChange={(value) => onFiltrosChange({ ...filtros, status: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Todos os status" />
                   </SelectTrigger>
@@ -263,10 +287,10 @@ export const LancamentosTable = ({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium mb-2 block">Tipo</label>
-                <Select value={filtros.tipo} onValueChange={(value) => onFiltrosChange({...filtros, tipo: value})}>
+                <Select value={filtros.tipo} onValueChange={(value) => onFiltrosChange({ ...filtros, tipo: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Todos os tipos" />
                   </SelectTrigger>
@@ -287,7 +311,7 @@ export const LancamentosTable = ({
 
               <div>
                 <label className="text-sm font-medium mb-2 block">Cliente</label>
-                <Select value={filtros.cliente} onValueChange={(value) => onFiltrosChange({...filtros, cliente: value})}>
+                <Select value={filtros.cliente} onValueChange={(value) => onFiltrosChange({ ...filtros, cliente: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Todos os clientes" />
                   </SelectTrigger>
@@ -353,7 +377,7 @@ export const LancamentosTable = ({
                       )}
                     </div>
                   </TableCell>
-                  
+
                   <TableCell>
                     <Select
                       value={lancamento.cliente_id ?? 'none'}
@@ -377,16 +401,53 @@ export const LancamentosTable = ({
                   </TableCell>
 
                   <TableCell>
-                    <Badge variant="secondary" className={`${statusColors[lancamento.status_lancamento]} text-white`}>
-                      {statusLabels[lancamento.status_lancamento]}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className={`${statusColors[lancamento.status_lancamento]} text-white`}>
+                        {statusLabels[lancamento.status_lancamento]}
+                      </Badge>
+
+                      {(() => {
+                        const alerts = [];
+                        if (!lancamento.data_inicio_captacao) alerts.push('Data de início não definida');
+
+                        const checklist = lancamento.checklist_configuracao || {};
+                        const hasUncheckedItems = Object.values(checklist).some(val => val === false);
+                        const topLevelKeys = ['checklist_criativos'];
+                        const isMissingKeys = topLevelKeys.some(key => !checklist[key]);
+
+                        if (hasUncheckedItems || isMissingKeys) {
+                          alerts.push('Checklist pendente');
+                        }
+
+                        if (alerts.length > 0) {
+                          return (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <div className="flex flex-col gap-1">
+                                    <span className="font-semibold text-xs">Pontos de Atenção:</span>
+                                    {alerts.map((alert, i) => (
+                                      <span key={i} className="text-xs">• {alert}</span>
+                                    ))}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                   </TableCell>
 
                   <TableCell>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
-                          <Badge 
+                          <Badge
                             className={`
                               ${lancamento.tipo_lancamento === 'tradicional' ? 'bg-[#2563EB] text-white hover:bg-[#2563EB]/90' : ''}
                               ${lancamento.tipo_lancamento === 'captacao_simples' ? 'bg-[#F59E0B] text-white hover:bg-[#F59E0B]/90' : ''}
@@ -466,7 +527,7 @@ export const LancamentosTable = ({
                           <Edit className="h-4 w-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
-                        
+
                         <DropdownMenuItem onClick={() => handleTogglePublicLink(lancamento)}>
                           {lancamento.link_publico_ativo ? (
                             <>
@@ -480,14 +541,14 @@ export const LancamentosTable = ({
                             </>
                           )}
                         </DropdownMenuItem>
-                        
+
                         {lancamento.link_publico_ativo && lancamento.link_publico && (
                           <DropdownMenuItem onClick={() => handleCopyPublicLink(lancamento)}>
                             <Copy className="h-4 w-4 mr-2" />
                             Copiar Link Público
                           </DropdownMenuItem>
                         )}
-                        
+
                         {lancamento.link_dashboard && (
                           <DropdownMenuItem asChild>
                             <a href={lancamento.link_dashboard} target="_blank" rel="noopener noreferrer">
@@ -502,6 +563,17 @@ export const LancamentosTable = ({
                               <ExternalLink className="h-4 w-4 mr-2" />
                               Ver Briefing
                             </a>
+                          </DropdownMenuItem>
+                        )}
+
+                        {lancamento.status_lancamento !== 'finalizado' && (
+                          <DropdownMenuItem onClick={() => {
+                            if (window.confirm('Tem certeza que deseja finalizar este lançamento?')) {
+                              handleFinalizarLancamento(lancamento.id);
+                            }
+                          }} className="text-green-600 focus:text-green-700 focus:bg-green-50">
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Finalizar Lançamento
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>

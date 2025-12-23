@@ -14,10 +14,10 @@ interface NovoLancamentoModalProps {
   onLancamentoCriado: () => void;
 }
 
-const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ 
-  open, 
-  onOpenChange, 
-  onLancamentoCriado 
+const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
+  open,
+  onOpenChange,
+  onLancamentoCriado
 }) => {
   const [formData, setFormData] = useState({
     nome_lancamento: '',
@@ -34,8 +34,8 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     link_briefing: '',
     observacoes: ''
   });
-  
-  const [clientes, setClientes] = useState<Array<{id: string, nome: string, slug: string, aliases: string[], primary_gestor_user_id: string | null}>>([]);
+
+  const [clientes, setClientes] = useState<Array<{ id: string, nome: string, slug: string, aliases: string[], primary_gestor_user_id: string | null }>>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -60,7 +60,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
         .order('nome');
 
       if (error) throw error;
-      
+
       // Processar clientes para extrair gestor primário
       const clientesComGestor = (data || []).map(cliente => {
         const gestorRole = (cliente as any).client_roles?.find(
@@ -71,7 +71,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
           primary_gestor_user_id: gestorRole?.user_id || null
         };
       });
-      
+
       setClientes(clientesComGestor);
     } catch (error) {
       console.error('Erro ao buscar clientes:', error);
@@ -83,10 +83,10 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     if (!nomeLancamento || clientes.length === 0) {
       return;
     }
-    
+
     const nomeNormalizado = nomeLancamento.toLowerCase().trim();
     const palavrasLancamento = nomeNormalizado.split(/[\s\-_|]+/).filter(p => p.length > 2);
-    
+
     // Função auxiliar para verificar match de palavras
     const temMatchPalavras = (texto: string, palavras: string[]): boolean => {
       const textoLower = texto.toLowerCase().trim();
@@ -104,7 +104,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
     if (!clienteEncontrado) {
       clienteEncontrado = clientes.find(cliente => {
         if (!cliente.aliases || !Array.isArray(cliente.aliases)) return false;
-        return cliente.aliases.some(alias => 
+        return cliente.aliases.some(alias =>
           temMatchPalavras(alias, palavrasLancamento)
         );
       });
@@ -117,27 +117,27 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
         if (cliente.slug && nomeNormalizado.includes(cliente.slug.toLowerCase())) {
           return true;
         }
-        
+
         // Verificar pelo nome do cliente
         const nomeCliente = cliente.nome.toLowerCase();
         if (nomeNormalizado.includes(nomeCliente)) {
           return true;
         }
-        
+
         // Verificar pelos aliases
         if (cliente.aliases && Array.isArray(cliente.aliases)) {
-          return cliente.aliases.some(alias => 
+          return cliente.aliases.some(alias =>
             nomeNormalizado.includes(alias.toLowerCase())
           );
         }
-        
+
         return false;
       });
     }
 
     if (clienteEncontrado) {
       let gestorId = '';
-      
+
       // Buscar colaborador.id baseado no user_id do gestor primário
       if (clienteEncontrado.primary_gestor_user_id) {
         const { data: gestor } = await supabase
@@ -145,12 +145,12 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
           .select('id, nome')
           .eq('user_id', clienteEncontrado.primary_gestor_user_id)
           .maybeSingle();
-        
+
         if (gestor) {
           gestorId = gestor.id;
         }
       }
-      
+
       setFormData(prev => ({
         ...prev,
         cliente_id: clienteEncontrado.id,
@@ -227,9 +227,25 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
 
       if (error) throw error;
 
+      // Criar notificação para a equipe
+      try {
+        await supabase.from('avisos').insert({
+          titulo: `Novo Lançamento: ${formData.nome_lancamento}`,
+          conteudo: `Um novo lançamento foi criado.\nCliente: ${clientes.find(c => c.id === formData.cliente_id)?.nome || 'Não informado'}\nTipo: ${formData.tipo_lancamento}\nInício Captação: ${new Date(formData.data_inicio_captacao).toLocaleDateString('pt-BR')}`,
+          tipo: 'info',
+          prioridade: 'normal',
+          destinatarios: ['all'],
+          data_inicio: new Date().toISOString(),
+          created_by: userData.user.id,
+          ativo: true
+        });
+      } catch (notifyError) {
+        console.error('Erro ao criar notificação:', notifyError);
+      }
+
       onLancamentoCriado();
       resetForm();
-      
+
       toast({
         title: "Lançamento criado",
         description: "O lançamento foi criado com sucesso.",
@@ -288,7 +304,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
                       .select('id')
                       .eq('user_id', clienteSelecionado.primary_gestor_user_id)
                       .maybeSingle();
-                    
+
                     if (gestor) {
                       handleInputChange('gestor_responsavel_id', gestor.id);
                     }

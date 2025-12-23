@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Rocket, Calendar, DollarSign, ArrowRight, User } from "lucide-react";
+import { Rocket, Calendar, DollarSign, ArrowRight, User, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Lancamento {
   id: string;
@@ -18,6 +19,7 @@ interface Lancamento {
   data_inicio_captacao: string | null;
   cliente_id: string | null;
   gestor_responsavel_id: string | null;
+  checklist_configuracao: Record<string, boolean> | null;
   clientes?: {
     nome: string;
   };
@@ -64,6 +66,7 @@ export function LancamentosAtivos() {
             data_inicio_captacao,
             cliente_id,
             gestor_responsavel_id,
+            checklist_configuracao,
             clientes (nome),
             colaboradores:gestor_responsavel_id (nome)
           `)
@@ -146,8 +149,8 @@ export function LancamentosAtivos() {
         <div className="text-center py-12 px-4 border-2 border-dashed rounded-xl">
           <Rocket className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-30" />
           <p className="text-sm text-muted-foreground">
-            {isAdmin 
-              ? 'Nenhum lançamento ativo no momento' 
+            {isAdmin
+              ? 'Nenhum lançamento ativo no momento'
               : 'Você não possui lançamentos ativos no momento'}
           </p>
         </div>
@@ -166,7 +169,7 @@ export function LancamentosAtivos() {
           {lancamentos.length} {lancamentos.length === 1 ? 'Ativo' : 'Ativos'}
         </Badge>
       </div>
-      
+
       <div className="relative">
         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           {lancamentos.map((lancamento) => (
@@ -181,28 +184,65 @@ export function LancamentosAtivos() {
                   <ArrowRight className="h-4 w-4" />
                 </div>
               </div>
-              
-              {/* Badge de Status */}
-              <div className="mb-3">
-                <Badge 
+
+              {/* Badge de Status e Alertas */}
+              <div className="mb-3 flex items-center justify-between pr-8">
+                <Badge
                   className={`${getStatusColor(lancamento.status_lancamento)} font-medium`}
                 >
                   {getStatusLabel(lancamento.status_lancamento)}
                 </Badge>
+
+                {(() => {
+                  const alerts = [];
+                  if (!lancamento.data_inicio_captacao) alerts.push('Data de início não definida');
+
+                  const checklist = lancamento.checklist_configuracao || {};
+                  const hasUncheckedItems = Object.values(checklist).some(val => val === false);
+                  const topLevelKeys = ['checklist_criativos'];
+                  const isMissingKeys = topLevelKeys.some(key => !checklist[key]);
+
+                  if (hasUncheckedItems || isMissingKeys) {
+                    alerts.push('Pendências no checklist');
+                  }
+
+                  if (alerts.length > 0) {
+                    return (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs font-semibold rounded-md border border-orange-200 dark:border-orange-800 animate-pulse">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              <span>Atenção</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100">
+                            <ul className="list-disc list-inside space-y-1 text-xs">
+                              {alerts.map((alert, idx) => (
+                                <li key={idx}>{alert}</li>
+                              ))}
+                            </ul>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
-              
+
               {/* Nome do Lançamento */}
               <h4 className="font-bold text-lg mb-3 pr-8 line-clamp-2 group-hover:text-primary transition-colors">
                 {lancamento.nome_lancamento}
               </h4>
-              
+
               {/* Cliente */}
               {lancamento.clientes?.nome && (
                 <p className="text-sm text-muted-foreground mb-3 truncate">
                   {lancamento.clientes.nome}
                 </p>
               )}
-              
+
               {/* Investimento */}
               {lancamento.investimento_total > 0 && (
                 <div className="flex items-center gap-2">
@@ -217,7 +257,7 @@ export function LancamentosAtivos() {
                   </span>
                 </div>
               )}
-              
+
               {/* Informações Adicionais */}
               <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t text-xs text-muted-foreground">
                 {lancamento.data_inicio_captacao && (
@@ -226,7 +266,7 @@ export function LancamentosAtivos() {
                     <span>{format(new Date(lancamento.data_inicio_captacao), 'dd/MM/yyyy', { locale: ptBR })}</span>
                   </div>
                 )}
-                
+
                 {isAdmin && lancamento.colaboradores?.nome && (
                   <div className="flex items-center gap-1">
                     <User className="h-3 w-3" />
@@ -237,7 +277,7 @@ export function LancamentosAtivos() {
             </div>
           ))}
         </div>
-        
+
         {/* Botão Ver Todos */}
         <div className="flex justify-center mt-2">
           <Button
