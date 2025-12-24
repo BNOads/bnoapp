@@ -128,9 +128,9 @@ export function LancamentosAtivos() {
             Lançamentos Ativos
           </h3>
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex-shrink-0 w-[400px] h-[200px] bg-muted animate-pulse rounded-xl" />
+            <div key={i} className="w-full h-[180px] bg-muted animate-pulse rounded-xl" />
           ))}
         </div>
       </div>
@@ -171,12 +171,12 @@ export function LancamentosAtivos() {
       </div>
 
       <div className="relative">
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {lancamentos.map((lancamento) => (
             <div
               key={lancamento.id}
               onClick={() => navigate(`/lancamentos/${lancamento.id}`)}
-              className="group relative flex-shrink-0 w-[400px] p-5 rounded-xl border-2 bg-card hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md"
+              className="group relative w-full p-4 rounded-xl border-2 bg-card hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between"
             >
               {/* Ícone de link externo */}
               <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -2,11 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
 All colors MUST be HSL.
 */
 
 @layer base {
+  html {
+    font-size: 80%;
+    /* Balanced scale reduction for high density without eye strain */
+  }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
@@ -40,7 +45,7 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(214 100% 50%), hsl(214 100% 60%));
     --gradient-secondary: linear-gradient(135deg, hsl(215 25% 27%), hsl(215 30% 35%));
     --gradient-subtle: linear-gradient(180deg, hsl(214 100% 98%), hsl(214 100% 95%));
-    
+
     --shadow-elegant: 0 10px 30px -10px hsl(214 100% 50% / 0.2);
     --shadow-glow: 0 0 40px hsl(214 100% 60% / 0.15);
     --shadow-card: 0 4px 20px -4px hsl(214 20% 50% / 0.1);
@@ -48,7 +53,7 @@ All colors MUST be HSL.
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --radius: 0.75rem;
-    
+
     /* Creative catalog specific */
     --creative-row-selected: 210 40% 98%;
     --creative-row-hover: 220 14.3% 95.9%;
@@ -103,15 +108,15 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(214 100% 60%), hsl(214 100% 70%));
     --gradient-secondary: linear-gradient(135deg, hsl(215 20% 20%), hsl(215 25% 25%));
     --gradient-subtle: linear-gradient(180deg, hsl(215 25% 12%), hsl(215 20% 15%));
-    
+
     --shadow-elegant: 0 10px 30px -10px hsl(214 100% 60% / 0.3);
     --shadow-glow: 0 0 40px hsl(214 100% 70% / 0.2);
     --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
-    
+
     /* Dark mode creative catalog */
     --creative-row-selected: 217.2 32.6% 17.5%;
     --creative-row-hover: 217.2 32.6% 15%;
-    
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -124,10 +129,16 @@ All colors MUST be HSL.
 }
 
 /* Smooth transitions for theme switching */
+body {
+  overflow-x: hidden;
+  width: 100vw;
+  position: relative;
+}
+
 * {
-  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-              color 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Utility classes para responsividade melhorada */
@@ -154,7 +165,7 @@ All colors MUST be HSL.
   * {
     -webkit-tap-highlight-color: transparent;
   }
-  
+
   .container {
     width: 100%;
     padding-left: 0.75rem;
@@ -167,19 +178,19 @@ All colors MUST be HSL.
   .xs\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  
+
   .xs\:flex-row {
     flex-direction: row;
   }
-  
+
   .xs\:flex-none {
     flex: none;
   }
-  
+
   .xs\:inline {
     display: inline;
   }
-  
+
   .xs\:hidden {
     display: none;
   }
