@@ -84,7 +84,10 @@ export function LancamentosAtivos() {
 
         if (error) throw error;
 
-        setLancamentos(data || []);
+        setLancamentos((data || []).map(item => ({
+          ...item,
+          checklist_configuracao: item.checklist_configuracao as Record<string, boolean> | null
+        })));
       } catch (error) {
         console.error('Erro ao carregar lançamentos:', error);
       } finally {
