@@ -183,7 +183,7 @@ export function MeusClientesCard() {
                                 key={cliente.id}
                                 variant="ghost"
                                 className="h-auto py-3 px-3 justify-start text-left group w-full hover:bg-primary/5 transition-all border border-transparent hover:border-primary/10"
-                                onClick={() => navigate(`/criativos/${cliente.id}`)}
+                                onClick={() => navigate(`/painel/${cliente.id}`)}
                             >
                                 <div className="flex flex-col items-start gap-1 w-full truncate">
                                     <span className="font-semibold truncate w-full group-hover:text-primary transition-colors text-sm">
