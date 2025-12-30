@@ -763,6 +763,8 @@ export type Database = {
           drive_folder_id: string | null
           drive_sync_error: string | null
           etapa_atual: string | null
+          etapa_onboarding: string | null
+          etapa_trafego: string | null
           funis_trabalhando: string[] | null
           funnel_status: boolean
           google_sheet_aba: string | null
@@ -782,6 +784,7 @@ export type Database = {
           primary_gestor_user_id: string | null
           progresso_etapa: number | null
           serie: string | null
+          situacao_cliente: string | null
           slug: string | null
           status_cliente: string | null
           total_acessos: number | null
@@ -811,6 +814,8 @@ export type Database = {
           drive_folder_id?: string | null
           drive_sync_error?: string | null
           etapa_atual?: string | null
+          etapa_onboarding?: string | null
+          etapa_trafego?: string | null
           funis_trabalhando?: string[] | null
           funnel_status?: boolean
           google_sheet_aba?: string | null
@@ -830,6 +835,7 @@ export type Database = {
           primary_gestor_user_id?: string | null
           progresso_etapa?: number | null
           serie?: string | null
+          situacao_cliente?: string | null
           slug?: string | null
           status_cliente?: string | null
           total_acessos?: number | null
@@ -859,6 +865,8 @@ export type Database = {
           drive_folder_id?: string | null
           drive_sync_error?: string | null
           etapa_atual?: string | null
+          etapa_onboarding?: string | null
+          etapa_trafego?: string | null
           funis_trabalhando?: string[] | null
           funnel_status?: boolean
           google_sheet_aba?: string | null
@@ -878,6 +886,7 @@ export type Database = {
           primary_gestor_user_id?: string | null
           progresso_etapa?: number | null
           serie?: string | null
+          situacao_cliente?: string | null
           slug?: string | null
           status_cliente?: string | null
           total_acessos?: number | null
@@ -3894,6 +3903,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string | null
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       rankings: {
         Row: {
