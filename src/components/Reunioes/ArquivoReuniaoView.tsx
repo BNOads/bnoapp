@@ -51,12 +51,13 @@ interface SearchResult {
 export function ArquivoReuniaoView() {
   const { toast } = useToast();
   const { userData } = useCurrentUser();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const anoAtual = new Date().getFullYear();
 
   const [arquivoId, setArquivoId] = useState<string | null>(null);
   const [conteudo, setConteudo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [currentResultIndex, setCurrentResultIndex] = useState(0);
@@ -325,10 +326,18 @@ export function ArquivoReuniaoView() {
   // Load or create arquivo
   useEffect(() => {
     const loadOrCreateArquivo = async () => {
-      if (!user) return;
+      // Aguardar auth terminar de carregar
+      if (authLoading) return;
+      
+      if (!user) {
+        setLoadError('Usuário não autenticado');
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
+        setLoadError(null);
 
         const { data: existingArquivo, error: fetchError } = await supabase
           .from('arquivo_reuniao')
@@ -355,9 +364,11 @@ export function ArquivoReuniaoView() {
           if (createError) throw createError;
 
           setArquivoId(newArquivo.id);
+          setConteudo(null);
         }
       } catch (error: any) {
         console.error('Erro ao carregar arquivo:', error);
+        setLoadError(error.message || 'Não foi possível carregar o arquivo');
         toast({
           title: "❌ Erro",
           description: "Não foi possível carregar o arquivo",
@@ -369,7 +380,7 @@ export function ArquivoReuniaoView() {
     };
 
     loadOrCreateArquivo();
-  }, [anoAtual, user, toast]);
+  }, [anoAtual, user, authLoading, toast]);
 
   const handleContentChange = (newContent: any) => {
     pendingContentRef.current = newContent;
@@ -530,12 +541,29 @@ export function ArquivoReuniaoView() {
     };
   }, [versioning]);
 
-  if (loading || !arquivoId) {
+  // Estado de loading ou erro
+  if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Carregando arquivo...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !arquivoId) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="text-destructive mb-4">
+            <X className="h-16 w-16 mx-auto" />
+          </div>
+          <p className="text-muted-foreground mb-4">{loadError || 'Não foi possível carregar o arquivo'}</p>
+          <Button onClick={() => window.location.reload()} variant="outline">
+            Tentar novamente
+          </Button>
         </div>
       </div>
     );
