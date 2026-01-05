@@ -583,16 +583,18 @@ export function ArquivoReuniaoView() {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold">Arquivo de Reunião {anoSelecionado}</h1>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                   {[2025, anoAtual].filter((v, i, a) => a.indexOf(v) === i).map((ano) => (
                     <Button
                       key={ano}
                       variant={anoSelecionado === ano ? "default" : "outline"}
-                      size="sm"
+                      size="default"
                       onClick={() => setAnoSelecionado(ano)}
-                      className="h-7 px-3"
+                      className="h-9 px-4 gap-2"
                     >
+                      {ano < anoAtual && <Clock className="w-4 h-4" />}
                       {ano}
+                      {ano === anoAtual && " ✅"}
                     </Button>
                   ))}
                 </div>
