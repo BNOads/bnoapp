@@ -355,7 +355,7 @@ export function ArquivoReuniaoView() {
             .from('arquivo_reuniao')
             .insert({
               ano: anoAtual,
-              conteudo: null,
+              conteudo: {},
               criado_por: user.id
             })
             .select()
