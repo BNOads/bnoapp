@@ -54,6 +54,7 @@ export function ArquivoReuniaoView() {
   const { user, loading: authLoading } = useAuth();
   const anoAtual = new Date().getFullYear();
 
+  const [anoSelecionado, setAnoSelecionado] = useState(anoAtual);
   const [arquivoId, setArquivoId] = useState<string | null>(null);
   const [conteudo, setConteudo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -342,7 +343,7 @@ export function ArquivoReuniaoView() {
         const { data: existingArquivo, error: fetchError } = await supabase
           .from('arquivo_reuniao')
           .select('*')
-          .eq('ano', anoAtual)
+          .eq('ano', anoSelecionado)
           .maybeSingle();
 
         if (fetchError) throw fetchError;
@@ -351,20 +352,25 @@ export function ArquivoReuniaoView() {
           setArquivoId(existingArquivo.id);
           setConteudo(existingArquivo.conteudo);
         } else {
-          const { data: newArquivo, error: createError } = await supabase
-            .from('arquivo_reuniao')
-            .insert({
-              ano: anoAtual,
-              conteudo: {},
-              criado_por: user.id
-            })
-            .select()
-            .single();
+          // Só cria automaticamente para o ano atual
+          if (anoSelecionado === anoAtual) {
+            const { data: newArquivo, error: createError } = await supabase
+              .from('arquivo_reuniao')
+              .insert({
+                ano: anoSelecionado,
+                conteudo: {},
+                criado_por: user.id
+              })
+              .select()
+              .single();
 
-          if (createError) throw createError;
+            if (createError) throw createError;
 
-          setArquivoId(newArquivo.id);
-          setConteudo(null);
+            setArquivoId(newArquivo.id);
+            setConteudo(null);
+          } else {
+            setLoadError(`Arquivo de ${anoSelecionado} não encontrado`);
+          }
         }
       } catch (error: any) {
         console.error('Erro ao carregar arquivo:', error);
@@ -380,7 +386,7 @@ export function ArquivoReuniaoView() {
     };
 
     loadOrCreateArquivo();
-  }, [anoAtual, user, authLoading, toast]);
+  }, [anoSelecionado, anoAtual, user, authLoading, toast]);
 
   const handleContentChange = (newContent: any) => {
     pendingContentRef.current = newContent;
@@ -575,7 +581,22 @@ export function ArquivoReuniaoView() {
         <div className="border-b border-border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-2xl font-bold">Arquivo de Reunião {anoAtual}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold">Arquivo de Reunião {anoSelecionado}</h1>
+                <div className="flex items-center gap-1">
+                  {[2025, anoAtual].filter((v, i, a) => a.indexOf(v) === i).map((ano) => (
+                    <Button
+                      key={ano}
+                      variant={anoSelecionado === ano ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setAnoSelecionado(ano)}
+                      className="h-7 px-3"
+                    >
+                      {ano}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                 <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
                   saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
