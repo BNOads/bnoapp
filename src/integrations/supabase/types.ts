@@ -1674,6 +1674,163 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_dashboards: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          date_filter: Json | null
+          description: string | null
+          id: string
+          is_public: boolean | null
+          logo_url: string | null
+          slug: string
+          theme_config: Json | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          date_filter?: Json | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          logo_url?: string | null
+          slug: string
+          theme_config?: Json | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          date_filter?: Json | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          logo_url?: string | null
+          slug?: string
+          theme_config?: Json | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      dashboard_data_sources: {
+        Row: {
+          auto_sync_enabled: boolean | null
+          auto_sync_interval_minutes: number | null
+          available_sheets: Json | null
+          cached_data: Json | null
+          cached_headers: Json | null
+          created_at: string | null
+          created_by: string | null
+          dashboard_id: string | null
+          gid: string
+          id: string
+          last_sync_at: string | null
+          name: string
+          original_url: string
+          scraping_url: string | null
+          sheet_id: string
+          source_type: string
+          sync_error: string | null
+          sync_status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_sync_enabled?: boolean | null
+          auto_sync_interval_minutes?: number | null
+          available_sheets?: Json | null
+          cached_data?: Json | null
+          cached_headers?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          dashboard_id?: string | null
+          gid?: string
+          id?: string
+          last_sync_at?: string | null
+          name: string
+          original_url: string
+          scraping_url?: string | null
+          sheet_id: string
+          source_type?: string
+          sync_error?: string | null
+          sync_status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_sync_enabled?: boolean | null
+          auto_sync_interval_minutes?: number | null
+          available_sheets?: Json | null
+          cached_data?: Json | null
+          cached_headers?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          dashboard_id?: string | null
+          gid?: string
+          id?: string
+          last_sync_at?: string | null
+          name?: string
+          original_url?: string
+          scraping_url?: string | null
+          sheet_id?: string
+          source_type?: string
+          sync_error?: string | null
+          sync_status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_data_sources_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "custom_dashboards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dashboard_widgets: {
+        Row: {
+          config: Json
+          created_at: string | null
+          dashboard_id: string | null
+          id: string
+          position: Json
+          title: string | null
+          updated_at: string | null
+          widget_type: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string | null
+          dashboard_id?: string | null
+          id?: string
+          position?: Json
+          title?: string | null
+          updated_at?: string | null
+          widget_type: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string | null
+          dashboard_id?: string | null
+          id?: string
+          position?: Json
+          title?: string | null
+          updated_at?: string | null
+          widget_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_widgets_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "custom_dashboards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       debrief_metrics: {
         Row: {
           cliente_id: string | null
