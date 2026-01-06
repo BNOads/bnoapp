@@ -218,27 +218,8 @@ export function FloatingToolbarPlugin({ onAddToIndex, context, entityId }: Float
         // Substituir o bloco atual pelo heading
         blockNode.replace(headingNode);
         
-        // Criar subtítulos padrão após o heading
-        const pautaHeading = $createHeadingNode('h3');
-        pautaHeading.append($createTextNode('Pauta:'));
-        
-        const pautaParagraph = $createParagraphNode();
-        pautaParagraph.append($createTextNode(''));
-        
-        const aFazerHeading = $createHeadingNode('h3');
-        aFazerHeading.append($createTextNode('A Fazer:'));
-        
-        const aFazerParagraph = $createParagraphNode();
-        aFazerParagraph.append($createTextNode(''));
-        
-        // Inserir os subtítulos após o heading principal
-        headingNode.insertAfter(pautaHeading);
-        pautaHeading.insertAfter(pautaParagraph);
-        pautaParagraph.insertAfter(aFazerHeading);
-        aFazerHeading.insertAfter(aFazerParagraph);
-        
-        // Mover cursor para o parágrafo após "Pauta:"
-        pautaParagraph.selectEnd();
+        // Mover cursor para o final do heading
+        headingNode.selectEnd();
       }
     });
 
