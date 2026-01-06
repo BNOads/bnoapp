@@ -430,9 +430,17 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
           </Card>
         )}
 
-        {/* Categorias Pré-definidas */}
-        <div className="space-y-2">
-          {camposPredefinidos.map((campo) => {
+        {/* Categorias Pré-definidas - ordenadas: preenchidos primeiro */}
+        <div className="space-y-1.5">
+          {[...camposPredefinidos]
+            .sort((a, b) => {
+              const aPreenchido = !!getLinkByCategoria(a.nome);
+              const bPreenchido = !!getLinkByCategoria(b.nome);
+              if (aPreenchido && !bPreenchido) return -1;
+              if (!aPreenchido && bPreenchido) return 1;
+              return 0;
+            })
+            .map((campo) => {
             const linkExistente = getLinkByCategoria(campo.nome);
 
             return (
@@ -440,50 +448,49 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
                 key={campo.nome} 
                 className={linkExistente ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800'}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0 space-y-1">
+                <CardContent className="p-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-sm">{campo.nome}</h4>
+                        <h4 className="font-medium text-xs">{campo.nome}</h4>
                         {linkExistente ? (
-                          <Badge variant="default" className="bg-green-600 text-white">
-                            <Check className="h-3 w-3 mr-1" />
-                            Adicionado
+                          <Badge variant="default" className="bg-green-600 text-white text-[10px] px-1.5 py-0 h-4">
+                            <Check className="h-2.5 w-2.5 mr-0.5" />
+                            OK
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="bg-amber-500 text-white">
-                            <AlertCircle className="h-3 w-3 mr-1" />
+                          <Badge variant="secondary" className="bg-amber-500 text-white text-[10px] px-1.5 py-0 h-4">
+                            <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
                             Pendente
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">{campo.descricao}</p>
                       
                       {linkExistente ? (
-                        <div className="flex items-center gap-2 pt-2">
+                        <div className="flex items-center gap-1.5 mt-1">
                           {editing && editingLink?.id === linkExistente.id ? (
-                            <div className="flex-1 flex gap-2">
+                            <div className="flex-1 flex gap-1">
                               <Input
                                 value={editingLink.url}
                                 onChange={(e) => setEditingLink({ ...editingLink, url: e.target.value })}
-                                className="h-8 text-xs"
+                                className="h-6 text-xs"
                               />
                               <Button size="sm" variant="outline" onClick={() => {
                                 setEditing(false);
                                 setEditingLink(null);
-                              }}>
-                                <X className="h-3 w-3" />
+                              }} className="h-6 w-6 p-0">
+                                <X className="h-2.5 w-2.5" />
                               </Button>
-                              <Button size="sm" onClick={handleSaveEdit}>
-                                <Save className="h-3 w-3" />
+                              <Button size="sm" onClick={handleSaveEdit} className="h-6 w-6 p-0">
+                                <Save className="h-2.5 w-2.5" />
                               </Button>
                             </div>
                           ) : (
                             <>
-                              <div className="flex-1 text-xs text-muted-foreground truncate font-mono bg-background px-2 py-1 rounded">
+                              <div className="flex-1 text-[10px] text-muted-foreground truncate font-mono bg-background px-1.5 py-0.5 rounded">
                                 {linkExistente.url}
                               </div>
-                              <div className="flex gap-1">
+                              <div className="flex gap-0.5">
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -495,47 +502,47 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
                                       toast.error('Erro ao copiar link');
                                     }
                                   }}
-                                  className="h-7 w-7 p-0"
+                                  className="h-6 w-6 p-0"
                                 >
-                                  <Copy className="h-3 w-3" />
+                                  <Copy className="h-2.5 w-2.5" />
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   asChild
-                                  className="h-7 w-7 p-0"
+                                  className="h-6 w-6 p-0"
                                 >
                                   <a href={linkExistente.url.startsWith('http') ? linkExistente.url : `https://${linkExistente.url}`} target="_blank" rel="noopener noreferrer">
-                                    <ExternalLink className="h-3 w-3" />
+                                    <ExternalLink className="h-2.5 w-2.5" />
                                   </a>
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleEdit(linkExistente)}
-                                  className="h-7 w-7 p-0"
+                                  className="h-6 w-6 p-0"
                                 >
-                                  <Edit2 className="h-3 w-3" />
+                                  <Edit2 className="h-2.5 w-2.5" />
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleDelete(linkExistente.id)}
-                                  className="h-7 w-7 p-0 text-destructive"
+                                  className="h-6 w-6 p-0 text-destructive"
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 className="h-2.5 w-2.5" />
                                 </Button>
                               </div>
                             </>
                           )}
                         </div>
                       ) : (
-                        <div className="flex gap-2 pt-2">
+                        <div className="flex gap-1.5 mt-1">
                           <Input
                             placeholder="Cole a URL aqui..."
                             value={editandoUrls[campo.nome] || ''}
                             onChange={(e) => setEditandoUrls({ ...editandoUrls, [campo.nome]: e.target.value })}
-                            className="h-8 text-xs"
+                            className="h-6 text-xs"
                           />
                           <Button 
                             size="sm" 
@@ -543,10 +550,10 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
                               handleQuickAdd(campo.nome, editandoUrls[campo.nome] || '');
                               setEditandoUrls({ ...editandoUrls, [campo.nome]: '' });
                             }}
-                            className="h-8"
+                            className="h-6 text-xs px-2"
                           >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Adicionar
+                            <Plus className="h-2.5 w-2.5 mr-0.5" />
+                            Add
                           </Button>
                         </div>
                       )}
