@@ -167,6 +167,147 @@ const SortableLink = ({ link, onEdit, onDelete, editing, editingLink, setEditing
   );
 };
 
+const SortablePredefinedLink = ({ campo, linkExistente, editing, editingLink, setEditingLink, handleEdit, handleSaveEdit, handleDelete, handleQuickAdd, editandoUrls, setEditandoUrls, setEditing }: any) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: campo.nome });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card 
+        className={linkExistente ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800'}
+      >
+        <CardContent className="p-2.5">
+          <div className="flex items-center gap-2">
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+              <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h4 className="font-medium text-xs">{campo.nome}</h4>
+                {linkExistente ? (
+                  <Badge variant="default" className="bg-green-600 text-white text-[10px] px-1.5 py-0 h-4">
+                    <Check className="h-2.5 w-2.5 mr-0.5" />
+                    OK
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-amber-500 text-white text-[10px] px-1.5 py-0 h-4">
+                    <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                    Pendente
+                  </Badge>
+                )}
+              </div>
+              
+              {linkExistente ? (
+                <div className="flex items-center gap-1.5 mt-1">
+                  {editing && editingLink?.id === linkExistente.id ? (
+                    <div className="flex-1 flex gap-1">
+                      <Input
+                        value={editingLink.url}
+                        onChange={(e) => setEditingLink({ ...editingLink, url: e.target.value })}
+                        className="h-6 text-xs"
+                      />
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setEditing(false);
+                        setEditingLink(null);
+                      }} className="h-6 w-6 p-0">
+                        <X className="h-2.5 w-2.5" />
+                      </Button>
+                      <Button size="sm" onClick={handleSaveEdit} className="h-6 w-6 p-0">
+                        <Save className="h-2.5 w-2.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex-1 text-[10px] text-muted-foreground truncate font-mono bg-background px-1.5 py-0.5 rounded">
+                        {linkExistente.url}
+                      </div>
+                      <div className="flex gap-0.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(linkExistente.url);
+                              toast.success('✔ Copiado!', { duration: 2000 });
+                            } catch (error) {
+                              toast.error('Erro ao copiar link');
+                            }
+                          }}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Copy className="h-2.5 w-2.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          asChild
+                          className="h-6 w-6 p-0"
+                        >
+                          <a href={linkExistente.url.startsWith('http') ? linkExistente.url : `https://${linkExistente.url}`} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEdit(linkExistente)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Edit2 className="h-2.5 w-2.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDelete(linkExistente.id)}
+                          className="h-6 w-6 p-0 text-destructive"
+                        >
+                          <Trash2 className="h-2.5 w-2.5" />
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="flex gap-1.5 mt-1">
+                  <Input
+                    placeholder="Cole a URL aqui..."
+                    value={editandoUrls[campo.nome] || ''}
+                    onChange={(e) => setEditandoUrls({ ...editandoUrls, [campo.nome]: e.target.value })}
+                    className="h-6 text-xs"
+                  />
+                  <Button 
+                    size="sm" 
+                    onClick={() => {
+                      handleQuickAdd(campo.nome, editandoUrls[campo.nome] || '');
+                      setEditandoUrls({ ...editandoUrls, [campo.nome]: '' });
+                    }}
+                    className="h-6 text-xs px-2"
+                  >
+                    <Plus className="h-2.5 w-2.5 mr-0.5" />
+                    Add
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
   const [links, setLinks] = useState<Link[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,6 +316,40 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
   const [editingLink, setEditingLink] = useState<Link | null>(null);
   const [newLink, setNewLink] = useState({ nome: '', url: '' });
   const [editandoUrls, setEditandoUrls] = useState<Record<string, string>>({});
+
+  const camposPredefinidosBase = [
+    { nome: 'Página de Captura', descricao: 'Link da página de captura de leads' },
+    { nome: 'Página de Vendas / Checkout', descricao: 'Link da página de vendas' },
+    { nome: 'Planilha de Leads', descricao: 'Planilha de controle de leads' },
+    { nome: 'Planilha de Compradores', descricao: 'Planilha de controle de vendas' },
+    { nome: 'Pasta do Drive do Lançamento', descricao: 'Pasta com materiais do lançamento' },
+    { nome: 'Formulário de Pesquisa / NPS', descricao: 'Pesquisa de satisfação' },
+    { nome: 'Biblioteca de Criativos', descricao: 'Catálogo de criativos aprovados' }
+  ];
+
+  // Load saved order from localStorage
+  const getSavedOrder = () => {
+    const saved = localStorage.getItem(`links-order-${lancamentoId}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const [camposOrdenados, setCamposOrdenados] = useState(() => {
+    const savedOrder = getSavedOrder();
+    if (savedOrder) {
+      // Reorder based on saved order
+      return savedOrder
+        .map((nome: string) => camposPredefinidosBase.find(c => c.nome === nome))
+        .filter(Boolean);
+    }
+    return camposPredefinidosBase;
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -320,18 +495,25 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
     }
   };
 
-  const camposPredefinidos = [
-    { nome: 'Página de Captura', descricao: 'Link da página de captura de leads' },
-    { nome: 'Página de Vendas / Checkout', descricao: 'Link da página de vendas' },
-    { nome: 'Planilha de Leads', descricao: 'Planilha de controle de leads' },
-    { nome: 'Planilha de Compradores', descricao: 'Planilha de controle de vendas' },
-    { nome: 'Pasta do Drive do Lançamento', descricao: 'Pasta com materiais do lançamento' },
-    { nome: 'Formulário de Pesquisa / NPS', descricao: 'Pesquisa de satisfação' },
-    { nome: 'Biblioteca de Criativos', descricao: 'Catálogo de criativos aprovados' }
-  ];
-
   const getLinkByCategoria = (categoria: string) => {
     return links.find(link => link.nome === categoria);
+  };
+
+  const handlePredefinedDragEnd = (event: any) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      setCamposOrdenados((items: typeof camposPredefinidosBase) => {
+        const oldIndex = items.findIndex((i) => i.nome === active.id);
+        const newIndex = items.findIndex((i) => i.nome === over.id);
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+
+        // Save order to localStorage
+        localStorage.setItem(`links-order-${lancamentoId}`, JSON.stringify(newOrder.map(c => c.nome)));
+
+        return newOrder;
+      });
+    }
   };
 
   const handleAddPredefined = async (categoria: string) => {
@@ -430,143 +612,40 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
           </Card>
         )}
 
-        {/* Categorias Pré-definidas - ordenadas: preenchidos primeiro */}
-        <div className="space-y-1.5">
-          {[...camposPredefinidos]
-            .sort((a, b) => {
-              const aPreenchido = !!getLinkByCategoria(a.nome);
-              const bPreenchido = !!getLinkByCategoria(b.nome);
-              if (aPreenchido && !bPreenchido) return -1;
-              if (!aPreenchido && bPreenchido) return 1;
-              return 0;
-            })
-            .map((campo) => {
-            const linkExistente = getLinkByCategoria(campo.nome);
-
-            return (
-              <Card 
-                key={campo.nome} 
-                className={linkExistente ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800'}
-              >
-                <CardContent className="p-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium text-xs">{campo.nome}</h4>
-                        {linkExistente ? (
-                          <Badge variant="default" className="bg-green-600 text-white text-[10px] px-1.5 py-0 h-4">
-                            <Check className="h-2.5 w-2.5 mr-0.5" />
-                            OK
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="bg-amber-500 text-white text-[10px] px-1.5 py-0 h-4">
-                            <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                            Pendente
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      {linkExistente ? (
-                        <div className="flex items-center gap-1.5 mt-1">
-                          {editing && editingLink?.id === linkExistente.id ? (
-                            <div className="flex-1 flex gap-1">
-                              <Input
-                                value={editingLink.url}
-                                onChange={(e) => setEditingLink({ ...editingLink, url: e.target.value })}
-                                className="h-6 text-xs"
-                              />
-                              <Button size="sm" variant="outline" onClick={() => {
-                                setEditing(false);
-                                setEditingLink(null);
-                              }} className="h-6 w-6 p-0">
-                                <X className="h-2.5 w-2.5" />
-                              </Button>
-                              <Button size="sm" onClick={handleSaveEdit} className="h-6 w-6 p-0">
-                                <Save className="h-2.5 w-2.5" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex-1 text-[10px] text-muted-foreground truncate font-mono bg-background px-1.5 py-0.5 rounded">
-                                {linkExistente.url}
-                              </div>
-                              <div className="flex gap-0.5">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={async () => {
-                                    try {
-                                      await navigator.clipboard.writeText(linkExistente.url);
-                                      toast.success('✔ Copiado!', { duration: 2000 });
-                                    } catch (error) {
-                                      toast.error('Erro ao copiar link');
-                                    }
-                                  }}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <Copy className="h-2.5 w-2.5" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  asChild
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <a href={linkExistente.url.startsWith('http') ? linkExistente.url : `https://${linkExistente.url}`} target="_blank" rel="noopener noreferrer">
-                                    <ExternalLink className="h-2.5 w-2.5" />
-                                  </a>
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleEdit(linkExistente)}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <Edit2 className="h-2.5 w-2.5" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDelete(linkExistente.id)}
-                                  className="h-6 w-6 p-0 text-destructive"
-                                >
-                                  <Trash2 className="h-2.5 w-2.5" />
-                                </Button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex gap-1.5 mt-1">
-                          <Input
-                            placeholder="Cole a URL aqui..."
-                            value={editandoUrls[campo.nome] || ''}
-                            onChange={(e) => setEditandoUrls({ ...editandoUrls, [campo.nome]: e.target.value })}
-                            className="h-6 text-xs"
-                          />
-                          <Button 
-                            size="sm" 
-                            onClick={() => {
-                              handleQuickAdd(campo.nome, editandoUrls[campo.nome] || '');
-                              setEditandoUrls({ ...editandoUrls, [campo.nome]: '' });
-                            }}
-                            className="h-6 text-xs px-2"
-                          >
-                            <Plus className="h-2.5 w-2.5 mr-0.5" />
-                            Add
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        {/* Categorias Pré-definidas com Drag and Drop */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handlePredefinedDragEnd}
+        >
+          <SortableContext
+            items={camposOrdenados.map((c: { nome: string }) => c.nome)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-1.5">
+              {camposOrdenados.map((campo: { nome: string; descricao: string }) => (
+                <SortablePredefinedLink
+                  key={campo.nome}
+                  campo={campo}
+                  linkExistente={getLinkByCategoria(campo.nome)}
+                  editing={editing}
+                  editingLink={editingLink}
+                  setEditingLink={setEditingLink}
+                  handleEdit={handleEdit}
+                  handleSaveEdit={handleSaveEdit}
+                  handleDelete={handleDelete}
+                  handleQuickAdd={handleQuickAdd}
+                  editandoUrls={editandoUrls}
+                  setEditandoUrls={setEditandoUrls}
+                  setEditing={setEditing}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {/* Links Personalizados */}
-        {links.filter(link => !camposPredefinidos.some(c => c.nome === link.nome)).length > 0 && (
+        {links.filter(link => !camposPredefinidosBase.some(c => c.nome === link.nome)).length > 0 && (
           <div className="space-y-2 pt-4 border-t">
             <h4 className="text-sm font-semibold text-muted-foreground">Links Personalizados</h4>
             <DndContext
@@ -575,11 +654,11 @@ export default function LinksUteis({ lancamentoId }: LinksUteisProps) {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={links.filter(link => !camposPredefinidos.some(c => c.nome === link.nome)).map(l => l.id)}
+                items={links.filter(link => !camposPredefinidosBase.some(c => c.nome === link.nome)).map(l => l.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-2">
-                  {links.filter(link => !camposPredefinidos.some(c => c.nome === link.nome)).map((link) => (
+                  {links.filter(link => !camposPredefinidosBase.some(c => c.nome === link.nome)).map((link) => (
                     <SortableLink
                       key={link.id}
                       link={link}
