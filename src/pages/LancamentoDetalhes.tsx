@@ -949,35 +949,28 @@ export default function LancamentoDetalhes() {
           <LinksUteis lancamentoId={lancamento.id} />
         </div>
 
-        {/* 2. Layout com Informações + Cronograma */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 2a. Informações Básicas */}
-          <div>
-            <InformacoesBasicas lancamento={lancamento} />
-          </div>
-
-          {/* 2b. Cronograma */}
-          <div className="lg:col-span-2 space-y-6">
-            <GanttChartAvancado lancamento={lancamento} onUpdateDates={handleUpdateDates} />
-
-            <DashboardField value={lancamento.link_dashboard || ''} onSave={async url => {
-              await supabase.from('lancamentos').update({
-                link_dashboard: url
-              }).eq('id', lancamento.id);
-              setLancamento(prev => prev ? {
-                ...prev,
-                link_dashboard: url
-              } : null);
-            }} />
-          </div>
+        {/* 2. Informações Básicas + Diário de Bordo */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <InformacoesBasicas lancamento={lancamento} />
+          {lancamento.cliente_id && (
+            <DiarioBordo clienteId={lancamento.cliente_id} lancamentoId={lancamento.id} />
+          )}
         </div>
 
-        {/* 3. Diário de Bordo */}
-        {lancamento.cliente_id && (
-          <div className="mt-6">
-            <DiarioBordo clienteId={lancamento.cliente_id} lancamentoId={lancamento.id} />
-          </div>
-        )}
+        {/* 3. Cronograma */}
+        <div className="space-y-6">
+          <GanttChartAvancado lancamento={lancamento} onUpdateDates={handleUpdateDates} />
+
+          <DashboardField value={lancamento.link_dashboard || ''} onSave={async url => {
+            await supabase.from('lancamentos').update({
+              link_dashboard: url
+            }).eq('id', lancamento.id);
+            setLancamento(prev => prev ? {
+              ...prev,
+              link_dashboard: url
+            } : null);
+          }} />
+        </div>
       </TabsContent>
 
 
