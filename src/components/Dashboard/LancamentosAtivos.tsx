@@ -30,10 +30,13 @@ interface Lancamento {
 
 export function LancamentosAtivos() {
   const navigate = useNavigate();
-  const { isAdmin } = useUserPermissions();
+  const { isAdmin, isGestorProjetos } = useUserPermissions();
   const { user } = useAuth();
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Admin ou Gestor de Projetos vê todos
+  const canSeeAll = isAdmin || isGestorProjetos;
 
   useEffect(() => {
     const carregarLancamentos = async () => {
@@ -73,10 +76,10 @@ export function LancamentosAtivos() {
           .eq('ativo', true)
           .in('status_lancamento', ['em_captacao', 'cpl', 'remarketing'])
           .order('data_inicio_captacao', { ascending: false, nullsFirst: false })
-          .limit(isAdmin ? 10 : 5);
+          .limit(canSeeAll ? 10 : 5);
 
-        // Se não for admin, filtrar apenas os lançamentos do gestor
-        if (!isAdmin) {
+        // Se não for admin nem gestor de projetos, filtrar apenas os lançamentos do gestor
+        if (!canSeeAll) {
           query = query.eq('gestor_responsavel_id', colaboradorData.id);
         }
 
@@ -96,7 +99,7 @@ export function LancamentosAtivos() {
     };
 
     carregarLancamentos();
-  }, [user?.id, isAdmin]);
+  }, [user?.id, canSeeAll]);
 
   const getStatusLabel = (status: string) => {
     const statusMap: Record<string, string> = {
@@ -152,7 +155,7 @@ export function LancamentosAtivos() {
         <div className="text-center py-12 px-4 border-2 border-dashed rounded-xl">
           <Rocket className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-30" />
           <p className="text-sm text-muted-foreground">
-            {isAdmin
+            {canSeeAll
               ? 'Nenhum lançamento ativo no momento'
               : 'Você não possui lançamentos ativos no momento'}
           </p>
@@ -270,7 +273,7 @@ export function LancamentosAtivos() {
                   </div>
                 )}
 
-                {isAdmin && lancamento.colaboradores?.nome && (
+                {canSeeAll && lancamento.colaboradores?.nome && (
                   <div className="flex items-center gap-1">
                     <User className="h-3 w-3" />
                     <span>{lancamento.colaboradores.nome}</span>

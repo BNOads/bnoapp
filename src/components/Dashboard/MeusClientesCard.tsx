@@ -18,10 +18,13 @@ interface Cliente {
 export function MeusClientesCard() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { isAdmin, isMaster } = useUserPermissions();
+    const { isAdmin, isMaster, isGestorProjetos } = useUserPermissions();
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState<'gestor' | 'cs' | 'admin' | null>(null);
+    
+    // Admin, Master ou Gestor de Projetos vê todos os clientes
+    const canSeeAll = isAdmin || isMaster || isGestorProjetos;
 
     useEffect(() => {
         const fetchUserRoleAndClients = async () => {
@@ -30,7 +33,7 @@ export function MeusClientesCard() {
             try {
                 setLoading(true);
 
-                if (isAdmin || isMaster) {
+                if (canSeeAll) {
                     setUserRole('admin');
                     const { data: allClientes, error: clientesError } = await supabase
                         .from('clientes')
@@ -128,7 +131,7 @@ export function MeusClientesCard() {
         };
 
         fetchUserRoleAndClients();
-    }, [user, isAdmin, isMaster]);
+    }, [user, canSeeAll]);
 
     if (loading) {
         return (

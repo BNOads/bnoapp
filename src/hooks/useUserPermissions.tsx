@@ -6,6 +6,7 @@ interface UserPermissions {
   isAdmin: boolean;
   isMaster: boolean;
   isCS: boolean;
+  isGestorProjetos: boolean;
   canCreateContent: boolean;
   canManageBudgets: boolean;
   canManageReferences: boolean;
@@ -18,6 +19,7 @@ export const useUserPermissions = (): UserPermissions => {
     isAdmin: false,
     isMaster: false,
     isCS: false,
+    isGestorProjetos: false,
     canCreateContent: false,
     canManageBudgets: false,
     canManageReferences: false,
@@ -30,6 +32,7 @@ export const useUserPermissions = (): UserPermissions => {
         isAdmin: false,
         isMaster: false,
         isCS: false,
+        isGestorProjetos: false,
         canCreateContent: false,
         canManageBudgets: false,
         canManageReferences: false,
@@ -56,6 +59,7 @@ export const useUserPermissions = (): UserPermissions => {
       const isAdmin = ['admin', 'dono'].includes(profile?.nivel_acesso);
       const isMaster = isAdmin; // Simplificado: se é admin ou dono, é master
       const isCS = ['cs', 'admin', 'dono'].includes(profile?.nivel_acesso);
+      const isGestorProjetos = profile?.nivel_acesso === 'gestor_projetos';
       
       // Níveis que podem criar conteúdo: admin, dono, gestor_trafego, gestor_projetos, cs, webdesigner, editor_video
       const canCreateContent = ['admin', 'dono', 'gestor_trafego', 'gestor_projetos', 'cs', 'webdesigner', 'editor_video'].includes(profile?.nivel_acesso);
@@ -75,6 +79,7 @@ export const useUserPermissions = (): UserPermissions => {
         isAdmin,
         isMaster,
         isCS,
+        isGestorProjetos,
         canCreateContent,
         canManageBudgets,
         canManageReferences,
@@ -86,6 +91,7 @@ export const useUserPermissions = (): UserPermissions => {
           isAdmin: false,
           isMaster: false,
           isCS: false,
+          isGestorProjetos: false,
           canCreateContent: false,
           canManageBudgets: false,
           canManageReferences: false,
