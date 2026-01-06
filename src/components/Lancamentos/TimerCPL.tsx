@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
+import { Clock, Calendar, CheckCircle2, AlertCircle, GraduationCap } from "lucide-react";
 import { differenceInDays, differenceInHours, differenceInMinutes, isPast, isFuture, parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -88,9 +88,22 @@ export default function TimerCPL({
     return <Calendar className="h-4 w-4" />;
   };
 
+  // Calcular dados da primeira aula
+  const primeiraAulaData = dataInicioCPL ? (() => {
+    const dataAula = parseISO(dataInicioCPL);
+    const hoje = new Date();
+    const diasRestantes = differenceInDays(dataAula, hoje);
+    const jaPassou = diasRestantes < 0;
+    const progressoPct = dataInicioCaptacao 
+      ? Math.max(0, Math.min(100, ((differenceInDays(hoje, parseISO(dataInicioCaptacao)) / differenceInDays(dataAula, parseISO(dataInicioCaptacao))) * 100)))
+      : 0;
+    
+    return { dataAula, diasRestantes, jaPassou, progressoPct };
+  })() : null;
+
   return (
     <div className="space-y-4">
-      {/* Timer do próximo evento */}
+      {/* Timer do próximo evento + Contador Primeira Aula */}
       {nextEvent && timeLeft && (
         <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
           <CardContent className="p-6">
@@ -102,7 +115,7 @@ export default function TimerCPL({
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 mb-4">
               <div className="flex gap-2">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-primary">{timeLeft.dias}</div>
@@ -120,6 +133,34 @@ export default function TimerCPL({
                 </div>
               </div>
             </div>
+
+            {/* Contador Primeira Aula - dentro do card */}
+            {primeiraAulaData && (
+              <div className="pt-4 border-t border-primary/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <GraduationCap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Primeira Aula</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xl font-bold text-purple-900 dark:text-purple-100">
+                      {primeiraAulaData.jaPassou ? 'Concluído' : `${Math.abs(primeiraAulaData.diasRestantes)}d`}
+                    </span>
+                    <span className="text-sm text-purple-600 dark:text-purple-400 ml-2">
+                      {format(primeiraAulaData.dataAula, "dd 'de' MMMM", { locale: ptBR })}
+                    </span>
+                  </div>
+                </div>
+                {!primeiraAulaData.jaPassou && (
+                  <div className="w-full bg-purple-200 dark:bg-purple-900/50 rounded-full h-1.5 mt-2">
+                    <div
+                      className="bg-purple-600 dark:bg-purple-400 h-1.5 rounded-full transition-all duration-500"
+                      style={{ width: `${primeiraAulaData.progressoPct}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

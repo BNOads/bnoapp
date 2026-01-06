@@ -942,51 +942,10 @@ export default function LancamentoDetalhes() {
       </TabsList>
 
       <TabsContent value="calendario" className="space-y-6">
-        {/* 1. Verba em Destaque + Timer CPL + Contador Primeira Aula */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 1. Verba em Destaque + Timer CPL (com Contador Primeira Aula integrado) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <VerbaDestaque investimentoTotal={lancamento.investimento_total} metaInvestimento={lancamento.meta_investimento} verbasPorFase={lancamento.verba_por_fase || {}} />
           <TimerCPL dataInicioCaptacao={lancamento.data_inicio_captacao} dataFimCaptacao={lancamento.data_fim_captacao} dataInicioAquecimento={lancamento.data_inicio_aquecimento} dataInicioCPL={lancamento.data_inicio_cpl} dataInicioCarrinho={lancamento.data_inicio_carrinho} dataFechamento={lancamento.data_fechamento} />
-
-          {/* Contador para Primeira Aula */}
-          {lancamento.data_inicio_cpl && (
-            <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 border-purple-200 dark:border-purple-800">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center gap-2 text-purple-700 dark:text-purple-300">
-                  <Clock className="h-4 w-4" />
-                  Primeira Aula
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {(() => {
-                  const dataAula = parseISO(lancamento.data_inicio_cpl);
-                  const hoje = new Date();
-                  const diasRestantes = differenceInDays(dataAula, hoje);
-                  const jaPassou = diasRestantes < 0;
-
-                  return (
-                    <div className="space-y-2">
-                      <div className="text-3xl font-bold text-purple-900 dark:text-purple-100">
-                        {jaPassou ? 'Concluído' : `${Math.abs(diasRestantes)}d`}
-                      </div>
-                      <div className="text-sm text-purple-600 dark:text-purple-400">
-                        {format(dataAula, "dd 'de' MMMM", { locale: ptBR })}
-                      </div>
-                      {!jaPassou && (
-                        <div className="w-full bg-purple-200 dark:bg-purple-900/50 rounded-full h-2 mt-3">
-                          <div
-                            className="bg-purple-600 dark:bg-purple-400 h-2 rounded-full transition-all duration-500"
-                            style={{
-                              width: `${Math.max(0, Math.min(100, ((differenceInDays(hoje, parseISO(lancamento.data_inicio_captacao || lancamento.data_inicio_cpl)) / differenceInDays(dataAula, parseISO(lancamento.data_inicio_captacao || lancamento.data_inicio_cpl))) * 100)))}%`
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {/* 2. Layout com Informações + Cronograma */}
