@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FolderOpen } from "lucide-react";
 import { DriveCreativesView } from "@/components/Criativos/DriveCreativesView";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,7 @@ export default function CriativosCliente() {
   const location = useLocation();
   const { toast } = useToast();
   const [clienteNome, setClienteNome] = useState<string>("");
+  const [driveFolderUrl, setDriveFolderUrl] = useState<string | null>(null);
   const [loadingCliente, setLoadingCliente] = useState(true);
 
   useEffect(() => {
@@ -23,7 +24,7 @@ export default function CriativosCliente() {
       setLoadingCliente(true);
       const { data, error } = await supabase
         .from('clientes')
-        .select('nome')
+        .select('nome, pasta_drive_url')
         .eq('id', clienteId)
         .maybeSingle();
       
@@ -35,6 +36,7 @@ export default function CriativosCliente() {
         });
       } else if (data) {
         setClienteNome(data.nome);
+        setDriveFolderUrl(data.pasta_drive_url);
       }
       setLoadingCliente(false);
     };
@@ -67,9 +69,21 @@ export default function CriativosCliente() {
             {loadingCliente ? (
               <Skeleton className="h-7 w-32" />
             ) : (
-              <Badge variant="secondary" className="text-base px-3 py-1">
-                {clienteNome}
-              </Badge>
+              <>
+                <Badge variant="secondary" className="text-base px-3 py-1">
+                  {clienteNome}
+                </Badge>
+                {driveFolderUrl && (
+                  <Button
+                    size="sm"
+                    onClick={() => window.open(driveFolderUrl, '_blank')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    Abrir Pasta
+                  </Button>
+                )}
+              </>
             )}
           </div>
           <p className="text-muted-foreground">
