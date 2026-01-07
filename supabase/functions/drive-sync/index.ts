@@ -40,10 +40,23 @@ async function listDriveFolders(parentFolderId: string): Promise<any> {
   if (!response.ok) {
     const error = await response.text();
     console.error(`Google Drive API error (folders): ${response.status} - ${error}`);
+    
+    // Verificar se é um erro de permissão ou pasta não pública
+    if (response.status === 403 || response.status === 404 || error.includes('<html>')) {
+      throw new Error('A pasta do Google Drive não está acessível. Verifique se a pasta está compartilhada como "Qualquer pessoa com o link" ou se a API key está correta.');
+    }
     throw new Error(`Google Drive API error: ${response.status} - ${error}`);
   }
   
-  const result = await response.json();
+  const responseText = await response.text();
+  
+  // Verificar se a resposta é HTML (erro) em vez de JSON
+  if (responseText.trim().startsWith('<')) {
+    console.error('Resposta inesperada (HTML):', responseText.substring(0, 200));
+    throw new Error('A pasta do Google Drive não está acessível. Certifique-se de que a pasta está compartilhada como "Qualquer pessoa com o link".');
+  }
+  
+  const result = JSON.parse(responseText);
   console.log('Pastas encontradas:', result.files?.length || 0);
   return result;
 }
@@ -65,16 +78,29 @@ async function listDriveFiles(folderId: string, folderName = 'Raiz', folderPath 
   
   const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`);
   
-  console.log(`Fazendo requisição para Google Drive API: https://www.googleapis.com/drive/v3/files?${params}`);
+  console.log(`Fazendo requisição para Google Drive API`);
   console.log(`Response status: ${response.status}`);
   
   if (!response.ok) {
     const error = await response.text();
     console.error(`Google Drive API error: ${response.status} - ${error}`);
+    
+    // Verificar se é um erro de permissão ou pasta não pública
+    if (response.status === 403 || response.status === 404 || error.includes('<html>')) {
+      throw new Error('A pasta do Google Drive não está acessível. Verifique se a pasta está compartilhada como "Qualquer pessoa com o link" ou se a API key está correta.');
+    }
     throw new Error(`Google Drive API error: ${response.status} - ${error}`);
   }
   
-  const result = await response.json();
+  const responseText = await response.text();
+  
+  // Verificar se a resposta é HTML (erro) em vez de JSON
+  if (responseText.trim().startsWith('<')) {
+    console.error('Resposta inesperada (HTML):', responseText.substring(0, 200));
+    throw new Error('A pasta do Google Drive não está acessível. Certifique-se de que a pasta está compartilhada como "Qualquer pessoa com o link".');
+  }
+  
+  const result = JSON.parse(responseText);
   
   // Adicionar informações da pasta aos arquivos
   if (result.files) {
@@ -86,7 +112,7 @@ async function listDriveFiles(folderId: string, folderName = 'Raiz', folderPath 
     }));
   }
   
-  console.log('Resposta da API do Google Drive:', JSON.stringify(result, null, 2));
+  console.log('Arquivos encontrados na pasta:', result.files?.length || 0);
   return result;
 }
 

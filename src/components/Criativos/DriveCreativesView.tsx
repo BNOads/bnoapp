@@ -61,6 +61,7 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
   const [selectedCreatives, setSelectedCreatives] = useState<string[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [driveFolderUrl, setDriveFolderUrl] = useState<string | null>(null);
   const [allFolders, setAllFolders] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'nomenclatura' | 'pagina_destino' | 'pasta' | 'status'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -235,9 +236,26 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     }
   };
 
+  // Carregar URL da pasta do Drive
+  const carregarDriveFolderUrl = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('pasta_drive_url')
+        .eq('id', clienteId)
+        .single();
+
+      if (error) throw error;
+      setDriveFolderUrl(data?.pasta_drive_url || null);
+    } catch (error) {
+      console.error('Erro ao carregar URL da pasta:', error);
+    }
+  };
+
   useEffect(() => {
     carregarCreatives();
     carregarTodasAsPastas();
+    carregarDriveFolderUrl();
   }, [clienteId, pagination.page, selectedType, selectedFolder, searchTerm]);
 
   // Função para obter subpastas únicas (agora usa o estado allFolders)
@@ -878,6 +896,17 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
               <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Sincronizando...' : 'Sincronizar'}
             </Button>
+
+            {driveFolderUrl && (
+              <Button
+                variant="outline"
+                onClick={() => window.open(driveFolderUrl, '_blank')}
+                className="flex items-center gap-2"
+              >
+                <FolderOpen className="h-4 w-4" />
+                <span className="hidden sm:inline">Abrir Pasta</span>
+              </Button>
+            )}
           </div>
         </div>
 
