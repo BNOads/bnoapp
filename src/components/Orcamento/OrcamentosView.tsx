@@ -6,14 +6,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Search, Plus, Trash2, TrendingUp, Users, Target, ChevronUp, ChevronDown, BarChart3 } from 'lucide-react';
+import { Search, Plus, Trash2, TrendingUp, Users, ChevronUp, ChevronDown, PieChart as PieChartIcon, Edit2, Rocket, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { NovoOrcamentoModal } from './NovoOrcamentoModal';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { EditOrcamentoModal } from './EditOrcamentoModal';
+import { OrcamentoDetalhesModal } from './OrcamentoDetalhesModal';
+import { Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { OrcamentoStatusToggle } from '@/components/Clientes/OrcamentoStatusToggle';
+import { CATEGORIAS_FUNIL, STATUS_ORCAMENTO, MESES, getCategoriaLabel, getCategoriaDescricao, getCategoriaCor } from '@/lib/orcamentoConstants';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Orcamento {
   id: string;
@@ -25,49 +29,25 @@ interface Orcamento {
   periodo_ano: number;
   status_orcamento: string;
   observacoes?: string;
+  categoria_explicacao?: string;
   created_at: string;
+  data_atualizacao?: string;
   cliente_id: string;
   cliente_nome?: string;
   active: boolean;
   ativo?: boolean;
+  // Campos para lançamentos integrados
+  isLancamento?: boolean;
+  lancamento_id?: string;
+  lancamento_status?: string;
 }
 
 type SortField = 'nome_funil' | 'cliente_nome' | 'valor_investimento' | 'valor_gasto' | 'periodo_mes' | 'etapa_funil';
 type SortDirection = 'asc' | 'desc';
 
-const ETAPAS_FUNIL = [
-  { value: 'captacao', label: 'Captação' },
-  { value: 'cpl', label: 'CPL' },
-  { value: 'vendas', label: 'Vendas' },
-  { value: 'remarketing', label: 'Remarketing' },
-  { value: 'email_marketing', label: 'E-mail Marketing' },
-  { value: 'upsell', label: 'Upsell' }
-];
-
-const STATUS_OPTIONS = [
-  { value: 'ativo', label: 'Ativo', color: 'bg-green-500' },
-  { value: 'pausado', label: 'Pausado', color: 'bg-yellow-500' },
-  { value: 'concluido', label: 'Concluído', color: 'bg-blue-500' },
-  { value: 'cancelado', label: 'Cancelado', color: 'bg-red-500' }
-];
-
-const MESES = [
-  { value: 1, label: 'Janeiro' },
-  { value: 2, label: 'Fevereiro' },
-  { value: 3, label: 'Março' },
-  { value: 4, label: 'Abril' },
-  { value: 5, label: 'Maio' },
-  { value: 6, label: 'Junho' },
-  { value: 7, label: 'Julho' },
-  { value: 8, label: 'Agosto' },
-  { value: 9, label: 'Setembro' },
-  { value: 10, label: 'Outubro' },
-  { value: 11, label: 'Novembro' },
-  { value: 12, label: 'Dezembro' }
-];
-
 export const OrcamentosView = () => {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
+  const [lancamentosData, setLancamentosData] = useState<Orcamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalNovo, setModalNovo] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -77,6 +57,9 @@ export const OrcamentosView = () => {
   const [anoFiltro, setAnoFiltro] = useState<number>(new Date().getFullYear());
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [orcamentoToDelete, setOrcamentoToDelete] = useState<string | null>(null);
+  const [showDetalhesModal, setShowDetalhesModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedOrcamento, setSelectedOrcamento] = useState<Orcamento | null>(null);
   const [sortField, setSortField] = useState<SortField>('nome_funil');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [clienteGestorMap, setClienteGestorMap] = useState<Record<string, string | null>>({});
@@ -87,6 +70,7 @@ export const OrcamentosView = () => {
 
   useEffect(() => {
     loadOrcamentos();
+    loadLancamentos();
   }, []);
 
   const loadOrcamentos = async () => {
@@ -154,6 +138,53 @@ export const OrcamentosView = () => {
     }
   };
 
+  const loadLancamentos = async () => {
+    try {
+      // Buscar lançamentos ativos (não finalizados)
+      const { data: lancamentosRaw, error: lancamentosError } = await supabase
+        .from('lancamentos')
+        .select('id, nome_lancamento, investimento_total, status_lancamento, cliente_id, updated_at, created_at')
+        .eq('ativo', true)
+        .in('status_lancamento', ['em_captacao', 'cpl', 'remarketing', 'pausado']);
+
+      if (lancamentosError) throw lancamentosError;
+
+      // Buscar nomes dos clientes para os lançamentos
+      const clienteIds = Array.from(new Set((lancamentosRaw || []).map(l => l.cliente_id).filter(Boolean)));
+      const { data: clientesData } = await supabase
+        .from('clientes')
+        .select('id, nome')
+        .in('id', clienteIds.length > 0 ? clienteIds : ['00000000-0000-0000-0000-000000000000']);
+
+      const clienteNomeMap: Record<string, string> = {};
+      clientesData?.forEach(c => { clienteNomeMap[c.id] = c.nome; });
+
+      // Transformar lançamentos para o formato de Orcamento
+      const lancamentosTransformados: Orcamento[] = (lancamentosRaw || []).map(lanc => ({
+        id: `lancamento-${lanc.id}`,
+        nome_funil: lanc.nome_lancamento,
+        valor_investimento: Number(lanc.investimento_total) || 0,
+        valor_gasto: 0,
+        etapa_funil: 'lancamento',
+        periodo_mes: new Date().getMonth() + 1,
+        periodo_ano: new Date().getFullYear(),
+        status_orcamento: 'ativo',
+        created_at: lanc.created_at,
+        data_atualizacao: lanc.updated_at,
+        cliente_id: lanc.cliente_id,
+        cliente_nome: clienteNomeMap[lanc.cliente_id] || 'Cliente não encontrado',
+        active: true,
+        isLancamento: true,
+        lancamento_id: lanc.id,
+        lancamento_status: lanc.status_lancamento,
+      }));
+
+      setLancamentosData(lancamentosTransformados);
+    } catch (error) {
+      console.error('Erro ao carregar lançamentos:', error);
+    }
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -204,46 +235,59 @@ export const OrcamentosView = () => {
     const currentMonth = currentDate.getMonth() + 1;
     const currentYear = currentDate.getFullYear();
     const isCurrentPeriod = mesFiltro === currentMonth && anoFiltro === currentYear;
-    
-    let filtered = orcamentos.filter(orcamento => {
-      const matchesSearch = 
+
+    // Combinar orçamentos com lançamentos
+    const todosItens = [...orcamentos, ...lancamentosData];
+
+    let filtered = todosItens.filter(orcamento => {
+      const matchesSearch =
         orcamento.nome_funil.toLowerCase().includes(searchTerm.toLowerCase()) ||
         orcamento.cliente_nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         orcamento.observacoes?.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       const matchesCliente = clienteFiltro === 'all' || orcamento.cliente_id === clienteFiltro;
-      const matchesEtapa = etapaFiltro === 'all' || orcamento.etapa_funil === etapaFiltro;
-      
+      // Lançamentos passam no filtro de etapa quando "all" ou "lancamento"
+      const matchesEtapa = etapaFiltro === 'all' ||
+                          (orcamento.isLancamento && etapaFiltro === 'lancamento') ||
+                          (!orcamento.isLancamento && orcamento.etapa_funil === etapaFiltro);
+
       // Lógica de período e status baseada se é período atual ou passado
       if (isCurrentPeriod) {
-        // Período atual: TODOS os orçamentos ativos (ligados), independente do período cadastrado
-        const matchesStatus = orcamento.active === true;
+        // Período atual: TODOS os orçamentos ativos + lançamentos ativos
+        const matchesStatus = orcamento.active === true || orcamento.isLancamento;
         return matchesSearch && matchesCliente && matchesEtapa && matchesStatus;
       } else {
         // Períodos passados: filtrar por período específico E considerar ativos e pausados
+        // Lançamentos não aparecem em períodos passados
+        if (orcamento.isLancamento) return false;
         const matchesPeriodo = orcamento.periodo_mes === mesFiltro && orcamento.periodo_ano === anoFiltro;
         const matchesStatus = ['ativo', 'pausado'].includes(orcamento.status_orcamento);
         return matchesSearch && matchesCliente && matchesEtapa && matchesPeriodo && matchesStatus;
       }
     });
 
-    // Ordenação
+    // Ordenação - lançamentos primeiro
     filtered.sort((a, b) => {
+      // Lançamentos primeiro
+      if (a.isLancamento !== b.isLancamento) {
+        return a.isLancamento ? -1 : 1;
+      }
+
       let aValue: any = a[sortField];
       let bValue: any = b[sortField];
-      
+
       if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
-      
+
       if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
 
     return filtered;
-  }, [orcamentos, searchTerm, clienteFiltro, etapaFiltro, mesFiltro, anoFiltro, sortField, sortDirection]);
+  }, [orcamentos, lancamentosData, searchTerm, clienteFiltro, etapaFiltro, mesFiltro, anoFiltro, sortField, sortDirection]);
 
   // Agrupamento por gestor com base no período/filters atuais
   const gestoresAggregados = useMemo(() => {
@@ -284,11 +328,21 @@ export const OrcamentosView = () => {
   };
 
   const getEtapaLabel = (etapa: string) => {
-    return ETAPAS_FUNIL.find(e => e.value === etapa)?.label || etapa;
+    return getCategoriaLabel(etapa);
+  };
+
+  const abrirDetalhes = (orcamento: Orcamento) => {
+    setSelectedOrcamento(orcamento);
+    setShowDetalhesModal(true);
+  };
+
+  const abrirEdicao = (orcamento: Orcamento) => {
+    setSelectedOrcamento(orcamento);
+    setShowEditModal(true);
   };
 
   const getStatusBadge = (status: string) => {
-    const statusOption = STATUS_OPTIONS.find(s => s.value === status);
+    const statusOption = STATUS_ORCAMENTO.find(s => s.value === status);
     return (
       <Badge variant="secondary" className={`${statusOption?.color || 'bg-gray-500'} text-white`}>
         {statusOption?.label || status}
@@ -298,20 +352,20 @@ export const OrcamentosView = () => {
 
   // Totais do período selecionado
   const totalPrevisto = filteredAndSortedOrcamentos.reduce((sum, o) => sum + o.valor_investimento, 0);
-  const totalGasto = filteredAndSortedOrcamentos.reduce((sum, o) => sum + o.valor_gasto, 0);
   const totalClientes = new Set(filteredAndSortedOrcamentos.map(o => o.cliente_id)).size;
 
-  // Dados para o gráfico
-  const chartData = useMemo(() => {
-    const etapasData = ETAPAS_FUNIL.map(etapa => {
-      const orcamentosEtapa = filteredAndSortedOrcamentos.filter(o => o.etapa_funil === etapa.value);
+  // Dados para o gráfico de pizza por categoria
+  const pieChartData = useMemo(() => {
+    const categoriasData = CATEGORIAS_FUNIL.map(categoria => {
+      const orcamentosCategoria = filteredAndSortedOrcamentos.filter(o => o.etapa_funil === categoria.value);
+      const totalCategoria = orcamentosCategoria.reduce((sum, o) => sum + o.valor_investimento, 0);
       return {
-        etapa: etapa.label,
-        previsto: orcamentosEtapa.reduce((sum, o) => sum + o.valor_investimento, 0),
-        gasto: orcamentosEtapa.reduce((sum, o) => sum + o.valor_gasto, 0)
+        name: categoria.label,
+        value: totalCategoria,
+        cor: categoria.cor
       };
     });
-    return etapasData.filter(data => data.previsto > 0 || data.gasto > 0);
+    return categoriasData.filter(data => data.value > 0);
   }, [filteredAndSortedOrcamentos]);
 
   const uniqueClientesMap = new Map<string, string>();
@@ -350,7 +404,7 @@ export const OrcamentosView = () => {
       </div>
 
       {/* Cards de resumo */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Previsto ({MESES[mesFiltro - 1]?.label}/{anoFiltro})</CardTitle>
@@ -358,31 +412,6 @@ export const OrcamentosView = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{formatCurrency(totalPrevisto)}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gasto ({MESES[mesFiltro - 1]?.label}/{anoFiltro})</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totalGasto)}</div>
-            <p className="text-xs text-muted-foreground">
-              {totalPrevisto > 0 ? `${((totalGasto / totalPrevisto) * 100).toFixed(1)}% do previsto` : '0% do previsto'}
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Saldo</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${totalPrevisto - totalGasto >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(totalPrevisto - totalGasto)}
-            </div>
           </CardContent>
         </Card>
         
@@ -397,26 +426,34 @@ export const OrcamentosView = () => {
         </Card>
       </div>
 
-      {/* Gráfico */}
-      {chartData.length > 0 && (
+      {/* Gráfico de Pizza por Categoria */}
+      {pieChartData.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Previsto vs Gasto por Etapa - {MESES[mesFiltro - 1]?.label}/{anoFiltro}
+              <PieChartIcon className="h-5 w-5" />
+              Distribuição por Categoria - {MESES[mesFiltro - 1]?.label}/{anoFiltro}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="etapa" />
-                <YAxis tickFormatter={(value) => formatCurrency(value)} />
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+              <PieChart>
+                <Pie
+                  data={pieChartData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {pieChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.cor} />
+                  ))}
+                </Pie>
+                <RechartsTooltip formatter={(value) => formatCurrency(Number(value))} />
                 <Legend />
-                <Bar dataKey="previsto" fill="#3b82f6" name="Previsto" />
-                <Bar dataKey="gasto" fill="#ef4444" name="Gasto" />
-              </BarChart>
+              </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -490,13 +527,13 @@ export const OrcamentosView = () => {
 
         <Select value={etapaFiltro} onValueChange={setEtapaFiltro}>
           <SelectTrigger>
-            <SelectValue placeholder="Etapa" />
+            <SelectValue placeholder="Categoria" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas as etapas</SelectItem>
-            {ETAPAS_FUNIL.map((etapa) => (
-              <SelectItem key={etapa.value} value={etapa.value}>
-                {etapa.label}
+            <SelectItem value="all">Todas as categorias</SelectItem>
+            {CATEGORIAS_FUNIL.map((categoria) => (
+              <SelectItem key={categoria.value} value={categoria.value}>
+                {categoria.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -597,7 +634,7 @@ export const OrcamentosView = () => {
                         {getSortIcon('etapa_funil')}
                       </div>
                     </TableHead>
-                    <TableHead 
+                    <TableHead
                       className="cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => handleSort('valor_investimento')}
                     >
@@ -606,65 +643,116 @@ export const OrcamentosView = () => {
                         {getSortIcon('valor_investimento')}
                       </div>
                     </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort('valor_gasto')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Gasto
-                        {getSortIcon('valor_gasto')}
-                      </div>
-                    </TableHead>
                     {canManageBudgets && <TableHead>Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredAndSortedOrcamentos.map((orcamento) => (
-                    <TableRow key={orcamento.id}>
-                      <TableCell>
-                        <OrcamentoStatusToggle
-                          orcamentoId={orcamento.id}
-                          currentStatus={orcamento.active}
-                          onStatusChange={(newStatus) => {
-                            setOrcamentos(prev => prev.map(o => 
-                              o.id === orcamento.id ? { ...o, active: newStatus } : o
-                            ));
-                          }}
-                          disabled={!canManageBudgets}
-                        />
+                    <TableRow
+                      key={orcamento.id}
+                      className={`cursor-pointer hover:bg-muted/50 ${orcamento.isLancamento ? 'border-l-4 border-l-emerald-500' : ''}`}
+                      onClick={() => {
+                        if (orcamento.isLancamento) {
+                          window.open(`/lancamento/${orcamento.lancamento_id}`, '_blank');
+                        } else {
+                          abrirDetalhes(orcamento);
+                        }
+                      }}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {orcamento.isLancamento ? (
+                          <Badge className="text-xs bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center gap-1 w-fit">
+                            <Rocket className="h-3 w-3" />
+                            Ativo
+                          </Badge>
+                        ) : (
+                          <OrcamentoStatusToggle
+                            orcamentoId={orcamento.id}
+                            currentStatus={orcamento.active}
+                            onStatusChange={(newStatus) => {
+                              setOrcamentos(prev => prev.map(o =>
+                                o.id === orcamento.id ? { ...o, active: newStatus } : o
+                              ));
+                            }}
+                            disabled={!canManageBudgets}
+                          />
+                        )}
                       </TableCell>
-                      <TableCell className="font-medium">{orcamento.nome_funil}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {orcamento.nome_funil}
+                          {orcamento.isLancamento && (
+                            <Badge className="text-xs bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center gap-1">
+                              <Rocket className="h-3 w-3" />
+                              Lançamento
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{orcamento.cliente_nome}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {getEtapaLabel(orcamento.etapa_funil)}
-                        </Badge>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                className="cursor-help text-white border-0"
+                                style={{ backgroundColor: getCategoriaCor(orcamento.etapa_funil) }}
+                              >
+                                {getEtapaLabel(orcamento.etapa_funil)}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-sm">
+                                {orcamento.categoria_explicacao || getCategoriaDescricao(orcamento.etapa_funil)}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </TableCell>
                       <TableCell className="text-blue-600 font-semibold">
                         {formatCurrency(orcamento.valor_investimento)}
                       </TableCell>
-                      <TableCell className="text-red-600 font-semibold">
-                        {formatCurrency(orcamento.valor_gasto)}
-                      </TableCell>
                       {canManageBudgets && (
-                        <TableCell>
-                          <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-                            <AlertDialogTrigger asChild>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {orcamento.isLancamento ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(`/lancamento/${orcamento.lancamento_id}`, '_blank')}
+                              className="h-8 w-8 p-0"
+                              title="Ver Lançamento"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <div className="flex items-center gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => setOrcamentoToDelete(orcamento.id)}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                onClick={() => abrirEdicao(orcamento)}
+                                className="h-8 w-8 p-0"
+                                title="Editar"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Edit2 className="h-4 w-4" />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.
-                                </AlertDialogDescription>
+                              <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setOrcamentoToDelete(orcamento.id)}
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                    title="Excluir"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -673,7 +761,9 @@ export const OrcamentosView = () => {
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
-                          </AlertDialog>
+                            </AlertDialog>
+                            </div>
+                          )}
                         </TableCell>
                       )}
                     </TableRow>
@@ -688,6 +778,19 @@ export const OrcamentosView = () => {
       <NovoOrcamentoModal
         open={modalNovo}
         onOpenChange={setModalNovo}
+        onSuccess={loadOrcamentos}
+      />
+
+      <OrcamentoDetalhesModal
+        open={showDetalhesModal}
+        onOpenChange={setShowDetalhesModal}
+        orcamento={selectedOrcamento}
+      />
+
+      <EditOrcamentoModal
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+        orcamento={selectedOrcamento}
         onSuccess={loadOrcamentos}
       />
     </div>

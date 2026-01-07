@@ -11,24 +11,29 @@ import { CATEGORIAS_FUNIL, STATUS_ORCAMENTO, MESES, getCategoriaDescricao } from
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-interface Cliente {
+interface Orcamento {
   id: string;
-  nome: string;
-  funis_trabalhando?: string[];
+  nome_funil: string;
+  valor_investimento: number;
+  valor_gasto: number;
+  etapa_funil: string;
+  periodo_mes: number;
+  periodo_ano: number;
+  status_orcamento: string;
+  observacoes?: string;
+  categoria_explicacao?: string;
 }
 
-interface NovoOrcamentoModalProps {
+interface EditOrcamentoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  orcamento: Orcamento | null;
   onSuccess?: () => void;
 }
 
-
-export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcamentoModalProps) => {
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }: EditOrcamentoModalProps) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    cliente_id: '',
     nome_funil: '',
     etapa_funil: 'distribuicao_conteudo',
     valor_investimento: '',
@@ -42,48 +47,24 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
   const { toast } = useToast();
 
   useEffect(() => {
-    if (open) {
-      loadClientes();
-      // Reset form data when opening
+    if (open && orcamento) {
       setFormData({
-        cliente_id: '',
-        nome_funil: '',
-        etapa_funil: 'distribuicao_conteudo',
-        valor_investimento: '',
-        valor_gasto: '0',
-        periodo_mes: new Date().getMonth() + 1,
-        periodo_ano: new Date().getFullYear(),
-        status_orcamento: 'ativo',
-        observacoes: '',
-        categoria_explicacao: ''
+        nome_funil: orcamento.nome_funil || '',
+        etapa_funil: orcamento.etapa_funil || 'distribuicao_conteudo',
+        valor_investimento: orcamento.valor_investimento?.toString() || '',
+        periodo_mes: orcamento.periodo_mes || new Date().getMonth() + 1,
+        periodo_ano: orcamento.periodo_ano || new Date().getFullYear(),
+        status_orcamento: orcamento.status_orcamento || 'ativo',
+        observacoes: orcamento.observacoes || '',
+        categoria_explicacao: orcamento.categoria_explicacao || ''
       });
     }
-  }, [open]);
-
-  const loadClientes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('id, nome, funis_trabalhando')
-        .eq('ativo', true)
-        .order('nome');
-
-      if (error) throw error;
-      setClientes(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar clientes",
-        variant: "destructive"
-      });
-    }
-  };
+  }, [open, orcamento]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.cliente_id || !formData.nome_funil || !formData.valor_investimento) {
+
+    if (!orcamento || !formData.nome_funil || !formData.valor_investimento) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
@@ -94,40 +75,36 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
 
     try {
       setLoading(true);
-      
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error('Usuário não autenticado');
 
       const { error } = await supabase
         .from('orcamentos_funil')
-        .insert([{
-          cliente_id: formData.cliente_id,
+        .update({
           nome_funil: formData.nome_funil,
           etapa_funil: formData.etapa_funil,
           valor_investimento: parseFloat(formData.valor_investimento),
-          valor_gasto: parseFloat(formData.valor_gasto),
           periodo_mes: formData.periodo_mes,
           periodo_ano: formData.periodo_ano,
           status_orcamento: formData.status_orcamento,
           observacoes: formData.observacoes || null,
           categoria_explicacao: formData.categoria_explicacao || null,
-          created_by: user.user.id
-        }]);
+          data_atualizacao: new Date().toISOString()
+        })
+        .eq('id', orcamento.id);
 
       if (error) throw error;
 
       toast({
         title: "Sucesso",
-        description: "Orçamento criado com sucesso"
+        description: "Orçamento atualizado com sucesso"
       });
 
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      console.error('Erro ao criar orçamento:', error);
+      console.error('Erro ao atualizar orçamento:', error);
       toast({
         title: "Erro",
-        description: "Erro ao criar orçamento",
+        description: "Erro ao atualizar orçamento",
         variant: "destructive"
       });
     } finally {
@@ -135,42 +112,25 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
     }
   };
 
-  const clienteSelecionado = clientes.find(c => c.id === formData.cliente_id);
-  const funisDisponiveis = (clienteSelecionado?.funis_trabalhando || [
-    'Captação Facebook/Instagram',
-    'Captação Google Ads', 
-    'Remarketing',
-    'E-mail Marketing',
-    'Vendas Diretas',
-    'Upsell/Cross-sell'
-  ]).filter(funil => funil && funil.trim() !== '');
+  if (!orcamento) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Orçamento por Funil</DialogTitle>
+          <DialogTitle>Editar Orçamento</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <Label htmlFor="cliente">Cliente *</Label>
-              <Select 
-                value={formData.cliente_id} 
-                onValueChange={(value) => setFormData({...formData, cliente_id: value, nome_funil: ''})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="nome_funil">Nome do Funil *</Label>
+              <Input
+                id="nome_funil"
+                value={formData.nome_funil}
+                onChange={(e) => setFormData({...formData, nome_funil: e.target.value})}
+                placeholder="Ex: Facebook Ads"
+              />
             </div>
 
             <div>
@@ -189,7 +149,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
               </div>
               <Select
                 value={formData.etapa_funil}
-                onValueChange={(value) => setFormData({...formData, etapa_funil: value, categoria_explicacao: ''})}
+                onValueChange={(value) => setFormData({...formData, etapa_funil: value})}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a categoria" />
@@ -206,64 +166,23 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
           </div>
 
           <div>
-            <Label htmlFor="nome_funil">Nome do Funil *</Label>
-            <Select 
-              value={formData.nome_funil} 
-              onValueChange={(value) => setFormData({...formData, nome_funil: value})}
-              disabled={!formData.cliente_id}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione ou digite o funil" />
-              </SelectTrigger>
-              <SelectContent>
-                {funisDisponiveis.map((funil) => (
-                  <SelectItem key={funil} value={funil}>
-                    {funil}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="valor_investimento">Valor Previsto (R$) *</Label>
             <Input
-              className="mt-2"
-              placeholder="Ou digite um nome personalizado"
-              value={formData.nome_funil}
-              onChange={(e) => setFormData({...formData, nome_funil: e.target.value})}
+              id="valor_investimento"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.valor_investimento}
+              onChange={(e) => setFormData({...formData, valor_investimento: e.target.value})}
+              placeholder="0.00"
             />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="valor_investimento">Valor Previsto (R$) *</Label>
-              <Input
-                id="valor_investimento"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.valor_investimento}
-                onChange={(e) => setFormData({...formData, valor_investimento: e.target.value})}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="valor_gasto">Valor Gasto (R$)</Label>
-              <Input
-                id="valor_gasto"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.valor_gasto}
-                onChange={(e) => setFormData({...formData, valor_gasto: e.target.value})}
-                placeholder="0.00"
-              />
-            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             <div>
               <Label htmlFor="periodo_mes">Mês *</Label>
-              <Select 
-                value={formData.periodo_mes.toString()} 
+              <Select
+                value={formData.periodo_mes.toString()}
                 onValueChange={(value) => setFormData({...formData, periodo_mes: Number(value)})}
               >
                 <SelectTrigger>
@@ -281,15 +200,15 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
 
             <div>
               <Label htmlFor="periodo_ano">Ano *</Label>
-              <Select 
-                value={formData.periodo_ano.toString()} 
+              <Select
+                value={formData.periodo_ano.toString()}
                 onValueChange={(value) => setFormData({...formData, periodo_ano: Number(value)})}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o ano" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[2024, 2025, 2026].map((ano) => (
+                  {[2024, 2025, 2026, 2027].map((ano) => (
                     <SelectItem key={ano} value={ano.toString()}>
                       {ano}
                     </SelectItem>
@@ -325,7 +244,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
               value={formData.observacoes}
               onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
               placeholder="Observações sobre o orçamento (opcional)"
-              rows={3}
+              rows={2}
             />
           </div>
 
@@ -348,7 +267,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Criando...' : 'Criar Orçamento'}
+              {loading ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </div>
         </form>

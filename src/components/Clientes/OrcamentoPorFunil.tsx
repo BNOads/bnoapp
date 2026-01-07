@@ -10,7 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp, Power, GripVertical, RotateCcw, CheckCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp, Power, GripVertical, RotateCcw, CheckCircle, Info, Rocket, ExternalLink } from "lucide-react";
+import { CATEGORIAS_FUNIL, getCategoriaLabel, getCategoriaDescricao, getCategoriaCor } from "@/lib/orcamentoConstants";
+import { OrcamentoDetalhesModal } from "@/components/Orcamento/OrcamentoDetalhesModal";
 import { OrcamentoStatusToggle } from "./OrcamentoStatusToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -30,17 +33,24 @@ interface OrcamentoFunil {
   created_by: string;
   active: boolean;
   sort_order: number;
+  etapa_funil?: string;
+  categoria_explicacao?: string;
+  // Campos para lançamentos integrados
+  isLancamento?: boolean;
+  lancamento_id?: string;
+  lancamento_status?: string;
 }
 
 // Componente card draggable
-const SortableOrcamentoCard = ({ 
-  orcamento, 
-  isEditMode, 
+const SortableOrcamentoCard = ({
+  orcamento,
+  isEditMode,
   isPublicView,
   canManageBudgets,
   onEdit,
   onDelete,
   onHistorico,
+  onDetalhes,
   onStatusChange,
   formatarMoeda
 }: {
@@ -51,10 +61,14 @@ const SortableOrcamentoCard = ({
   onEdit: (o: OrcamentoFunil) => void;
   onDelete: (o: OrcamentoFunil) => void;
   onHistorico: (o: OrcamentoFunil) => void;
+  onDetalhes: (o: OrcamentoFunil) => void;
   onStatusChange: (id: string, status: boolean) => void;
   formatarMoeda: (v: number) => string;
 }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: orcamento.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: orcamento.id,
+    disabled: orcamento.isLancamento
+  });
   
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -63,17 +77,18 @@ const SortableOrcamentoCard = ({
   };
 
   return (
-    <Card 
+    <Card
       ref={setNodeRef}
       style={style}
-      className={`relative w-full transition-all ${!orcamento.active ? 'opacity-60 grayscale-[0.4]' : ''}`}
+      className={`relative w-full transition-all cursor-pointer hover:shadow-md hover:border-primary/50 ${!orcamento.active ? 'opacity-60 grayscale-[0.4]' : ''} ${orcamento.isLancamento ? 'border-l-4 border-l-emerald-500' : ''}`}
+      onClick={() => !isEditMode && (orcamento.isLancamento ? window.open(`/lancamento/${orcamento.lancamento_id}`, '_blank') : onDetalhes(orcamento))}
     >
       <CardHeader className="pb-2 sm:pb-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
           <div className="flex items-start gap-2 flex-1">
-            {isEditMode && canManageBudgets && !isPublicView && (
-              <div 
-                {...attributes} 
+            {isEditMode && canManageBudgets && !isPublicView && !orcamento.isLancamento && (
+              <div
+                {...attributes}
                 {...listeners}
                 className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none mt-1"
               >
@@ -90,25 +105,51 @@ const SortableOrcamentoCard = ({
                     Desativado
                   </Badge>
                 )}
+                {orcamento.isLancamento && (
+                  <Badge className="text-xs bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center gap-1">
+                    <Rocket className="h-3 w-3" />
+                    Lançamento
+                  </Badge>
+                )}
               </div>
-              <OrcamentoStatusToggle
-                orcamentoId={orcamento.id}
-                currentStatus={orcamento.active}
-                onStatusChange={(newStatus) => onStatusChange(orcamento.id, newStatus)}
-                disabled={isPublicView || !canManageBudgets}
-              />
+              {!orcamento.isLancamento && (
+                <OrcamentoStatusToggle
+                  orcamentoId={orcamento.id}
+                  currentStatus={orcamento.active}
+                  onStatusChange={(newStatus) => onStatusChange(orcamento.id, newStatus)}
+                  disabled={isPublicView || !canManageBudgets}
+                />
+              )}
             </div>
           </div>
           <div className="flex gap-1 flex-shrink-0 self-end sm:self-start">
-            <Button variant="ghost" size="sm" onClick={() => onHistorico(orcamento)} className="h-7 w-7 p-0 sm:h-8 sm:w-8">
-              <History className="h-3 w-3 sm:h-4 sm:w-4" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (orcamento.isLancamento) {
+                  window.open(`/lancamento/${orcamento.lancamento_id}`, '_blank');
+                } else {
+                  onDetalhes(orcamento);
+                }
+              }}
+              className="h-7 w-7 p-0 sm:h-8 sm:w-8"
+              title={orcamento.isLancamento ? "Ver Lançamento" : "Ver detalhes"}
+            >
+              {orcamento.isLancamento ? <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" /> : <Eye className="h-3 w-3 sm:h-4 sm:w-4" />}
             </Button>
-            {canManageBudgets && !isPublicView && (
+            {!orcamento.isLancamento && (
+              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onHistorico(orcamento); }} className="h-7 w-7 p-0 sm:h-8 sm:w-8" title="Ver histórico">
+                <History className="h-3 w-3 sm:h-4 sm:w-4" />
+              </Button>
+            )}
+            {canManageBudgets && !isPublicView && !orcamento.isLancamento && (
               <>
-                <Button variant="ghost" size="sm" onClick={() => onEdit(orcamento)} className="h-7 w-7 p-0 sm:h-8 sm:w-8">
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onEdit(orcamento); }} className="h-7 w-7 p-0 sm:h-8 sm:w-8" title="Editar">
                   <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => onDelete(orcamento)} className="text-destructive hover:text-destructive h-7 w-7 p-0 sm:h-8 sm:w-8">
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onDelete(orcamento); }} className="text-destructive hover:text-destructive h-7 w-7 p-0 sm:h-8 sm:w-8" title="Excluir">
                   <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </>
@@ -118,19 +159,38 @@ const SortableOrcamentoCard = ({
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-2 sm:space-y-3">
+          {/* Categoria Badge */}
+          {orcamento.etapa_funil && (
+            <Badge
+              className="text-xs text-white border-0"
+              style={{ backgroundColor: getCategoriaCor(orcamento.etapa_funil) }}
+            >
+              {getCategoriaLabel(orcamento.etapa_funil)}
+            </Badge>
+          )}
+
           <div className={`text-xl sm:text-2xl lg:text-3xl font-bold break-all ${
             orcamento.active ? 'text-primary' : 'text-muted-foreground'
           }`}>
             {formatarMoeda(orcamento.valor_investimento)}
           </div>
-          
+
+          {/* Explicação da Categoria */}
+          {(orcamento.categoria_explicacao || orcamento.etapa_funil) && (
+            <div className="bg-muted/50 rounded-md p-2 sm:p-3">
+              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                {orcamento.categoria_explicacao || getCategoriaDescricao(orcamento.etapa_funil || '')}
+              </p>
+            </div>
+          )}
+
           <div className="flex items-start gap-2 text-xs sm:text-sm text-muted-foreground">
             <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
             <span className="leading-tight">
               Atualizado em {format(new Date(orcamento.data_atualizacao), "dd/MM/yyyy", { locale: ptBR })}
             </span>
           </div>
-          
+
           {orcamento.observacoes && (
             <p className="text-xs sm:text-sm text-muted-foreground line-clamp-3 leading-relaxed">
               {orcamento.observacoes}
@@ -173,12 +233,14 @@ export const OrcamentoPorFunil = ({
   showGestorValues = true
 }: OrcamentoPorFunilProps) => {
   const [orcamentos, setOrcamentos] = useState<OrcamentoFunil[]>([]);
+  const [lancamentosData, setLancamentosData] = useState<any[]>([]);
   const [gestoresOrcamentos, setGestoresOrcamentos] = useState<GestorOrcamento[]>([]);
   const [historico, setHistorico] = useState<HistoricoOrcamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNovoModal, setShowNovoModal] = useState(false);
   const [showEditarModal, setShowEditarModal] = useState(false);
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
+  const [showDetalhesModal, setShowDetalhesModal] = useState(false);
   const [selectedOrcamento, setSelectedOrcamento] = useState<OrcamentoFunil | null>(null);
   const [selectedFunil, setSelectedFunil] = useState<string>("todos");
   const [selectedStatus, setSelectedStatus] = useState<string>("todos");
@@ -186,7 +248,9 @@ export const OrcamentoPorFunil = ({
   const [formData, setFormData] = useState({
     nome_funil: "",
     valor_investimento: "",
-    observacoes: ""
+    observacoes: "",
+    etapa_funil: "distribuicao_conteudo",
+    categoria_explicacao: ""
   });
   const {
     toast
@@ -205,27 +269,66 @@ export const OrcamentoPorFunil = ({
     })
   );
 
+  // Transformar lançamento em formato de orçamento para exibição integrada
+  const transformarLancamentoParaOrcamento = (lancamento: any): OrcamentoFunil => ({
+    id: `lancamento-${lancamento.id}`,
+    nome_funil: lancamento.nome_lancamento,
+    valor_investimento: Number(lancamento.investimento_total) || 0,
+    data_atualizacao: lancamento.updated_at,
+    observacoes: '',
+    created_by: '',
+    active: true,
+    sort_order: -1,
+    etapa_funil: 'lancamento',
+    isLancamento: true,
+    lancamento_id: lancamento.id,
+    lancamento_status: lancamento.status_lancamento,
+  });
+
+  // Combinar orçamentos com lançamentos transformados
+  const todosItens: OrcamentoFunil[] = [
+    ...lancamentosData.map(transformarLancamentoParaOrcamento),
+    ...orcamentos
+  ];
+
   // Hook de pesquisa
   const {
     searchTerm,
     setSearchTerm,
     filteredItems
-  } = useSearch(orcamentos, ['nome_funil', 'observacoes']);
+  } = useSearch(todosItens, ['nome_funil', 'observacoes']);
 
-  // Filtro por funil e status
-  const orcamentosFiltrados = filteredItems.filter(orcamento => {
-    const matchFunil = selectedFunil === "todos" || orcamento.nome_funil === selectedFunil;
-    const matchStatus = selectedStatus === "todos" || 
-                       (selectedStatus === "ativos" && orcamento.active) ||
-                       (selectedStatus === "desativados" && !orcamento.active);
-    return matchFunil && matchStatus;
-  });
+  // Filtro por funil e status - ativos primeiro
+  const orcamentosFiltrados = filteredItems
+    .filter(orcamento => {
+      // Lançamentos sempre passam filtro de funil quando "todos" ou categoria "lancamento"
+      const matchFunil = selectedFunil === "todos" ||
+                         (orcamento.isLancamento && selectedFunil === "lancamento") ||
+                         (!orcamento.isLancamento && orcamento.nome_funil === selectedFunil);
+      // Lançamentos sempre são considerados "ativos"
+      const matchStatus = selectedStatus === "todos" ||
+                         orcamento.isLancamento ||
+                         (selectedStatus === "ativos" && orcamento.active) ||
+                         (selectedStatus === "desativados" && !orcamento.active);
+      return matchFunil && matchStatus;
+    })
+    .sort((a, b) => {
+      // Lançamentos primeiro, depois ativos, depois por sort_order
+      if (a.isLancamento !== b.isLancamento) {
+        return a.isLancamento ? -1 : 1;
+      }
+      if (a.active !== b.active) {
+        return a.active ? -1 : 1;
+      }
+      return (a.sort_order || 0) - (b.sort_order || 0);
+    });
 
-  // Lista única de funis para o filtro
-  const funisUnicos = Array.from(new Set(orcamentos.map(o => o.nome_funil))).sort();
+  // Lista única de funis para o filtro (incluindo lançamentos se houver)
+  const funisUnicos = Array.from(new Set(todosItens.map(o => o.nome_funil))).sort();
   useEffect(() => {
     console.log('🚀 Iniciando carregamento - clienteId:', clienteId);
     carregarOrcamentos();
+    carregarLancamentos();
     if (showGestorValues) {
       carregarOrcamentosGestores();
     }
@@ -269,22 +372,53 @@ export const OrcamentoPorFunil = ({
     }
   };
 
+  const carregarLancamentos = async () => {
+    try {
+      let clientInstance = supabase;
+      if (isPublicView) {
+        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        clientInstance = createPublicSupabaseClient();
+      }
+
+      const { data, error } = await clientInstance
+        .from('lancamentos')
+        .select('id, nome_lancamento, investimento_total, status_lancamento, updated_at')
+        .eq('cliente_id', clienteId)
+        .eq('ativo', true)
+        .in('status_lancamento', ['em_captacao', 'cpl', 'remarketing', 'pausado']);
+
+      if (error) throw error;
+      setLancamentosData(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar lançamentos:', error);
+    }
+  };
+
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
-    
+
     if (!over || active.id === over.id) return;
 
-    const oldIndex = orcamentosFiltrados.findIndex(o => o.id === active.id);
-    const newIndex = orcamentosFiltrados.findIndex(o => o.id === over.id);
-    
-    const reordered = arrayMove(orcamentosFiltrados, oldIndex, newIndex);
-    
+    // Ignorar se algum dos itens for um lançamento
+    const activeItem = orcamentosFiltrados.find(o => o.id === active.id);
+    const overItem = orcamentosFiltrados.find(o => o.id === over.id);
+    if (activeItem?.isLancamento || overItem?.isLancamento) return;
+
+    // Filtrar apenas orçamentos (não lançamentos) para reordenação
+    const orcamentosParaReordenar = orcamentosFiltrados.filter(o => !o.isLancamento);
+    const oldIndex = orcamentosParaReordenar.findIndex(o => o.id === active.id);
+    const newIndex = orcamentosParaReordenar.findIndex(o => o.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(orcamentosParaReordenar, oldIndex, newIndex);
+
     // Atualizar ordem otimista
     const updates = reordered.map((o, idx) => ({
       ...o,
       sort_order: idx
     }));
-    
+
     setOrcamentos(prev => {
       const newOrcamentos = [...prev];
       updates.forEach(u => {
@@ -304,7 +438,7 @@ export const OrcamentoPorFunil = ({
           .update({ sort_order: o.sort_order })
           .eq('id', o.id)
       );
-      
+
       await Promise.all(promises);
       
       toast({
@@ -457,6 +591,8 @@ export const OrcamentoPorFunil = ({
           nome_funil: formData.nome_funil,
           valor_investimento: valor,
           observacoes: formData.observacoes,
+          etapa_funil: formData.etapa_funil,
+          categoria_explicacao: formData.categoria_explicacao || null,
           data_atualizacao: new Date().toISOString()
         }).eq('id', selectedOrcamento.id);
         if (error) throw error;
@@ -474,6 +610,8 @@ export const OrcamentoPorFunil = ({
           nome_funil: formData.nome_funil,
           valor_investimento: valor,
           observacoes: formData.observacoes,
+          etapa_funil: formData.etapa_funil,
+          categoria_explicacao: formData.categoria_explicacao || null,
           active: true,
           created_by: (await supabase.auth.getUser()).data.user?.id
         });
@@ -487,7 +625,9 @@ export const OrcamentoPorFunil = ({
       setFormData({
         nome_funil: "",
         valor_investimento: "",
-        observacoes: ""
+        observacoes: "",
+        etapa_funil: "distribuicao_conteudo",
+        categoria_explicacao: ""
       });
       setSelectedOrcamento(null);
       carregarOrcamentos();
@@ -510,7 +650,9 @@ export const OrcamentoPorFunil = ({
     setFormData({
       nome_funil: orcamento.nome_funil,
       valor_investimento: orcamento.valor_investimento.toString(),
-      observacoes: orcamento.observacoes || ""
+      observacoes: orcamento.observacoes || "",
+      etapa_funil: orcamento.etapa_funil || "distribuicao_conteudo",
+      categoria_explicacao: orcamento.categoria_explicacao || ""
     });
     setShowEditarModal(true);
   };
@@ -518,6 +660,11 @@ export const OrcamentoPorFunil = ({
     setSelectedOrcamento(orcamento);
     carregarHistorico(orcamento.id);
     setShowHistoricoModal(true);
+  };
+
+  const abrirDetalhes = (orcamento: OrcamentoFunil) => {
+    setSelectedOrcamento(orcamento);
+    setShowDetalhesModal(true);
   };
   const exportarCSV = () => {
     const headers = ["Funil", "Valor", "Data de Atualização", "Observações"];
@@ -672,6 +819,7 @@ export const OrcamentoPorFunil = ({
                       onEdit={abrirEdicao}
                       onDelete={excluirOrcamento}
                       onHistorico={abrirHistorico}
+                      onDetalhes={abrirDetalhes}
                       onStatusChange={handleStatusChange}
                       formatarMoeda={formatarMoeda}
                     />
@@ -770,7 +918,7 @@ export const OrcamentoPorFunil = ({
 
       {/* Modal Novo Orçamento */}
       <Dialog open={showNovoModal} onOpenChange={setShowNovoModal}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Novo Orçamento</DialogTitle>
           </DialogHeader>
@@ -781,6 +929,33 @@ export const OrcamentoPorFunil = ({
               ...formData,
               nome_funil: e.target.value
             })} placeholder="Ex: Facebook Ads" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="etapa_funil">Categoria</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{getCategoriaDescricao(formData.etapa_funil)}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Select value={formData.etapa_funil} onValueChange={value => setFormData({...formData, etapa_funil: value, categoria_explicacao: ''})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIAS_FUNIL.map((categoria) => (
+                    <SelectItem key={categoria.value} value={categoria.value}>
+                      {categoria.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="valor_investimento">Valor do Investimento (R$)</Label>
@@ -794,7 +969,17 @@ export const OrcamentoPorFunil = ({
               <Textarea id="observacoes" value={formData.observacoes} onChange={e => setFormData({
               ...formData,
               observacoes: e.target.value
-            })} placeholder="Informações adicionais sobre o orçamento..." rows={3} />
+            })} placeholder="Informações adicionais sobre o orçamento..." rows={2} />
+            </div>
+            <div>
+              <Label htmlFor="categoria_explicacao">Explicação da Categoria</Label>
+              <Textarea id="categoria_explicacao" value={formData.categoria_explicacao} onChange={e => setFormData({
+              ...formData,
+              categoria_explicacao: e.target.value
+            })} placeholder={getCategoriaDescricao(formData.etapa_funil) || 'Adicione uma explicação personalizada...'} rows={2} />
+              <p className="text-xs text-muted-foreground mt-1">
+                Personalize a explicação ou deixe em branco para usar a descrição padrão
+              </p>
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowNovoModal(false)}>
@@ -810,7 +995,7 @@ export const OrcamentoPorFunil = ({
 
       {/* Modal Editar Orçamento */}
       <Dialog open={showEditarModal} onOpenChange={setShowEditarModal}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Orçamento</DialogTitle>
           </DialogHeader>
@@ -821,6 +1006,33 @@ export const OrcamentoPorFunil = ({
               ...formData,
               nome_funil: e.target.value
             })} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="edit_etapa_funil">Categoria</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{getCategoriaDescricao(formData.etapa_funil)}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Select value={formData.etapa_funil} onValueChange={value => setFormData({...formData, etapa_funil: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIAS_FUNIL.map((categoria) => (
+                    <SelectItem key={categoria.value} value={categoria.value}>
+                      {categoria.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="edit_valor_investimento">Valor do Investimento (R$)</Label>
@@ -834,7 +1046,17 @@ export const OrcamentoPorFunil = ({
               <Textarea id="edit_observacoes" value={formData.observacoes} onChange={e => setFormData({
               ...formData,
               observacoes: e.target.value
-            })} rows={3} />
+            })} rows={2} />
+            </div>
+            <div>
+              <Label htmlFor="edit_categoria_explicacao">Explicação da Categoria</Label>
+              <Textarea id="edit_categoria_explicacao" value={formData.categoria_explicacao} onChange={e => setFormData({
+              ...formData,
+              categoria_explicacao: e.target.value
+            })} placeholder={getCategoriaDescricao(formData.etapa_funil) || 'Adicione uma explicação personalizada...'} rows={2} />
+              <p className="text-xs text-muted-foreground mt-1">
+                Personalize a explicação ou deixe em branco para usar a descrição padrão
+              </p>
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowEditarModal(false)}>
@@ -891,5 +1113,12 @@ export const OrcamentoPorFunil = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Detalhes */}
+      <OrcamentoDetalhesModal
+        open={showDetalhesModal}
+        onOpenChange={setShowDetalhesModal}
+        orcamento={selectedOrcamento}
+      />
     </div>;
 };
