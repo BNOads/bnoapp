@@ -32,6 +32,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
     nome_funil: '',
     etapa_funil: 'distribuicao_conteudo',
     valor_investimento: '',
+    valor_gasto: '0',
     periodo_mes: new Date().getMonth() + 1,
     periodo_ano: new Date().getFullYear(),
     status_orcamento: 'ativo',
