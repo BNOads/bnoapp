@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
+import { createClient } from "npm:@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,88 +13,51 @@ serve(async (req) => {
   }
 
   try {
-    const { clienteNome } = await req.json();
+    const { clienteNome, clienteId } = await req.json();
     
-    console.log('Buscando dashboards do Looker Studio para cliente:', clienteNome);
+    console.log('Buscando dashboards do Looker Studio para cliente:', clienteNome || clienteId);
     
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
     
-    const API_KEY = Deno.env.get('LOOKER_STUDIO_API_KEY');
-    if (!API_KEY) {
-      throw new Error('API Key do Looker Studio não configurada');
+    // Buscar dashboards salvos na tabela de clientes
+    let query = supabase
+      .from('clientes')
+      .select('id, nome, dashboards_looker');
+    
+    if (clienteId) {
+      query = query.eq('id', clienteId);
+    } else if (clienteNome) {
+      query = query.ilike('nome', `%${clienteNome}%`);
     }
     
-    // Buscar relatórios usando a API do Google Analytics Reporting
-    // A API do Looker Studio usa a mesma infraestrutura do Google Analytics
-    const searchParams = new URLSearchParams({
-      key: API_KEY,
-      q: clienteNome, // Buscar pelo nome do cliente
-      fields: 'reports(id,name,url,description)',
-      maxResults: '50'
-    });
+    const { data: clientes, error } = await query;
     
-    // Endpoint da API do Google Analytics Reporting para buscar relatórios
-    const apiUrl = `https://analyticsreporting.googleapis.com/v4/reports:search?${searchParams}`;
+    if (error) {
+      throw new Error(`Erro ao buscar cliente: ${error.message}`);
+    }
     
-    console.log('Fazendo requisição para API do Looker Studio:', apiUrl);
+    const dashboards: Array<{titulo: string, url: string, id?: string}> = [];
     
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    console.log('Status da resposta da API:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Erro na API do Looker Studio:', errorText);
-      
-      // Se der erro 401/403, pode ser que a API key não tenha as permissões certas
-      if (response.status === 401 || response.status === 403) {
-        return new Response(
-          JSON.stringify({ 
-            success: false,
-            error: 'Erro de autenticação com a API do Looker Studio. Verifique se a API key tem as permissões necessárias.',
-            dashboards: []
-          }),
-          { 
-            headers: { 
-              ...corsHeaders, 
-              'Content-Type': 'application/json' 
-            } 
+    if (clientes && clientes.length > 0) {
+      for (const cliente of clientes) {
+        if (cliente.dashboards_looker && Array.isArray(cliente.dashboards_looker)) {
+          for (const dashboard of cliente.dashboards_looker) {
+            if (dashboard && typeof dashboard === 'object') {
+              dashboards.push({
+                titulo: dashboard.titulo || dashboard.name || 'Dashboard sem título',
+                url: dashboard.url || dashboard.link || '',
+                id: dashboard.id || undefined
+              });
+            }
           }
-        );
-      }
-      
-      throw new Error(`Erro na API do Looker Studio: ${response.status} - ${errorText}`);
-    }
-    
-    const data = await response.json();
-    console.log('Resposta da API do Looker Studio:', JSON.stringify(data, null, 2));
-    
-    // Processar os resultados
-    const dashboards = [];
-    if (data.reports && data.reports.length > 0) {
-      for (const report of data.reports) {
-        // Filtrar apenas relatórios que contenham o nome do cliente
-        if (report.name && report.name.toLowerCase().includes(clienteNome.toLowerCase())) {
-          dashboards.push({
-            titulo: report.name,
-            url: report.url || `https://lookerstudio.google.com/reporting/${report.id}`,
-            id: report.id,
-            description: report.description
-          });
         }
       }
     }
     
-    console.log(`Encontrados ${dashboards.length} dashboards para o cliente ${clienteNome}`);
+    console.log(`Encontrados ${dashboards.length} dashboards para o cliente ${clienteNome || clienteId}`);
     
     return new Response(
       JSON.stringify({ 
