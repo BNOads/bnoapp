@@ -986,11 +986,6 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
           </div>
           
           <div className="flex items-center gap-2">
-            <CreativeTableSettings
-              columns={columns}
-              onColumnsChange={setColumns}
-              clienteId={clienteId}
-            />
             
             <Button 
               variant="outline" 
@@ -1154,6 +1149,12 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
               </SelectContent>
             </Select>
           </div>
+
+          <CreativeTableSettings
+            columns={columns}
+            onColumnsChange={setColumns}
+            clienteId={clienteId}
+          />
 
           {(dateFilter.start || dateFilter.end) && (
             <Button
