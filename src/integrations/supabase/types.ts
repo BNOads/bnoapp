@@ -1315,6 +1315,7 @@ export type Database = {
           icon_link: string | null
           id: string
           is_active: boolean | null
+          legenda: string | null
           link_direct: string | null
           link_web_view: string | null
           mime_type: string | null
@@ -1341,6 +1342,7 @@ export type Database = {
           icon_link?: string | null
           id?: string
           is_active?: boolean | null
+          legenda?: string | null
           link_direct?: string | null
           link_web_view?: string | null
           mime_type?: string | null
@@ -1367,6 +1369,7 @@ export type Database = {
           icon_link?: string | null
           id?: string
           is_active?: boolean | null
+          legenda?: string | null
           link_direct?: string | null
           link_web_view?: string | null
           mime_type?: string | null

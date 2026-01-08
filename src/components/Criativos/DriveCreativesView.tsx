@@ -41,6 +41,7 @@ interface Creative {
   observacao_personalizada?: string | null;
   nomenclatura_trafego?: string | null;
   pagina_destino?: string | null;
+  legenda?: string | null;
   status?: 'subir' | 'ativo' | 'inativo' | 'erro';
   activated_user?: {
     nome: string;
@@ -85,9 +86,11 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     { id: 'pasta', label: 'Pasta', visible: true, width: 'w-32' },
     { id: 'date', label: 'Data Upload', visible: true, width: 'w-32' },
     { id: 'nomenclatura', label: 'Nomenclatura', visible: true, width: 'min-w-[150px]' },
+    { id: 'legenda', label: 'Legenda', visible: true, width: 'min-w-[200px]' },
     { id: 'observacao', label: 'Observação', visible: false, width: 'min-w-[150px]' },
     { id: 'pagina_destino', label: 'Página de Destino', visible: true, width: 'min-w-[200px]' }
   ]);
+  const [editingLegenda, setEditingLegenda] = useState<{ id: string; value: string } | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -822,6 +825,126 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
     }
   };
 
+  // === LEGENDA FUNCTIONS ===
+  const handleLegendaEdit = (creative: Creative) => {
+    setEditingLegenda({
+      id: creative.id,
+      value: creative.legenda || ''
+    });
+  };
+
+  const saveLegenda = async (creativeId: string, value: string) => {
+    try {
+      const { data: existingCreative } = await supabase
+        .from('creatives')
+        .select('id')
+        .eq('id', creativeId)
+        .maybeSingle();
+
+      if (existingCreative) {
+        const { error } = await supabase
+          .from('creatives')
+          .update({
+            legenda: value?.trim() || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', creativeId);
+
+        if (error) throw error;
+      } else {
+        const creative = creatives.find(c => c.id === creativeId);
+        if (!creative) {
+          throw new Error('Criativo não encontrado na lista');
+        }
+
+        const { error } = await supabase
+          .from('creatives')
+          .insert({
+            id: creativeId,
+            file_id: creative.file_id,
+            client_id: clienteId,
+            name: creative.name,
+            legenda: value?.trim() || null,
+            mime_type: creative.mime_type,
+            link_web_view: creative.link_web_view,
+            link_direct: creative.link_direct,
+            file_size: creative.file_size,
+            modified_time: creative.modified_time,
+            folder_name: creative.folder_name,
+            folder_path: creative.folder_path,
+            parent_folder_id: creative.parent_folder_id,
+            is_active: creative.is_active ?? true,
+            archived: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (error) throw error;
+      }
+
+      setCreatives(prev => prev.map(creative => 
+        creative.id === creativeId 
+          ? { ...creative, legenda: value?.trim() || null }
+          : creative
+      ));
+
+      toast({
+        title: "✔️ Alteração salva",
+        description: "Legenda atualizada com sucesso!",
+      });
+
+    } catch (error: any) {
+      console.error('Erro ao salvar legenda:', error);
+      toast({
+        title: "Falha ao salvar",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      await carregarCreatives();
+    }
+  };
+
+  const handleLegendaBlur = async () => {
+    if (!editingLegenda) return;
+    
+    if (saveController) {
+      saveController.abort();
+    }
+
+    const controller = new AbortController();
+    setSaveController(controller);
+    
+    setTimeout(async () => {
+      if (controller.signal.aborted) return;
+      
+      try {
+        await saveLegenda(editingLegenda.id, editingLegenda.value);
+        if (!controller.signal.aborted) {
+          setEditingLegenda(null);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error('Erro no save:', error);
+        }
+      } finally {
+        setSaveController(null);
+      }
+    }, 300);
+  };
+
+  const handleLegendaKeyDown = async (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      await handleLegendaBlur();
+    } else if (e.key === 'Escape') {
+      if (saveController) {
+        saveController.abort();
+        setSaveController(null);
+      }
+      setEditingLegenda(null);
+    }
+  };
+
   const getSortIcon = (field: string) => {
     if (sortBy !== field) return <ArrowUpDown className="h-4 w-4 opacity-50" />;
     return sortOrder === 'asc' ? 
@@ -1191,6 +1314,9 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                     Nomenclatura
                   </SortableHeader>
                 )}
+                {isColumnVisible('legenda') && (
+                  <TableHead className="min-w-[200px]">Legenda</TableHead>
+                )}
                 {isColumnVisible('observacao') && (
                   <TableHead className="hidden xl:table-cell min-w-[150px]">Observação</TableHead>
                 )}
@@ -1457,6 +1583,32 @@ export const DriveCreativesView = ({ clienteId }: DriveCreativesViewProps) => {
                              style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
                            >
                              {creative.nomenclatura_trafego || 'Clique para editar'}
+                           </span>
+                         )}
+                       </div>
+                     </TableCell>
+                   )}
+                   {isColumnVisible('legenda') && (
+                     <TableCell>
+                       <div className="flex items-center gap-2">
+                         {editingLegenda?.id === creative.id ? (
+                           <Input
+                             value={editingLegenda.value}
+                             onChange={(e) => setEditingLegenda({ ...editingLegenda, value: e.target.value })}
+                             onBlur={handleLegendaBlur}
+                             onKeyDown={handleLegendaKeyDown}
+                             className="h-8 text-xs"
+                             placeholder="Digite a legenda do anúncio..."
+                             autoFocus
+                           />
+                         ) : (
+                           <span 
+                             className="text-sm cursor-pointer hover:bg-muted/50 px-2 py-1 rounded min-h-[2rem] flex items-center" 
+                             title={creative.legenda || 'Clique para adicionar legenda'}
+                             onClick={() => handleLegendaEdit(creative)}
+                             style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}
+                           >
+                             {creative.legenda || 'Clique para adicionar'}
                            </span>
                          )}
                        </div>
