@@ -3558,6 +3558,7 @@ export type Database = {
         Row: {
           active: boolean
           ativo: boolean
+          categoria_explicacao: string | null
           cliente_id: string
           created_at: string
           created_by: string
@@ -3577,6 +3578,7 @@ export type Database = {
         Insert: {
           active?: boolean
           ativo?: boolean
+          categoria_explicacao?: string | null
           cliente_id: string
           created_at?: string
           created_by: string
@@ -3596,6 +3598,7 @@ export type Database = {
         Update: {
           active?: boolean
           ativo?: boolean
+          categoria_explicacao?: string | null
           cliente_id?: string
           created_at?: string
           created_by?: string
