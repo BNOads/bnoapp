@@ -15,6 +15,8 @@ interface Cliente {
     status: 'ativo' | 'inativo' | 'churn';
 }
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 export function MeusClientesCard() {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -22,7 +24,8 @@ export function MeusClientesCard() {
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState<'gestor' | 'cs' | 'admin' | null>(null);
-    
+    const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
+
     // Admin, Master ou Gestor de Projetos vê todos os clientes
     const canSeeAll = isAdmin || isMaster || isGestorProjetos;
 
@@ -32,6 +35,7 @@ export function MeusClientesCard() {
 
             try {
                 setLoading(true);
+                let loadedClientes: Cliente[] = [];
 
                 if (canSeeAll) {
                     setUserRole('admin');
@@ -43,85 +47,103 @@ export function MeusClientesCard() {
 
                     if (clientesError) throw clientesError;
 
-                    setClientes(allClientes?.map(c => ({
+                    loadedClientes = allClientes?.map(c => ({
                         id: c.id,
                         nome: c.nome,
                         slug: c.slug || '',
                         status: 'ativo'
-                    })) || []);
-                    return;
-                }
+                    })) || [];
+                } else {
+                    // 1. Fetch user's colaborador profile
+                    const { data: colaborador, error: colabErr } = await supabase
+                        .from('colaboradores')
+                        .select('id')
+                        .eq('user_id', user.id)
+                        .maybeSingle();
 
-                // 1. Fetch user's colaborador profile
-                const { data: colaborador, error: colabErr } = await supabase
-                    .from('colaboradores')
-                    .select('id')
-                    .eq('user_id', user.id)
-                    .maybeSingle();
+                    if (colabErr) console.error("Error fetching colab:", colabErr);
+                    const colaboradorId = colaborador?.id;
 
-                if (colabErr) console.error("Error fetching colab:", colabErr);
-                const colaboradorId = colaborador?.id;
+                    // 2. Fetch ALL active clients (using correct table columns)
+                    const { data: allClients, error: clientsError } = await supabase
+                        .from('clientes')
+                        .select('id, nome, slug, status_cliente, ativo, primary_gestor_user_id, primary_cs_user_id, traffic_manager_id, cs_id')
+                        .eq('ativo', true);
 
-                // 2. Fetch ALL active clients (using correct table columns)
-                const { data: allClients, error: clientsError } = await supabase
-                    .from('clientes')
-                    .select('id, nome, slug, status_cliente, ativo, primary_gestor_user_id, primary_cs_user_id, traffic_manager_id, cs_id')
-                    .eq('ativo', true);
+                    if (clientsError) {
+                        console.error("Clients Fetch Error:", clientsError);
+                        throw clientsError;
+                    }
 
-                if (clientsError) {
-                    console.error("Clients Fetch Error:", clientsError);
-                    throw clientsError;
-                }
-
-                // 3. Filter clients in memory
-                const idsToCheck = [user.id, colaboradorId]
-                    .filter(Boolean)
-                    .map(id => String(id).trim().toLowerCase());
-
-                const directClients = (allClients || []).filter(client => {
-                    const clientAssociatedIds = [
-                        client.primary_gestor_user_id,
-                        client.primary_cs_user_id,
-                        client.traffic_manager_id,
-                        client.cs_id
-                    ]
+                    // 3. Filter clients in memory
+                    const idsToCheck = [user.id, colaboradorId]
                         .filter(Boolean)
                         .map(id => String(id).trim().toLowerCase());
 
-                    return clientAssociatedIds.some(id => idsToCheck.includes(id));
-                });
+                    const directClients = (allClients || []).filter(client => {
+                        const clientAssociatedIds = [
+                            client.primary_gestor_user_id,
+                            client.primary_cs_user_id,
+                            client.traffic_manager_id,
+                            client.cs_id
+                        ]
+                            .filter(Boolean)
+                            .map(id => String(id).trim().toLowerCase());
 
-                // 4. Fetch clients linked via Roles table
-                const { data: roleClients, error: rolesError } = await supabase
-                    .from('client_roles')
-                    .select('client_id, clientes(id, nome, slug, status_cliente)')
-                    .in('user_id', idsToCheck);
+                        return clientAssociatedIds.some(id => idsToCheck.includes(id));
+                    });
 
-                if (rolesError) console.error("Roles Fetch Error:", rolesError);
+                    // 4. Fetch clients linked via Roles table
+                    const { data: roleClients, error: rolesError } = await supabase
+                        .from('client_roles')
+                        .select('client_id, clientes(id, nome, slug, status_cliente)')
+                        .in('user_id', idsToCheck);
 
-                // 5. Merge and Unique
-                const allMyClients = [
-                    ...directClients.map(c => ({
-                        id: c.id,
-                        nome: c.nome,
-                        slug: c.slug || '',
-                        status: 'ativo' as const
-                    })),
-                    ...(roleClients || [])
-                        .filter(r => r.clientes)
-                        .map(r => ({
-                            id: (r.clientes as any).id,
-                            nome: (r.clientes as any).nome,
-                            slug: (r.clientes as any).slug || '',
+                    if (rolesError) console.error("Roles Fetch Error:", rolesError);
+
+                    // 5. Merge and Unique
+                    const allMyClients = [
+                        ...directClients.map(c => ({
+                            id: c.id,
+                            nome: c.nome,
+                            slug: c.slug || '',
                             status: 'ativo' as const
-                        }))
-                ];
+                        })),
+                        ...(roleClients || [])
+                            .filter(r => r.clientes)
+                            .map(r => ({
+                                id: (r.clientes as any).id,
+                                nome: (r.clientes as any).nome,
+                                slug: (r.clientes as any).slug || '',
+                                status: 'ativo' as const
+                            }))
+                    ];
 
-                const uniqueClients = Array.from(new Map(allMyClients.map(c => [c.id, c])).values())
-                    .sort((a, b) => a.nome.localeCompare(b.nome));
+                    loadedClientes = Array.from(new Map(allMyClients.map(c => [c.id, c])).values())
+                        .sort((a, b) => a.nome.localeCompare(b.nome));
 
-                setClientes(uniqueClients);
-                setUserRole('gestor');
+                    setUserRole('gestor');
+                }
+
+                setClientes(loadedClientes);
+
+                // Fetch pending creatives counts for these clients
+                if (loadedClientes.length > 0) {
+                    const clientIds = loadedClientes.map(c => c.id);
+                    const { data: creativesData, error: creativesError } = await supabase
+                        .from('creatives')
+                        .select('client_id')
+                        .eq('status', 'subir')
+                        .in('client_id', clientIds);
+
+                    if (!creativesError && creativesData) {
+                        const counts: Record<string, number> = {};
+                        creativesData.forEach(item => {
+                            counts[item.client_id] = (counts[item.client_id] || 0) + 1;
+                        });
+                        setPendingCounts(counts);
+                    }
+                }
 
             } catch (error: any) {
                 console.error("Erro ao carregar clientes:", error);
@@ -181,25 +203,39 @@ export function MeusClientesCard() {
             <CardContent>
                 <div className="space-y-4">
                     <div className="grid gap-2 grid-cols-1">
-                        {clientes.slice(0, 6).map((cliente) => (
-                            <Button
-                                key={cliente.id}
-                                variant="ghost"
-                                className="h-auto py-3 px-3 justify-start text-left group w-full hover:bg-primary/5 transition-all border border-transparent hover:border-primary/10"
-                                onClick={() => navigate(`/painel/${cliente.id}`)}
-                            >
-                                <div className="flex flex-col items-start gap-1 w-full truncate">
-                                    <span className="font-semibold truncate w-full group-hover:text-primary transition-colors text-sm">
-                                        {cliente.nome}
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                                        <Activity className="h-2.5 w-2.5" />
-                                        Ver detalhes do cliente
-                                    </span>
-                                </div>
-                                <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground/30 group-hover:text-primary transition-colors" />
-                            </Button>
-                        ))}
+                        {clientes.slice(0, 6).map((cliente) => {
+                            const pendingCount = pendingCounts[cliente.id] || 0;
+
+                            return (
+                                <Button
+                                    key={cliente.id}
+                                    variant="ghost"
+                                    className="h-auto py-3 px-3 justify-start text-left group w-full hover:bg-primary/5 transition-all border border-transparent hover:border-primary/10 relative"
+                                    onClick={() => navigate(`/painel/${cliente.id}`)}
+                                >
+                                    <div className="flex flex-col items-start gap-1 w-full truncate pr-8">
+                                        <div className="flex items-center gap-2 w-full">
+                                            <span className="font-semibold truncate group-hover:text-primary transition-colors text-sm">
+                                                {cliente.nome}
+                                            </span>
+                                            {pendingCount > 0 && (
+                                                <div className="flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 flex-shrink-0">
+                                                    <AlertCircle className="h-3 w-3 text-amber-500" />
+                                                    <span className="text-[10px] font-medium text-amber-600 whitespace-nowrap">
+                                                        {pendingCount} para subir
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                                            <Activity className="h-2.5 w-2.5" />
+                                            Ver detalhes do cliente
+                                        </span>
+                                    </div>
+                                    <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground/30 group-hover:text-primary transition-colors absolute right-3" />
+                                </Button>
+                            );
+                        })}
                     </div>
 
                     {clientes.length > 6 && (

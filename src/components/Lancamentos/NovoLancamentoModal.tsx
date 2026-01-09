@@ -253,18 +253,49 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
         }
       }
 
-      // Criar notificação para a equipe
+      // Criar notificação para a equipe (Admins + Gestor)
       try {
-        await supabase.from('avisos').insert({
-          titulo: `Novo Lançamento: ${formData.nome_lancamento}`,
-          conteudo: `Um novo lançamento foi criado.\nCliente: ${clientes.find(c => c.id === formData.cliente_id)?.nome || 'Não informado'}\nTipo: ${formData.tipo_lancamento}\nInício Captação: ${new Date(formData.data_inicio_captacao).toLocaleDateString('pt-BR')}`,
-          tipo: 'info',
-          prioridade: 'normal',
-          destinatarios: ['all'],
-          data_inicio: new Date().toISOString(),
-          created_by: userData.user.id,
-          ativo: true
-        });
+        // 1. Buscar IDs dos Administradores
+        const { data: admins } = await supabase
+          .from('colaboradores')
+          .select('user_id')
+          .eq('nivel_acesso', 'admin')
+          .not('user_id', 'is', null);
+
+        const adminIds = admins?.map(a => a.user_id).filter(Boolean) as string[] || [];
+
+        // 2. Buscar ID do Gestor Responsável (se houver)
+        let gestorUserId: string | null = null;
+        if (formData.gestor_responsavel_id) {
+          const { data: gestor } = await supabase
+            .from('colaboradores')
+            .select('user_id')
+            .eq('id', formData.gestor_responsavel_id)
+            .single();
+          
+          if (gestor?.user_id) {
+            gestorUserId = gestor.user_id;
+          }
+        }
+
+        // 3. Montar lista de destinatários única
+        const destinatarios = Array.from(new Set([
+          ...adminIds,
+          gestorUserId
+        ])).filter(Boolean) as string[];
+
+        if (destinatarios.length > 0) {
+          await supabase.from('avisos').insert({
+            titulo: `Novo Lançamento: ${formData.nome_lancamento}`,
+            conteudo: `Um novo lançamento foi criado.\nCliente: ${clientes.find(c => c.id === formData.cliente_id)?.nome || 'Não informado'}\nTipo: ${formData.tipo_lancamento}\nInício Captação: ${new Date(formData.data_inicio_captacao).toLocaleDateString('pt-BR')}`,
+            tipo: 'info',
+            prioridade: 'normal',
+            destinatarios: destinatarios,
+            data_inicio: new Date().toISOString(),
+            created_by: userData.user.id,
+            ativo: true
+          });
+        }
       } catch (notifyError) {
         console.error('Erro ao criar notificação:', notifyError);
       }
