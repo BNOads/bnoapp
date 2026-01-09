@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { CriativoSelector } from './CriativoSelector';
 
 interface NovoLancamentoModalProps {
   open: boolean;
@@ -37,6 +38,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
 
   const [clientes, setClientes] = useState<Array<{ id: string, nome: string, slug: string, aliases: string[], primary_gestor_user_id: string | null }>>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedCriativos, setSelectedCriativos] = useState<string[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -192,6 +194,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
       link_briefing: '',
       observacoes: ''
     });
+    setSelectedCriativos([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,11 +224,34 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
         created_by: userData.user.id
       };
 
-      const { error } = await supabase
+      const { data: novoLancamento, error } = await supabase
         .from('lancamentos')
-        .insert(lancamentoData);
+        .insert(lancamentoData)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Se houver criativos selecionados, vincular ao lançamento
+      if (selectedCriativos.length > 0 && novoLancamento) {
+        const criativosLinks = selectedCriativos.map(criativoId => ({
+          lancamento_id: novoLancamento.id,
+          criativo_id: criativoId
+        }));
+
+        const { error: linksError } = await supabase
+          .from('lancamento_criativos')
+          .insert(criativosLinks);
+
+        if (linksError) {
+          console.error('Erro ao vincular criativos:', linksError);
+          toast({
+            title: "Aviso",
+            description: "Lançamento criado, mas houve erro ao vincular alguns criativos.",
+            variant: "warning",
+          });
+        }
+      }
 
       // Criar notificação para a equipe
       try {
@@ -323,6 +349,21 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
                 </SelectContent>
               </Select>
             </div>
+
+            {formData.cliente_id && (
+              <div className="space-y-2 md:col-span-2 border-t pt-4 mt-2">
+                <Label>Criativos deste Lançamento</Label>
+                <div className="text-sm text-muted-foreground mb-2">
+                  Selecione as pastas de criativos que serão utilizadas neste lançamento.
+                </div>
+                <CriativoSelector
+                  clienteId={formData.cliente_id}
+                  selectedIds={selectedCriativos}
+                  onSelectionChange={setSelectedCriativos}
+                  className="max-h-[300px]"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="tipo_lancamento">Tipo de Lançamento *</Label>

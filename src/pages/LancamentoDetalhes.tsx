@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock, Info, Target, AlertTriangle } from "lucide-react";
+import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock, Info, Target, AlertTriangle, Folder } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,6 +21,10 @@ import VerbaDestaque from "@/components/Lancamentos/VerbaDestaque";
 import TimerCPL from "@/components/Lancamentos/TimerCPL";
 import InformacoesBasicas from "@/components/Lancamentos/InformacoesBasicas";
 import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
+import { LancamentoCriativosTab } from "@/components/Lancamentos/LancamentoCriativosTab";
+import EditarLancamentoModal from "@/components/Lancamentos/EditarLancamentoModal";
+import { VincularCriativosModal } from "@/components/Lancamentos/VincularCriativosModal";
+
 interface VerbaFase {
   captacao: {
     percentual: number;
@@ -127,8 +131,10 @@ export default function LancamentoDetalhes() {
   const [editing, setEditing] = useState(false);
   const [editingTab, setEditingTab] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas' | 'checklist'>('calendario');
+  const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas' | 'checklist' | 'criativos'>('calendario');
   const [ganttView, setGanttView] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [linkCriativosModalOpen, setLinkCriativosModalOpen] = useState(false);
   const [availableClients, setAvailableClients] = useState<any[]>([]);
   const [catalogoUrl, setCatalogoUrl] = useState<string | null>(null);
 
@@ -939,6 +945,10 @@ export default function LancamentoDetalhes() {
           <BarChart3 className="h-4 w-4" />
           Checklist
         </TabsTrigger>
+        <TabsTrigger value="criativos" className="flex items-center gap-2">
+          <Folder className="h-4 w-4" />
+          Criativos
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="calendario" className="space-y-6">
@@ -1558,6 +1568,34 @@ export default function LancamentoDetalhes() {
           </CardContent>
         </Card>
       </TabsContent>
+
+      <TabsContent value="criativos">
+        {lancamento && (
+          <LancamentoCriativosTab
+            lancamentoId={lancamento.id}
+            onManage={() => setLinkCriativosModalOpen(true)}
+          />
+        )}
+      </TabsContent>
     </Tabs>
+
+    {lancamento && (
+      <EditarLancamentoModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        lancamento={lancamento}
+        onLancamentoAtualizado={fetchLancamento}
+      />
+    )}
+
+    {lancamento && lancamento.cliente_id && (
+      <VincularCriativosModal
+        open={linkCriativosModalOpen}
+        onOpenChange={setLinkCriativosModalOpen}
+        lancamentoId={lancamento.id}
+        clienteId={lancamento.cliente_id}
+        onSuccess={fetchLancamento}
+      />
+    )}
   </div>;
 }

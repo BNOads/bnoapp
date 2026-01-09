@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { CriativoSelector } from './CriativoSelector';
 
 interface EditarLancamentoModalProps {
   open: boolean;
@@ -39,8 +40,9 @@ const EditarLancamentoModal: React.FC<EditarLancamentoModalProps> = ({
     link_briefing: '',
     observacoes: ''
   });
-  
-  const [clientes, setClientes] = useState<Array<{id: string, nome: string}>>([]);
+
+  const [clientes, setClientes] = useState<Array<{ id: string, nome: string }>>([]);
+  const [selectedCriativos, setSelectedCriativos] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -65,8 +67,25 @@ const EditarLancamentoModal: React.FC<EditarLancamentoModalProps> = ({
         observacoes: lancamento.observacoes || ''
       });
       fetchClientes();
+      fetchCriativosVinculados();
     }
   }, [open, lancamento]);
+
+  const fetchCriativosVinculados = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('lancamento_criativos')
+        .select('criativo_id')
+        .eq('lancamento_id', lancamento.id);
+
+      if (error) throw error;
+
+      const ids = data.map(item => item.criativo_id);
+      setSelectedCriativos(ids);
+    } catch (error) {
+      console.error('Erro ao buscar criativos vinculados:', error);
+    }
+  };
 
   const fetchClientes = async () => {
     try {
@@ -122,12 +141,33 @@ const EditarLancamentoModal: React.FC<EditarLancamentoModalProps> = ({
 
       if (error) throw error;
 
+      // Atualizar vínculos de criativos
+      const { error: deleteError } = await supabase
+        .from('lancamento_criativos')
+        .delete()
+        .eq('lancamento_id', lancamento.id);
+
+      if (deleteError) throw deleteError;
+
+      if (selectedCriativos.length > 0) {
+        const criativosLinks = selectedCriativos.map(criativoId => ({
+          lancamento_id: lancamento.id,
+          criativo_id: criativoId
+        }));
+
+        const { error: insertError } = await supabase
+          .from('lancamento_criativos')
+          .insert(criativosLinks);
+
+        if (insertError) throw insertError;
+      }
+
       onLancamentoAtualizado();
       onOpenChange(false);
-      
+
       toast({
         title: "Lançamento atualizado",
-        description: "O lançamento foi atualizado com sucesso.",
+        description: "O lançamento e seus criativos foram atualizados com sucesso.",
       });
 
     } catch (error: any) {
@@ -192,6 +232,21 @@ const EditarLancamentoModal: React.FC<EditarLancamentoModalProps> = ({
                 </SelectContent>
               </Select>
             </div>
+
+            {formData.cliente_id && (
+              <div className="space-y-2 md:col-span-2 border-t pt-4 mt-2">
+                <Label>Criativos deste Lançamento</Label>
+                <div className="text-sm text-muted-foreground mb-2">
+                  Gerencie as pastas de criativos deste lançamento.
+                </div>
+                <CriativoSelector
+                  clienteId={formData.cliente_id}
+                  selectedIds={selectedCriativos}
+                  onSelectionChange={setSelectedCriativos}
+                  className="max-h-[300px]"
+                />
+              </div>
+            )}
 
             <div>
               <Label htmlFor="status_lancamento">Status *</Label>
