@@ -151,7 +151,7 @@ export function LancamentoCriativosTab({ lancamentoId, onManage }: LancamentoCri
         try {
             const { error } = await supabase
                 .from('creatives')
-                .update({ nomenclature_trafego: value }) // Check exact column name later, assuming nomenclatura_trafego
+                .update({ nomenclatura_trafego: value })
                 .eq('id', creativeId);
 
             // Note: Column might be nomenclatura_trafego or nomenclature_trafego. 

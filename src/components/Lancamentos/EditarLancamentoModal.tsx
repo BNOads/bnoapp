@@ -75,12 +75,12 @@ const EditarLancamentoModal: React.FC<EditarLancamentoModalProps> = ({
     try {
       const { data, error } = await supabase
         .from('lancamento_criativos')
-        .select('criativo_id')
+        .select('folder_name')
         .eq('lancamento_id', lancamento.id);
 
       if (error) throw error;
 
-      const ids = data.map(item => item.criativo_id);
+      const ids = data.map(item => item.folder_name).filter(Boolean) as string[];
       setSelectedCriativos(ids);
     } catch (error) {
       console.error('Erro ao buscar criativos vinculados:', error);
@@ -150,9 +150,9 @@ const EditarLancamentoModal: React.FC<EditarLancamentoModalProps> = ({
       if (deleteError) throw deleteError;
 
       if (selectedCriativos.length > 0) {
-        const criativosLinks = selectedCriativos.map(criativoId => ({
+        const criativosLinks = selectedCriativos.map(folderName => ({
           lancamento_id: lancamento.id,
-          criativo_id: criativoId
+          folder_name: folderName
         }));
 
         const { error: insertError } = await supabase

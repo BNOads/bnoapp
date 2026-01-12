@@ -2253,6 +2253,41 @@ export type Database = {
           },
         ]
       }
+      editorial_lines: {
+        Row: {
+          created_at: string | null
+          day_of_week: string
+          id: string
+          intention: string | null
+          profile_id: string | null
+          week_start_date: string
+        }
+        Insert: {
+          created_at?: string | null
+          day_of_week: string
+          id?: string
+          intention?: string | null
+          profile_id?: string | null
+          week_start_date: string
+        }
+        Update: {
+          created_at?: string | null
+          day_of_week?: string
+          id?: string
+          intention?: string | null
+          profile_id?: string | null
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_lines_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "social_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finance_aliases_unmapped: {
         Row: {
           created_at: string
@@ -2556,6 +2591,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      funnels: {
+        Row: {
+          briefing_link: string | null
+          category: string | null
+          created_at: string
+          dashboard_link: string | null
+          drive_link: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          predicted_investment: number | null
+          product_name: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          briefing_link?: string | null
+          category?: string | null
+          created_at?: string
+          dashboard_link?: string | null
+          drive_link?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          predicted_investment?: number | null
+          product_name?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          briefing_link?: string | null
+          category?: string | null
+          created_at?: string
+          dashboard_link?: string | null
+          drive_link?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          predicted_investment?: number | null
+          product_name?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       gamificacao_acoes: {
         Row: {
@@ -3096,6 +3176,35 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: true
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lancamento_criativos: {
+        Row: {
+          created_at: string
+          folder_name: string | null
+          id: string
+          lancamento_id: string
+        }
+        Insert: {
+          created_at?: string
+          folder_name?: string | null
+          id?: string
+          lancamento_id: string
+        }
+        Update: {
+          created_at?: string
+          folder_name?: string | null
+          id?: string
+          lancamento_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lancamento_criativos_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos"
             referencedColumns: ["id"]
           },
         ]
@@ -3947,6 +4056,82 @@ export type Database = {
         }
         Relationships: []
       }
+      post_comments: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_adjustment: boolean | null
+          post_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_adjustment?: boolean | null
+          post_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_adjustment?: boolean | null
+          post_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "social_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_history: {
+        Row: {
+          action: string
+          created_at: string | null
+          field_changed: string | null
+          id: string
+          new_value: string | null
+          old_value: string | null
+          post_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          post_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          post_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_history_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "social_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presencas_reunioes: {
         Row: {
           created_at: string
@@ -4540,6 +4725,93 @@ export type Database = {
           nome?: string
           tipos_aviso?: string[] | null
           webhook_url?: string
+        }
+        Relationships: []
+      }
+      social_posts: {
+        Row: {
+          created_at: string | null
+          current_assignee_id: string | null
+          day_of_week: string | null
+          deadline: string | null
+          editorial_line_id: string | null
+          id: string
+          post_type: string | null
+          profile_id: string | null
+          scheduled_date: string | null
+          start_date: string | null
+          status: string
+          theme: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_assignee_id?: string | null
+          day_of_week?: string | null
+          deadline?: string | null
+          editorial_line_id?: string | null
+          id?: string
+          post_type?: string | null
+          profile_id?: string | null
+          scheduled_date?: string | null
+          start_date?: string | null
+          status?: string
+          theme?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_assignee_id?: string | null
+          day_of_week?: string | null
+          deadline?: string | null
+          editorial_line_id?: string | null
+          id?: string
+          post_type?: string | null
+          profile_id?: string | null
+          scheduled_date?: string | null
+          start_date?: string | null
+          status?: string
+          theme?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_editorial_line_id_fkey"
+            columns: ["editorial_line_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_posts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "social_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_profiles: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          icon: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
         }
         Relationships: []
       }
