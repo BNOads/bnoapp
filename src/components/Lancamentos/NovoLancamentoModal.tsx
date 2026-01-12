@@ -248,7 +248,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
           toast({
             title: "Aviso",
             description: "Lançamento criado, mas houve erro ao vincular alguns criativos.",
-            variant: "warning",
+            variant: "destructive",
           });
         }
       }
