@@ -32,6 +32,7 @@ interface Aula {
   titulo: string;
   descricao: string;
   duracao: number;
+  treinamento_id: string;
   treinamento: { titulo: string };
   concluida: boolean;
   data_conclusao: string | null;
@@ -125,6 +126,7 @@ export default function PDIDetalhes() {
             titulo,
             descricao,
             duracao,
+            treinamento_id,
             treinamentos!inner (titulo)
           )
         `)
@@ -158,6 +160,7 @@ export default function PDIDetalhes() {
           titulo: a.aulas.titulo,
           descricao: a.aulas.descricao,
           duracao: a.aulas.duracao,
+          treinamento_id: a.aulas.treinamento_id,
           treinamento: { titulo: a.aulas.treinamentos.titulo },
           concluida: a.concluida,
           data_conclusao: a.data_conclusao
@@ -306,8 +309,8 @@ export default function PDIDetalhes() {
     }
   };
 
-  const verAula = (aulaId: string) => {
-    navigate(`/treinamentos/aula/${aulaId}`);
+  const verAula = (treinamentoId: string, aulaId: string) => {
+    navigate(`/curso/${treinamentoId}/aula/${aulaId}`);
   };
 
   const concluirPDI = async () => {
@@ -663,7 +666,7 @@ export default function PDIDetalhes() {
                       
                       <div className="flex items-center gap-2">
                         <Button 
-                          onClick={() => verAula(aula.aula_id)}
+                          onClick={() => verAula(aula.treinamento_id, aula.aula_id)}
                           variant="outline"
                           size="sm"
                         >
