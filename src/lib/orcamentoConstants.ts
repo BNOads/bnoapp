@@ -39,6 +39,22 @@ export const CATEGORIAS_FUNIL = [
     cor: '#8b5cf6', // purple
     corBg: 'bg-violet-500',
     corText: 'text-violet-600'
+  },
+  {
+    value: 'captacao',
+    label: 'Captação',
+    descricao: 'Campanhas focadas em captação de leads e construção de audiência.',
+    cor: '#06b6d4', // cyan
+    corBg: 'bg-cyan-500',
+    corText: 'text-cyan-600'
+  },
+  {
+    value: 'mensagem',
+    label: 'Mensagem',
+    descricao: 'Campanhas de mensagem direta para conversão e relacionamento.',
+    cor: '#ec4899', // pink
+    corBg: 'bg-pink-500',
+    corText: 'text-pink-600'
   }
 ];
 
