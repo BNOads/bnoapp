@@ -23,9 +23,50 @@ function extractDriveFolderId(url: string): string | null {
   
   return null;
 }
+// Função para verificar se a API key está válida
+async function validateApiKey(): Promise<void> {
+  const API_KEY = Deno.env.get('GOOGLE_DRIVE_API_KEY');
+  
+  if (!API_KEY || API_KEY.trim() === '') {
+    throw new Error('GOOGLE_DRIVE_API_KEY não está configurada. Por favor, configure a API key nas configurações do projeto.');
+  }
+}
+
+// Função para processar resposta do Google Drive API
+async function processGoogleResponse(response: Response, context: string): Promise<any> {
+  const responseText = await response.text();
+  
+  // Verificar se a resposta é HTML (indica erro de autenticação/autorização)
+  if (responseText.trim().startsWith('<') || responseText.includes('<!DOCTYPE')) {
+    console.error(`Resposta HTML inesperada em ${context}:`, responseText.substring(0, 300));
+    
+    // Tentar extrair mensagem de erro do HTML
+    if (responseText.includes('API key not valid')) {
+      throw new Error('A API key do Google Drive é inválida. Por favor, verifique se a chave está correta e tem permissões para a Drive API.');
+    }
+    if (responseText.includes('API key expired')) {
+      throw new Error('A API key do Google Drive expirou. Por favor, gere uma nova chave no Google Cloud Console.');
+    }
+    if (responseText.includes('Access Not Configured') || responseText.includes('accessNotConfigured')) {
+      throw new Error('A Google Drive API não está habilitada para esta API key. Habilite-a no Google Cloud Console.');
+    }
+    
+    throw new Error('Erro de autenticação com o Google Drive. Verifique se a API key está correta e se a pasta está compartilhada publicamente.');
+  }
+  
+  // Tentar parsear como JSON
+  try {
+    return JSON.parse(responseText);
+  } catch (parseError) {
+    console.error(`Erro ao parsear JSON em ${context}:`, responseText.substring(0, 300));
+    throw new Error(`Resposta inválida do Google Drive: não foi possível processar a resposta.`);
+  }
+}
 
 // Função para buscar pastas do Google Drive
 async function listDriveFolders(parentFolderId: string): Promise<any> {
+  await validateApiKey();
+  
   const API_KEY = Deno.env.get('GOOGLE_DRIVE_API_KEY');
   
   const params = new URLSearchParams({
@@ -41,28 +82,31 @@ async function listDriveFolders(parentFolderId: string): Promise<any> {
     const error = await response.text();
     console.error(`Google Drive API error (folders): ${response.status} - ${error}`);
     
-    // Verificar se é um erro de permissão ou pasta não pública
-    if (response.status === 403 || response.status === 404 || error.includes('<html>')) {
-      throw new Error('A pasta do Google Drive não está acessível. Verifique se a pasta está compartilhada como "Qualquer pessoa com o link" ou se a API key está correta.');
+    if (response.status === 403) {
+      if (error.includes('API key')) {
+        throw new Error('A API key do Google Drive é inválida ou não tem permissões suficientes.');
+      }
+      throw new Error('Acesso negado. Verifique se a pasta está compartilhada como "Qualquer pessoa com o link".');
     }
-    throw new Error(`Google Drive API error: ${response.status} - ${error}`);
+    if (response.status === 404) {
+      throw new Error('Pasta não encontrada. Verifique se a URL do Google Drive está correta.');
+    }
+    if (response.status === 400) {
+      throw new Error('Requisição inválida. Verifique se a URL da pasta do Google Drive está no formato correto.');
+    }
+    
+    throw new Error(`Erro da API do Google Drive (${response.status}): ${error.substring(0, 100)}`);
   }
   
-  const responseText = await response.text();
-  
-  // Verificar se a resposta é HTML (erro) em vez de JSON
-  if (responseText.trim().startsWith('<')) {
-    console.error('Resposta inesperada (HTML):', responseText.substring(0, 200));
-    throw new Error('A pasta do Google Drive não está acessível. Certifique-se de que a pasta está compartilhada como "Qualquer pessoa com o link".');
-  }
-  
-  const result = JSON.parse(responseText);
+  const result = await processGoogleResponse(response, 'listDriveFolders');
   console.log('Pastas encontradas:', result.files?.length || 0);
   return result;
 }
 
 // Função para buscar arquivos do Google Drive com paginação
 async function listDriveFiles(folderId: string, folderName = 'Raiz', folderPath = '', pageToken?: string): Promise<any> {
+  await validateApiKey();
+  
   const API_KEY = Deno.env.get('GOOGLE_DRIVE_API_KEY');
   
   const params = new URLSearchParams({
@@ -78,29 +122,30 @@ async function listDriveFiles(folderId: string, folderName = 'Raiz', folderPath 
   
   const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`);
   
-  console.log(`Fazendo requisição para Google Drive API`);
+  console.log(`Fazendo requisição para Google Drive API - Pasta: ${folderName}`);
   console.log(`Response status: ${response.status}`);
   
   if (!response.ok) {
     const error = await response.text();
     console.error(`Google Drive API error: ${response.status} - ${error}`);
     
-    // Verificar se é um erro de permissão ou pasta não pública
-    if (response.status === 403 || response.status === 404 || error.includes('<html>')) {
-      throw new Error('A pasta do Google Drive não está acessível. Verifique se a pasta está compartilhada como "Qualquer pessoa com o link" ou se a API key está correta.');
+    if (response.status === 403) {
+      if (error.includes('API key')) {
+        throw new Error('A API key do Google Drive é inválida ou não tem permissões suficientes.');
+      }
+      throw new Error('Acesso negado. Verifique se a pasta está compartilhada como "Qualquer pessoa com o link".');
     }
-    throw new Error(`Google Drive API error: ${response.status} - ${error}`);
+    if (response.status === 404) {
+      throw new Error('Pasta não encontrada. Verifique se a URL do Google Drive está correta.');
+    }
+    if (response.status === 400) {
+      throw new Error('Requisição inválida. Verifique se a URL da pasta do Google Drive está no formato correto.');
+    }
+    
+    throw new Error(`Erro da API do Google Drive (${response.status}): ${error.substring(0, 100)}`);
   }
   
-  const responseText = await response.text();
-  
-  // Verificar se a resposta é HTML (erro) em vez de JSON
-  if (responseText.trim().startsWith('<')) {
-    console.error('Resposta inesperada (HTML):', responseText.substring(0, 200));
-    throw new Error('A pasta do Google Drive não está acessível. Certifique-se de que a pasta está compartilhada como "Qualquer pessoa com o link".');
-  }
-  
-  const result = JSON.parse(responseText);
+  const result = await processGoogleResponse(response, `listDriveFiles(${folderName})`);
   
   // Adicionar informações da pasta aos arquivos
   if (result.files) {
