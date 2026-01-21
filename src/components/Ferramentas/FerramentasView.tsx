@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter } from "lucide-react";
+import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -11,6 +11,7 @@ import { UTMBuilderView } from "./UTMBuilderView";
 import { AcessosLoginsView } from "./AcessosLoginsView";
 import { MensagensSemanaisView } from "./MensagensSemanaisView";
 import { LinksView } from "./LinksView";
+import { CreativeDownloaderView } from "./CreativeDownloaderView";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -106,6 +107,14 @@ export const FerramentasView = () => {
       icon: Palette,
       component: null,
       color: "text-purple-600"
+    },
+    {
+      id: "downloader-criativos",
+      title: "Downloader de Criativos",
+      description: "Baixe vídeos de YouTube, Instagram e Meta Ad Library em MP4",
+      icon: Download,
+      component: <CreativeDownloaderView />,
+      color: "text-orange-500"
     },
     {
       id: "arquivo-reuniao",
