@@ -1,43 +1,66 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from "@/integrations/supabase/client";
+import { CRMLoginModal } from '@/components/CRM/CRMLoginModal';
+import { CRMBoard } from '@/components/CRM/CRMBoard';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Helmet } from 'react-helmet';
-import { ProtectedRoute } from '@/components/Auth/ProtectedRoute';
-import { useCRMAccess } from '@/hooks/useCRMAccess';
-import { CRMAccessModal } from '@/components/CRM/CRMAccessModal';
-import { KanbanBoard } from '@/components/CRM/KanbanBoard';
-import { Loader2 } from 'lucide-react';
 
-const CRM = () => {
-  const { isAuthenticated, isLoading, attempts, authenticate } = useCRMAccess();
+const CRMPage = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { userData: user } = useCurrentUser();
+  const navigate = useNavigate();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
+    const token = localStorage.getItem('crm_session_token');
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-crm-session', {
+        body: { token }
+      });
+
+      if (error || !data?.valid) {
+        localStorage.removeItem('crm_session_token');
+        setIsAuthenticated(false);
+      } else {
+        setIsAuthenticated(true);
+      }
+    } catch (err) {
+      console.error('Error validating CRM session:', err);
+      setIsAuthenticated(false);
+    }
+  };
+
+  const handleLoginSuccess = (token: string) => {
+    localStorage.setItem('crm_session_token', token);
+    setIsAuthenticated(true);
+  };
+
+  if (isAuthenticated === null) {
+    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <Helmet>
-        <title>CRM - BNOads</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
-      <ProtectedRoute>
-        {!isAuthenticated ? (
-          <CRMAccessModal
-            isOpen={true}
-            attempts={attempts}
-            onAuthenticate={authenticate}
-          />
-        ) : (
-          <div className="container mx-auto px-6 py-8">
-            <KanbanBoard />
-          </div>
-        )}
-      </ProtectedRoute>
-    </>
+      {!isAuthenticated ? (
+        <CRMLoginModal onLoginSuccess={handleLoginSuccess} />
+      ) : (
+        <CRMBoard readOnly={!user} />
+      )}
+    </div>
   );
 };
 
-export default CRM;
+export default CRMPage;

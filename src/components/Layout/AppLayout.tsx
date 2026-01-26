@@ -13,40 +13,41 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const { userData: user } = useCurrentUser();
-  
+
   // Track page visits automatically
   useRecentTabs();
-  
+
   // Don't show header and FAB on auth-related pages and public pages
   const hideHeaderRoutes = [
-    '/auth', 
+    '/auth',
     '/reset-password',
     '/pop/publico',
     '/referencia/publica',
     '/debriefing/publico',
-    '/painel'
+    '/painel',
+    '/crm'
   ];
-  
+
   // Rotas completamente standalone - sem header NUNCA (nem logado nem deslogado)
   const standaloneRoutes = [
     '/lancamento/'
   ];
-  
-  const isStandaloneRoute = standaloneRoutes.some(route => 
+
+  const isStandaloneRoute = standaloneRoutes.some(route =>
     location.pathname.startsWith(route)
   );
-  
+
   // Check if current route is a client panel NPS page
   const isClientNPSRoute = location.pathname.match(/^\/painel\/[^/]+\/nps$/);
-  
+
   // Para rotas públicas e específicas de visualização, verificar se o usuário está logado
-  const isPublicViewRoute = location.pathname.startsWith('/referencia/') && 
-                           !location.pathname.startsWith('/referencia/publica');
-  
-  const shouldShowHeader = !hideHeaderRoutes.some(route => 
+  const isPublicViewRoute = location.pathname.startsWith('/referencia/') &&
+    !location.pathname.startsWith('/referencia/publica');
+
+  const shouldShowHeader = !hideHeaderRoutes.some(route =>
     location.pathname.startsWith(route)
   ) && !(isPublicViewRoute && !user) && !isClientNPSRoute && !isStandaloneRoute;
-  
+
   const shouldShowFAB = shouldShowHeader;
 
   // Rotas standalone renderizam apenas o conteúdo
