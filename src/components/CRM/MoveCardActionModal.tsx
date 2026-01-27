@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type ClienteInsert = Database['public']['Tables']['clientes']['Insert'];
 
 interface MoveCardActionModalProps {
     card: any;
@@ -14,47 +17,57 @@ interface MoveCardActionModalProps {
 }
 
 export const MoveCardActionModal = ({ card, targetColumn, onConfirm, onCancel }: MoveCardActionModalProps) => {
-    const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [categoria, setCategoria] = useState<'negocio_local' | 'infoproduto'>('negocio_local');
 
     const handleConfirm = async () => {
         setLoading(true);
         try {
+            // Get current user first
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+
             let updateData: any = {
                 column_id: targetColumn.id,
                 updated_at: new Date().toISOString()
             };
 
-            // Convert to client
-            const { data: newClient, error: clientError } = await supabase.from('clientes').insert({
-                nome: card.title,
-                nicho: card.segment,
+            // Convert to client - using proper typing
+            const clientData: ClienteInsert = {
+                nome: card.title || 'Novo Cliente',
+                nicho: card.segment || null,
+                categoria: categoria,
                 status_cliente: 'ativo',
-                observacoes: `Convertido do CRM. Origem: ${card.origin}. Descrição: ${card.description}`,
-                created_by: card.owner_id
-            }).select().single();
+                observacoes: `Convertido do CRM. Origem: ${card.origin || ''}. Descrição: ${card.description || ''}`,
+                created_by: card.owner_id || null
+            };
+            
+            const { data: newClient, error: clientError } = await supabase
+                .from('clientes')
+                .insert(clientData)
+                .select()
+                .single();
 
             if (clientError) throw clientError;
             updateData.converted_client_id = newClient.id;
 
             // Notify team
-            await supabase.from('avisos').insert({
-                titulo: "Novo Cliente! 🚀",
-                conteudo: `Comemore time! 🚀 Novo cliente convertido do CRM: ${card.title}`,
-                tipo: 'success',
-                prioridade: 'normal',
-                created_by: user?.id
-            });
+            if (currentUser?.id) {
+                await supabase.from('avisos').insert({
+                    titulo: "Novo Cliente! 🚀",
+                    conteudo: `Comemore time! 🚀 Novo cliente convertido do CRM: ${card.title}`,
+                    tipo: 'success',
+                    prioridade: 'normal',
+                    created_by: currentUser.id
+                });
+            }
 
             const { error } = await supabase.from('crm_cards').update(updateData).eq('id', card.id);
             if (error) throw error;
 
             // Activity Log
-            const { data: { user } } = await supabase.auth.getUser();
             await supabase.from('crm_activity').insert({
                 card_id: card.id,
-                user_id: user?.id || null,
+                user_id: currentUser?.id || null,
                 activity_type: 'moved',
                 activity_data: {
                     from_column: card.column_id,
@@ -89,7 +102,7 @@ export const MoveCardActionModal = ({ card, targetColumn, onConfirm, onCancel }:
                         <Label htmlFor="categoria">Selecione a Categoria do Cliente</Label>
                         <Select
                             value={categoria}
-                            onValueChange={(val: any) => setCategoria(val)}
+                            onValueChange={(val: 'negocio_local' | 'infoproduto') => setCategoria(val)}
                         >
                             <SelectTrigger id="categoria">
                                 <SelectValue placeholder="Selecione uma categoria" />
