@@ -25,7 +25,7 @@ export const useCRMAccess = () => {
       const { data, error } = await supabase
         .from('crm_access_sessions')
         .select('expires_at')
-        .eq('token', storedToken)
+        .eq('session_token', storedToken)
         .maybeSingle();
 
       if (error || !data) {
@@ -44,7 +44,7 @@ export const useCRMAccess = () => {
         await supabase
           .from('crm_access_sessions')
           .delete()
-          .eq('token', storedToken);
+          .eq('session_token', storedToken);
         localStorage.removeItem(CRM_SESSION_KEY);
       }
     } catch (error) {
@@ -73,13 +73,15 @@ export const useCRMAccess = () => {
       const token = crypto.randomUUID();
       const expiresAt = new Date(Date.now() + SESSION_DURATION).toISOString();
 
+      const sessionData = {
+        user_id: user.id,
+        session_token: token,
+        expires_at: expiresAt
+      };
+
       const { error } = await supabase
         .from('crm_access_sessions')
-        .insert({
-          user_id: user.id,
-          token,
-          expires_at: expiresAt
-        });
+        .insert(sessionData);
 
       if (error) {
         console.error('Erro ao criar sessão:', error);
@@ -103,7 +105,7 @@ export const useCRMAccess = () => {
       await supabase
         .from('crm_access_sessions')
         .delete()
-        .eq('token', token);
+        .eq('session_token', token);
     }
 
     localStorage.removeItem(CRM_SESSION_KEY);

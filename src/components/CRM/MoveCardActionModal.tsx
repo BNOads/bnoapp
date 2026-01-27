@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type ClienteInsert = Database['public']['Tables']['clientes']['Insert'];
 
 interface MoveCardActionModalProps {
     card: any;
@@ -24,14 +25,21 @@ export const MoveCardActionModal = ({ card, targetColumn, onConfirm, onCancel }:
                 updated_at: new Date().toISOString()
             };
 
-            // Convert to client
-            const { data: newClient, error: clientError } = await supabase.from('clientes').insert({
-                nome: card.title,
-                nicho: card.segment,
+            // Convert to client - using proper typing
+            const clientData: ClienteInsert = {
+                nome: card.title || 'Novo Cliente',
+                nicho: card.segment || null,
+                categoria: 'negocio_local',
                 status_cliente: 'ativo',
-                observacoes: `Convertido do CRM. Origem: ${card.origin}. Descrição: ${card.description}`,
-                created_by: card.owner_id
-            }).select().single();
+                observacoes: `Convertido do CRM. Origem: ${card.origin || ''}. Descrição: ${card.description || ''}`,
+                created_by: card.owner_id || null
+            };
+            
+            const { data: newClient, error: clientError } = await supabase
+                .from('clientes')
+                .insert(clientData)
+                .select()
+                .single();
 
             if (clientError) throw clientError;
             updateData.converted_client_id = newClient.id;
@@ -40,9 +48,10 @@ export const MoveCardActionModal = ({ card, targetColumn, onConfirm, onCancel }:
             if (error) throw error;
 
             // Activity Log
+            const { data: { user } } = await supabase.auth.getUser();
             await supabase.from('crm_activity').insert({
                 card_id: card.id,
-                user_id: (await supabase.auth.getUser()).data.user?.id || null,
+                user_id: user?.id || null,
                 activity_type: 'moved',
                 activity_data: {
                     from_column: card.column_id,
