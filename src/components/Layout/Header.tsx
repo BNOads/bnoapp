@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -9,12 +10,12 @@ import NotificationBell from "@/components/Notifications/NotificationBell";
 import CreateNotificationModal from "@/components/Notifications/CreateNotificationModal";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 
 interface HeaderProps { }
 
 export const Header = ({ }: HeaderProps) => {
+  // All hooks must be called unconditionally at the top
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const { userData } = useCurrentUser();
   const { isAdmin } = useUserPermissions();
@@ -134,10 +135,8 @@ export const Header = ({ }: HeaderProps) => {
             </DropdownMenu>
           </div>
 
-          {/* Admin Create Notification */}
-          {isAdmin && (
-            <CreateNotificationModal />
-          )}
+          {/* Admin Create Notification - Always render but conditionally display */}
+          <CreateNotificationModal showButton={isAdmin} />
 
           {/* Notification Bell */}
           <NotificationBell />

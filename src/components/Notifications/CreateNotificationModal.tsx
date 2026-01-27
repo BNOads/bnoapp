@@ -14,9 +14,11 @@ import { User } from "@supabase/supabase-js";
 
 interface CreateNotificationModalProps {
   onSuccess?: () => void;
+  showButton?: boolean;
 }
 
-export default function CreateNotificationModal({ onSuccess }: CreateNotificationModalProps) {
+export default function CreateNotificationModal({ onSuccess, showButton = true }: CreateNotificationModalProps) {
+  // All hooks must be called unconditionally at the top
   const [user, setUser] = useState<User | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,6 +39,11 @@ export default function CreateNotificationModal({ onSuccess }: CreateNotificatio
       setUser(user);
     });
   }, []);
+
+  // Don't render anything if showButton is false
+  if (!showButton) {
+    return null;
+  }
 
   const resetForm = () => {
     setFormData({
