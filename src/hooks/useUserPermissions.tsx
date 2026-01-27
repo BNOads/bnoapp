@@ -12,39 +12,57 @@ interface UserPermissions {
   loading: boolean;
 }
 
+const defaultPermissions: UserPermissions = {
+  isAdmin: false,
+  isMaster: false,
+  isCS: false,
+  isGestorProjetos: false,
+  canCreateContent: false,
+  canManageBudgets: false,
+  canManageReferences: false,
+  loading: true,
+};
+
+// Cache global para evitar múltiplas chamadas
+let cachedPermissions: UserPermissions | null = null;
+let cacheUserId: string | null = null;
+
 export const useUserPermissions = (): UserPermissions => {
-  const [permissions, setPermissions] = useState<UserPermissions>({
-    isAdmin: false,
-    isMaster: false,
-    isCS: false,
-    isGestorProjetos: false,
-    canCreateContent: false,
-    canManageBudgets: false,
-    canManageReferences: false,
-    loading: true,
-  });
-  const loadedRef = useRef(false);
+  const [permissions, setPermissions] = useState<UserPermissions>(
+    cachedPermissions ? { ...cachedPermissions, loading: false } : defaultPermissions
+  );
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    if (loadedRef.current) return;
+    mountedRef.current = true;
+
+    // Se já temos cache, não recarregar
+    if (cachedPermissions) {
+      return;
+    }
 
     const checkUserPermissions = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
-          setPermissions({
-            isAdmin: false,
-            isMaster: false,
-            isCS: false,
-            isGestorProjetos: false,
-            canCreateContent: false,
-            canManageBudgets: false,
-            canManageReferences: false,
-            loading: false,
-          });
+          const noUserPermissions = { ...defaultPermissions, loading: false };
+          cachedPermissions = noUserPermissions;
+          if (mountedRef.current) {
+            setPermissions(noUserPermissions);
+          }
           return;
         }
+
+        // Se cache existe e é do mesmo usuário, usar
+        if (cachedPermissions && cacheUserId === user.id) {
+          if (mountedRef.current) {
+            setPermissions({ ...cachedPermissions, loading: false });
+          }
+          return;
+        }
+
+        cacheUserId = user.id;
 
         // Verificar perfil do usuário
         const { data: profile, error } = await supabase
@@ -60,26 +78,15 @@ export const useUserPermissions = (): UserPermissions => {
 
         // Definir permissões baseadas no nível de acesso
         const isAdmin = ['admin', 'dono'].includes(profile?.nivel_acesso);
-        const isMaster = isAdmin; // Simplificado: se é admin ou dono, é master
+        const isMaster = isAdmin;
         const isCS = ['cs', 'admin', 'dono'].includes(profile?.nivel_acesso);
         const isGestorProjetos = profile?.nivel_acesso === 'gestor_projetos';
         
-        // Níveis que podem criar conteúdo: admin, dono, gestor_trafego, gestor_projetos, cs, webdesigner, editor_video
         const canCreateContent = ['admin', 'dono', 'gestor_trafego', 'gestor_projetos', 'cs', 'webdesigner', 'editor_video'].includes(profile?.nivel_acesso);
-        
-        // Níveis que podem gerenciar orçamentos e referências: admin, dono, gestor_trafego, gestor_projetos
         const canManageBudgets = ['admin', 'dono', 'gestor_trafego', 'gestor_projetos'].includes(profile?.nivel_acesso);
         const canManageReferences = ['admin', 'dono', 'gestor_trafego', 'gestor_projetos'].includes(profile?.nivel_acesso);
 
-        console.log('Permissões verificadas:', {
-          email: user.email,
-          nivel_acesso: profile?.nivel_acesso,
-          isAdmin,
-          canCreateContent
-        });
-
-        loadedRef.current = true;
-        setPermissions({
+        const newPermissions: UserPermissions = {
           isAdmin,
           isMaster,
           isCS,
@@ -88,24 +95,28 @@ export const useUserPermissions = (): UserPermissions => {
           canManageBudgets,
           canManageReferences,
           loading: false,
-        });
+        };
+
+        cachedPermissions = newPermissions;
+        
+        if (mountedRef.current) {
+          setPermissions(newPermissions);
+        }
       } catch (error) {
         console.error('Erro ao verificar permissões:', error);
-        loadedRef.current = true;
-        setPermissions({
-          isAdmin: false,
-          isMaster: false,
-          isCS: false,
-          isGestorProjetos: false,
-          canCreateContent: false,
-          canManageBudgets: false,
-          canManageReferences: false,
-          loading: false,
-        });
+        const errorPermissions = { ...defaultPermissions, loading: false };
+        cachedPermissions = errorPermissions;
+        if (mountedRef.current) {
+          setPermissions(errorPermissions);
+        }
       }
     };
 
     checkUserPermissions();
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   return permissions;

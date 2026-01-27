@@ -9,23 +9,36 @@ interface CurrentUserData {
   avatar_url?: string;
 }
 
+// Cache global para evitar múltiplas chamadas
+let cachedUserData: CurrentUserData | null = null;
+let cacheUserId: string | null = null;
+
 export const useCurrentUser = () => {
-  const [userData, setUserData] = useState<CurrentUserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const loadedRef = useRef(false);
+  const [userData, setUserData] = useState<CurrentUserData | null>(cachedUserData);
+  const [loading, setLoading] = useState(!cachedUserData);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    // Prevent duplicate loading
-    if (loadedRef.current) return;
+    mountedRef.current = true;
     
     const loadUserData = async () => {
       try {
-        // Get user directly from supabase instead of useAuth
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user?.id) {
-          setUserData(null);
-          setLoading(false);
+          if (mountedRef.current) {
+            setUserData(null);
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Se já temos cache para este usuário, usar
+        if (cachedUserData && cacheUserId === user.id) {
+          if (mountedRef.current) {
+            setUserData(cachedUserData);
+            setLoading(false);
+          }
           return;
         }
 
@@ -35,24 +48,33 @@ export const useCurrentUser = () => {
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (error) {
-          console.error('Erro ao carregar dados do usuário:', error);
-          setUserData(null);
-        } else if (data) {
-          setUserData(data);
-        } else {
-          setUserData(null);
+        if (mountedRef.current) {
+          if (error) {
+            console.error('Erro ao carregar dados do usuário:', error);
+            setUserData(null);
+          } else if (data) {
+            cachedUserData = data;
+            cacheUserId = user.id;
+            setUserData(data);
+          } else {
+            setUserData(null);
+          }
+          setLoading(false);
         }
       } catch (error) {
         console.error('Erro ao carregar dados do usuário:', error);
-        setUserData(null);
-      } finally {
-        loadedRef.current = true;
-        setLoading(false);
+        if (mountedRef.current) {
+          setUserData(null);
+          setLoading(false);
+        }
       }
     };
 
     loadUserData();
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   return { userData, loading };
