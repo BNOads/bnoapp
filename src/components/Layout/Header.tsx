@@ -1,7 +1,6 @@
 import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useAuth } from "@/components/Auth/AuthContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -9,14 +8,30 @@ import bnoadsLogo from "@/assets/bnoads-logo-new.png";
 import NotificationBell from "@/components/Notifications/NotificationBell";
 import CreateNotificationModal from "@/components/Notifications/CreateNotificationModal";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
+import { User as SupabaseUser } from "@supabase/supabase-js";
+
 interface HeaderProps { }
 
 export const Header = ({ }: HeaderProps) => {
-  const { user, signOut } = useAuth();
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const { userData } = useCurrentUser();
   const { isAdmin } = useUserPermissions();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+  }, []);
+
+  const signOut = async () => {
+    await supabase.auth.signOut({ scope: 'local' });
+    await supabase.auth.signOut({ scope: 'global' });
+    window.location.href = '/auth';
+  };
   const tabs = [
     {
       id: 'dashboard',

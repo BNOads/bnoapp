@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useAuth } from "@/components/Auth/AuthContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { User } from "@supabase/supabase-js";
 
 interface Notification {
   id: string;
@@ -20,9 +19,16 @@ interface Notification {
 }
 
 export default function NotificationPopup() {
-  const { user } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
   const [currentNotification, setCurrentNotification] = useState<Notification | null>(null);
   const [checkedNotifications, setCheckedNotifications] = useState<Set<string>>(new Set());
+
+  // Load user on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+  }, []);
 
   // Verificar novas notificações
   const checkForNewNotifications = async () => {

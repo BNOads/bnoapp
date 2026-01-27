@@ -8,11 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useAuth } from "@/components/Auth/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { User } from "@supabase/supabase-js";
 
 interface Notification {
   id: string;
@@ -27,7 +26,7 @@ interface Notification {
 }
 
 export default function NotificationBell() {
-  const { user } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -35,6 +34,13 @@ export default function NotificationBell() {
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [activeTab, setActiveTab] = useState("all");
   const [isOpen, setIsOpen] = useState(false);
+
+  // Load user on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+  }, []);
 
   // Carregar notificações
   const loadNotifications = async () => {

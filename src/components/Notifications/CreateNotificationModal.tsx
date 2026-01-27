@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,17 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell, Calendar, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useAuth } from "@/components/Auth/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { User } from "@supabase/supabase-js";
 
 interface CreateNotificationModalProps {
   onSuccess?: () => void;
 }
 
 export default function CreateNotificationModal({ onSuccess }: CreateNotificationModalProps) {
-  const { user } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -31,6 +30,13 @@ export default function CreateNotificationModal({ onSuccess }: CreateNotificatio
     recorrencia_intervalo: null as number | null,
     destinatarios: ['all']
   });
+
+  // Load user on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+  }, []);
 
   const resetForm = () => {
     setFormData({
