@@ -30,7 +30,7 @@ export const CreativeDownloaderView = () => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "apikey": "2Epx9RWlB4csRTw"
+                    "apikey": "2AdCUOpm"
                 },
                 body: JSON.stringify({ url })
             });
