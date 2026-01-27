@@ -1440,22 +1440,22 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
-          token: string
-          user_id: string
+          session_token: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           expires_at: string
           id?: string
-          token: string
-          user_id: string
+          session_token: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           expires_at?: string
           id?: string
-          token?: string
-          user_id?: string
+          session_token?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1466,7 +1466,7 @@ export type Database = {
           card_id: string
           created_at: string
           id: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           activity_data?: Json | null
@@ -1474,7 +1474,7 @@ export type Database = {
           card_id: string
           created_at?: string
           id?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           activity_data?: Json | null
@@ -1482,11 +1482,53 @@ export type Database = {
           card_id?: string
           created_at?: string
           id?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "crm_activity_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "crm_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_crm_activity_user"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      crm_card_custom_values: {
+        Row: {
+          card_id: string | null
+          created_at: string | null
+          field_name: string
+          field_type: string
+          field_value: string | null
+          id: string
+        }
+        Insert: {
+          card_id?: string | null
+          created_at?: string | null
+          field_name: string
+          field_type: string
+          field_value?: string | null
+          id?: string
+        }
+        Update: {
+          card_id?: string | null
+          created_at?: string | null
+          field_name?: string
+          field_type?: string
+          field_value?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_card_custom_values_card_id_fkey"
             columns: ["card_id"]
             isOneToOne: false
             referencedRelation: "crm_cards"
@@ -1501,7 +1543,7 @@ export type Database = {
           company: string | null
           converted_client_id: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
           custom_fields: Json | null
           description: string | null
           disqualify_reason: string | null
@@ -1525,7 +1567,7 @@ export type Database = {
           company?: string | null
           converted_client_id?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
           custom_fields?: Json | null
           description?: string | null
           disqualify_reason?: string | null
@@ -1549,7 +1591,7 @@ export type Database = {
           company?: string | null
           converted_client_id?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           custom_fields?: Json | null
           description?: string | null
           disqualify_reason?: string | null
@@ -1581,6 +1623,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_crm_cards_creator"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "fk_crm_cards_owner"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }

@@ -226,7 +226,7 @@ export const KanbanBoard = () => {
         <DragOverlay>
           {activeCard && (
             <div className="rotate-2 opacity-50">
-              <CRMCard card={activeCard} onEdit={() => {}} isDragging />
+              <CRMCard card={activeCard} readOnly={false} isOverlay />
             </div>
           )}
         </DragOverlay>

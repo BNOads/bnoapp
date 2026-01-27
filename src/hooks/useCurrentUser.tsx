@@ -3,6 +3,8 @@ import { useAuth } from "@/components/Auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
 interface CurrentUserData {
+  id?: string;
+  user_id?: string;
   nome: string;
   email: string;
   avatar_url?: string;
@@ -23,7 +25,7 @@ export const useCurrentUser = () => {
       try {
         const { data, error } = await supabase
           .from('colaboradores')
-          .select('nome, email, avatar_url')
+          .select('id, user_id, nome, email, avatar_url')
           .eq('user_id', user.id)
           .maybeSingle();
 

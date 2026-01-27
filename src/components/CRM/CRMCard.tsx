@@ -10,7 +10,8 @@ import {
   MapPin,
   DollarSign,
   Briefcase,
-  Trash2
+  Trash2,
+  User
 } from 'lucide-react';
 import { format, isToday, isBefore, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

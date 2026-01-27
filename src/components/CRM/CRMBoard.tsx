@@ -206,7 +206,7 @@ export const CRMBoard = ({ readOnly }: CRMBoardProps) => {
             const { error } = await supabase.from('crm_cards').update({
                 column_id: targetColumn.id,
                 order: cards.filter(c => c.column_id === targetColumn.id).length
-            }).eq('id', activeId);
+            }).eq('id', String(activeId));
 
             if (error) {
                 toast.error("Erro ao salvar movimentação");
