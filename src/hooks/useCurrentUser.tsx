@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/Auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
 interface CurrentUserData {
@@ -11,18 +10,20 @@ interface CurrentUserData {
 }
 
 export const useCurrentUser = () => {
-  const { user } = useAuth();
   const [userData, setUserData] = useState<CurrentUserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadUserData = async () => {
-      if (!user?.id) {
-        setLoading(false);
-        return;
-      }
-
       try {
+        // Get user directly from supabase instead of useAuth
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user?.id) {
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase
           .from('colaboradores')
           .select('id, user_id, nome, email, avatar_url')
@@ -42,7 +43,7 @@ export const useCurrentUser = () => {
     };
 
     loadUserData();
-  }, [user?.id]);
+  }, []);
 
   return { userData, loading };
 };
