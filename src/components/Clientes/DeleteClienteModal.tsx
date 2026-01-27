@@ -25,11 +25,11 @@ interface DeleteClienteModalProps {
   onSuccess: () => void;
 }
 
-export const DeleteClienteModal = ({ 
-  open, 
-  onOpenChange, 
-  cliente, 
-  onSuccess 
+export const DeleteClienteModal = ({
+  open,
+  onOpenChange,
+  cliente,
+  onSuccess
 }: DeleteClienteModalProps) => {
   const [loading, setLoading] = useState(false);
   const [confirmName, setConfirmName] = useState("");
@@ -52,13 +52,23 @@ export const DeleteClienteModal = ({
       // Soft delete: marcar como deletado
       const { error: updateError } = await supabase
         .from('clientes')
-        .update({ 
+        .update({
           deleted_at: new Date().toISOString(),
-          is_active: false 
+          is_active: false
         })
         .eq('id', cliente.id);
 
       if (updateError) throw updateError;
+
+      // Notify team
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from('avisos').insert({
+        titulo: "Saída de Cliente 😔",
+        conteudo: `Sentimentos ao time. 😔 O cliente ${cliente.nome} foi removido.`,
+        tipo: 'warning',
+        prioridade: 'normal',
+        created_by: currentUser?.id
+      });
 
       // Registrar no audit log
       const { data: { user } } = await supabase.auth.getUser();
@@ -114,7 +124,7 @@ export const DeleteClienteModal = ({
             </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        
+
         <div className="space-y-2">
           <Label htmlFor="confirmName">
             Digite <span className="font-semibold">{cliente?.nome}</span> para confirmar:

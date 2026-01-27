@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/components/Auth/AuthContext";
 
 interface MoveCardActionModalProps {
     card: any;
@@ -14,7 +15,9 @@ interface MoveCardActionModalProps {
 }
 
 export const MoveCardActionModal = ({ card, targetColumn, onConfirm, onCancel }: MoveCardActionModalProps) => {
+    const { user } = useAuth();
     const [loading, setLoading] = useState(false);
+    const [categoria, setCategoria] = useState<'negocio_local' | 'infoproduto'>('negocio_local');
 
     const handleConfirm = async () => {
         setLoading(true);
@@ -28,13 +31,25 @@ export const MoveCardActionModal = ({ card, targetColumn, onConfirm, onCancel }:
             const { data: newClient, error: clientError } = await supabase.from('clientes').insert({
                 nome: card.title,
                 nicho: card.segment,
+                categoria: categoria,
                 status_cliente: 'ativo',
+                is_active: true,
                 observacoes: `Convertido do CRM. Origem: ${card.origin}. Descrição: ${card.description}`,
-                created_by: card.owner_id
+                created_by: user?.id,
+                primary_gestor_user_id: card.owner_id
             }).select().single();
 
             if (clientError) throw clientError;
             updateData.converted_client_id = newClient.id;
+
+            // Notify team
+            await supabase.from('avisos').insert({
+                titulo: "Novo Cliente! 🚀",
+                conteudo: `Comemore time! 🚀 Novo cliente convertido do CRM: ${card.title}`,
+                tipo: 'success',
+                prioridade: 'normal',
+                created_by: user?.id
+            });
 
             const { error } = await supabase.from('crm_cards').update(updateData).eq('id', card.id);
             if (error) throw error;
@@ -42,7 +57,7 @@ export const MoveCardActionModal = ({ card, targetColumn, onConfirm, onCancel }:
             // Activity Log
             await supabase.from('crm_activity').insert({
                 card_id: card.id,
-                user_id: (await supabase.auth.getUser()).data.user?.id || null,
+                user_id: user?.id || null,
                 activity_type: 'moved',
                 activity_data: {
                     from_column: card.column_id,
@@ -72,6 +87,23 @@ export const MoveCardActionModal = ({ card, targetColumn, onConfirm, onCancel }:
                     <p className="text-sm text-muted-foreground">
                         Ao marcar como <strong>GANHO</strong>, um novo registro de cliente será criado automaticamente na base de Clientes com os dados deste lead.
                     </p>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="categoria">Selecione a Categoria do Cliente</Label>
+                        <Select
+                            value={categoria}
+                            onValueChange={(val: any) => setCategoria(val)}
+                        >
+                            <SelectTrigger id="categoria">
+                                <SelectValue placeholder="Selecione uma categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="negocio_local">Negócio Local</SelectItem>
+                                <SelectItem value="infoproduto">Infoproduto</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <p className="text-sm font-medium">Deseja prosseguir?</p>
                 </div>
 

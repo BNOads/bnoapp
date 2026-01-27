@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ interface EditCardModalProps {
 }
 
 export const EditCardModal = ({ isOpen, onClose, onSuccess, card, columns }: EditCardModalProps) => {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'details' | 'activity'>('details');
     const [activities, setActivities] = useState<any[]>([]);
@@ -106,8 +108,9 @@ export const EditCardModal = ({ isOpen, onClose, onSuccess, card, columns }: Edi
 
     const navigateToClient = () => {
         if (card.converted_client_id) {
-            // Assume a route exists or just show toast
-            toast.info(`ID do cliente: ${card.converted_client_id}`);
+            navigate(`/painel/${card.converted_client_id}`, {
+                state: { from: '/crm' }
+            });
         }
     };
 

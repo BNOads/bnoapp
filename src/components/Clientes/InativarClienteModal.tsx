@@ -25,11 +25,11 @@ interface InativarClienteModalProps {
   onSuccess: () => void;
 }
 
-export const InativarClienteModal = ({ 
-  open, 
-  onOpenChange, 
-  cliente, 
-  onSuccess 
+export const InativarClienteModal = ({
+  open,
+  onOpenChange,
+  cliente,
+  onSuccess
 }: InativarClienteModalProps) => {
   const [loading, setLoading] = useState(false);
   const [motivo, setMotivo] = useState("");
@@ -48,6 +48,16 @@ export const InativarClienteModal = ({
         .eq('id', cliente.id);
 
       if (updateError) throw updateError;
+
+      // Notify team
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from('avisos').insert({
+        titulo: "Saída de Cliente 😔",
+        conteudo: `Sentimentos ao time. 😔 O cliente ${cliente.nome} nos deixou.`,
+        tipo: 'warning',
+        prioridade: 'normal',
+        created_by: currentUser?.id
+      });
 
       // Registrar no audit log
       const { data: { user } } = await supabase.auth.getUser();
@@ -100,7 +110,7 @@ export const InativarClienteModal = ({
             O cliente sairá das telas operacionais, mas poderá ser reativado a qualquer momento.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        
+
         <div className="space-y-2">
           <Label htmlFor="motivo">Motivo (opcional)</Label>
           <Textarea

@@ -33,6 +33,8 @@ export const CRMColumn = ({ column, cards, readOnly, onEditColumn, onCardClick, 
         disabled: true, // We only support moving cards for now to simplify
     });
 
+    const isWinColumn = column.name.toLowerCase() === 'ganho';
+
     const style = {
         transition,
         transform: CSS.Translate.toString(transform),
@@ -72,6 +74,7 @@ export const CRMColumn = ({ column, cards, readOnly, onEditColumn, onCardClick, 
                             key={card.id}
                             card={card}
                             readOnly={readOnly}
+                            isWinColumn={isWinColumn}
                             onClick={() => onCardClick(card)}
                             onDelete={onDeleteCard}
                         />

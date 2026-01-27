@@ -28,10 +28,10 @@ interface NovoClienteModalProps {
   onSuccess?: () => void;
 }
 
-export const NovoClienteModal = ({ 
-  open, 
-  onOpenChange, 
-  onSuccess 
+export const NovoClienteModal = ({
+  open,
+  onOpenChange,
+  onSuccess
 }: NovoClienteModalProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -51,7 +51,7 @@ export const NovoClienteModal = ({
 
     try {
       // Gerar link do painel automaticamente se não fornecido
-      const linkPainel = formData.link_painel || 
+      const linkPainel = formData.link_painel ||
         `https://bnoapp.lovable.app/painel/${formData.nome.toLowerCase().replace(/\s+/g, '-')}`;
 
       const { error } = await supabase
@@ -70,6 +70,15 @@ export const NovoClienteModal = ({
         throw error;
       }
 
+      // Notify team
+      await supabase.from('avisos').insert({
+        titulo: "Novo Cliente! 🚀",
+        conteudo: `Comemore time! 🚀 Novo cliente no painel: ${formData.nome}`,
+        tipo: 'success',
+        prioridade: 'normal',
+        created_by: user?.id
+      });
+
       // Disparar webhook após criação bem-sucedida
       console.log('Disparando webhook para cliente criado:', formData.nome);
       try {
@@ -85,9 +94,9 @@ export const NovoClienteModal = ({
           timestamp: new Date().toISOString(),
           created_by: user?.id,
         };
-        
+
         console.log('Dados do webhook:', webhookData);
-        
+
         const response = await fetch('https://automacao.bnoads.com.br/webhook-test/1c055879-2702-4588-b8bf-b22d18d7511e', {
           method: 'POST',
           headers: {
@@ -95,13 +104,13 @@ export const NovoClienteModal = ({
           },
           body: JSON.stringify(webhookData),
         });
-        
+
         console.log('Resposta do webhook:', response.status, response.statusText);
-        
+
         if (!response.ok) {
           throw new Error(`Webhook falhou: ${response.status} ${response.statusText}`);
         }
-        
+
         console.log('Webhook enviado com sucesso!');
       } catch (webhookError) {
         console.error('Erro ao disparar webhook:', webhookError);

@@ -19,6 +19,7 @@ interface CRMCardProps {
   card: any;
   readOnly: boolean;
   isOverlay?: boolean;
+  isWinColumn?: boolean;
   onClick?: () => void;
   onDelete?: (id: string) => void;
 }
@@ -35,7 +36,7 @@ const getOriginIcon = (origin: string) => {
   }
 };
 
-export const CRMCard = ({ card, readOnly, isOverlay, onClick, onDelete }: CRMCardProps) => {
+export const CRMCard = ({ card, readOnly, isOverlay, isWinColumn, onClick, onDelete }: CRMCardProps) => {
   const {
     setNodeRef,
     attributes,
@@ -92,11 +93,15 @@ export const CRMCard = ({ card, readOnly, isOverlay, onClick, onDelete }: CRMCar
           onClick();
         }
       }}
-      className={`group relative hover:border-primary/50 transition-all cursor-grab active:cursor-grabbing shadow-sm ${isOverlay ? 'scale-105 shadow-xl rotate-1 z-50 border-primary cursor-grabbing' : ''}`}
+      className={`group relative hover:border-primary/50 transition-all cursor-grab active:cursor-grabbing shadow-sm ${isOverlay ? 'scale-105 shadow-xl rotate-1 z-50 border-primary cursor-grabbing' : ''
+        } ${isWinColumn ? 'bg-green-50/50 border-green-200/50 hover:border-green-400' : ''
+        }`}
     >
       <CardContent className="p-3 space-y-2">
         <div className="flex justify-between items-start gap-2">
-          <h4 className="font-medium text-xs line-clamp-2 leading-tight flex-1">{card.title}</h4>
+          <h4 className={`font-medium text-xs line-clamp-2 leading-tight flex-1 ${isWinColumn ? 'line-through text-muted-foreground' : ''}`}>
+            {card.title}
+          </h4>
           <div className="flex flex-col items-end gap-1">
             {getSlaBadge()}
             {!readOnly && !isOverlay && (
