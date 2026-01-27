@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/components/Auth/AuthContext";
 
 interface MoveCardActionModalProps {
     card: any;
@@ -31,12 +30,9 @@ export const MoveCardActionModal = ({ card, targetColumn, onConfirm, onCancel }:
             const { data: newClient, error: clientError } = await supabase.from('clientes').insert({
                 nome: card.title,
                 nicho: card.segment,
-                categoria: categoria,
                 status_cliente: 'ativo',
-                is_active: true,
                 observacoes: `Convertido do CRM. Origem: ${card.origin}. Descrição: ${card.description}`,
-                created_by: user?.id,
-                primary_gestor_user_id: card.owner_id
+                created_by: card.owner_id
             }).select().single();
 
             if (clientError) throw clientError;
@@ -55,6 +51,7 @@ export const MoveCardActionModal = ({ card, targetColumn, onConfirm, onCancel }:
             if (error) throw error;
 
             // Activity Log
+            const { data: { user } } = await supabase.auth.getUser();
             await supabase.from('crm_activity').insert({
                 card_id: card.id,
                 user_id: user?.id || null,

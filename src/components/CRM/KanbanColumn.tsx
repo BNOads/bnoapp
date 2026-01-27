@@ -56,7 +56,8 @@ export const KanbanColumn = ({ column, cards, onCreateCard, onEditCard, onEditCo
               <CRMCard
                 key={card.id}
                 card={card}
-                onEdit={() => onEditCard(card)}
+                readOnly={false}
+                onClick={() => onEditCard(card)}
               />
             ))}
           </SortableContext>

@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface CRMColumnProps {
     column: any;
+    cards: any[];
     readOnly: boolean;
     onEditColumn: () => void;
     onCardClick: (card: any) => void;
