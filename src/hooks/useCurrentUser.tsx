@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface CurrentUserData {
@@ -12,14 +12,19 @@ interface CurrentUserData {
 export const useCurrentUser = () => {
   const [userData, setUserData] = useState<CurrentUserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
+    // Prevent duplicate loading
+    if (loadedRef.current) return;
+    
     const loadUserData = async () => {
       try {
         // Get user directly from supabase instead of useAuth
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user?.id) {
+          setUserData(null);
           setLoading(false);
           return;
         }
@@ -32,12 +37,17 @@ export const useCurrentUser = () => {
 
         if (error) {
           console.error('Erro ao carregar dados do usuário:', error);
+          setUserData(null);
         } else if (data) {
           setUserData(data);
+        } else {
+          setUserData(null);
         }
       } catch (error) {
         console.error('Erro ao carregar dados do usuário:', error);
+        setUserData(null);
       } finally {
+        loadedRef.current = true;
         setLoading(false);
       }
     };

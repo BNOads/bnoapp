@@ -18,42 +18,65 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Configurar listener para mudanças de autenticação
+    let mounted = true;
+
+    // Verificar sessão existente PRIMEIRO (antes do listener)
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        
+        if (mounted) {
+          setSession(existingSession);
+          setUser(existingSession?.user ?? null);
+          setLoading(false);
+          setInitializing(false);
+        }
+      } catch (error) {
+        console.error('Erro ao inicializar auth:', error);
+        if (mounted) {
+          setLoading(false);
+          setInitializing(false);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    // Configurar listener para mudanças de autenticação (DEPOIS da inicialização)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      async (event, currentSession) => {
+        if (!mounted) return;
+        
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
         setLoading(false);
 
         // Criar perfil automaticamente quando usuário se registra
-        if (event === 'SIGNED_IN' && session?.user) {
+        if (event === 'SIGNED_IN' && currentSession?.user) {
           // Verificar se é primeiro login (não tem perfil ainda)
           setTimeout(async () => {
             const { data: existingProfile } = await supabase
               .from('profiles')
               .select('id')
-              .eq('user_id', session.user.id)
+              .eq('user_id', currentSession.user.id)
               .maybeSingle();
             
             if (!existingProfile) {
-              await createUserProfile(session.user);
+              await createUserProfile(currentSession.user);
             }
           }, 0);
         }
       }
     );
 
-    // Verificar sessão existente
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const createUserProfile = async (user: User) => {
