@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle, ChevronDown, MoreHorizontal, LayoutList, LayoutGrid } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
@@ -21,6 +21,8 @@ import { EdicaoMassaModal } from "./EdicaoMassaModal";
 import { AlocacaoClientes } from "./AlocacaoClientes";
 import { KickoffModal } from "./KickoffModal";
 import { TeamAssignmentModal } from "./TeamAssignmentModal";
+import { ClientesGroupedView } from "./ClientesGroupedView";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -97,6 +99,8 @@ export const ClientesView = () => {
   const [clientesSelecionados, setClientesSelecionados] = useState<string[]>([]);
   const [sortField, setSortField] = useState<string>('nome');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [viewMode, setViewMode] = useState<'table' | 'grouped'>('table');
+  const [groupBy, setGroupBy] = useState<'gestor' | 'cs'>('gestor');
 
   // Definição das colunas configuráveis
   const columnDefinitions = [
@@ -566,10 +570,41 @@ export const ClientesView = () => {
                 <Filter className="h-4 w-4 mr-2" />
                 Limpar
               </Button>
+
+              {/* Toggle de visualização */}
+              <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'table' | 'grouped')} className="border rounded-md">
+                <ToggleGroupItem value="table" aria-label="Visualização em tabela" className="px-3">
+                  <LayoutList className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="grouped" aria-label="Visualização agrupada" className="px-3">
+                  <LayoutGrid className="h-4 w-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
+
+              {/* Seletor de agrupamento */}
+              {viewMode === 'grouped' && (
+                <Select value={groupBy} onValueChange={(value) => setGroupBy(value as 'gestor' | 'cs')}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Agrupar por" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gestor">Gestor</SelectItem>
+                    <SelectItem value="cs">CS</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
-          {/* Tabela de Clientes */}
+          {/* Visualização de Clientes */}
+          {viewMode === 'grouped' ? (
+            <ClientesGroupedView 
+              clientes={sortedAndFilteredClientes}
+              colaboradores={colaboradores}
+              groupBy={groupBy}
+              onClienteClick={(cliente) => navigate(`/painel/${cliente.id}`)}
+            />
+          ) : (
           <Card className={`bg-card border shadow-card ${activeTab === 'desativados' ? 'border-destructive/30' : 'border-border'}`}>
             <div className={`p-6 border-b ${activeTab === 'desativados' ? 'bg-destructive/5 border-destructive/30' : 'border-border'}`}>
               <div className="flex items-center justify-between">
@@ -1010,6 +1045,7 @@ export const ClientesView = () => {
               </Table>}
             </div>
           </Card>
+          )}
         </div>
       </TabsContent>
     </Tabs>
