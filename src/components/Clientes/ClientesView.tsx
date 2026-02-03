@@ -150,7 +150,7 @@ export const ClientesView = () => {
   const [clientesSelecionados, setClientesSelecionados] = useState<string[]>([]);
   const [sortField, setSortField] = useState<string>('nome');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [viewMode, setViewMode] = useState<'table' | 'grouped'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'grouped'>('grouped');
   const [groupBy, setGroupBy] = useState<'gestor' | 'cs'>('gestor');
 
   // Definição das colunas configuráveis
