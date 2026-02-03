@@ -730,12 +730,14 @@ export const ClientesView = () => {
               </Button>
 
               {/* Toggle de visualização */}
-              <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'table' | 'grouped')} className="border rounded-md">
-                <ToggleGroupItem value="table" aria-label="Visualização em tabela" className="px-3">
+              <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'table' | 'grouped')} className="border rounded-md border-primary/50">
+                <ToggleGroupItem value="table" aria-label="Visualização em tabela" className="px-3 gap-2 data-[state=on]:bg-primary/10 data-[state=on]:text-primary">
                   <LayoutList className="h-4 w-4" />
+                  <span className="text-sm font-medium">Tabela</span>
                 </ToggleGroupItem>
-                <ToggleGroupItem value="grouped" aria-label="Visualização agrupada" className="px-3">
+                <ToggleGroupItem value="grouped" aria-label="Visualização agrupada" className="px-3 gap-2 data-[state=on]:bg-primary/10 data-[state=on]:text-primary">
                   <LayoutGrid className="h-4 w-4" />
+                  <span className="text-sm font-medium">Agrupado</span>
                 </ToggleGroupItem>
               </ToggleGroup>
 
@@ -774,8 +776,9 @@ export const ClientesView = () => {
                   {/* Dropdown de configuração de colunas */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Configurar colunas visíveis">
-                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      <Button variant="outline" size="sm" className="h-8 gap-2 text-primary border-primary/50 hover:bg-primary/10" title="Configurar colunas visíveis">
+                        <Eye className="h-4 w-4" />
+                        <span className="text-sm font-medium">Colunas</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-48">
