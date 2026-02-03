@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle, ChevronDown, MoreHorizontal, LayoutList, LayoutGrid } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle, ChevronDown, MoreHorizontal, LayoutList, LayoutGrid, GripVertical } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
@@ -28,6 +28,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
 import { useNavigate } from "react-router-dom";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 interface Cliente {
   id: string;
   nome: string;
@@ -55,6 +58,54 @@ interface Cliente {
     is_primary: boolean;
   }>;
 }
+// Componente de TableHead arrastável
+interface SortableTableHeadProps {
+  id: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
+}
+
+const SortableTableHead = ({ id, children, onClick, className }: SortableTableHeadProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    cursor: 'grab',
+  };
+
+  return (
+    <TableHead
+      ref={setNodeRef}
+      style={style}
+      className={className}
+    >
+      <div className="flex items-center gap-1">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab hover:text-primary p-1 -ml-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div className="flex items-center flex-1 cursor-pointer" onClick={onClick}>
+          {children}
+        </div>
+      </div>
+    </TableHead>
+  );
+};
+
 export const ClientesView = () => {
   const {
     canCreateContent
@@ -113,6 +164,8 @@ export const ClientesView = () => {
     { id: 'cs', label: 'CS', default: true },
   ];
 
+  const defaultColumnOrder = columnDefinitions.map(c => c.id);
+
   // Estado para colunas visíveis (carrega do localStorage)
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem('clientes_visible_columns');
@@ -126,6 +179,55 @@ export const ClientesView = () => {
     return columnDefinitions.filter(c => c.default).map(c => c.id);
   });
 
+  // Estado para ordem das colunas (carrega do localStorage)
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('clientes_column_order');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Garantir que todas as colunas estejam presentes
+        const allColumns = new Set(defaultColumnOrder);
+        const validOrder = parsed.filter((id: string) => allColumns.has(id));
+        const missing = defaultColumnOrder.filter(id => !validOrder.includes(id));
+        return [...validOrder, ...missing];
+      } catch {
+        return defaultColumnOrder;
+      }
+    }
+    return defaultColumnOrder;
+  });
+
+  // DnD Sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handler para reordenação de colunas
+  const handleColumnDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setColumnOrder((prev) => {
+        const oldIndex = prev.indexOf(active.id as string);
+        const newIndex = prev.indexOf(over.id as string);
+        const newOrder = arrayMove(prev, oldIndex, newIndex);
+        localStorage.setItem('clientes_column_order', JSON.stringify(newOrder));
+        return newOrder;
+      });
+    }
+  };
+
+  // Colunas ordenadas e filtradas por visibilidade
+  const orderedVisibleColumns = useMemo(() => {
+    return columnOrder.filter(id => visibleColumns.includes(id));
+  }, [columnOrder, visibleColumns]);
+
   // Persistir preferências de colunas no localStorage
   const toggleColumn = (columnId: string) => {
     setVisibleColumns(prev => {
@@ -138,6 +240,10 @@ export const ClientesView = () => {
   };
 
   const isColumnVisible = (columnId: string) => visibleColumns.includes(columnId);
+  
+  const getColumnLabel = (columnId: string) => {
+    return columnDefinitions.find(c => c.id === columnId)?.label || columnId;
+  };
 
   const {
     toast
@@ -659,7 +765,12 @@ export const ClientesView = () => {
                 {clientes.length > 0 && <Button onClick={limparFiltros} variant="outline" className="mt-4">
                   Limpar Filtros
                 </Button>}
-              </div> : <Table>
+              </div> : <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleColumnDragEnd}
+              >
+                <Table>
                 <TableHeader>
                   <TableRow>
                     {canCreateContent && activeTab === 'ativos' && <TableHead className="w-12">
@@ -671,48 +782,19 @@ export const ClientesView = () => {
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </div>
                     </TableHead>
-                    {isColumnVisible('categoria') && <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('categoria')}>
-                      <div className="flex items-center">
-                        Categoria
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </div>
-                    </TableHead>}
-                    {isColumnVisible('serie') && <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('serie')}>
-                      <div className="flex items-center">
-                        Série
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </div>
-                    </TableHead>}
-                    {isColumnVisible('situacao_cliente') && <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('situacao_cliente')}>
-                      <div className="flex items-center justify-center">
-                        Situação
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </div>
-                    </TableHead>}
-                    {isColumnVisible('etapa_onboarding') && <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('etapa_onboarding')}>
-                      <div className="flex items-center justify-center">
-                        Onboarding
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </div>
-                    </TableHead>}
-                    {isColumnVisible('etapa_trafego') && <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('etapa_trafego')}>
-                      <div className="flex items-center justify-center">
-                        Tráfego
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </div>
-                    </TableHead>}
-                    {isColumnVisible('gestor') && <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('gestor')}>
-                      <div className="flex items-center justify-center">
-                        Gestor
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </div>
-                    </TableHead>}
-                    {isColumnVisible('cs') && <TableHead className="cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('cs')}>
-                      <div className="flex items-center justify-center">
-                        CS
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </div>
-                    </TableHead>}
+                    <SortableContext items={orderedVisibleColumns} strategy={horizontalListSortingStrategy}>
+                      {orderedVisibleColumns.map((columnId) => (
+                        <SortableTableHead
+                          key={columnId}
+                          id={columnId}
+                          onClick={() => handleSort(columnId)}
+                          className={`hover:bg-muted/50 ${['situacao_cliente', 'etapa_onboarding', 'etapa_trafego', 'gestor', 'cs'].includes(columnId) ? 'text-center' : ''}`}
+                        >
+                          {getColumnLabel(columnId)}
+                          <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </SortableTableHead>
+                      ))}
+                    </SortableContext>
                     <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -752,208 +834,218 @@ export const ClientesView = () => {
                         </div>}
                       </div>
                     </TableCell>
-                    {isColumnVisible('categoria') && <TableCell className="py-3">
-                      <Badge variant="outline" className={`text-sm ${cliente.categoria === 'negocio_local' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}>
-                        {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
-                      </Badge>
-                    </TableCell>}
-                    {isColumnVisible('serie') && <TableCell className="py-3">
-                      {canCreateContent && activeTab === 'ativos' ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                              <Badge className={`${getSerieColor(cliente.serie || 'Serie A')} text-xs cursor-pointer hover:opacity-80 flex items-center gap-1`}>
-                                {cliente.serie || 'Serie A'}
-                                <ChevronDown className="h-3 w-3" />
+                    {/* Dynamic column cells based on order */}
+                    {orderedVisibleColumns.map((columnId) => {
+                      switch (columnId) {
+                        case 'categoria':
+                          return (
+                            <TableCell key={columnId} className="py-3">
+                              <Badge variant="outline" className={`text-sm ${cliente.categoria === 'negocio_local' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}>
+                                {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
                               </Badge>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="bg-background">
-                            {series.map((serie) => (
-                              <DropdownMenuItem
-                                key={serie}
-                                onClick={() => handleSerieChange(cliente.id, serie)}
-                                className={cliente.serie === serie ? 'bg-muted' : ''}
-                              >
-                                <Badge className={`${getSerieColor(serie)} text-xs w-full justify-center`}>
-                                  {serie}
+                            </TableCell>
+                          );
+                        case 'serie':
+                          return (
+                            <TableCell key={columnId} className="py-3">
+                              {canCreateContent && activeTab === 'ativos' ? (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                                      <Badge className={`${getSerieColor(cliente.serie || 'Serie A')} text-xs cursor-pointer hover:opacity-80 flex items-center gap-1`}>
+                                        {cliente.serie || 'Serie A'}
+                                        <ChevronDown className="h-3 w-3" />
+                                      </Badge>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start" className="bg-background">
+                                    {series.map((serie) => (
+                                      <DropdownMenuItem
+                                        key={serie}
+                                        onClick={() => handleSerieChange(cliente.id, serie)}
+                                        className={cliente.serie === serie ? 'bg-muted' : ''}
+                                      >
+                                        <Badge className={`${getSerieColor(serie)} text-xs w-full justify-center`}>
+                                          {serie}
+                                        </Badge>
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              ) : (
+                                cliente.serie ? (
+                                  <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
+                                    {cliente.serie}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                )
+                              )}
+                            </TableCell>
+                          );
+                        case 'situacao_cliente':
+                          return (
+                            <TableCell key={columnId} className="text-center py-3">
+                              {canCreateContent && activeTab === 'ativos' ? (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                                      <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1`}>
+                                        {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
+                                        <ChevronDown className="h-3 w-3" />
+                                      </Badge>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start" className="bg-background">
+                                    {situacaoClienteOptions.map((option) => (
+                                      <DropdownMenuItem
+                                        key={option.value}
+                                        onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.value)}
+                                        className={cliente.situacao_cliente === option.value ? 'bg-muted' : ''}
+                                      >
+                                        <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
+                                          {option.label}
+                                        </Badge>
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              ) : (
+                                <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-sm px-3 py-1`}>
+                                  {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
                                 </Badge>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        cliente.serie ? (
-                          <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
-                            {cliente.serie}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )
-                      )}
-                    </TableCell>}
-
-                    {/* Situação do Cliente Column */}
-                    {isColumnVisible('situacao_cliente') && <TableCell className="text-center py-3">
-                      {canCreateContent && activeTab === 'ativos' ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                              <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1`}>
-                                {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
-                                <ChevronDown className="h-3 w-3" />
-                              </Badge>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="bg-background">
-                            {situacaoClienteOptions.map((option) => (
-                              <DropdownMenuItem
-                                key={option.value}
-                                onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.value)}
-                                className={cliente.situacao_cliente === option.value ? 'bg-muted' : ''}
-                              >
-                                <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
-                                  {option.label}
+                              )}
+                            </TableCell>
+                          );
+                        case 'etapa_onboarding':
+                          return (
+                            <TableCell key={columnId} className="text-center py-3">
+                              {canCreateContent && activeTab === 'ativos' ? (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                                      <Badge className={`${getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).color} text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1`}>
+                                        {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
+                                        <ChevronDown className="h-3 w-3" />
+                                      </Badge>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start" className="bg-background">
+                                    {etapaOnboardingOptions.map((option) => (
+                                      <DropdownMenuItem
+                                        key={option.value}
+                                        onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.value)}
+                                        className={cliente.etapa_onboarding === option.value ? 'bg-muted' : ''}
+                                      >
+                                        <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
+                                          {option.label}
+                                        </Badge>
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              ) : (
+                                <Badge className={`${getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).color} text-white text-sm px-3 py-1`}>
+                                  {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
                                 </Badge>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-sm px-3 py-1`}>
-                          {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
-                        </Badge>
-                      )}
-                    </TableCell>}
-
-                    {/* Etapa Onboarding Column */}
-                    {isColumnVisible('etapa_onboarding') && <TableCell className="text-center py-3">
-                      {canCreateContent && activeTab === 'ativos' ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                              <Badge className={`${getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).color} text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1`}>
-                                {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
-                                <ChevronDown className="h-3 w-3" />
-                              </Badge>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="bg-background">
-                            {etapaOnboardingOptions.map((option) => (
-                              <DropdownMenuItem
-                                key={option.value}
-                                onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.value)}
-                                className={cliente.etapa_onboarding === option.value ? 'bg-muted' : ''}
-                              >
-                                <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
-                                  {option.label}
+                              )}
+                            </TableCell>
+                          );
+                        case 'etapa_trafego':
+                          return (
+                            <TableCell key={columnId} className="text-center py-3">
+                              {canCreateContent && activeTab === 'ativos' ? (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                                      <Badge className={`${getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).color} text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1`}>
+                                        {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
+                                        <ChevronDown className="h-3 w-3" />
+                                      </Badge>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start" className="bg-background">
+                                    {etapaTrafegoOptions.map((option) => (
+                                      <DropdownMenuItem
+                                        key={option.value}
+                                        onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.value)}
+                                        className={cliente.etapa_trafego === option.value ? 'bg-muted' : ''}
+                                      >
+                                        <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
+                                          {option.label}
+                                        </Badge>
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              ) : (
+                                <Badge className={`${getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).color} text-white text-sm px-3 py-1`}>
+                                  {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
                                 </Badge>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <Badge className={`${getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).color} text-white text-sm px-3 py-1`}>
-                          {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
-                        </Badge>
-                      )}
-                    </TableCell>}
-
-                    {/* Etapa Tráfego Column */}
-                    {isColumnVisible('etapa_trafego') && <TableCell className="text-center py-3">
-                      {canCreateContent && activeTab === 'ativos' ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                              <Badge className={`${getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).color} text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1`}>
-                                {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
-                                <ChevronDown className="h-3 w-3" />
-                              </Badge>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="bg-background">
-                            {etapaTrafegoOptions.map((option) => (
-                              <DropdownMenuItem
-                                key={option.value}
-                                onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.value)}
-                                className={cliente.etapa_trafego === option.value ? 'bg-muted' : ''}
-                              >
-                                <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
-                                  {option.label}
-                                </Badge>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <Badge className={`${getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).color} text-white text-sm px-3 py-1`}>
-                          {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
-                        </Badge>
-                      )}
-                    </TableCell>}
-
-                    {/* Gestor Column */}
-                    {isColumnVisible('gestor') && <TableCell className="text-center py-3">
-                      {cliente.primary_gestor ? <div className="flex justify-center">
-                        <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80" onClick={() => {
-                          setClienteTeam({
-                            id: cliente.id,
-                            nome: cliente.nome
-                          });
-                          setTeamModalOpen(true);
-                        }}>
-                          <AvatarImage src={cliente.primary_gestor.avatar_url} />
-                          <AvatarFallback className="text-sm">
-                            {cliente.primary_gestor.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                      </div> : <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-muted-foreground" onClick={() => {
-                        setClienteTeam({
-                          id: cliente.id,
-                          nome: cliente.nome
-                        });
-                        setTeamModalOpen(true);
-                      }}>
-                        <Users className="h-5 w-5" />
-                      </Button>}
-                    </TableCell>}
-
-                    {/* CS Column */}
-                    {isColumnVisible('cs') && <TableCell className="text-center py-3">
-                      {(() => {
-                        const csTeam = cliente.client_roles?.filter(cr => cr.role === 'cs') || [];
-                        const primaryCs = cliente.primary_cs;
-                        if (primaryCs) {
-                          return <div className="flex justify-center items-center gap-1">
-                            <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80" onClick={() => {
-                              setClienteTeam({
-                                id: cliente.id,
-                                nome: cliente.nome
-                              });
-                              setTeamModalOpen(true);
-                            }}>
-                              <AvatarImage src={primaryCs.avatar_url} />
-                              <AvatarFallback className="text-sm">
-                                {primaryCs.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            {csTeam.length > 1 && <Badge variant="secondary" className="text-xs px-1 h-5">
-                              +{csTeam.length - 1}
-                            </Badge>}
-                          </div>;
-                        } else {
-                          return <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-muted-foreground" onClick={() => {
-                            setClienteTeam({
-                              id: cliente.id,
-                              nome: cliente.nome
-                            });
-                            setTeamModalOpen(true);
-                          }}>
-                            <Users className="h-5 w-5" />
-                          </Button>;
-                        }
-                      })()}
-                    </TableCell>}
+                              )}
+                            </TableCell>
+                          );
+                        case 'gestor':
+                          return (
+                            <TableCell key={columnId} className="text-center py-3">
+                              {cliente.primary_gestor ? (
+                                <div className="flex justify-center">
+                                  <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80" onClick={() => {
+                                    setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                                    setTeamModalOpen(true);
+                                  }}>
+                                    <AvatarImage src={cliente.primary_gestor.avatar_url} />
+                                    <AvatarFallback className="text-sm">
+                                      {cliente.primary_gestor.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </div>
+                              ) : (
+                                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-muted-foreground" onClick={() => {
+                                  setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                                  setTeamModalOpen(true);
+                                }}>
+                                  <Users className="h-5 w-5" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          );
+                        case 'cs':
+                          const csTeam = cliente.client_roles?.filter(cr => cr.role === 'cs') || [];
+                          const primaryCs = cliente.primary_cs;
+                          return (
+                            <TableCell key={columnId} className="text-center py-3">
+                              {primaryCs ? (
+                                <div className="flex justify-center items-center gap-1">
+                                  <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80" onClick={() => {
+                                    setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                                    setTeamModalOpen(true);
+                                  }}>
+                                    <AvatarImage src={primaryCs.avatar_url} />
+                                    <AvatarFallback className="text-sm">
+                                      {primaryCs.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  {csTeam.length > 1 && (
+                                    <Badge variant="secondary" className="text-xs px-1 h-5">
+                                      +{csTeam.length - 1}
+                                    </Badge>
+                                  )}
+                                </div>
+                              ) : (
+                                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-muted-foreground" onClick={() => {
+                                  setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                                  setTeamModalOpen(true);
+                                }}>
+                                  <Users className="h-5 w-5" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          );
+                        default:
+                          return null;
+                      }
+                    })}
 
                     <TableCell className="py-3">
                       <div className="flex items-center justify-center">
@@ -1042,7 +1134,8 @@ export const ClientesView = () => {
                     </TableCell>
                   </TableRow>)}
                 </TableBody>
-              </Table>}
+              </Table>
+              </DndContext>}
             </div>
           </Card>
           )}
