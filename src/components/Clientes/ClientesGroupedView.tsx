@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChevronDown, ChevronRight, User, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -13,6 +14,9 @@ interface Cliente {
   categoria?: string;
   serie?: string;
   status_cliente?: string;
+  situacao_cliente?: string;
+  etapa_onboarding?: string;
+  etapa_trafego?: string;
   etapa_atual?: string;
   funis_trabalhando?: string[];
   primary_gestor_user_id?: string;
@@ -49,6 +53,48 @@ interface ClientesGroupedViewProps {
   onClienteClick?: (cliente: Cliente) => void;
 }
 
+// Opções para classificações
+const situacaoClienteOptions = [
+  { value: 'nao_iniciado', label: 'Não Iniciado', color: 'bg-gray-500' },
+  { value: 'alerta', label: 'Alerta', color: 'bg-red-500' },
+  { value: 'ponto_de_atencao', label: 'Ponto de Atenção', color: 'bg-yellow-500' },
+  { value: 'resultados_normais', label: 'Resultados Normais', color: 'bg-blue-500' },
+  { value: 'indo_bem', label: 'Indo bem', color: 'bg-green-500' },
+];
+
+const etapaOnboardingOptions = [
+  { value: 'onboarding', label: 'Onboarding', color: 'bg-orange-500' },
+  { value: 'ongoing', label: 'Ongoing', color: 'bg-green-500' },
+  { value: 'pausa_temporaria', label: 'Pausa Temporária', color: 'bg-red-500' },
+];
+
+const etapaTrafegoOptions = [
+  { value: 'estrategia', label: 'Estratégia', color: 'bg-gray-500' },
+  { value: 'distribuicao_criativos', label: 'Distribuição', color: 'bg-blue-500' },
+  { value: 'conversao_iniciada', label: 'Conversão', color: 'bg-yellow-500' },
+  { value: 'voo_de_cruzeiro', label: 'Cruzeiro', color: 'bg-green-500' },
+  { value: 'campanhas_pausadas', label: 'Pausadas', color: 'bg-red-500' },
+];
+
+const getStatusOption = (options: typeof situacaoClienteOptions, value: string | null | undefined) => {
+  return options.find(o => o.value === value) || options[0];
+};
+
+const getSerieColor = (serie: string) => {
+  switch (serie) {
+    case 'Serie A':
+      return 'bg-green-500/10 text-green-600 border-green-500/20';
+    case 'Serie B':
+      return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+    case 'Serie C':
+      return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
+    case 'Serie D':
+      return 'bg-red-500/10 text-red-600 border-red-500/20';
+    default:
+      return 'bg-muted text-muted-foreground';
+  }
+};
+
 export const ClientesGroupedView = ({ 
   clientes, 
   colaboradores, 
@@ -56,37 +102,50 @@ export const ClientesGroupedView = ({
   onClienteClick 
 }: ClientesGroupedViewProps) => {
   const navigate = useNavigate();
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['all']));
 
   // Agrupar clientes por responsável
-  const groupedClientes = clientes.reduce((acc, cliente) => {
-    let responsavel: { id: string; nome: string; avatar_url?: string } | null = null;
-    
-    if (groupBy === 'gestor') {
-      responsavel = cliente.primary_gestor || null;
-    } else {
-      responsavel = cliente.primary_cs || null;
-    }
-    
-    const groupKey = (responsavel as any)?.user_id || responsavel?.nome || 'sem_responsavel';
-    
-    if (!acc[groupKey]) {
-      acc[groupKey] = {
-        responsavel: responsavel || { id: 'sem_responsavel', nome: 'Sem Responsável' },
-        clientes: []
-      };
-    }
-    
-    acc[groupKey].clientes.push(cliente);
-    return acc;
-  }, {} as Record<string, { responsavel: { id?: string; nome: string; avatar_url?: string; user_id?: string }; clientes: Cliente[] }>);
+  const groupedClientes = useMemo(() => {
+    return clientes.reduce((acc, cliente) => {
+      let responsavel: { id: string; nome: string; avatar_url?: string } | null = null;
+      
+      if (groupBy === 'gestor') {
+        responsavel = cliente.primary_gestor || null;
+      } else {
+        responsavel = cliente.primary_cs || null;
+      }
+      
+      const groupKey = (responsavel as any)?.user_id || responsavel?.nome || 'sem_responsavel';
+      
+      if (!acc[groupKey]) {
+        acc[groupKey] = {
+          responsavel: responsavel || { id: 'sem_responsavel', nome: 'Sem Responsável' },
+          clientes: []
+        };
+      }
+      
+      acc[groupKey].clientes.push(cliente);
+      return acc;
+    }, {} as Record<string, { responsavel: { id?: string; nome: string; avatar_url?: string; user_id?: string }; clientes: Cliente[] }>);
+  }, [clientes, groupBy]);
 
   // Ordenar grupos por nome do responsável
-  const sortedGroups = Object.entries(groupedClientes).sort((a, b) => {
-    if (a[0] === 'sem_responsavel') return 1;
-    if (b[0] === 'sem_responsavel') return -1;
-    return a[1].responsavel.nome.localeCompare(b[1].responsavel.nome);
+  const sortedGroups = useMemo(() => {
+    return Object.entries(groupedClientes).sort((a, b) => {
+      if (a[0] === 'sem_responsavel') return 1;
+      if (b[0] === 'sem_responsavel') return -1;
+      return a[1].responsavel.nome.localeCompare(b[1].responsavel.nome);
+    });
+  }, [groupedClientes]);
+
+  // Inicializar com todos os grupos expandidos
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+    return new Set(Object.keys(groupedClientes));
   });
+
+  // Atualizar grupos expandidos quando os grupos mudarem
+  useEffect(() => {
+    setExpandedGroups(new Set(Object.keys(groupedClientes)));
+  }, [groupedClientes]);
 
   const toggleGroup = (groupKey: string) => {
     const newExpanded = new Set(expandedGroups);
@@ -116,6 +175,9 @@ export const ClientesGroupedView = ({
         <Button variant="ghost" size="sm" onClick={collapseAll}>
           Recolher todos
         </Button>
+        <span className="text-sm text-muted-foreground ml-auto">
+          {clientes.length} clientes em {sortedGroups.length} grupos
+        </span>
       </div>
 
       {sortedGroups.map(([groupKey, group]) => {
@@ -163,22 +225,23 @@ export const ClientesGroupedView = ({
               </CollapsibleTrigger>
               
               <CollapsibleContent>
-                <div className="border-t">
+                <div className="border-t overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/30">
-                        <TableHead className="w-8"></TableHead>
-                        <TableHead>Nome</TableHead>
-                        <TableHead className="text-center">
-                          {groupBy === 'gestor' ? 'Gestor' : 'CS'}
-                        </TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead className="text-center">Categoria</TableHead>
+                        <TableHead className="text-center">Série</TableHead>
+                        <TableHead className="text-center">Situação</TableHead>
+                        <TableHead className="text-center">Onboarding</TableHead>
+                        <TableHead className="text-center">Tráfego</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {group.clientes.map((cliente) => (
                         <TableRow 
                           key={cliente.id} 
-                          className="hover:bg-muted/50 cursor-pointer"
+                          className="hover:bg-muted/50 cursor-pointer h-14"
                           onClick={() => {
                             if (onClienteClick) {
                               onClienteClick(cliente);
@@ -187,9 +250,6 @@ export const ClientesGroupedView = ({
                             }
                           }}
                         >
-                          <TableCell className="w-8">
-                            <User className="h-4 w-4 text-primary" />
-                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{cliente.nome}</span>
@@ -201,44 +261,47 @@ export const ClientesGroupedView = ({
                               )}
                             </div>
                           </TableCell>
+                          
+                          {/* Categoria */}
                           <TableCell className="text-center">
-                            {groupBy === 'gestor' && cliente.primary_gestor ? (
-                              <Avatar className="h-6 w-6 mx-auto">
-                                <AvatarImage src={cliente.primary_gestor.avatar_url} />
-                                <AvatarFallback className="text-xs">
-                                  {cliente.primary_gestor.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                                </AvatarFallback>
-                              </Avatar>
-                            ) : groupBy === 'cs' && cliente.primary_cs ? (
-                              <Avatar className="h-6 w-6 mx-auto">
-                                <AvatarImage src={cliente.primary_cs.avatar_url} />
-                                <AvatarFallback className="text-xs">
-                                  {cliente.primary_cs.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                                </AvatarFallback>
-                              </Avatar>
+                            <Badge variant="outline" className={`text-xs ${cliente.categoria === 'negocio_local' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
+                              {cliente.categoria === 'negocio_local' ? 'Local' : 'Info'}
+                            </Badge>
+                          </TableCell>
+                          
+                          {/* Série */}
+                          <TableCell className="text-center">
+                            {cliente.serie ? (
+                              <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
+                                {cliente.serie.replace('Serie ', '')}
+                              </Badge>
                             ) : (
                               <span className="text-muted-foreground text-xs">-</span>
                             )}
                           </TableCell>
+                          
+                          {/* Situação */}
+                          <TableCell className="text-center">
+                            <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-xs px-2 py-0.5`}>
+                              {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
+                            </Badge>
+                          </TableCell>
+                          
+                          {/* Onboarding */}
+                          <TableCell className="text-center">
+                            <Badge className={`${getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).color} text-white text-xs px-2 py-0.5`}>
+                              {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
+                            </Badge>
+                          </TableCell>
+                          
+                          {/* Tráfego */}
+                          <TableCell className="text-center">
+                            <Badge className={`${getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).color} text-white text-xs px-2 py-0.5`}>
+                              {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
+                            </Badge>
+                          </TableCell>
                         </TableRow>
                       ))}
-                      {/* Linha para adicionar cliente */}
-                      <TableRow className="hover:bg-muted/30">
-                        <TableCell colSpan={3} className="text-center py-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-muted-foreground hover:text-foreground"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // TODO: Abrir modal de adicionar cliente com responsável pré-selecionado
-                            }}
-                          >
-                            <span className="mr-2">+</span>
-                            Adicionar Cliente
-                          </Button>
-                        </TableCell>
-                      </TableRow>
                     </TableBody>
                   </Table>
                 </div>
