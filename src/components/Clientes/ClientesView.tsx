@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle, ChevronDown, MoreHorizontal, LayoutList, LayoutGrid, GripVertical } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle, ChevronDown, MoreHorizontal, LayoutList, LayoutGrid, GripVertical, History } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
@@ -21,6 +21,7 @@ import { EdicaoMassaModal } from "./EdicaoMassaModal";
 import { AlocacaoClientes } from "./AlocacaoClientes";
 import { KickoffModal } from "./KickoffModal";
 import { TeamAssignmentModal } from "./TeamAssignmentModal";
+import { HistoricoStatusModal } from "./HistoricoStatusModal";
 import { ClientesGroupedView } from "./ClientesGroupedView";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -141,6 +142,11 @@ export const ClientesView = () => {
     id: string;
     nome: string;
   } | null>(null);
+  const [historicoModalOpen, setHistoricoModalOpen] = useState(false);
+  const [clienteHistorico, setClienteHistorico] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [colaboradores, setColaboradores] = useState<any[]>([]);
@@ -150,7 +156,7 @@ export const ClientesView = () => {
   const [clientesSelecionados, setClientesSelecionados] = useState<string[]>([]);
   const [sortField, setSortField] = useState<string>('nome');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [viewMode, setViewMode] = useState<'table' | 'grouped'>('grouped');
+  const [viewMode, setViewMode] = useState<'table' | 'grouped'>('table');
   const [groupBy, setGroupBy] = useState<'gestor' | 'cs'>('gestor');
 
   // Definição das colunas configuráveis
@@ -514,7 +520,7 @@ export const ClientesView = () => {
   };
 
   // Função para atualizar série do cliente
-  const handleSerieChange = async (clienteId: string, novaSerie: string) => {
+  const handleSerieChange = async (clienteId: string, novaSerie: string, serieAnterior: string) => {
     try {
       const { error } = await supabase
         .from('clientes')
@@ -522,6 +528,29 @@ export const ClientesView = () => {
         .eq('id', clienteId);
 
       if (error) throw error;
+
+      // Registrar no audit log
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('User para audit (serie):', user?.id);
+      if (user) {
+        const auditData = {
+          user_id: user.id,
+          cliente_id: clienteId,
+          acao: 'alteracao_status',
+          motivo: JSON.stringify({
+            campo: 'serie',
+            valor_anterior: serieAnterior,
+            valor_novo: novaSerie
+          })
+        };
+        console.log('Inserindo audit (serie):', auditData);
+        const { data: auditResult, error: auditError } = await supabase
+          .from('clientes_audit_log')
+          .insert(auditData)
+          .select();
+        console.log('Resultado audit (serie):', auditResult, 'Erro:', auditError);
+        if (auditError) console.error('Erro ao registrar audit:', auditError);
+      }
 
       toast({
         title: "Série atualizada",
@@ -569,7 +598,7 @@ export const ClientesView = () => {
   };
 
   // Função genérica para atualizar status do cliente
-  const handleStatusChange = async (clienteId: string, field: string, value: string) => {
+  const handleStatusChange = async (clienteId: string, field: string, value: string, valorAnterior: string) => {
     try {
       const { error } = await supabase
         .from('clientes')
@@ -577,6 +606,29 @@ export const ClientesView = () => {
         .eq('id', clienteId);
 
       if (error) throw error;
+
+      // Registrar no audit log
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('User para audit:', user?.id);
+      if (user) {
+        const auditData = {
+          user_id: user.id,
+          cliente_id: clienteId,
+          acao: 'alteracao_status',
+          motivo: JSON.stringify({
+            campo: field,
+            valor_anterior: valorAnterior,
+            valor_novo: value
+          })
+        };
+        console.log('Inserindo audit:', auditData);
+        const { data: auditResult, error: auditError } = await supabase
+          .from('clientes_audit_log')
+          .insert(auditData)
+          .select();
+        console.log('Resultado audit:', auditResult, 'Erro:', auditError);
+        if (auditError) console.error('Erro ao registrar audit:', auditError);
+      }
 
       toast({
         title: "Status atualizado",
@@ -704,11 +756,12 @@ export const ClientesView = () => {
 
           {/* Visualização de Clientes */}
           {viewMode === 'grouped' ? (
-            <ClientesGroupedView 
+            <ClientesGroupedView
               clientes={sortedAndFilteredClientes}
               colaboradores={colaboradores}
               groupBy={groupBy}
               onClienteClick={(cliente) => navigate(`/painel/${cliente.id}`)}
+              onClienteUpdate={carregarClientes}
             />
           ) : (
           <Card className={`bg-card border shadow-card ${activeTab === 'desativados' ? 'border-destructive/30' : 'border-border'}`}>
@@ -820,9 +873,18 @@ export const ClientesView = () => {
                           }} className="font-medium text-foreground hover:text-primary transition-colors text-base">
                             {cliente.nome}
                           </a>
-
-                          {/* Ícone de Catálogo de Criativos ao lado do nome */}
-
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-primary"
+                            onClick={() => {
+                              setClienteHistorico({ id: cliente.id, nome: cliente.nome });
+                              setHistoricoModalOpen(true);
+                            }}
+                            title="Ver histórico de alterações"
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
                         </div>
                         {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && <div className="flex flex-wrap gap-1 mt-1">
                           {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => <Badge key={index} variant="outline" className="text-xs">
@@ -862,7 +924,7 @@ export const ClientesView = () => {
                                     {series.map((serie) => (
                                       <DropdownMenuItem
                                         key={serie}
-                                        onClick={() => handleSerieChange(cliente.id, serie)}
+                                        onClick={() => handleSerieChange(cliente.id, serie, cliente.serie || 'Serie A')}
                                         className={cliente.serie === serie ? 'bg-muted' : ''}
                                       >
                                         <Badge className={`${getSerieColor(serie)} text-xs w-full justify-center`}>
@@ -900,7 +962,7 @@ export const ClientesView = () => {
                                     {situacaoClienteOptions.map((option) => (
                                       <DropdownMenuItem
                                         key={option.value}
-                                        onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.value)}
+                                        onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.value, cliente.situacao_cliente || 'nao_iniciado')}
                                         className={cliente.situacao_cliente === option.value ? 'bg-muted' : ''}
                                       >
                                         <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
@@ -934,7 +996,7 @@ export const ClientesView = () => {
                                     {etapaOnboardingOptions.map((option) => (
                                       <DropdownMenuItem
                                         key={option.value}
-                                        onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.value)}
+                                        onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.value, cliente.etapa_onboarding || 'onboarding')}
                                         className={cliente.etapa_onboarding === option.value ? 'bg-muted' : ''}
                                       >
                                         <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
@@ -968,7 +1030,7 @@ export const ClientesView = () => {
                                     {etapaTrafegoOptions.map((option) => (
                                       <DropdownMenuItem
                                         key={option.value}
-                                        onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.value)}
+                                        onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.value, cliente.etapa_trafego || 'estrategia')}
                                         className={cliente.etapa_trafego === option.value ? 'bg-muted' : ''}
                                       >
                                         <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
@@ -1203,5 +1265,15 @@ export const ClientesView = () => {
     }} clienteId={clienteTeam.id} clienteNome={clienteTeam.nome} onSuccess={() => {
       carregarClientes();
     }} />}
+
+    {clienteHistorico && <HistoricoStatusModal
+      isOpen={historicoModalOpen}
+      onClose={() => {
+        setHistoricoModalOpen(false);
+        setClienteHistorico(null);
+      }}
+      clienteId={clienteHistorico.id}
+      clienteNome={clienteHistorico.nome}
+    />}
   </div>;
 };
