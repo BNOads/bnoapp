@@ -21,6 +21,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Users, Palette } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useFieldOptions } from "@/hooks/useFieldOptions";
 import { TeamAssignmentModal } from "./TeamAssignmentModal";
 import { BrandingConfigModal } from "./BrandingConfigModal";
 
@@ -50,6 +51,12 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
     google_sheet_id: '',
     google_sheet_aba: 'Dashboard'
   });
+  const [categories, setCategories] = useState<any[]>([]);
+  
+  // Load field options
+  const situacaoOptions = useFieldOptions('situacao_cliente');
+  const etapaOnboardingOptions = useFieldOptions('etapa_onboarding');
+  const etapaTrafegoOptions = useFieldOptions('etapa_trafego');
 
   useEffect(() => {
     if (cliente && open) {
@@ -68,7 +75,18 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
       });
       loadTeamMembers();
     }
+    if (open) loadCategories();
   }, [cliente, open]);
+
+  const loadCategories = async () => {
+    try {
+      const { data, error } = await supabase.from('client_categories').select('*').order('sort_order', { ascending: true });
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (err) {
+      console.error('Erro carregando categorias:', err);
+    }
+  };
 
   const loadTeamMembers = async () => {
     if (!cliente?.id) return;
@@ -180,8 +198,21 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="negocio_local">Negócio Local</SelectItem>
-                  <SelectItem value="infoproduto">Infoproduto</SelectItem>
+                  {categories && categories.length > 0 ? (
+                    categories.map(cat => (
+                      <SelectItem key={cat.key} value={cat.key}>
+                        <div className="flex items-center gap-2">
+                          <div style={{ width: 12, height: 12, background: cat.color }} className="rounded" />
+                          <span>{cat.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <>
+                      <SelectItem value="negocio_local">Negócio Local</SelectItem>
+                      <SelectItem value="infoproduto">Infoproduto</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>

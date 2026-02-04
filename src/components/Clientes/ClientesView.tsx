@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Users, Sheet, Pause, CheckCircle, ChevronDown, MoreHorizontal, LayoutList, LayoutGrid, GripVertical, History } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Plus, Copy, Eye, Trash2, Upload, Edit, UserCheck, Filter, ArrowUpDown, EditIcon, Edit3, Users, Sheet, Pause, CheckCircle, ChevronDown, MoreHorizontal, LayoutList, LayoutGrid, GripVertical, History } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { NovoClienteModal } from "./NovoClienteModal";
@@ -23,6 +23,9 @@ import { KickoffModal } from "./KickoffModal";
 import { TeamAssignmentModal } from "./TeamAssignmentModal";
 import { HistoricoStatusModal } from "./HistoricoStatusModal";
 import { ClientesGroupedView } from "./ClientesGroupedView";
+import { CategoriesManager } from './CategoriesManager';
+import { FieldOptionsManager } from './FieldOptionsManager';
+import { useFieldOptions } from '@/hooks/useFieldOptions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -148,6 +151,19 @@ export const ClientesView = () => {
     nome: string;
   } | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
+  const [clientCategories, setClientCategories] = useState<any[]>([]);
+  const [categoriesManagerOpen, setCategoriesManagerOpen] = useState(false);
+  const [fieldOptionsManagerOpen, setFieldOptionsManagerOpen] = useState(false);
+  
+  // Field options filters
+  const [situacaoFilter, setSituacaoFilter] = useState<string>('all');
+  const [etapaOnboardingFilter, setEtapaOnboardingFilter] = useState<string>('all');
+  const [etapaTrafegoFilter, setEtapaTrafegoFilter] = useState<string>('all');
+  
+  // Load field options
+  const situacaoOptions = useFieldOptions('situacao_cliente');
+  const etapaOnboardingOptions = useFieldOptions('etapa_onboarding');
+  const etapaTrafegoOptions = useFieldOptions('etapa_trafego');
   const [loading, setLoading] = useState(true);
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -302,7 +318,18 @@ export const ClientesView = () => {
   useEffect(() => {
     carregarClientes();
     carregarColaboradores();
+    carregarClientCategories();
   }, [activeTab]);
+
+  const carregarClientCategories = async () => {
+    try {
+      const { data, error } = await supabase.from('client_categories').select('*').order('sort_order', { ascending: true });
+      if (error) throw error;
+      setClientCategories(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error);
+    }
+  };
   const getStatusColor = (etapa: string) => {
     switch (etapa) {
       case 'ativo':
@@ -436,7 +463,10 @@ export const ClientesView = () => {
     const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.serie?.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.categoria?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategoria = categoriaFilter === 'all' || !categoriaFilter || cliente.categoria === categoriaFilter;
     const matchesSerie = serieFilter === 'all' || !serieFilter || cliente.serie === serieFilter;
-    return matchesSearch && matchesCategoria && matchesSerie;
+    const matchesSituacao = situacaoFilter === 'all' || !situacaoFilter || cliente.situacao_cliente === situacaoFilter;
+    const matchesEtapaOnboarding = etapaOnboardingFilter === 'all' || !etapaOnboardingFilter || cliente.etapa_onboarding === etapaOnboardingFilter;
+    const matchesEtapaTrafego = etapaTrafegoFilter === 'all' || !etapaTrafegoFilter || (cliente.funis_trabalhando && cliente.funis_trabalhando.includes(etapaTrafegoFilter));
+    return matchesSearch && matchesCategoria && matchesSerie && matchesSituacao && matchesEtapaOnboarding && matchesEtapaTrafego;
   });
 
   // Funções de seleção múltipla
@@ -494,12 +524,17 @@ export const ClientesView = () => {
   });
 
   // Obter listas únicas para os filtros
-  const categorias = [...new Set(clientes.map(c => c.categoria).filter(Boolean))];
+  const categorias = clientCategories.length > 0
+    ? clientCategories.map(c => c.key)
+    : [...new Set(clientes.map(c => c.categoria).filter(Boolean))];
   const series = ['Serie A', 'Serie B', 'Serie C', 'Serie D'];
   const limparFiltros = () => {
     setCategoriaFilter('all');
     setSerieFilter('all');
     setSearchTerm('');
+    setSituacaoFilter('all');
+    setEtapaOnboardingFilter('all');
+    setEtapaTrafegoFilter('all');
     setClientesSelecionados([]);
   };
 
@@ -575,22 +610,6 @@ export const ClientesView = () => {
     { value: 'ponto_de_atencao', label: 'Ponto de Atenção', color: 'bg-yellow-500' },
     { value: 'resultados_normais', label: 'Resultados Normais', color: 'bg-blue-500' },
     { value: 'indo_bem', label: 'Indo bem', color: 'bg-green-500' },
-  ];
-
-  // Opções para Etapa Onboarding
-  const etapaOnboardingOptions = [
-    { value: 'onboarding', label: 'Onboarding', color: 'bg-orange-500' },
-    { value: 'ongoing', label: 'Ongoing', color: 'bg-green-500' },
-    { value: 'pausa_temporaria', label: 'Pausa Temporária', color: 'bg-red-500' },
-  ];
-
-  // Opções para Etapas de Tráfego
-  const etapaTrafegoOptions = [
-    { value: 'estrategia', label: 'Estratégia', color: 'bg-gray-500' },
-    { value: 'distribuicao_criativos', label: 'Distribuição de Criativos', color: 'bg-blue-500' },
-    { value: 'conversao_iniciada', label: 'Conversão Iniciada', color: 'bg-yellow-500' },
-    { value: 'voo_de_cruzeiro', label: 'Voo de Cruzeiro', color: 'bg-green-500' },
-    { value: 'campanhas_pausadas', label: 'Campanhas Pausadas', color: 'bg-red-500' },
   ];
 
   const getStatusOption = (options: typeof situacaoClienteOptions, value: string | null) => {
@@ -674,16 +693,66 @@ export const ClientesView = () => {
 
     {/* Tabs */}
     <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'ativos' | 'desativados')} className="space-y-6">
-      <TabsList className="grid w-full max-w-md grid-cols-2">
-        <TabsTrigger value="ativos">
-          Ativos
-        </TabsTrigger>
-        <TabsTrigger value="desativados" className="data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive">
-          Desativados {clientes.length > 0 && activeTab === 'desativados' && (
-            <Badge className="ml-2 bg-destructive text-destructive-foreground">{clientes.length}</Badge>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="ativos">
+              Ativos
+            </TabsTrigger>
+            <TabsTrigger value="desativados" className="data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive">
+              Desativados {clientes.length > 0 && activeTab === 'desativados' && (
+                <Badge className="ml-2 bg-destructive text-destructive-foreground">{clientes.length}</Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Toggle de visualização */}
+          <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'table' | 'grouped')} className="border rounded-md border-primary/50">
+            <ToggleGroupItem value="table" aria-label="Visualização em tabela" className="px-3 gap-2 data-[state=on]:bg-primary/10 data-[state=on]:text-primary">
+              <LayoutList className="h-4 w-4" />
+              <span className="text-sm font-medium">Tabela</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="grouped" aria-label="Visualização agrupada" className="px-3 gap-2 data-[state=on]:bg-primary/10 data-[state=on]:text-primary">
+              <LayoutGrid className="h-4 w-4" />
+              <span className="text-sm font-medium">Agrupado</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+
+          {/* Seletor de agrupamento */}
+          {viewMode === 'grouped' && (
+            <Select value={groupBy} onValueChange={(value) => setGroupBy(value as 'gestor' | 'cs')}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Agrupar por" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gestor">Gestor</SelectItem>
+                <SelectItem value="cs">CS</SelectItem>
+              </SelectContent>
+            </Select>
           )}
-        </TabsTrigger>
-      </TabsList>
+        </div>
+
+        {/* Botão Editar com dropdown */}
+        {canCreateContent && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Edit3 className="h-4 w-4" />
+                Editar
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setCategoriesManagerOpen(true)}>
+                Categorias
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFieldOptionsManagerOpen(true)}>
+                Campos e Etapas
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
 
       <TabsContent value={activeTab} className="space-y-6">
 
@@ -702,11 +771,74 @@ export const ClientesView = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas categorias</SelectItem>
-                  {categorias
-                    .filter(categoria => categoria && categoria.trim() !== '')
-                    .map(categoria => <SelectItem key={categoria} value={categoria}>
-                      {categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
-                    </SelectItem>)}
+                  {clientCategories && clientCategories.length > 0 ? (
+                    clientCategories.map(cat => (
+                      <SelectItem key={cat.key} value={cat.key}>
+                        <div className="flex items-center gap-2">
+                          <div style={{ width: 12, height: 12, background: cat.color }} className="rounded" />
+                          <span>{cat.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    categorias
+                      .filter(categoria => categoria && categoria.trim() !== '')
+                      .map(categoria => <SelectItem key={categoria} value={categoria}>
+                        {categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
+                      </SelectItem>)
+                  )}
+                </SelectContent>
+              </Select>
+
+              {/* Filtros para campos dropdown */}
+              <Select value={situacaoFilter} onValueChange={setSituacaoFilter}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Situação do Cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas situações</SelectItem>
+                  {situacaoOptions.options.map(opt => (
+                    <SelectItem key={opt.id} value={opt.option_key}>
+                      <div className="flex items-center gap-2">
+                        <div style={{ width: 10, height: 10, background: opt.color }} className="rounded-full" />
+                        <span>{opt.option_label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={etapaOnboardingFilter} onValueChange={setEtapaOnboardingFilter}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Etapa Onboarding" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas etapas</SelectItem>
+                  {etapaOnboardingOptions.options.map(opt => (
+                    <SelectItem key={opt.id} value={opt.option_key}>
+                      <div className="flex items-center gap-2">
+                        <div style={{ width: 10, height: 10, background: opt.color }} className="rounded-full" />
+                        <span>{opt.option_label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={etapaTrafegoFilter} onValueChange={setEtapaTrafegoFilter}>
+                <SelectTrigger className="w-full sm:w-[220px]">
+                  <SelectValue placeholder="Etapas de Tráfego" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas etapas</SelectItem>
+                  {etapaTrafegoOptions.options.map(opt => (
+                    <SelectItem key={opt.id} value={opt.option_key}>
+                      <div className="flex items-center gap-2">
+                        <div style={{ width: 10, height: 10, background: opt.color }} className="rounded-full" />
+                        <span>{opt.option_label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -728,31 +860,6 @@ export const ClientesView = () => {
                 <Filter className="h-4 w-4 mr-2" />
                 Limpar
               </Button>
-
-              {/* Toggle de visualização */}
-              <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'table' | 'grouped')} className="border rounded-md border-primary/50">
-                <ToggleGroupItem value="table" aria-label="Visualização em tabela" className="px-3 gap-2 data-[state=on]:bg-primary/10 data-[state=on]:text-primary">
-                  <LayoutList className="h-4 w-4" />
-                  <span className="text-sm font-medium">Tabela</span>
-                </ToggleGroupItem>
-                <ToggleGroupItem value="grouped" aria-label="Visualização agrupada" className="px-3 gap-2 data-[state=on]:bg-primary/10 data-[state=on]:text-primary">
-                  <LayoutGrid className="h-4 w-4" />
-                  <span className="text-sm font-medium">Agrupado</span>
-                </ToggleGroupItem>
-              </ToggleGroup>
-
-              {/* Seletor de agrupamento */}
-              {viewMode === 'grouped' && (
-                <Select value={groupBy} onValueChange={(value) => setGroupBy(value as 'gestor' | 'cs')}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Agrupar por" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gestor">Gestor</SelectItem>
-                    <SelectItem value="cs">CS</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
             </div>
           </div>
 
@@ -989,29 +1096,29 @@ export const ClientesView = () => {
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                                      <Badge className={`${getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).color} text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1`}>
-                                        {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
+                                      <Badge style={{ backgroundColor: etapaOnboardingOptions.getColor(cliente.etapa_onboarding) }} className="text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1">
+                                        {etapaOnboardingOptions.getLabel(cliente.etapa_onboarding)}
                                         <ChevronDown className="h-3 w-3" />
                                       </Badge>
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="start" className="bg-background">
-                                    {etapaOnboardingOptions.map((option) => (
+                                    {etapaOnboardingOptions.options.map((option) => (
                                       <DropdownMenuItem
-                                        key={option.value}
-                                        onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.value, cliente.etapa_onboarding || 'onboarding')}
-                                        className={cliente.etapa_onboarding === option.value ? 'bg-muted' : ''}
+                                        key={option.option_key}
+                                        onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.option_key, cliente.etapa_onboarding || 'onboarding')}
+                                        className={cliente.etapa_onboarding === option.option_key ? 'bg-muted' : ''}
                                       >
-                                        <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
-                                          {option.label}
+                                        <Badge style={{ backgroundColor: option.color }} className="text-white text-sm w-full justify-center">
+                                          {option.option_label}
                                         </Badge>
                                       </DropdownMenuItem>
                                     ))}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               ) : (
-                                <Badge className={`${getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).color} text-white text-sm px-3 py-1`}>
-                                  {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
+                                <Badge style={{ backgroundColor: etapaOnboardingOptions.getColor(cliente.etapa_onboarding) }} className="text-white text-sm px-3 py-1">
+                                  {etapaOnboardingOptions.getLabel(cliente.etapa_onboarding)}
                                 </Badge>
                               )}
                             </TableCell>
@@ -1023,29 +1130,29 @@ export const ClientesView = () => {
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                                      <Badge className={`${getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).color} text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1`}>
-                                        {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
+                                      <Badge style={{ backgroundColor: etapaTrafegoOptions.getColor(cliente.etapa_trafego) }} className="text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1">
+                                        {etapaTrafegoOptions.getLabel(cliente.etapa_trafego)}
                                         <ChevronDown className="h-3 w-3" />
                                       </Badge>
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="start" className="bg-background">
-                                    {etapaTrafegoOptions.map((option) => (
+                                    {etapaTrafegoOptions.options.map((option) => (
                                       <DropdownMenuItem
-                                        key={option.value}
-                                        onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.value, cliente.etapa_trafego || 'estrategia')}
-                                        className={cliente.etapa_trafego === option.value ? 'bg-muted' : ''}
+                                        key={option.option_key}
+                                        onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.option_key, cliente.etapa_trafego || 'estrategia')}
+                                        className={cliente.etapa_trafego === option.option_key ? 'bg-muted' : ''}
                                       >
-                                        <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
-                                          {option.label}
+                                        <Badge style={{ backgroundColor: option.color }} className="text-white text-sm w-full justify-center">
+                                          {option.option_label}
                                         </Badge>
                                       </DropdownMenuItem>
                                     ))}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               ) : (
-                                <Badge className={`${getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).color} text-white text-sm px-3 py-1`}>
-                                  {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
+                                <Badge style={{ backgroundColor: etapaTrafegoOptions.getColor(cliente.etapa_trafego) }} className="text-white text-sm px-3 py-1">
+                                  {etapaTrafegoOptions.getLabel(cliente.etapa_trafego)}
                                 </Badge>
                               )}
                             </TableCell>
@@ -1278,5 +1385,12 @@ export const ClientesView = () => {
       clienteId={clienteHistorico.id}
       clienteNome={clienteHistorico.nome}
     />}
+
+    <CategoriesManager open={categoriesManagerOpen} onOpenChange={setCategoriesManagerOpen} onUpdated={() => carregarClientCategories()} />
+
+    <FieldOptionsManager open={fieldOptionsManagerOpen} onOpenChange={setFieldOptionsManagerOpen} onUpdated={() => {
+      // Reload field options by re-triggering the hooks
+      carregarClientes();
+    }} />
   </div>;
 };

@@ -737,6 +737,69 @@ export type Database = {
           },
         ]
       }
+      client_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          key: string
+          label: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          key: string
+          label: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          key?: string
+          label?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      client_field_options: {
+        Row: {
+          color: string | null
+          created_at: string
+          field_key: string
+          id: string
+          option_key: string
+          option_label: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          field_key: string
+          id?: string
+          option_key: string
+          option_label: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          field_key?: string
+          id?: string
+          option_key?: string
+          option_label?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_roles: {
         Row: {
           client_id: string
@@ -6168,3 +6231,5 @@ export const Constants = {
     },
   },
 } as const
+A new version of Supabase CLI is available: v2.75.0 (currently installed v2.67.1)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
