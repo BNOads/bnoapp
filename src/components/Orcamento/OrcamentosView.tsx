@@ -5,14 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Search, Plus, Trash2, TrendingUp, Users, ChevronUp, ChevronDown, PieChart as PieChartIcon, Edit2, Rocket, ExternalLink } from 'lucide-react';
+import { Search, Plus, Trash2, TrendingUp, Users, ChevronUp, ChevronDown, PieChart as PieChartIcon, Edit2, Rocket, ExternalLink, Calculator, Filter, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { NovoOrcamentoModal } from './NovoOrcamentoModal';
 import { EditOrcamentoModal } from './EditOrcamentoModal';
 import { OrcamentoDetalhesModal } from './OrcamentoDetalhesModal';
+import ProjecoesFunilView from './Projecao/ProjecoesFunilView';
 import { Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { OrcamentoStatusToggle } from '@/components/Clientes/OrcamentoStatusToggle';
@@ -389,21 +391,70 @@ export const OrcamentosView = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold">Orçamentos por Funil</h1>
+          <h1 className="text-3xl font-bold">Gestao de Funis</h1>
           <p className="text-muted-foreground">
-            Gerencie orçamentos de marketing organizados por funil e período
+            Gerencie orcamentos e faca projecoes de resultados
           </p>
         </div>
-        
-        {canManageBudgets && (
-          <Button onClick={() => setModalNovo(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Orçamento
-          </Button>
-        )}
       </div>
 
-      {/* Cards de resumo */}
+      {/* FAIXA DE BENCHMARKS */}
+      <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-4 shadow-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <Zap className="h-5 w-5 text-white" />
+          <span className="text-white font-bold text-lg tracking-wide">BENCHMARKS DE MERCADO</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 text-center">
+            <p className="text-white/80 text-xs font-medium uppercase tracking-wide">CPM</p>
+            <p className="text-white text-2xl font-bold mt-1">R$15</p>
+          </div>
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 text-center">
+            <p className="text-white/80 text-xs font-medium uppercase tracking-wide">CTR</p>
+            <p className="text-white text-2xl font-bold mt-1">1.5%</p>
+          </div>
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 text-center">
+            <p className="text-white/80 text-xs font-medium uppercase tracking-wide">Carregamento</p>
+            <p className="text-white text-2xl font-bold mt-1">85%</p>
+          </div>
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 text-center">
+            <p className="text-white/80 text-xs font-medium uppercase tracking-wide">Checkout</p>
+            <p className="text-white text-2xl font-bold mt-1">30%</p>
+          </div>
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 text-center">
+            <p className="text-white/80 text-xs font-medium uppercase tracking-wide">Conversao</p>
+            <p className="text-white text-2xl font-bold mt-1">3%</p>
+          </div>
+        </div>
+        <p className="text-white/70 text-xs mt-3 text-center">
+          Valores ideais de referencia para campanhas de trafego pago
+        </p>
+      </div>
+
+      <Tabs defaultValue="orcamentos" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="orcamentos" className="flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            Orcamentos
+          </TabsTrigger>
+          <TabsTrigger value="projecao" className="flex items-center gap-2">
+            <Calculator className="h-4 w-4" />
+            Projecao
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="orcamentos" className="space-y-6">
+          {/* Header da tab Orcamentos */}
+          <div className="flex justify-end">
+            {canManageBudgets && (
+              <Button onClick={() => setModalNovo(true)} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Orcamento
+              </Button>
+            )}
+          </div>
+
+          {/* Cards de resumo */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -774,6 +825,12 @@ export const OrcamentosView = () => {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        <TabsContent value="projecao">
+          <ProjecoesFunilView />
+        </TabsContent>
+      </Tabs>
 
       <NovoOrcamentoModal
         open={modalNovo}
