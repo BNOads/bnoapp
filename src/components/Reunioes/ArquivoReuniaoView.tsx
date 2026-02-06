@@ -162,9 +162,10 @@ export function ArquivoReuniaoView() {
   const scrollRestoredRef = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Resetar flag de scroll ao trocar de ano
+  // Resetar flags ao trocar de ano
   useEffect(() => {
     scrollRestoredRef.current = false;
+    loadedAnoRef.current = null;
   }, [anoSelecionado]);
 
   // Salvar posição de scroll ao mudar
@@ -187,19 +188,22 @@ export function ArquivoReuniaoView() {
 
     const savedScroll = sessionStorage.getItem(`arquivo-reuniao-scroll-${anoSelecionado}`);
 
-    // Pequeno delay para o DOM renderizar o conteudo carregado
-    const timerId = setTimeout(() => {
+    // requestAnimationFrame para aplicar apos o DOM renderizar
+    const rafId = requestAnimationFrame(() => {
       const container = scrollContainerRef.current;
       if (!container) return;
 
       if (savedScroll) {
         container.scrollTop = parseInt(savedScroll, 10);
+      } else {
+        // Primeira abertura: ir ao final (ultima pauta)
+        container.scrollTop = container.scrollHeight;
       }
 
       scrollRestoredRef.current = true;
-    }, 100);
+    });
 
-    return () => clearTimeout(timerId);
+    return () => cancelAnimationFrame(rafId);
   }, [anoSelecionado]);
 
   // Navegar pelos resultados
@@ -345,17 +349,23 @@ export function ArquivoReuniaoView() {
     };
   }, [userData, user?.id, anoSelecionado]);
 
+  // Ref para saber qual ano ja foi carregado (evitar reload ao trocar de aba)
+  const loadedAnoRef = useRef<number | null>(null);
+
   // Load or create arquivo
   useEffect(() => {
     const loadOrCreateArquivo = async () => {
       // Aguardar auth terminar de carregar
       if (authLoading) return;
-      
+
       if (!user) {
         setLoadError('Usuário não autenticado');
         setLoading(false);
         return;
       }
+
+      // Se ja carregou este ano, nao recarregar (evita reload ao voltar de outra aba)
+      if (loadedAnoRef.current === anoSelecionado && arquivoId) return;
 
       try {
         setLoading(true);
@@ -372,6 +382,7 @@ export function ArquivoReuniaoView() {
         if (existingArquivo) {
           setArquivoId(existingArquivo.id);
           setConteudo(existingArquivo.conteudo);
+          loadedAnoRef.current = anoSelecionado;
         } else {
           // Só cria automaticamente para o ano atual
           if (anoSelecionado === anoAtual) {
@@ -389,6 +400,7 @@ export function ArquivoReuniaoView() {
 
             setArquivoId(newArquivo.id);
             setConteudo(null);
+            loadedAnoRef.current = anoSelecionado;
           } else {
             setLoadError(`Arquivo de ${anoSelecionado} não encontrado`);
           }

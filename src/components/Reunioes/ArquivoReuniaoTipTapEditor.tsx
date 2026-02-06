@@ -150,17 +150,16 @@ export function ArquivoReuniaoTipTapEditor({
       tableName: 'arquivo_reuniao_colaboracao',
       documentIdColumn: 'arquivo_id',
       channelPrefix: 'yjs:arquivo',
+    }, () => {
+      // Provider carregou o estado do DB - marcar como pronto
+      setIsReady(true);
     });
     providerRef.current = provider;
 
     const offlineCache = new OfflineYjsCache(`arquivo-${arquivoId}`, ydoc);
     offlineCacheRef.current = offlineCache;
 
-    // Dar tempo para o provider carregar o estado inicial
-    const readyTimer = setTimeout(() => setIsReady(true), 800);
-
     return () => {
-      clearTimeout(readyTimer);
       provider.destroy();
       offlineCache.destroy();
     };
@@ -170,23 +169,17 @@ export function ArquivoReuniaoTipTapEditor({
   useEffect(() => {
     if (!editor || !isReady || migrationDoneRef.current) return;
 
-    const checkAndMigrate = async () => {
-      // Verificar se ja tem conteudo no Yjs
-      const xmlFragment = ydoc.getXmlFragment('arquivo-content');
-      const hasYjsContent = xmlFragment.length > 0;
+    // Verificar se ja tem conteudo no Yjs
+    const xmlFragment = ydoc.getXmlFragment('arquivo-content');
+    const hasYjsContent = xmlFragment.length > 0;
 
-      if (!hasYjsContent && initialContent && isLexicalContent(initialContent)) {
-        const tiptapContent = convertLexicalToTipTap(initialContent);
-        editor.commands.setContent(tiptapContent);
-      }
+    if (!hasYjsContent && initialContent && isLexicalContent(initialContent)) {
+      const tiptapContent = convertLexicalToTipTap(initialContent);
+      editor.commands.setContent(tiptapContent);
+    }
 
-      migrationDoneRef.current = true;
-      onReady?.();
-    };
-
-    // Esperar um pouco para o provider ter carregado
-    const timer = setTimeout(checkAndMigrate, 1000);
-    return () => clearTimeout(timer);
+    migrationDoneRef.current = true;
+    onReady?.();
   }, [editor, isReady, initialContent, ydoc]);
 
   // Extrair headings para o indice

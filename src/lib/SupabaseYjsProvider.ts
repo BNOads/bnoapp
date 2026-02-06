@@ -25,12 +25,15 @@ export class SupabaseYjsProvider {
   private updateHandler: (update: Uint8Array, origin: any) => void;
   private awarenessUpdateHandler: (changes: { added: number[]; updated: number[]; removed: number[] }, origin: any) => void;
   private saveTimeout?: NodeJS.Timeout;
+  private onSyncedCallback?: () => void;
+  public synced: boolean = false;
 
   constructor(
     documentId: string,
     ydoc: Y.Doc,
     awareness?: Awareness | null,
-    config?: SupabaseYjsProviderConfig
+    config?: SupabaseYjsProviderConfig,
+    onSynced?: () => void
   ) {
     this.documentId = documentId;
     this.ydoc = ydoc;
@@ -60,6 +63,7 @@ export class SupabaseYjsProvider {
       this.broadcastAwareness(update);
     };
 
+    this.onSyncedCallback = onSynced;
     this.setupChannel();
     this.loadInitialState();
   }
@@ -110,8 +114,14 @@ export class SupabaseYjsProvider {
         // Primeira vez: criar registro vazio
         await this.saveState();
       }
+
+      this.synced = true;
+      this.onSyncedCallback?.();
     } catch (error) {
       console.error('Erro ao carregar estado inicial:', error);
+      // Mesmo com erro, marcar como synced para nao travar a UI
+      this.synced = true;
+      this.onSyncedCallback?.();
     }
   }
 
