@@ -40,6 +40,7 @@ export const NovoColaboradorModal = ({
     data_nascimento: "",
     estado_civil: "",
     tamanho_camisa: "",
+    cargo_display: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,6 +57,7 @@ export const NovoColaboradorModal = ({
           data_nascimento: formData.data_nascimento || undefined,
           estado_civil: formData.estado_civil || undefined,
           tamanho_camisa: formData.tamanho_camisa || undefined,
+          cargo_display: formData.cargo_display || undefined,
         }
       });
 
@@ -89,6 +91,7 @@ export const NovoColaboradorModal = ({
         data_nascimento: "",
         estado_civil: "",
         tamanho_camisa: "",
+        cargo_display: "",
       });
 
       onOpenChange(false);
@@ -140,6 +143,18 @@ export const NovoColaboradorModal = ({
                 onChange={(e) => handleInputChange("email", e.target.value)}
                 placeholder="email@exemplo.com"
                 required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="cargo_display">Cargo (exibição)</Label>
+              <Input
+                id="cargo_display"
+                value={formData.cargo_display}
+                onChange={(e) => handleInputChange("cargo_display", e.target.value)}
+                placeholder="Ex: Gestor de Tráfego Senior"
               />
             </div>
           </div>

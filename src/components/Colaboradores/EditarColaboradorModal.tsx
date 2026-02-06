@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +27,9 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
     tamanho_camisa: "",
     nivel_acesso: "cs",
     data_admissao: "",
+    cargo_display: "",
+    mini_bio: "",
+    responsabilidades: "",
   });
 
   useEffect(() => {
@@ -38,6 +42,9 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
         tamanho_camisa: colaborador.tamanho_camisa || "",
         nivel_acesso: colaborador.nivel_acesso || "cs",
         data_admissao: colaborador.data_admissao || "",
+        cargo_display: colaborador.cargo_display || "",
+        mini_bio: colaborador.mini_bio || "",
+        responsabilidades: colaborador.responsabilidades || "",
       });
     }
   }, [colaborador]);
@@ -61,6 +68,9 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
           tamanho_camisa: formData.tamanho_camisa || null,
           nivel_acesso: (formData.nivel_acesso as any),
           data_admissao: formData.data_admissao || null,
+          cargo_display: formData.cargo_display || null,
+          mini_bio: formData.mini_bio || null,
+          responsabilidades: formData.responsabilidades || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', colaborador.id);
@@ -179,6 +189,16 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
               </Select>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="cargo_display">Cargo (exibição)</Label>
+              <Input
+                id="cargo_display"
+                value={formData.cargo_display}
+                onChange={(e) => handleInputChange("cargo_display", e.target.value)}
+                placeholder="Ex: Gestor de Tráfego Senior"
+              />
+            </div>
+
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="nivel_acesso">Nível de Acesso</Label>
               <Select 
@@ -202,6 +222,28 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="mini_bio">Mini Bio</Label>
+            <Textarea
+              id="mini_bio"
+              value={formData.mini_bio}
+              onChange={(e) => handleInputChange("mini_bio", e.target.value)}
+              placeholder="Uma breve descrição sobre o colaborador..."
+              className="min-h-[60px]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="responsabilidades">Responsabilidades</Label>
+            <Textarea
+              id="responsabilidades"
+              value={formData.responsabilidades}
+              onChange={(e) => handleInputChange("responsabilidades", e.target.value)}
+              placeholder="Principais responsabilidades e atribuições..."
+              className="min-h-[60px]"
+            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

@@ -39,6 +39,7 @@ import NPS from "./pages/NPS";
 import ArquivoReuniao from "./pages/ArquivoReuniao";
 import CriadorCriativos from "./pages/CriadorCriativos";
 import CRMPage from "./pages/CRM";
+import CulturaTimePage from "./pages/CulturaTime";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient({
@@ -131,9 +132,14 @@ function App() {
                       <DebriefingDetalhes />
                     </ProtectedRoute>
                   } />
+                  <Route path="/cultura-time" element={
+                    <ProtectedRoute>
+                      <CulturaTimePage />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/colaboradores" element={
                     <ProtectedRoute>
-                      <ColaboradoresPage />
+                      <CulturaTimePage />
                     </ProtectedRoute>
                   } />
                   <Route path="/clientes" element={

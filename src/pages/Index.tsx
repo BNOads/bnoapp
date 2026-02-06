@@ -10,7 +10,7 @@ const Index = () => {
     if (tabFromUrl) {
       // Redirect to the new route structure
       const routeMap: Record<string, string> = {
-        'colaboradores': '/colaboradores',
+        'colaboradores': '/cultura-time',
         'clientes': '/clientes', 
         'lancamentos': '/lancamentos',
         'assistente': '/assistente',

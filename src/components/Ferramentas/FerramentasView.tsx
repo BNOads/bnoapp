@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download } from "lucide-react";
+import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -223,12 +223,12 @@ export const FerramentasView = () => {
       color: "text-rose-500"
     },
     {
-      id: "equipe",
-      title: "Equipe",
-      description: "Gerencie colaboradores e visualize a estrutura da equipe",
-      icon: Users,
-      component: null, // Redirecionamento para /colaboradores
-      color: "text-blue-600"
+      id: "cultura-time",
+      title: "Cultura & Time",
+      description: "Cultura da empresa, time em campo, missão, visão e valores",
+      icon: Heart,
+      component: null, // Redirecionamento para /cultura-time
+      color: "text-rose-500"
     },
   ];
 
@@ -397,9 +397,9 @@ export const FerramentasView = () => {
       navigate('/assistente');
       return;
     }
-    // Redirecionamento para /colaboradores (Equipe)
-    if (toolId === 'equipe') {
-      navigate('/colaboradores');
+    // Redirecionamento para /cultura-time (Cultura & Time)
+    if (toolId === 'cultura-time') {
+      navigate('/cultura-time');
       return;
     }
     setSelectedTool(toolId);
