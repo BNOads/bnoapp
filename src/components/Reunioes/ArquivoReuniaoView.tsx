@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArquivoReuniaoEditor } from './ArquivoReuniaoEditor';
+import { ArquivoReuniaoTipTapEditor } from './ArquivoReuniaoTipTapEditor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuth } from '@/components/Auth/AuthContext';
 import { useArquivoVersioning } from '@/hooks/useArquivoVersioning';
@@ -39,6 +39,18 @@ interface UserPresence {
   userName: string;
   color: string;
   lastActive: string;
+  avatarUrl?: string;
+}
+
+const USER_COLORS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
+  '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'
+];
+
+function getUserColor(userId?: string): string {
+  if (!userId) return USER_COLORS[0];
+  const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return USER_COLORS[hash % USER_COLORS.length];
 }
 
 interface SearchResult {
@@ -72,7 +84,6 @@ export function ArquivoReuniaoView() {
   const [showSaveVersionModal, setShowSaveVersionModal] = useState(false);
   const [saveVersionObservation, setSaveVersionObservation] = useState('');
   const [selectedVersion, setSelectedVersion] = useState<any>(null);
-  const [currentVersionNumber, setCurrentVersionNumber] = useState<number>(1);
   
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -85,6 +96,11 @@ export function ArquivoReuniaoView() {
     user?.id || '',
     userData?.nome || 'Usuário'
   );
+
+  // Numero da versao atual (maior versao no historico)
+  const currentVersionNumber = versioning.versions.length > 0
+    ? versioning.versions[0].versao
+    : 0;
 
   // Busca no conteúdo e índice
   useEffect(() => {
@@ -146,6 +162,11 @@ export function ArquivoReuniaoView() {
   const scrollRestoredRef = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Resetar flag de scroll ao trocar de ano
+  useEffect(() => {
+    scrollRestoredRef.current = false;
+  }, [anoSelecionado]);
+
   // Salvar posição de scroll ao mudar
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -153,31 +174,33 @@ export function ArquivoReuniaoView() {
 
     const handleScroll = () => {
       const scrollPos = scrollContainer.scrollTop;
-      sessionStorage.setItem(`arquivo-reuniao-scroll-${anoAtual}`, String(scrollPos));
+      sessionStorage.setItem(`arquivo-reuniao-scroll-${anoSelecionado}`, String(scrollPos));
     };
 
     scrollContainer.addEventListener('scroll', handleScroll);
     return () => scrollContainer.removeEventListener('scroll', handleScroll);
-  }, [anoAtual]);
+  }, [anoSelecionado]);
 
-  // Restaurar posição de scroll APENAS uma vez após o carregamento
-  useEffect(() => {
-    if (loading || !arquivoId || scrollRestoredRef.current) return;
-    
-    const savedScroll = sessionStorage.getItem(`arquivo-reuniao-scroll-${anoAtual}`);
-    const timer = setTimeout(() => {
-      if (scrollContainerRef.current) {
-        if (savedScroll) {
-          scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
-        } else {
-          // Sem scroll salvo, ir para o final do documento
-          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        }
-        scrollRestoredRef.current = true;
+  // Restaurar posição de scroll quando o editor estiver pronto (conteudo Yjs carregado)
+  const handleEditorReady = useCallback(() => {
+    if (scrollRestoredRef.current) return;
+
+    const savedScroll = sessionStorage.getItem(`arquivo-reuniao-scroll-${anoSelecionado}`);
+
+    // Pequeno delay para o DOM renderizar o conteudo carregado
+    const timerId = setTimeout(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      if (savedScroll) {
+        container.scrollTop = parseInt(savedScroll, 10);
       }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [loading, arquivoId, anoAtual]);
+
+      scrollRestoredRef.current = true;
+    }, 100);
+
+    return () => clearTimeout(timerId);
+  }, [anoSelecionado]);
 
   // Navegar pelos resultados
   const navigateToResult = (index: number) => {
@@ -273,13 +296,9 @@ export function ArquivoReuniaoView() {
   useEffect(() => {
     if (!userData || !user?.id) return;
 
-    const userColors = [
-      '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
-      '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'
-    ];
-    const userColor = userColors[Math.floor(Math.random() * userColors.length)];
+    const userColor = getUserColor(user.id);
 
-    const channel = supabase.channel(`arquivo-presence-${anoAtual}`, {
+    const channel = supabase.channel(`arquivo-presence-${anoSelecionado}`, {
       config: { presence: { key: user.id } }
     });
 
@@ -287,7 +306,7 @@ export function ArquivoReuniaoView() {
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
         const users: UserPresence[] = [];
-        
+
         Object.keys(state).forEach((key) => {
           const presences = state[key] as any[];
           if (presences && presences.length > 0) {
@@ -297,7 +316,8 @@ export function ArquivoReuniaoView() {
                 userId: presence.user_id,
                 userName: presence.user_name,
                 color: presence.color,
-                lastActive: presence.lastActive
+                lastActive: presence.lastActive,
+                avatarUrl: presence.avatar_url,
               });
             }
           }
@@ -310,6 +330,7 @@ export function ArquivoReuniaoView() {
           channel.track({
             user_id: user.id,
             user_name: userData.nome,
+            avatar_url: userData.avatar_url,
             color: userColor,
             lastActive: new Date().toISOString()
           });
@@ -322,7 +343,7 @@ export function ArquivoReuniaoView() {
       channel.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [userData, user?.id, anoAtual]);
+  }, [userData, user?.id, anoSelecionado]);
 
   // Load or create arquivo
   useEffect(() => {
@@ -389,6 +410,7 @@ export function ArquivoReuniaoView() {
   }, [anoSelecionado, anoAtual, user, authLoading, toast]);
 
   const handleContentChange = (newContent: any) => {
+    setConteudo(newContent);
     pendingContentRef.current = newContent;
     setSaveStatus('saving');
 
@@ -633,20 +655,40 @@ export function ArquivoReuniaoView() {
               {onlineUsers.length > 0 && (
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">
+                    {onlineUsers.length === 1 ? '1 pessoa' : `${onlineUsers.length} pessoas`}
+                  </span>
                   <div className="flex -space-x-2">
-                    {onlineUsers.slice(0, 3).map((user) => (
+                    {onlineUsers.slice(0, 5).map((u) => (
                       <div
-                        key={user.userId}
-                        className="w-8 h-8 rounded-full border-2 border-background flex items-center justify-center text-xs font-semibold text-white"
-                        style={{ backgroundColor: user.color }}
-                        title={user.userName}
+                        key={u.userId}
+                        className="w-8 h-8 rounded-full border-2 border-background overflow-hidden"
+                        style={{ borderColor: u.color }}
+                        title={u.userName}
                       >
-                        {user.userName.charAt(0).toUpperCase()}
+                        {u.avatarUrl ? (
+                          <img
+                            src={u.avatarUrl}
+                            alt={u.userName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="w-full h-full flex items-center justify-center text-xs font-semibold text-white" style="background-color: ${u.color}">${u.userName.charAt(0).toUpperCase()}</span>`;
+                            }}
+                          />
+                        ) : (
+                          <span
+                            className="w-full h-full flex items-center justify-center text-xs font-semibold text-white"
+                            style={{ backgroundColor: u.color }}
+                          >
+                            {u.userName.charAt(0).toUpperCase()}
+                          </span>
+                        )}
                       </div>
                     ))}
-                    {onlineUsers.length > 3 && (
+                    {onlineUsers.length > 5 && (
                       <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs">
-                        +{onlineUsers.length - 3}
+                        +{onlineUsers.length - 5}
                       </div>
                     )}
                   </div>
@@ -740,13 +782,18 @@ export function ArquivoReuniaoView() {
 
         <div className="flex-1 overflow-auto" ref={scrollContainerRef}>
           <div className="max-w-4xl mx-auto py-8">
-            <ArquivoReuniaoEditor
+            <ArquivoReuniaoTipTapEditor
               arquivoId={arquivoId || ''}
-              ano={anoAtual}
+              ano={anoSelecionado}
               initialContent={conteudo}
               onContentChange={handleContentChange}
               onHeadingsChange={handleHeadingsChange}
               onAddToIndex={handleAddToIndex}
+              onReady={handleEditorReady}
+              userName={userData?.nome || 'Usuario'}
+              userId={user?.id || ''}
+              userAvatarUrl={userData?.avatar_url}
+              userColor={getUserColor(user?.id)}
             />
           </div>
         </div>

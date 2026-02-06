@@ -1,32 +1,63 @@
 import * as Y from 'yjs';
+import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
 import { supabase } from '@/integrations/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+
+export interface SupabaseYjsProviderConfig {
+  tableName: string;
+  documentIdColumn: string;
+  channelPrefix: string;
+}
+
+const DEFAULT_CONFIG: SupabaseYjsProviderConfig = {
+  tableName: 'pauta_colaboracao',
+  documentIdColumn: 'pauta_id',
+  channelPrefix: 'yjs:pauta',
+};
 
 export class SupabaseYjsProvider {
   private ydoc: Y.Doc;
   private channel: RealtimeChannel;
-  private pautaId: string;
-  private awareness: any;
+  private documentId: string;
+  private config: SupabaseYjsProviderConfig;
+  public awareness: Awareness;
   private isConnected: boolean = false;
   private updateHandler: (update: Uint8Array, origin: any) => void;
+  private awarenessUpdateHandler: (changes: { added: number[]; updated: number[]; removed: number[] }, origin: any) => void;
   private saveTimeout?: NodeJS.Timeout;
 
-  constructor(pautaId: string, ydoc: Y.Doc, awareness?: any) {
-    this.pautaId = pautaId;
+  constructor(
+    documentId: string,
+    ydoc: Y.Doc,
+    awareness?: Awareness | null,
+    config?: SupabaseYjsProviderConfig
+  ) {
+    this.documentId = documentId;
     this.ydoc = ydoc;
-    this.awareness = awareness;
+    this.config = config || DEFAULT_CONFIG;
+    this.awareness = awareness || new Awareness(ydoc);
 
     // Create Supabase channel
-    this.channel = supabase.channel(`yjs:pauta:${pautaId}`, {
+    this.channel = supabase.channel(`${this.config.channelPrefix}:${documentId}`, {
       config: { broadcast: { self: false } }
     });
 
-    // Handler para mudanças locais do Yjs
+    // Handler para mudancas locais do Yjs
     this.updateHandler = (update: Uint8Array, origin: any) => {
-      // Não enviar se foi originado de outro usuário
+      // Nao enviar se foi originado de outro usuario
       if (origin !== this) {
         this.broadcastUpdate(update);
       }
+    };
+
+    // Handler para mudancas de awareness (cursores, typing, etc)
+    this.awarenessUpdateHandler = (changes: { added: number[]; updated: number[]; removed: number[] }, origin: any) => {
+      if (origin === 'remote') return;
+      const changedClients = changes.added.concat(changes.updated).concat(changes.removed);
+      if (changedClients.length === 0) return;
+
+      const update = encodeAwarenessUpdate(this.awareness, changedClients);
+      this.broadcastAwareness(update);
     };
 
     this.setupChannel();
@@ -34,41 +65,40 @@ export class SupabaseYjsProvider {
   }
 
   private setupChannel() {
-    // Receber atualizações de outros usuários
+    // Receber atualizacoes de outros usuarios
     this.channel
       .on('broadcast', { event: 'yjs-update' }, ({ payload }) => {
         const update = new Uint8Array(payload.update);
         Y.applyUpdate(this.ydoc, update, this);
       })
       .on('broadcast', { event: 'awareness-update' }, ({ payload }) => {
-        if (this.awareness) {
-          // Aplicar awareness de outros usuários
-          this.awareness.setLocalState(payload.state);
-        }
+        const update = new Uint8Array(payload.update);
+        applyAwarenessUpdate(this.awareness, update, 'remote');
       })
       .subscribe((status) => {
-        console.log('Yjs channel status:', status);
         if (status === 'SUBSCRIBED') {
           this.isConnected = true;
           this.ydoc.on('update', this.updateHandler);
+          this.awareness.on('update', this.awarenessUpdateHandler);
+
+          // Enviar awareness inicial para que outros saibam que estamos online
+          const update = encodeAwarenessUpdate(this.awareness, [this.ydoc.clientID]);
+          this.broadcastAwareness(update);
         }
       });
   }
 
   private async loadInitialState() {
     try {
-      // Buscar último estado do Yjs no Supabase
       const { data, error } = await supabase
-        .from('pauta_colaboracao')
+        .from(this.config.tableName)
         .select('conteudo_yjs, versao')
-        .eq('pauta_id', this.pautaId)
+        .eq(this.config.documentIdColumn, this.documentId)
         .order('atualizado_em', { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (data && data.conteudo_yjs) {
-        // Aplicar estado inicial
-        // O conteudo_yjs é armazenado como string base64 no Supabase
         const base64String = data.conteudo_yjs as string;
         const binaryString = atob(base64String);
         const bytes = new Uint8Array(binaryString.length);
@@ -76,8 +106,7 @@ export class SupabaseYjsProvider {
           bytes[i] = binaryString.charCodeAt(i);
         }
         Y.applyUpdate(this.ydoc, bytes, this);
-        console.log('Estado inicial Yjs carregado:', data.versao);
-      } else {
+      } else if (!data) {
         // Primeira vez: criar registro vazio
         await this.saveState();
       }
@@ -89,7 +118,6 @@ export class SupabaseYjsProvider {
   private broadcastUpdate(update: Uint8Array) {
     if (!this.isConnected) return;
 
-    // Enviar update via broadcast
     this.channel.send({
       type: 'broadcast',
       event: 'yjs-update',
@@ -100,9 +128,19 @@ export class SupabaseYjsProvider {
     this.debouncedSave();
   }
 
+  private broadcastAwareness(update: Uint8Array) {
+    if (!this.isConnected) return;
+
+    this.channel.send({
+      type: 'broadcast',
+      event: 'awareness-update',
+      payload: { update: Array.from(update) }
+    });
+  }
+
   private debouncedSave() {
     if (this.saveTimeout) clearTimeout(this.saveTimeout);
-    
+
     this.saveTimeout = setTimeout(() => {
       this.saveState();
     }, 5000);
@@ -114,20 +152,25 @@ export class SupabaseYjsProvider {
       const jsonState = this.ydoc.toJSON();
 
       // Converter Uint8Array para base64 string
-      const base64String = btoa(String.fromCharCode(...state));
+      // Usar chunks para evitar stack overflow em documentos grandes
+      let base64String = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < state.length; i += chunkSize) {
+        const chunk = state.subarray(i, i + chunkSize);
+        base64String += String.fromCharCode(...chunk);
+      }
+      base64String = btoa(base64String);
 
       await supabase
-        .from('pauta_colaboracao')
+        .from(this.config.tableName)
         .upsert({
-          pauta_id: this.pautaId,
+          [this.config.documentIdColumn]: this.documentId,
           conteudo_yjs: base64String,
           conteudo_json: jsonState,
           atualizado_em: new Date().toISOString()
         }, {
-          onConflict: 'pauta_id'
+          onConflict: this.config.documentIdColumn
         });
-
-      console.log('Estado Yjs salvo no Supabase');
     } catch (error) {
       console.error('Erro ao salvar estado Yjs:', error);
     }
@@ -137,12 +180,18 @@ export class SupabaseYjsProvider {
   async createSnapshot(descricao?: string) {
     try {
       const state = Y.encodeStateAsUpdate(this.ydoc);
-      const base64String = btoa(String.fromCharCode(...state));
-      
+      let base64String = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < state.length; i += chunkSize) {
+        const chunk = state.subarray(i, i + chunkSize);
+        base64String += String.fromCharCode(...chunk);
+      }
+      base64String = btoa(base64String);
+
       const { error } = await supabase
         .from('yjs_snapshots')
         .insert({
-          document_id: this.pautaId,
+          document_id: this.documentId,
           block_id: 'full-document',
           snapshot_data: base64String,
           description: descricao || 'Snapshot manual',
@@ -150,7 +199,6 @@ export class SupabaseYjsProvider {
         });
 
       if (error) throw error;
-      console.log('Snapshot criado com sucesso');
       return true;
     } catch (error) {
       console.error('Erro ao criar snapshot:', error);
@@ -169,29 +217,31 @@ export class SupabaseYjsProvider {
 
       if (error || !data) throw error;
 
-      // Converter base64 de volta para Uint8Array
       const base64String = data.snapshot_data as string;
       const binaryString = atob(base64String);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      
-      // Limpar documento atual
+
       const newDoc = new Y.Doc();
-      
-      // Aplicar snapshot
       Y.applyUpdate(newDoc, bytes);
-      
-      // Salvar novo estado
+
       await this.saveState();
-      
-      console.log('Snapshot restaurado');
+
       return true;
     } catch (error) {
       console.error('Erro ao restaurar snapshot:', error);
       return false;
     }
+  }
+
+  // Forcar salvamento imediato
+  async forceSave() {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+    await this.saveState();
   }
 
   destroy() {
@@ -201,7 +251,11 @@ export class SupabaseYjsProvider {
       this.saveState();
     }
 
+    // Remover awareness local antes de desconectar
+    removeAwarenessStates(this.awareness, [this.ydoc.clientID], 'local');
+
     this.ydoc.off('update', this.updateHandler);
+    this.awareness.off('update', this.awarenessUpdateHandler);
     this.channel.unsubscribe();
     supabase.removeChannel(this.channel);
   }

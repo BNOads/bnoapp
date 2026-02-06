@@ -4,10 +4,10 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 export class OfflineYjsCache {
   private persistence: IndexeddbPersistence | null = null;
 
-  constructor(pautaId: string, ydoc: Y.Doc) {
+  constructor(documentId: string, ydoc: Y.Doc) {
     try {
       // Persiste no IndexedDB do navegador
-      this.persistence = new IndexeddbPersistence(`pauta-${pautaId}`, ydoc);
+      this.persistence = new IndexeddbPersistence(`yjs-${documentId}`, ydoc);
       
       this.persistence.on('synced', () => {
         console.log('📦 Cache offline sincronizado');

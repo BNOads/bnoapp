@@ -11,6 +11,14 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HeadingNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
+import Color from '@tiptap/extension-color';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { isLexicalContent, isTipTapContent } from '@/lib/migrateArquivoToYjs';
 
 interface ArquivoVisualizarVersaoProps {
   open: boolean;
@@ -18,6 +26,28 @@ interface ArquivoVisualizarVersaoProps {
   version: ArquivoVersion | null;
   onRestore: (version: ArquivoVersion) => void;
   isCurrentVersion?: boolean;
+}
+
+function TipTapReadOnlyViewer({ content }: { content: any }) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      Link.configure({ openOnClick: true }),
+      Image,
+      Color,
+      TextStyle,
+    ],
+    content,
+    editable: false,
+  });
+
+  return (
+    <EditorContent
+      editor={editor}
+      className="prose prose-sm max-w-none dark:prose-invert outline-none min-h-[200px]"
+    />
+  );
 }
 
 export function ArquivoVisualizarVersao({
@@ -29,7 +59,11 @@ export function ArquivoVisualizarVersao({
 }: ArquivoVisualizarVersaoProps) {
   if (!version) return null;
 
-  const initialConfig = {
+  const conteudo = version.conteudo;
+  const isTipTap = isTipTapContent(conteudo);
+  const isLexical = isLexicalContent(conteudo);
+
+  const lexicalConfig = {
     namespace: 'ArquivoVisualizarVersao',
     editable: false,
     theme: {
@@ -46,7 +80,7 @@ export function ArquivoVisualizarVersao({
       link: 'text-primary underline hover:text-primary/80',
     },
     nodes: [HeadingNode, ListNode, ListItemNode, LinkNode],
-    editorState: JSON.stringify(version.conteudo),
+    editorState: isLexical ? JSON.stringify(conteudo) : undefined,
     onError: (error: Error) => {
       console.error('Erro no editor:', error);
     },
@@ -54,7 +88,7 @@ export function ArquivoVisualizarVersao({
 
   const getTipoLabel = (tipo: ArquivoVersion['tipo']) => {
     const labels = {
-      criacao: 'Criação',
+      criacao: 'Criacao',
       autosave: 'Autosave',
       manual: 'Manual',
       restaurada: 'Restaurada'
@@ -67,8 +101,8 @@ export function ArquivoVisualizarVersao({
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle>Visualizar Versão {version.versao}</DialogTitle>
-            
+            <DialogTitle>Visualizar Versao {version.versao}</DialogTitle>
+
             {!isCurrentVersion && (
               <Button
                 variant="default"
@@ -79,7 +113,7 @@ export function ArquivoVisualizarVersao({
                 }}
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
-                Restaurar esta versão
+                Restaurar esta versao
               </Button>
             )}
           </div>
@@ -89,47 +123,53 @@ export function ArquivoVisualizarVersao({
           {/* Metadados */}
           <div className="flex flex-wrap items-center gap-3 p-4 bg-muted rounded-lg">
             <Badge variant="outline">
-              Versão {version.versao}
+              Versao {version.versao}
             </Badge>
             <Badge variant="secondary">
               {getTipoLabel(version.tipo)}
             </Badge>
             {isCurrentVersion && (
               <Badge variant="default">
-                Versão Atual
+                Versao Atual
               </Badge>
             )}
             <span className="text-sm text-muted-foreground">
               Por <span className="font-medium">{version.autor_nome}</span>
             </span>
             <span className="text-sm text-muted-foreground">
-              {format(new Date(version.data_hora), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {format(new Date(version.data_hora), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR })}
             </span>
           </div>
 
-          {/* Observações */}
+          {/* Observacoes */}
           {version.observacoes && (
             <div className="p-4 bg-accent rounded-lg">
-              <p className="text-sm font-medium mb-1">Observações:</p>
+              <p className="text-sm font-medium mb-1">Observacoes:</p>
               <p className="text-sm italic">{version.observacoes}</p>
             </div>
           )}
 
-          {/* Conteúdo */}
+          {/* Conteudo - detecta formato */}
           <div className="border rounded-lg p-6 max-h-[50vh] overflow-y-auto bg-background">
-            <LexicalComposer initialConfig={initialConfig}>
-              <RichTextPlugin
-                contentEditable={
-                  <ContentEditable className="outline-none min-h-[200px]" />
-                }
-                placeholder={
-                  <div className="text-muted-foreground absolute top-0 left-0 pointer-events-none">
-                    Conteúdo vazio...
-                  </div>
-                }
-                ErrorBoundary={() => <div>Erro ao carregar conteúdo</div>}
-              />
-            </LexicalComposer>
+            {isTipTap ? (
+              <TipTapReadOnlyViewer content={conteudo} />
+            ) : isLexical ? (
+              <LexicalComposer initialConfig={lexicalConfig}>
+                <RichTextPlugin
+                  contentEditable={
+                    <ContentEditable className="outline-none min-h-[200px]" />
+                  }
+                  placeholder={
+                    <div className="text-muted-foreground absolute top-0 left-0 pointer-events-none">
+                      Conteudo vazio...
+                    </div>
+                  }
+                  ErrorBoundary={() => <div>Erro ao carregar conteudo</div>}
+                />
+              </LexicalComposer>
+            ) : (
+              <p className="text-muted-foreground">Conteudo nao disponivel</p>
+            )}
           </div>
         </div>
       </DialogContent>

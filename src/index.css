@@ -251,6 +251,108 @@ body {
   text-decoration: underline;
 }
 
+/* Collaboration Cursor Styles (TipTap + Yjs) */
+.collaboration-cursor__caret {
+  border-left: 2px solid;
+  border-right: none;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+  position: relative;
+  word-break: normal;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  top: -1.6em;
+  left: -1px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 8px 2px 4px;
+  border-radius: 8px 8px 8px 0;
+  color: white;
+  white-space: nowrap;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+  animation: cursorLabelFade 4s forwards;
+  pointer-events: auto;
+}
+
+.collaboration-cursor__avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+@keyframes cursorLabelFade {
+  0%, 85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.collaboration-cursor__caret:hover .collaboration-cursor__label {
+  opacity: 1 !important;
+  animation: none;
+}
+
+/* Selection highlight de outros usuarios */
+.ProseMirror .yjs-cursor {
+  position: relative;
+}
+
+/* TipTap placeholder */
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: hsl(var(--muted-foreground));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Headings no editor TipTap */
+.ProseMirror h1 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  margin-top: 1.5rem;
+}
+
+.ProseMirror h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  margin-top: 1.25rem;
+  background-color: hsl(var(--primary) / 0.05);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.ProseMirror h3 {
+  font-size: 1.125rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Imagens no editor TipTap */
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  margin: 0.5rem 0;
+}
+
+.ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid hsl(var(--primary));
+  border-radius: 0.375rem;
+}
+
 /* Custom Scrollbar Styles */
 .scrollbar-thin {
   scrollbar-width: thin;
