@@ -32,6 +32,9 @@ import {
   History,
   Trash2,
   RotateCcw,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 import {
   formatMetricValue,
@@ -122,6 +125,10 @@ export default function ProjecaoInterativa({
     }
   );
 
+  // Estado para edição manual de cada métrica
+  const [editingMetric, setEditingMetric] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
+
   // Carregar histórico de projeções
   const loadHistorico = useCallback(async () => {
     setLoadingHistorico(true);
@@ -165,6 +172,30 @@ export default function ProjecaoInterativa({
 
   const handleMetricChange = useCallback((key: keyof ProjecaoData, value: number) => {
     setProjecao((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  // Iniciar edição manual de uma métrica
+  const startEditingMetric = useCallback((metricKey: string, currentValue: number) => {
+    setEditingMetric(metricKey);
+    setEditValue(currentValue.toString());
+  }, []);
+
+  // Confirmar edição manual
+  const confirmEditMetric = useCallback((metricKey: keyof ProjecaoData, min: number, max: number) => {
+    const numValue = parseFloat(editValue);
+    if (!isNaN(numValue)) {
+      // Limitar ao range permitido
+      const clampedValue = Math.min(Math.max(numValue, min), max);
+      handleMetricChange(metricKey, clampedValue);
+    }
+    setEditingMetric(null);
+    setEditValue('');
+  }, [editValue, handleMetricChange]);
+
+  // Cancelar edição manual
+  const cancelEditMetric = useCallback(() => {
+    setEditingMetric(null);
+    setEditValue('');
   }, []);
 
   const resetToMarket = useCallback(() => {
@@ -346,9 +377,46 @@ export default function ProjecaoInterativa({
                       </TooltipContent>
                     </Tooltip>
                   </Label>
-                  <Badge className={getStatusBgClass(getMetricStatus('cpm', projecao.cpm))}>
-                    {formatMetricValue(projecao.cpm, 'currency')}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {editingMetric === 'cpm' ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="w-20 h-7 text-sm"
+                          step="0.5"
+                          min={5}
+                          max={50}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') confirmEditMetric('cpm', 5, 50);
+                            if (e.key === 'Escape') cancelEditMetric();
+                          }}
+                        />
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('cpm', 5, 50)}>
+                          <Check className="h-3.5 w-3.5 text-green-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEditMetric}>
+                          <X className="h-3.5 w-3.5 text-red-600" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Badge className={getStatusBgClass(getMetricStatus('cpm', projecao.cpm))}>
+                          {formatMetricValue(projecao.cpm, 'currency')}
+                        </Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6" 
+                          onClick={() => startEditingMetric('cpm', projecao.cpm)}
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <Slider
                   value={[projecao.cpm]}
@@ -378,9 +446,46 @@ export default function ProjecaoInterativa({
                       </TooltipContent>
                     </Tooltip>
                   </Label>
-                  <Badge className={getStatusBgClass(getMetricStatus('ctr', projecao.ctr))}>
-                    {projecao.ctr.toFixed(2)}%
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {editingMetric === 'ctr' ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="w-20 h-7 text-sm"
+                          step="0.1"
+                          min={0.1}
+                          max={5}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') confirmEditMetric('ctr', 0.1, 5);
+                            if (e.key === 'Escape') cancelEditMetric();
+                          }}
+                        />
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('ctr', 0.1, 5)}>
+                          <Check className="h-3.5 w-3.5 text-green-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEditMetric}>
+                          <X className="h-3.5 w-3.5 text-red-600" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Badge className={getStatusBgClass(getMetricStatus('ctr', projecao.ctr))}>
+                          {projecao.ctr.toFixed(2)}%
+                        </Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6" 
+                          onClick={() => startEditingMetric('ctr', projecao.ctr)}
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <Slider
                   value={[projecao.ctr]}
@@ -410,9 +515,46 @@ export default function ProjecaoInterativa({
                       </TooltipContent>
                     </Tooltip>
                   </Label>
-                  <Badge className={getStatusBgClass(getMetricStatus('loadingRate', projecao.loadingRate))}>
-                    {projecao.loadingRate.toFixed(0)}%
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {editingMetric === 'loadingRate' ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="w-20 h-7 text-sm"
+                          step="1"
+                          min={50}
+                          max={100}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') confirmEditMetric('loadingRate', 50, 100);
+                            if (e.key === 'Escape') cancelEditMetric();
+                          }}
+                        />
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('loadingRate', 50, 100)}>
+                          <Check className="h-3.5 w-3.5 text-green-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEditMetric}>
+                          <X className="h-3.5 w-3.5 text-red-600" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Badge className={getStatusBgClass(getMetricStatus('loadingRate', projecao.loadingRate))}>
+                          {projecao.loadingRate.toFixed(0)}%
+                        </Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6" 
+                          onClick={() => startEditingMetric('loadingRate', projecao.loadingRate)}
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <Slider
                   value={[projecao.loadingRate]}
@@ -442,9 +584,46 @@ export default function ProjecaoInterativa({
                       </TooltipContent>
                     </Tooltip>
                   </Label>
-                  <Badge className={getStatusBgClass(getMetricStatus('checkoutRate', projecao.checkoutRate))}>
-                    {projecao.checkoutRate.toFixed(0)}%
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {editingMetric === 'checkoutRate' ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="w-20 h-7 text-sm"
+                          step="1"
+                          min={5}
+                          max={60}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') confirmEditMetric('checkoutRate', 5, 60);
+                            if (e.key === 'Escape') cancelEditMetric();
+                          }}
+                        />
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('checkoutRate', 5, 60)}>
+                          <Check className="h-3.5 w-3.5 text-green-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEditMetric}>
+                          <X className="h-3.5 w-3.5 text-red-600" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Badge className={getStatusBgClass(getMetricStatus('checkoutRate', projecao.checkoutRate))}>
+                          {projecao.checkoutRate.toFixed(0)}%
+                        </Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6" 
+                          onClick={() => startEditingMetric('checkoutRate', projecao.checkoutRate)}
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <Slider
                   value={[projecao.checkoutRate]}
@@ -474,9 +653,46 @@ export default function ProjecaoInterativa({
                       </TooltipContent>
                     </Tooltip>
                   </Label>
-                  <Badge className={getStatusBgClass(getMetricStatus('conversionRate', projecao.conversionRate))}>
-                    {projecao.conversionRate.toFixed(2)}%
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {editingMetric === 'conversionRate' ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="w-20 h-7 text-sm"
+                          step="0.1"
+                          min={0.5}
+                          max={10}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') confirmEditMetric('conversionRate', 0.5, 10);
+                            if (e.key === 'Escape') cancelEditMetric();
+                          }}
+                        />
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('conversionRate', 0.5, 10)}>
+                          <Check className="h-3.5 w-3.5 text-green-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEditMetric}>
+                          <X className="h-3.5 w-3.5 text-red-600" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Badge className={getStatusBgClass(getMetricStatus('conversionRate', projecao.conversionRate))}>
+                          {projecao.conversionRate.toFixed(2)}%
+                        </Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6" 
+                          onClick={() => startEditingMetric('conversionRate', projecao.conversionRate)}
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <Slider
                   value={[projecao.conversionRate]}

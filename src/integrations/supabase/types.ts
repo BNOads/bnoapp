@@ -217,6 +217,47 @@ export type Database = {
         }
         Relationships: []
       }
+      arquivo_reuniao_colaboracao: {
+        Row: {
+          arquivo_id: string
+          atualizado_em: string | null
+          atualizado_por: string | null
+          conteudo_json: Json | null
+          conteudo_yjs: string | null
+          created_at: string | null
+          id: string
+          versao: number | null
+        }
+        Insert: {
+          arquivo_id: string
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          conteudo_json?: Json | null
+          conteudo_yjs?: string | null
+          created_at?: string | null
+          id?: string
+          versao?: number | null
+        }
+        Update: {
+          arquivo_id?: string
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          conteudo_json?: Json | null
+          conteudo_yjs?: string | null
+          created_at?: string | null
+          id?: string
+          versao?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arquivo_reuniao_colaboracao_arquivo_id_fkey"
+            columns: ["arquivo_id"]
+            isOneToOne: true
+            referencedRelation: "arquivo_reuniao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       arquivo_reuniao_historico: {
         Row: {
           arquivo_id: string
@@ -1131,16 +1172,21 @@ export type Database = {
         Row: {
           ativo: boolean
           avatar_url: string | null
+          campo_pos_x: number | null
+          campo_pos_y: number | null
+          cargo_display: string | null
           created_at: string
           data_admissao: string | null
           data_nascimento: string | null
           email: string
           estado_civil: Database["public"]["Enums"]["estado_civil"] | null
           id: string
+          mini_bio: string | null
           nivel_acesso: Database["public"]["Enums"]["nivel_acesso"]
           nome: string
           primeiro_login: boolean | null
           progresso_treinamentos: Json | null
+          responsabilidades: string | null
           tamanho_camisa: string | null
           tempo_plataforma: number | null
           updated_at: string
@@ -1149,16 +1195,21 @@ export type Database = {
         Insert: {
           ativo?: boolean
           avatar_url?: string | null
+          campo_pos_x?: number | null
+          campo_pos_y?: number | null
+          cargo_display?: string | null
           created_at?: string
           data_admissao?: string | null
           data_nascimento?: string | null
           email: string
           estado_civil?: Database["public"]["Enums"]["estado_civil"] | null
           id?: string
+          mini_bio?: string | null
           nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
           nome: string
           primeiro_login?: boolean | null
           progresso_treinamentos?: Json | null
+          responsabilidades?: string | null
           tamanho_camisa?: string | null
           tempo_plataforma?: number | null
           updated_at?: string
@@ -1167,16 +1218,21 @@ export type Database = {
         Update: {
           ativo?: boolean
           avatar_url?: string | null
+          campo_pos_x?: number | null
+          campo_pos_y?: number | null
+          cargo_display?: string | null
           created_at?: string
           data_admissao?: string | null
           data_nascimento?: string | null
           email?: string
           estado_civil?: Database["public"]["Enums"]["estado_civil"] | null
           id?: string
+          mini_bio?: string | null
           nivel_acesso?: Database["public"]["Enums"]["nivel_acesso"]
           nome?: string
           primeiro_login?: boolean | null
           progresso_treinamentos?: Json | null
+          responsabilidades?: string | null
           tamanho_camisa?: string | null
           tempo_plataforma?: number | null
           updated_at?: string
@@ -1837,6 +1893,72 @@ export type Database = {
           initial_tags?: string[] | null
           name?: string
           required_fields?: string[] | null
+        }
+        Relationships: []
+      }
+      cultura_config: {
+        Row: {
+          atualizado_em: string | null
+          atualizado_por: string | null
+          chave: string
+          created_at: string | null
+          id: string
+          valor: string
+        }
+        Insert: {
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          chave: string
+          created_at?: string | null
+          id?: string
+          valor?: string
+        }
+        Update: {
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          chave?: string
+          created_at?: string | null
+          id?: string
+          valor?: string
+        }
+        Relationships: []
+      }
+      cultura_valores: {
+        Row: {
+          ativo: boolean
+          created_at: string | null
+          created_by: string | null
+          descricao: string
+          icone: string
+          id: string
+          ordem: number
+          titulo: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string
+          icone?: string
+          id?: string
+          ordem?: number
+          titulo: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string
+          icone?: string
+          id?: string
+          ordem?: number
+          titulo?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -4886,6 +5008,100 @@ export type Database = {
           },
         ]
       }
+      projecoes_funil: {
+        Row: {
+          checkout_rate: number
+          cliente_id: string | null
+          cliques_projetados: number | null
+          conversion_rate: number
+          cpa_projetado: number | null
+          cpm: number
+          created_at: string | null
+          ctr: number
+          id: string
+          impressoes_projetadas: number | null
+          investimento: number
+          loading_rate: number
+          nome: string
+          orcamento_funil_id: string
+          receita_projetada: number | null
+          roas_projetado: number | null
+          roi_projetado: number | null
+          ticket_medio: number
+          updated_at: string | null
+          updated_by: string | null
+          vendas_projetadas: number | null
+        }
+        Insert: {
+          checkout_rate?: number
+          cliente_id?: string | null
+          cliques_projetados?: number | null
+          conversion_rate?: number
+          cpa_projetado?: number | null
+          cpm?: number
+          created_at?: string | null
+          ctr?: number
+          id?: string
+          impressoes_projetadas?: number | null
+          investimento?: number
+          loading_rate?: number
+          nome: string
+          orcamento_funil_id: string
+          receita_projetada?: number | null
+          roas_projetado?: number | null
+          roi_projetado?: number | null
+          ticket_medio?: number
+          updated_at?: string | null
+          updated_by?: string | null
+          vendas_projetadas?: number | null
+        }
+        Update: {
+          checkout_rate?: number
+          cliente_id?: string | null
+          cliques_projetados?: number | null
+          conversion_rate?: number
+          cpa_projetado?: number | null
+          cpm?: number
+          created_at?: string | null
+          ctr?: number
+          id?: string
+          impressoes_projetadas?: number | null
+          investimento?: number
+          loading_rate?: number
+          nome?: string
+          orcamento_funil_id?: string
+          receita_projetada?: number | null
+          roas_projetado?: number | null
+          roi_projetado?: number | null
+          ticket_medio?: number
+          updated_at?: string | null
+          updated_by?: string | null
+          vendas_projetadas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projecoes_funil_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projecoes_funil_orcamento_funil_id_fkey"
+            columns: ["orcamento_funil_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_funil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projecoes_funil_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -5577,6 +5793,91 @@ export type Database = {
           },
         ]
       }
+      traffic_campaigns: {
+        Row: {
+          checkouts: number | null
+          cliente_id: string | null
+          cliques: number | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          impressoes: number | null
+          investimento: number | null
+          lancamento_id: string | null
+          leads: number | null
+          nome: string
+          page_views: number | null
+          periodo_fim: string
+          periodo_inicio: string
+          plataforma: string | null
+          updated_at: string | null
+          valor_total: number | null
+          vendas: number | null
+        }
+        Insert: {
+          checkouts?: number | null
+          cliente_id?: string | null
+          cliques?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          impressoes?: number | null
+          investimento?: number | null
+          lancamento_id?: string | null
+          leads?: number | null
+          nome: string
+          page_views?: number | null
+          periodo_fim: string
+          periodo_inicio: string
+          plataforma?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+          vendas?: number | null
+        }
+        Update: {
+          checkouts?: number | null
+          cliente_id?: string | null
+          cliques?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          impressoes?: number | null
+          investimento?: number | null
+          lancamento_id?: string | null
+          leads?: number | null
+          nome?: string
+          page_views?: number | null
+          periodo_fim?: string
+          periodo_inicio?: string
+          plataforma?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+          vendas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "traffic_campaigns_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "traffic_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "traffic_campaigns_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       treinamentos: {
         Row: {
           ativo: boolean
@@ -6231,5 +6532,3 @@ export const Constants = {
     },
   },
 } as const
-A new version of Supabase CLI is available: v2.75.0 (currently installed v2.67.1)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
