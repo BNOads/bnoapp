@@ -200,7 +200,7 @@ export const TimeEmCampoTab = () => {
     const { error } = await supabase
       .from("colaboradores")
       .update({ campo_pos_x: newX, campo_pos_y: newY })
-      .eq("id", active.id);
+      .eq("id", String(active.id));
 
     if (error) {
       toast({

@@ -94,13 +94,16 @@ export class SupabaseYjsProvider {
 
   private async loadInitialState() {
     try {
-      const { data, error } = await supabase
-        .from(this.config.tableName)
+      // Use type assertion to work with dynamic table names
+      const result = await supabase
+        .from(this.config.tableName as 'pauta_colaboracao')
         .select('conteudo_yjs, versao')
-        .eq(this.config.documentIdColumn, this.documentId)
+        .eq(this.config.documentIdColumn as 'pauta_id', this.documentId)
         .order('atualizado_em', { ascending: false })
         .limit(1)
         .maybeSingle();
+      
+      const data = result.data as { conteudo_yjs: string | null; versao: number | null } | null;
 
       if (data && data.conteudo_yjs) {
         const base64String = data.conteudo_yjs as string;
@@ -171,16 +174,17 @@ export class SupabaseYjsProvider {
       }
       base64String = btoa(base64String);
 
-      await supabase
-        .from(this.config.tableName)
+      // Use type assertion for dynamic table operations
+      await (supabase
+        .from(this.config.tableName as 'pauta_colaboracao')
         .upsert({
           [this.config.documentIdColumn]: this.documentId,
           conteudo_yjs: base64String,
           conteudo_json: jsonState,
           atualizado_em: new Date().toISOString()
-        }, {
+        } as any, {
           onConflict: this.config.documentIdColumn
-        });
+        }));
     } catch (error) {
       console.error('Erro ao salvar estado Yjs:', error);
     }
