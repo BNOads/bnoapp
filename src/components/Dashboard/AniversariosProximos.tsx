@@ -19,15 +19,21 @@ export function AniversariosProximos() {
   const [aniversariantes, setAniversariantes] = useState<ColaboradorAniversario[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const parseDateLocal = (dateStr: string): Date | null => {
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length < 3 || parts.some(isNaN)) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  };
+
   const calcularDiasParaAniversario = (dataNascimento: string): number | null => {
     if (!dataNascimento) return null;
     
     try {
+      const nascimento = parseDateLocal(dataNascimento);
+      if (!nascimento) return null;
+
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
-      const nascimento = new Date(dataNascimento);
-      
-      if (isNaN(nascimento.getTime())) return null;
       
       const anoAtual = hoje.getFullYear();
       const aniversarioEsteAno = new Date(anoAtual, nascimento.getMonth(), nascimento.getDate());
@@ -89,7 +95,8 @@ export function AniversariosProximos() {
   };
 
   const getAniversarioDate = (dataNascimento: string) => {
-    const data = new Date(dataNascimento);
+    const data = parseDateLocal(dataNascimento);
+    if (!data) return 'Data inválida';
     return format(data, "dd 'de' MMMM", { locale: ptBR });
   };
 

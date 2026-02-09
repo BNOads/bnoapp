@@ -1,11 +1,18 @@
+const parseDateLocal = (dateStr: string): Date | null => {
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length < 3 || parts.some(isNaN)) return null;
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+};
+
 export const calcularDiasParaAniversario = (dataNascimento: string | null): number | null => {
   if (!dataNascimento) return null;
 
   try {
-    const hoje = new Date();
-    const nascimento = new Date(dataNascimento);
+    const nascimento = parseDateLocal(dataNascimento);
+    if (!nascimento) return null;
 
-    if (isNaN(nascimento.getTime())) return null;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
     const anoAtual = hoje.getFullYear();
     const aniversarioEsteAno = new Date(anoAtual, nascimento.getMonth(), nascimento.getDate());
