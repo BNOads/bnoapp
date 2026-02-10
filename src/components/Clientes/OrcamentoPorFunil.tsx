@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp, Power, GripVertical, RotateCcw, CheckCircle, Info, Rocket, ExternalLink } from "lucide-react";
+import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp, Power, GripVertical, RotateCcw, CheckCircle, Info, Rocket, ExternalLink, FileImage } from "lucide-react";
 import { CATEGORIAS_FUNIL, getCategoriaLabel, getCategoriaDescricao, getCategoriaCor } from "@/lib/orcamentoConstants";
 import { OrcamentoDetalhesModal } from "@/components/Orcamento/OrcamentoDetalhesModal";
 import { OrcamentoStatusToggle } from "./OrcamentoStatusToggle";
@@ -35,6 +35,8 @@ interface OrcamentoFunil {
   sort_order: number;
   etapa_funil?: string;
   categoria_explicacao?: string;
+  creative_count?: number;
+  creatives_loading?: boolean;
   // Campos para lançamentos integrados
   isLancamento?: boolean;
   lancamento_id?: string;
@@ -63,13 +65,14 @@ const SortableOrcamentoCard = ({
   onHistorico: (o: OrcamentoFunil) => void;
   onDetalhes: (o: OrcamentoFunil) => void;
   onStatusChange: (id: string, status: boolean) => void;
+  onOpenCreatives: (o: OrcamentoFunil) => void;
   formatarMoeda: (v: number) => string;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: orcamento.id,
     disabled: orcamento.isLancamento
   });
-  
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -139,6 +142,18 @@ const SortableOrcamentoCard = ({
             >
               {orcamento.isLancamento ? <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" /> : <Eye className="h-3 w-3 sm:h-4 sm:w-4" />}
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenCreatives(orcamento);
+              }}
+              className="h-7 w-7 p-0 sm:h-8 sm:w-8 text-primary hover:text-primary hover:bg-primary/10"
+              title="Ver Criativos"
+            >
+              <FileImage className="h-3 w-3 sm:h-4 sm:w-4" />
+            </Button>
             {!orcamento.isLancamento && (
               <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onHistorico(orcamento); }} className="h-7 w-7 p-0 sm:h-8 sm:w-8" title="Ver histórico">
                 <History className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -159,20 +174,37 @@ const SortableOrcamentoCard = ({
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-2 sm:space-y-3">
-          {/* Categoria Badge */}
-          {orcamento.etapa_funil && (
-            <Badge
-              className="text-xs text-white border-0"
-              style={{ backgroundColor: getCategoriaCor(orcamento.etapa_funil) }}
-            >
-              {getCategoriaLabel(orcamento.etapa_funil)}
-            </Badge>
-          )}
-
-          <div className={`text-xl sm:text-2xl lg:text-3xl font-bold break-all ${
-            orcamento.active ? 'text-primary' : 'text-muted-foreground'
-          }`}>
+          <div className={`text-xl sm:text-2xl lg:text-3xl font-bold break-all ${orcamento.active ? 'text-primary' : 'text-muted-foreground'
+            }`}>
             {formatarMoeda(orcamento.valor_investimento)}
+          </div>
+
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Categoria Badge */}
+            {orcamento.etapa_funil && (
+              <Badge
+                className="text-xs text-white border-0"
+                style={{ backgroundColor: getCategoriaCor(orcamento.etapa_funil) }}
+              >
+                {getCategoriaLabel(orcamento.etapa_funil)}
+              </Badge>
+            )}
+
+            {/* Creative Count Badge */}
+            <div
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded-full cursor-pointer hover:bg-muted transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenCreatives(orcamento);
+              }}
+            >
+              <FileImage className="h-3.5 w-3.5" />
+              {orcamento.creatives_loading ? (
+                <div className="h-3 w-3 animate-spin rounded-full border border-primary border-t-transparent" />
+              ) : (
+                <span>{orcamento.creative_count || 0} criativos</span>
+              )}
+            </div>
           </div>
 
           {/* Explicação da Categoria */}
@@ -198,7 +230,7 @@ const SortableOrcamentoCard = ({
           )}
         </div>
       </CardContent>
-    </Card>
+    </Card >
   );
 };
 interface HistoricoOrcamento {
@@ -241,6 +273,7 @@ export const OrcamentoPorFunil = ({
   const [showEditarModal, setShowEditarModal] = useState(false);
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
   const [showDetalhesModal, setShowDetalhesModal] = useState(false);
+  const [modalInitialTab, setModalInitialTab] = useState("info");
   const [selectedOrcamento, setSelectedOrcamento] = useState<OrcamentoFunil | null>(null);
   const [selectedFunil, setSelectedFunil] = useState<string>("todos");
   const [selectedStatus, setSelectedStatus] = useState<string>("todos");
@@ -291,6 +324,84 @@ export const OrcamentoPorFunil = ({
     ...orcamentos
   ];
 
+  // Carregar contagem de criativos para todos os itens
+  useEffect(() => {
+    if (todosItens.length > 0) {
+      carregarContagemCriativos();
+    }
+  }, [orcamentos.length, lancamentosData.length]);
+
+  const carregarContagemCriativos = async () => {
+    try {
+      const orcamentoIds = orcamentos.map(o => o.id);
+      const lancamentoIds = lancamentosData.map(l => l.id);
+
+      if (orcamentoIds.length === 0 && lancamentoIds.length === 0) return;
+
+      let clientInstance = supabase;
+      if (isPublicView) {
+        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        clientInstance = createPublicSupabaseClient();
+      }
+
+      // Buscar pastas vinculadas a orçamentos
+      const { data: orcLinks } = await clientInstance
+        .from('orcamento_criativos')
+        .select('orcamento_id, folder_name')
+        .in('orcamento_id', orcamentoIds);
+
+      // Buscar pastas vinculadas a lançamentos
+      const { data: lancLinks } = await clientInstance
+        .from('lancamento_criativos')
+        .select('lancamento_id, folder_name')
+        .in('lancamento_id', lancamentoIds);
+
+      // Consolidar todas as pastas para buscar contagem de arquivos
+      const allFolders = Array.from(new Set([
+        ...(orcLinks?.map(l => l.folder_name) || []),
+        ...(lancLinks?.map(l => l.folder_name) || [])
+      ]));
+
+      if (allFolders.length === 0) {
+        setOrcamentos(prev => prev.map(o => ({ ...o, creative_count: 0, creatives_loading: false })));
+        setLancamentosData(prev => prev.map(l => ({ ...l, creative_count: 0, creatives_loading: false })));
+        return;
+      }
+
+      // Buscar contagem de criativos por pasta
+      const { data: creativesCountData, error: countError } = await clientInstance
+        .from('creatives')
+        .select('folder_name')
+        .eq('client_id', clienteId)
+        .in('folder_name', allFolders);
+
+      if (countError) throw countError;
+
+      // Agrupar contagem por pasta
+      const countsByFolder = (creativesCountData || []).reduce((acc: any, curr) => {
+        acc[curr.folder_name] = (acc[curr.folder_name] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Atualizar orçamentos
+      setOrcamentos(prev => prev.map(o => {
+        const relevantFolders = orcLinks?.filter(l => l.orcamento_id === o.id).map(l => l.folder_name) || [];
+        const count = relevantFolders.reduce((sum, folder) => sum + (countsByFolder[folder] || 0), 0);
+        return { ...o, creative_count: count, creatives_loading: false };
+      }));
+
+      // Atualizar lançamentos
+      setLancamentosData(prev => prev.map(l => {
+        const relevantFolders = lancLinks?.filter(link => link.lancamento_id === l.id).map(link => link.folder_name) || [];
+        const count = relevantFolders.reduce((sum, folder) => sum + (countsByFolder[folder] || 0), 0);
+        return { ...l, creative_count: count, creatives_loading: false };
+      }));
+
+    } catch (error) {
+      console.error('Erro ao carregar contagem de criativos:', error);
+    }
+  };
+
   // Hook de pesquisa
   const {
     searchTerm,
@@ -303,13 +414,13 @@ export const OrcamentoPorFunil = ({
     .filter(orcamento => {
       // Lançamentos sempre passam filtro de funil quando "todos" ou categoria "lancamento"
       const matchFunil = selectedFunil === "todos" ||
-                         (orcamento.isLancamento && selectedFunil === "lancamento") ||
-                         (!orcamento.isLancamento && orcamento.nome_funil === selectedFunil);
+        (orcamento.isLancamento && selectedFunil === "lancamento") ||
+        (!orcamento.isLancamento && orcamento.nome_funil === selectedFunil);
       // Lançamentos sempre são considerados "ativos"
       const matchStatus = selectedStatus === "todos" ||
-                         orcamento.isLancamento ||
-                         (selectedStatus === "ativos" && orcamento.active) ||
-                         (selectedStatus === "desativados" && !orcamento.active);
+        orcamento.isLancamento ||
+        (selectedStatus === "ativos" && orcamento.active) ||
+        (selectedStatus === "desativados" && !orcamento.active);
       return matchFunil && matchStatus;
     })
     .sort((a, b) => {
@@ -342,7 +453,7 @@ export const OrcamentoPorFunil = ({
         } = await import('@/lib/supabase-public');
         clientInstance = createPublicSupabaseClient();
       }
-      const { 
+      const {
         data,
         error
       } = await clientInstance
@@ -440,7 +551,7 @@ export const OrcamentoPorFunil = ({
       );
 
       await Promise.all(promises);
-      
+
       toast({
         title: "Ordem salva",
         description: "A ordem dos orçamentos foi atualizada!",
@@ -461,17 +572,17 @@ export const OrcamentoPorFunil = ({
         id: o.id,
         sort_order: idx
       }));
-      
+
       const promises = updates.map(u =>
         supabase
           .from('orcamentos_funil')
           .update({ sort_order: u.sort_order })
           .eq('id', u.id)
       );
-      
+
       await Promise.all(promises);
       await carregarOrcamentos();
-      
+
       toast({
         title: "Ordem redefinida",
         description: "A ordem foi restaurada ao padrão!",
@@ -641,7 +752,7 @@ export const OrcamentoPorFunil = ({
   };
 
   const handleStatusChange = (orcamentoId: string, newStatus: boolean) => {
-    setOrcamentos(prev => prev.map(o => 
+    setOrcamentos(prev => prev.map(o =>
       o.id === orcamentoId ? { ...o, active: newStatus } : o
     ));
   };
@@ -662,8 +773,9 @@ export const OrcamentoPorFunil = ({
     setShowHistoricoModal(true);
   };
 
-  const abrirDetalhes = (orcamento: OrcamentoFunil) => {
+  const abrirDetalhes = (orcamento: OrcamentoFunil, tab: string = "info") => {
     setSelectedOrcamento(orcamento);
+    setModalInitialTab(tab);
     setShowDetalhesModal(true);
   };
   const exportarCSV = () => {
@@ -707,128 +819,150 @@ export const OrcamentoPorFunil = ({
   };
   if (loading) {
     return <div className="flex justify-center items-center h-32">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>;
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>;
   }
   return <div className="space-y-6 mx-0 my-0 py-0 px-0">
-      {/* Header Responsivo */}
-      <div className="flex flex-col gap-4 sm:gap-6 lg:flex-row lg:justify-between lg:items-start">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Visualize o investimento de cada funil e seu histórico
-          </p>
-        </div>
-        <div className="flex flex-col xs:flex-row gap-2 w-full lg:w-auto lg:flex-shrink-0">
-          {isEditMode ? (
-            <>
-              <Button variant="outline" size="sm" onClick={resetOrder} className="flex-1 lg:flex-none text-xs sm:text-sm">
-                <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="truncate">Redefinir</span>
-              </Button>
-              <Button size="sm" onClick={() => setIsEditMode(false)} className="flex-1 lg:flex-none text-xs sm:text-sm">
-                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="truncate">Concluir</span>
-              </Button>
-            </>
-          ) : (
-            <>
-              {canManageBudgets && !isPublicView && (
-                <Button variant="outline" size="sm" onClick={() => setIsEditMode(true)} className="flex-1 lg:flex-none text-xs sm:text-sm">
-                  <GripVertical className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                  <span className="truncate">Organizar</span>
-                </Button>
-              )}
-              <Button variant="outline" onClick={exportarCSV} disabled={orcamentos.length === 0} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
-                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="truncate">Exportar CSV</span>
-              </Button>
-              {canManageBudgets && !isPublicView && <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
-                  <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                  <span className="truncate">Novo Orçamento</span>
-                </Button>}
-            </>
-          )}
-        </div>
+    {/* Header Responsivo */}
+    <div className="flex flex-col gap-4 sm:gap-6 lg:flex-row lg:justify-between lg:items-start">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
+          Visualize o investimento de cada funil e seu histórico
+        </p>
       </div>
-
-      {/* Tabs para alternar entre visualizações */}
-      <Tabs defaultValue={clienteId ? "cliente" : "gestores"} className="w-full">
-        
-
-        {/* Aba do Cliente Específico */}
-        {clienteId && <TabsContent value="cliente" className="space-y-6">
-            {/* Filtros de Pesquisa */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Pesquisar por nome do funil ou observações..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
-              </div>
-              <div className="flex items-center gap-2 sm:min-w-[200px]">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedFunil} onValueChange={setSelectedFunil}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por funil" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos os funis</SelectItem>
-                    {funisUnicos
-                      .filter(funil => funil && funil.trim() !== '')
-                      .map(funil => <SelectItem key={funil} value={funil}>
-                        {funil}
-                      </SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2 sm:min-w-[200px]">
-                <Power className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos</SelectItem>
-                    <SelectItem value="ativos">Ativos</SelectItem>
-                    <SelectItem value="desativados">Desativados</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Cards de Orçamentos - Mobile First Grid */}
-            {isEditMode && orcamentosFiltrados.length > 0 && (
-              <div className="bg-muted/50 border border-border rounded-lg p-4 text-sm text-muted-foreground">
-                <GripVertical className="h-4 w-4 inline mr-2" />
-                Organizando... Arraste os cards para reordenar
-              </div>
+      <div className="flex flex-col xs:flex-row gap-2 w-full lg:w-auto lg:flex-shrink-0">
+        {isEditMode ? (
+          <>
+            <Button variant="outline" size="sm" onClick={resetOrder} className="flex-1 lg:flex-none text-xs sm:text-sm">
+              <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="truncate">Redefinir</span>
+            </Button>
+            <Button size="sm" onClick={() => setIsEditMode(false)} className="flex-1 lg:flex-none text-xs sm:text-sm">
+              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="truncate">Concluir</span>
+            </Button>
+          </>
+        ) : (
+          <>
+            {canManageBudgets && !isPublicView && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditMode(true)} className="flex-1 lg:flex-none text-xs sm:text-sm">
+                <GripVertical className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="truncate">Organizar</span>
+              </Button>
             )}
-            
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext items={orcamentosFiltrados.map(o => o.id)} strategy={rectSortingStrategy}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-                  {orcamentosFiltrados.map(orcamento => (
-                    <SortableOrcamentoCard
-                      key={orcamento.id}
-                      orcamento={orcamento}
-                      isEditMode={isEditMode}
-                      isPublicView={isPublicView}
-                      canManageBudgets={canManageBudgets}
-                      onEdit={abrirEdicao}
-                      onDelete={excluirOrcamento}
-                      onHistorico={abrirHistorico}
-                      onDetalhes={abrirDetalhes}
-                      onStatusChange={handleStatusChange}
-                      formatarMoeda={formatarMoeda}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
+            <Button variant="outline" onClick={exportarCSV} disabled={orcamentos.length === 0} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
+              <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="truncate">Exportar CSV</span>
+            </Button>
+            {canManageBudgets && !isPublicView && <Button onClick={() => setShowNovoModal(true)} size="sm" className="flex-1 lg:flex-none text-xs sm:text-sm">
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="truncate">Novo Orçamento</span>
+            </Button>}
+          </>
+        )}
+      </div>
+    </div>
 
-      {orcamentos.length === 0 && <Card>
+    {/* Tabs para alternar entre visualizações */}
+    <Tabs defaultValue={clienteId ? "cliente" : "gestores"} className="w-full">
+
+
+      {/* Aba do Cliente Específico */}
+      {clienteId && <TabsContent value="cliente" className="space-y-6">
+        {/* Filtros de Pesquisa */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Pesquisar por nome do funil ou observações..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+          </div>
+          <div className="flex items-center gap-2 sm:min-w-[200px]">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedFunil} onValueChange={setSelectedFunil}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filtrar por funil" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os funis</SelectItem>
+                {funisUnicos
+                  .filter(funil => funil && funil.trim() !== '')
+                  .map(funil => <SelectItem key={funil} value={funil}>
+                    {funil}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2 sm:min-w-[200px]">
+            <Power className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="ativos">Ativos</SelectItem>
+                <SelectItem value="desativados">Desativados</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Cards de Orçamentos - Mobile First Grid */}
+        {isEditMode && orcamentosFiltrados.length > 0 && (
+          <div className="bg-muted/50 border border-border rounded-lg p-4 text-sm text-muted-foreground">
+            <GripVertical className="h-4 w-4 inline mr-2" />
+            Organizando... Arraste os cards para reordenar
+          </div>
+        )}
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          {isEditMode ? (
+            <SortableContext items={orcamentosFiltrados.map(o => o.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+                {orcamentosFiltrados.map(orcamento => (
+                  <SortableOrcamentoCard
+                    key={orcamento.id}
+                    orcamento={orcamento}
+                    isEditMode={isEditMode}
+                    isPublicView={isPublicView}
+                    canManageBudgets={canManageBudgets}
+                    onEdit={abrirEdicao}
+                    onDelete={excluirOrcamento}
+                    onHistorico={abrirHistorico}
+                    onDetalhes={(o) => abrirDetalhes(o)}
+                    onStatusChange={handleStatusChange}
+                    onOpenCreatives={(o) => abrirDetalhes(o, "criativos")}
+                    formatarMoeda={formatarMoeda}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {orcamentosFiltrados.map((orcamento) => (
+                <SortableOrcamentoCard
+                  key={orcamento.id}
+                  orcamento={orcamento}
+                  isEditMode={isEditMode}
+                  isPublicView={isPublicView}
+                  canManageBudgets={canManageBudgets}
+                  onEdit={abrirEdicao}
+                  onDelete={excluirOrcamento}
+                  onHistorico={abrirHistorico}
+                  onDetalhes={(o) => abrirDetalhes(o)}
+                  onStatusChange={handleStatusChange}
+                  onOpenCreatives={(o) => abrirDetalhes(o, "criativos")}
+                  formatarMoeda={formatarMoeda}
+                />
+              ))}
+            </div>
+          )}
+        </DndContext>
+
+        {orcamentos.length === 0 && <Card>
           <CardContent className="py-8 text-center">
             <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium">Nenhum orçamento cadastrado</h3>
@@ -838,7 +972,7 @@ export const OrcamentoPorFunil = ({
           </CardContent>
         </Card>}
 
-      {orcamentos.length > 0 && orcamentosFiltrados.length === 0 && <Card>
+        {orcamentos.length > 0 && orcamentosFiltrados.length === 0 && <Card>
           <CardContent className="py-8 text-center">
             <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium">Nenhum resultado encontrado</h3>
@@ -847,278 +981,279 @@ export const OrcamentoPorFunil = ({
             </p>
           </CardContent>
         </Card>}
-          </TabsContent>}
+      </TabsContent>}
 
-        {/* Aba dos Gestores */}
-        {showGestorValues && <TabsContent value="gestores" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-            {gestoresOrcamentos.map(gestor => <Card key={gestor.gestor_user_id} className="relative">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={gestor.gestor_avatar} />
-                      <AvatarFallback>
-                        {gestor.gestor_nome.split(' ').map(n => n[0]).join('').toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg font-semibold truncate">
-                        {gestor.gestor_nome}
-                      </CardTitle>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
-                          <span>{gestor.total_clientes} cliente{gestor.total_clientes !== 1 ? 's' : ''}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <TrendingUp className="h-4 w-4" />
-                          <span>{gestor.total_orcamentos} funis</span>
-                        </div>
-                      </div>
+      {/* Aba dos Gestores */}
+      {showGestorValues && <TabsContent value="gestores" className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+          {gestoresOrcamentos.map(gestor => <Card key={gestor.gestor_user_id} className="relative">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={gestor.gestor_avatar} />
+                  <AvatarFallback>
+                    {gestor.gestor_nome.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-lg font-semibold truncate">
+                    {gestor.gestor_nome}
+                  </CardTitle>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Users className="h-4 w-4" />
+                      <span>{gestor.total_clientes} cliente{gestor.total_clientes !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <TrendingUp className="h-4 w-4" />
+                      <span>{gestor.total_orcamentos} funis</span>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-center p-4 bg-muted/50 rounded-lg">
-                    <div className="text-2xl font-bold text-primary">
-                      {formatarMoeda(gestor.total_investimento)}
-                    </div>
-                    <p className="text-sm text-muted-foreground">Total Investimento</p>
-                  </div>
-                  
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {gestor.funis.slice(0, 5).map((funil, index) => <div key={`${funil.cliente_nome}-${funil.nome_funil}-${index}`} className="flex justify-between items-center p-2 rounded border">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">{funil.nome_funil}</p>
-                          <p className="text-xs text-muted-foreground truncate">{funil.cliente_nome}</p>
-                        </div>
-                        <div className="text-sm font-semibold text-primary">
-                          {formatarMoeda(funil.valor_investimento)}
-                        </div>
-                      </div>)}
-                    {gestor.funis.length > 5 && <div className="text-center p-2 text-sm text-muted-foreground">
-                        +{gestor.funis.length - 5} funis adicionais
-                      </div>}
-                  </div>
-                </CardContent>
-              </Card>)}
-          </div>
-          
-          {gestoresOrcamentos.length === 0 && <Card>
-              <CardContent className="py-8 text-center">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium">Nenhum gestor com orçamentos encontrado</h3>
-                <p className="text-muted-foreground">
-                  Os dados dos gestores aparecerão aqui quando houver orçamentos cadastrados e gestores atribuídos aos clientes.
-                </p>
-              </CardContent>
-            </Card>}
-        </TabsContent>}
-      </Tabs>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center p-4 bg-muted/50 rounded-lg">
+                <div className="text-2xl font-bold text-primary">
+                  {formatarMoeda(gestor.total_investimento)}
+                </div>
+                <p className="text-sm text-muted-foreground">Total Investimento</p>
+              </div>
 
-      {/* Modal Novo Orçamento */}
-      <Dialog open={showNovoModal} onOpenChange={setShowNovoModal}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Novo Orçamento</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="nome_funil">Nome do Funil</Label>
-              <Input id="nome_funil" value={formData.nome_funil} onChange={e => setFormData({
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {gestor.funis.slice(0, 5).map((funil, index) => <div key={`${funil.cliente_nome}-${funil.nome_funil}-${index}`} className="flex justify-between items-center p-2 rounded border">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{funil.nome_funil}</p>
+                    <p className="text-xs text-muted-foreground truncate">{funil.cliente_nome}</p>
+                  </div>
+                  <div className="text-sm font-semibold text-primary">
+                    {formatarMoeda(funil.valor_investimento)}
+                  </div>
+                </div>)}
+                {gestor.funis.length > 5 && <div className="text-center p-2 text-sm text-muted-foreground">
+                  +{gestor.funis.length - 5} funis adicionais
+                </div>}
+              </div>
+            </CardContent>
+          </Card>)}
+        </div>
+
+        {gestoresOrcamentos.length === 0 && <Card>
+          <CardContent className="py-8 text-center">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium">Nenhum gestor com orçamentos encontrado</h3>
+            <p className="text-muted-foreground">
+              Os dados dos gestores aparecerão aqui quando houver orçamentos cadastrados e gestores atribuídos aos clientes.
+            </p>
+          </CardContent>
+        </Card>}
+      </TabsContent>}
+    </Tabs>
+
+    {/* Modal Novo Orçamento */}
+    <Dialog open={showNovoModal} onOpenChange={setShowNovoModal}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Novo Orçamento</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="nome_funil">Nome do Funil</Label>
+            <Input id="nome_funil" value={formData.nome_funil} onChange={e => setFormData({
               ...formData,
               nome_funil: e.target.value
             })} placeholder="Ex: Facebook Ads" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="etapa_funil">Categoria</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>{getCategoriaDescricao(formData.etapa_funil)}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="etapa_funil">Categoria</Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p>{getCategoriaDescricao(formData.etapa_funil)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Select value={formData.etapa_funil} onValueChange={value => setFormData({...formData, etapa_funil: value, categoria_explicacao: ''})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIAS_FUNIL.map((categoria) => (
-                    <SelectItem key={categoria.value} value={categoria.value}>
-                      {categoria.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="valor_investimento">Valor do Investimento (R$)</Label>
-              <Input id="valor_investimento" type="number" step="0.01" value={formData.valor_investimento} onChange={e => setFormData({
+            <Select value={formData.etapa_funil} onValueChange={value => setFormData({ ...formData, etapa_funil: value, categoria_explicacao: '' })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIAS_FUNIL.map((categoria) => (
+                  <SelectItem key={categoria.value} value={categoria.value}>
+                    {categoria.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="valor_investimento">Valor do Investimento (R$)</Label>
+            <Input id="valor_investimento" type="number" step="0.01" value={formData.valor_investimento} onChange={e => setFormData({
               ...formData,
               valor_investimento: e.target.value
             })} placeholder="0.00" />
-            </div>
-            <div>
-              <Label htmlFor="observacoes">Observações</Label>
-              <Textarea id="observacoes" value={formData.observacoes} onChange={e => setFormData({
+          </div>
+          <div>
+            <Label htmlFor="observacoes">Observações</Label>
+            <Textarea id="observacoes" value={formData.observacoes} onChange={e => setFormData({
               ...formData,
               observacoes: e.target.value
             })} placeholder="Informações adicionais sobre o orçamento..." rows={2} />
-            </div>
-            <div>
-              <Label htmlFor="categoria_explicacao">Explicação da Categoria</Label>
-              <Textarea id="categoria_explicacao" value={formData.categoria_explicacao} onChange={e => setFormData({
+          </div>
+          <div>
+            <Label htmlFor="categoria_explicacao">Explicação da Categoria</Label>
+            <Textarea id="categoria_explicacao" value={formData.categoria_explicacao} onChange={e => setFormData({
               ...formData,
               categoria_explicacao: e.target.value
             })} placeholder={getCategoriaDescricao(formData.etapa_funil) || 'Adicione uma explicação personalizada...'} rows={2} />
-              <p className="text-xs text-muted-foreground mt-1">
-                Personalize a explicação ou deixe em branco para usar a descrição padrão
-              </p>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowNovoModal(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={salvarOrcamento}>
-                Salvar
-              </Button>
-            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Personalize a explicação ou deixe em branco para usar a descrição padrão
+            </p>
           </div>
-        </DialogContent>
-      </Dialog>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setShowNovoModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarOrcamento}>
+              Salvar
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
 
-      {/* Modal Editar Orçamento */}
-      <Dialog open={showEditarModal} onOpenChange={setShowEditarModal}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Editar Orçamento</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit_nome_funil">Nome do Funil</Label>
-              <Input id="edit_nome_funil" value={formData.nome_funil} onChange={e => setFormData({
+    {/* Modal Editar Orçamento */}
+    <Dialog open={showEditarModal} onOpenChange={setShowEditarModal}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar Orçamento</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="edit_nome_funil">Nome do Funil</Label>
+            <Input id="edit_nome_funil" value={formData.nome_funil} onChange={e => setFormData({
               ...formData,
               nome_funil: e.target.value
             })} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="edit_etapa_funil">Categoria</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>{getCategoriaDescricao(formData.etapa_funil)}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="edit_etapa_funil">Categoria</Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p>{getCategoriaDescricao(formData.etapa_funil)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Select value={formData.etapa_funil} onValueChange={value => setFormData({...formData, etapa_funil: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIAS_FUNIL.map((categoria) => (
-                    <SelectItem key={categoria.value} value={categoria.value}>
-                      {categoria.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="edit_valor_investimento">Valor do Investimento (R$)</Label>
-              <Input id="edit_valor_investimento" type="number" step="0.01" value={formData.valor_investimento} onChange={e => setFormData({
+            <Select value={formData.etapa_funil} onValueChange={value => setFormData({ ...formData, etapa_funil: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIAS_FUNIL.map((categoria) => (
+                  <SelectItem key={categoria.value} value={categoria.value}>
+                    {categoria.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="edit_valor_investimento">Valor do Investimento (R$)</Label>
+            <Input id="edit_valor_investimento" type="number" step="0.01" value={formData.valor_investimento} onChange={e => setFormData({
               ...formData,
               valor_investimento: e.target.value
             })} />
-            </div>
-            <div>
-              <Label htmlFor="edit_observacoes">Observações</Label>
-              <Textarea id="edit_observacoes" value={formData.observacoes} onChange={e => setFormData({
+          </div>
+          <div>
+            <Label htmlFor="edit_observacoes">Observações</Label>
+            <Textarea id="edit_observacoes" value={formData.observacoes} onChange={e => setFormData({
               ...formData,
               observacoes: e.target.value
             })} rows={2} />
-            </div>
-            <div>
-              <Label htmlFor="edit_categoria_explicacao">Explicação da Categoria</Label>
-              <Textarea id="edit_categoria_explicacao" value={formData.categoria_explicacao} onChange={e => setFormData({
+          </div>
+          <div>
+            <Label htmlFor="edit_categoria_explicacao">Explicação da Categoria</Label>
+            <Textarea id="edit_categoria_explicacao" value={formData.categoria_explicacao} onChange={e => setFormData({
               ...formData,
               categoria_explicacao: e.target.value
             })} placeholder={getCategoriaDescricao(formData.etapa_funil) || 'Adicione uma explicação personalizada...'} rows={2} />
-              <p className="text-xs text-muted-foreground mt-1">
-                Personalize a explicação ou deixe em branco para usar a descrição padrão
-              </p>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowEditarModal(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={salvarOrcamento}>
-                Salvar Alterações
-              </Button>
-            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Personalize a explicação ou deixe em branco para usar a descrição padrão
+            </p>
           </div>
-        </DialogContent>
-      </Dialog>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setShowEditarModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarOrcamento}>
+              Salvar Alterações
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
 
-      {/* Modal Histórico */}
-      <Dialog open={showHistoricoModal} onOpenChange={setShowHistoricoModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              Histórico de Alterações - {selectedOrcamento?.nome_funil}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {historico.length > 0 ? <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Valor Anterior</TableHead>
-                    <TableHead>Valor Novo</TableHead>
-                    <TableHead>Motivo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {historico.map(item => <TableRow key={item.id}>
-                      <TableCell>
-                        {format(new Date(item.data_alteracao), "dd/MM/yyyy HH:mm", {
+    {/* Modal Histórico */}
+    <Dialog open={showHistoricoModal} onOpenChange={setShowHistoricoModal}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>
+            Histórico de Alterações - {selectedOrcamento?.nome_funil}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          {historico.length > 0 ? <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Valor Anterior</TableHead>
+                <TableHead>Valor Novo</TableHead>
+                <TableHead>Motivo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {historico.map(item => <TableRow key={item.id}>
+                <TableCell>
+                  {format(new Date(item.data_alteracao), "dd/MM/yyyy HH:mm", {
                     locale: ptBR
                   })}
-                      </TableCell>
-                      <TableCell>
-                        {item.valor_anterior ? formatarMoeda(item.valor_anterior) : '-'}
-                      </TableCell>
-                      <TableCell>
-                        {formatarMoeda(item.valor_novo)}
-                      </TableCell>
-                      <TableCell>
-                        {item.motivo_alteracao}
-                      </TableCell>
-                    </TableRow>)}
-                </TableBody>
-              </Table> : <div className="text-center py-8">
-                <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Nenhum histórico de alterações encontrado</p>
-              </div>}
-          </div>
-        </DialogContent>
-      </Dialog>
+                </TableCell>
+                <TableCell>
+                  {item.valor_anterior ? formatarMoeda(item.valor_anterior) : '-'}
+                </TableCell>
+                <TableCell>
+                  {formatarMoeda(item.valor_novo)}
+                </TableCell>
+                <TableCell>
+                  {item.motivo_alteracao}
+                </TableCell>
+              </TableRow>)}
+            </TableBody>
+          </Table> : <div className="text-center py-8">
+            <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Nenhum histórico de alterações encontrado</p>
+          </div>}
+        </div>
+      </DialogContent>
+    </Dialog>
 
-      {/* Modal Detalhes */}
-      <OrcamentoDetalhesModal
-        open={showDetalhesModal}
-        onOpenChange={setShowDetalhesModal}
-        orcamento={selectedOrcamento}
-      />
-    </div>;
+    {/* Modal Detalhes */}
+    <OrcamentoDetalhesModal
+      open={showDetalhesModal}
+      onOpenChange={setShowDetalhesModal}
+      orcamento={selectedOrcamento}
+      initialTab={modalInitialTab}
+    />
+  </div>;
 };

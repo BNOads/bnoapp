@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, Copy, Archive, FlaskConical, Play, CheckCircle2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { MoreHorizontal, Edit, Copy, Archive, FlaskConical, Play, CheckCircle2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import type { TesteLaboratorio } from '@/types/laboratorio-testes';
 import {
@@ -19,6 +19,23 @@ import {
   VALIDACAO_LABELS,
   VALIDACAO_COLORS,
 } from '@/types/laboratorio-testes';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface TestesTableProps {
   testes: TesteLaboratorio[];
@@ -34,6 +51,9 @@ interface TestesTableProps {
   canEditOwn: boolean;
   canArchive: boolean;
   currentUserId?: string;
+  visibleColumns: string[];
+  columnOrder: string[];
+  onColumnOrderChange: (newOrder: string[]) => void;
 }
 
 type SortKey = 'status' | 'nome' | 'cliente' | 'funil' | 'tipo' | 'gestor' | 'validacao' | 'data';
@@ -51,10 +71,56 @@ function getInitials(nome: string): string {
     .toUpperCase();
 }
 
-function SkeletonRow() {
+interface SortableTableHeadProps {
+  id: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
+}
+
+const SortableTableHead = ({ id, children, onClick, className }: SortableTableHeadProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableHead
+      ref={setNodeRef}
+      style={style}
+      className={className}
+    >
+      <div className="flex items-center gap-1">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab hover:text-primary p-1 -ml-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div className="flex items-center flex-1 cursor-pointer" onClick={onClick}>
+          {children}
+        </div>
+      </div>
+    </TableHead>
+  );
+};
+
+function SkeletonRow({ columnCount }: { columnCount: number }) {
   return (
     <TableRow>
-      {Array.from({ length: 9 }).map((_, i) => (
+      {Array.from({ length: columnCount + 1 }).map((_, i) => (
         <TableCell key={i}>
           <div className="h-4 w-full animate-pulse rounded bg-muted" />
         </TableCell>
@@ -77,9 +143,23 @@ export const TestesTable = ({
   canEditOwn,
   canArchive,
   currentUserId,
+  visibleColumns,
+  columnOrder,
+  onColumnOrderChange,
 }: TestesTableProps) => {
   const [sortKey, setSortKey] = useState<SortKey>('data');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -137,7 +217,7 @@ export const TestesTable = ({
     return false;
   };
 
-  const columns: { key: SortKey; label: string; className?: string }[] = [
+  const allColumns: { key: SortKey; label: string; className?: string }[] = [
     { key: 'status', label: 'Status' },
     { key: 'nome', label: 'Nome' },
     { key: 'data', label: 'Data' },
@@ -145,8 +225,25 @@ export const TestesTable = ({
     { key: 'funil', label: 'Funil' },
     { key: 'tipo', label: 'Tipo' },
     { key: 'gestor', label: 'Gestor' },
-    { key: 'validacao', label: 'Validacao' },
+    { key: 'validacao', label: 'Validação' },
   ];
+
+  const orderedVisibleColumns = useMemo(() => {
+    return columnOrder
+      .filter(id => visibleColumns.includes(id))
+      .map(id => allColumns.find(col => col.key === id))
+      .filter(Boolean) as { key: SortKey; label: string; className?: string }[];
+  }, [columnOrder, visibleColumns]);
+
+  const handleColumnDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = columnOrder.indexOf(active.id as string);
+      const newIndex = columnOrder.indexOf(over.id as string);
+      const newOrder = arrayMove(columnOrder, oldIndex, newIndex);
+      onColumnOrderChange(newOrder);
+    }
+  };
 
   if (loading) {
     return (
@@ -154,7 +251,7 @@ export const TestesTable = ({
         <Table>
           <TableHeader>
             <TableRow>
-              {columns.map(col => (
+              {orderedVisibleColumns.map(col => (
                 <TableHead key={col.key}>{col.label}</TableHead>
               ))}
               <TableHead className="w-[50px]" />
@@ -162,7 +259,7 @@ export const TestesTable = ({
           </TableHeader>
           <TableBody>
             {Array.from({ length: 5 }).map((_, i) => (
-              <SkeletonRow key={i} />
+              <SkeletonRow key={i} columnCount={orderedVisibleColumns.length} />
             ))}
           </TableBody>
         </Table>
@@ -185,18 +282,29 @@ export const TestesTable = ({
       <Table>
         <TableHeader>
           <TableRow>
-            {columns.map(col => (
-              <TableHead
-                key={col.key}
-                className="cursor-pointer select-none hover:bg-muted/50 transition-colors"
-                onClick={() => handleSort(col.key)}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleColumnDragEnd}
+            >
+              <SortableContext
+                items={orderedVisibleColumns.map(col => col.key)}
+                strategy={horizontalListSortingStrategy}
               >
-                <div className="flex items-center">
-                  {col.label}
-                  <SortIcon column={col.key} />
-                </div>
-              </TableHead>
-            ))}
+                {orderedVisibleColumns.map(col => (
+                  <SortableTableHead
+                    key={col.key}
+                    id={col.key}
+                    onClick={() => handleSort(col.key)}
+                  >
+                    <div className="flex items-center whitespace-nowrap">
+                      {col.label}
+                      <SortIcon column={col.key} />
+                    </div>
+                  </SortableTableHead>
+                ))}
+              </SortableContext>
+            </DndContext>
             <TableHead className="w-[50px]" />
           </TableRow>
         </TableHeader>
@@ -208,98 +316,113 @@ export const TestesTable = ({
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => onNavigate(teste.id)}
               >
-                {/* Status */}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-1.5">
-                    <Badge
-                      variant="outline"
-                      className={STATUS_COLORS[teste.status]}
-                    >
-                      {STATUS_LABELS[teste.status]}
-                    </Badge>
-                    {teste.status === 'planejado' && canUserEdit(teste) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                        onClick={() => onStartTeste(teste.id)}
-                        title="Iniciar teste"
-                      >
-                        <Play className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {teste.status === 'rodando' && canUserEdit(teste) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-violet-600 hover:text-violet-700 hover:bg-violet-50"
-                        onClick={() => onConcludeTeste(teste.id)}
-                        title="Concluir teste"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {(teste.status === 'concluido' || teste.status === 'cancelado') && canUserEdit(teste) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                        onClick={() => onRedoTeste(teste.id)}
-                        title="Refazer teste"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-
-                {/* Nome */}
-                <TableCell className="text-sm font-medium max-w-[200px] truncate">
-                  {teste.nome}
-                </TableCell>
-
-                {/* Data */}
-                <TableCell className="whitespace-nowrap text-sm">
-                  {format(new Date(teste.created_at), 'dd/MM/yyyy')}
-                </TableCell>
-
-                {/* Cliente */}
-                <TableCell className="text-sm">
-                  {teste.cliente?.nome || '-'}
-                </TableCell>
-
-                {/* Funil */}
-                <TableCell className="text-sm">
-                  {teste.funil || '-'}
-                </TableCell>
-
-                {/* Tipo */}
-                <TableCell className="text-sm">
-                  {TIPO_LABELS[teste.tipo_teste]}
-                </TableCell>
-
-                {/* Gestor */}
-                <TableCell>
-                  {teste.gestor ? (
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-[10px]">
-                          {getInitials(teste.gestor.nome)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">{teste.gestor.nome}</span>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">-</span>
-                  )}
-                </TableCell>
-
-                {/* Validacao */}
-                <TableCell>
-                  <Badge variant="outline" className={VALIDACAO_COLORS[teste.validacao]}>
-                    {VALIDACAO_LABELS[teste.validacao]}
-                  </Badge>
-                </TableCell>
+                {orderedVisibleColumns.map(col => {
+                  switch (col.key) {
+                    case 'status':
+                      return (
+                        <TableCell key={col.key} onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className={STATUS_COLORS[teste.status]}
+                            >
+                              {STATUS_LABELS[teste.status]}
+                            </Badge>
+                            {teste.status === 'planejado' && canUserEdit(teste) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                onClick={() => onStartTeste(teste.id)}
+                                title="Iniciar teste"
+                              >
+                                <Play className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {teste.status === 'rodando' && canUserEdit(teste) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                                onClick={() => onConcludeTeste(teste.id)}
+                                title="Concluir teste"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {(teste.status === 'concluido' || teste.status === 'cancelado') && canUserEdit(teste) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                onClick={() => onRedoTeste(teste.id)}
+                                title="Refazer teste"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      );
+                    case 'nome':
+                      return (
+                        <TableCell key={col.key} className="text-sm font-medium max-w-[200px] truncate">
+                          {teste.nome}
+                        </TableCell>
+                      );
+                    case 'data':
+                      return (
+                        <TableCell key={col.key} className="whitespace-nowrap text-sm">
+                          {format(new Date(teste.created_at), 'dd/MM/yyyy')}
+                        </TableCell>
+                      );
+                    case 'cliente':
+                      return (
+                        <TableCell key={col.key} className="text-sm">
+                          {teste.cliente?.nome || '-'}
+                        </TableCell>
+                      );
+                    case 'funil':
+                      return (
+                        <TableCell key={col.key} className="text-sm">
+                          {teste.funil || '-'}
+                        </TableCell>
+                      );
+                    case 'tipo':
+                      return (
+                        <TableCell key={col.key} className="text-sm">
+                          {TIPO_LABELS[teste.tipo_teste]}
+                        </TableCell>
+                      );
+                    case 'gestor':
+                      return (
+                        <TableCell key={col.key}>
+                          {teste.gestor ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-[10px]">
+                                  {getInitials(teste.gestor.nome)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{teste.gestor.nome}</span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      );
+                    case 'validacao':
+                      return (
+                        <TableCell key={col.key}>
+                          <Badge variant="outline" className={VALIDACAO_COLORS[teste.validacao]}>
+                            {VALIDACAO_LABELS[teste.validacao]}
+                          </Badge>
+                        </TableCell>
+                      );
+                    default:
+                      return null;
+                  }
+                })}
 
                 {/* Actions */}
                 <TableCell

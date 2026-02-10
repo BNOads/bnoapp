@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type {
-  TesteLaboratorio,
-  TesteFormData,
-  TesteFilters,
-  TesteEvidencia,
-  TesteComentario,
-  TesteAuditLog,
-  TesteTemplate,
+import {
+  TIPO_LABELS,
+  CANAL_LABELS,
+  type TesteLaboratorio,
+  type TesteFormData,
+  type TesteFilters,
+  type TesteEvidencia,
+  type TesteComentario,
+  type TesteAuditLog,
+  type TesteTemplate,
 } from '@/types/laboratorio-testes';
 
 export const useLaboratorioTestes = (
@@ -145,6 +147,56 @@ export const useLaboratorioTestes = (
         .single();
 
       if (error) throw error;
+
+      // Send notification to the responsible manager and admins
+      try {
+        const { data: admins } = await supabase
+          .from('colaboradores')
+          .select('user_id')
+          .in('nivel_acesso', ['admin', 'dono'])
+          .not('user_id', 'is', null);
+
+        const adminIds = admins?.map(a => a.user_id).filter(Boolean) as string[] || [];
+
+        let gestorUserId: string | null = null;
+        if (formData.gestor_responsavel_id) {
+          const { data: gestor } = await supabase
+            .from('colaboradores')
+            .select('user_id')
+            .eq('id', formData.gestor_responsavel_id)
+            .single();
+
+          if (gestor?.user_id) {
+            gestorUserId = gestor.user_id;
+          }
+        }
+
+        const destinatarios = Array.from(new Set([
+          ...adminIds,
+          gestorUserId
+        ])).filter(Boolean) as string[];
+
+        if (destinatarios.length > 0) {
+          const { data: cliente } = await supabase
+            .from('clientes')
+            .select('nome')
+            .eq('id', formData.cliente_id)
+            .maybeSingle();
+
+          await supabase.from('avisos').insert({
+            titulo: `Novo Teste: ${formData.nome}`,
+            conteudo: `Um novo teste foi criado.\nCliente: ${cliente?.nome || 'Não informado'}\nTipo: ${TIPO_LABELS[formData.tipo_teste]}\nCanal: ${CANAL_LABELS[formData.canal]}`,
+            tipo: 'info',
+            prioridade: 'normal',
+            destinatarios: destinatarios,
+            data_inicio: new Date().toISOString(),
+            created_by: user.id,
+            ativo: true
+          });
+        }
+      } catch (notifyError) {
+        console.error('Erro ao criar notificação:', notifyError);
+      }
 
       // Log creation
       await supabase.from('testes_laboratorio_audit_log').insert({

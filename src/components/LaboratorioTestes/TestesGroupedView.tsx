@@ -21,6 +21,9 @@ interface TestesGroupedViewProps {
     canArchive: boolean;
     currentUserId: string | null;
     loading: boolean;
+    visibleColumns: string[];
+    columnOrder: string[];
+    onColumnOrderChange: (newOrder: string[]) => void;
 }
 
 export const TestesGroupedView = ({
@@ -36,7 +39,10 @@ export const TestesGroupedView = ({
     canEditOwn,
     canArchive,
     currentUserId,
-    loading
+    loading,
+    visibleColumns,
+    columnOrder,
+    onColumnOrderChange,
 }: TestesGroupedViewProps) => {
     // Agrupar testes por gestor
     const groupedData = useMemo(() => {
@@ -157,7 +163,10 @@ export const TestesGroupedView = ({
                                     canEditAll={canEditAll}
                                     canEditOwn={canEditOwn}
                                     canArchive={canArchive}
-                                    currentUserId={currentUserId}
+                                    currentUserId={currentUserId || undefined}
+                                    visibleColumns={visibleColumns}
+                                    columnOrder={columnOrder}
+                                    onColumnOrderChange={onColumnOrderChange}
                                 />
                             </div>
                         </CollapsibleContent>

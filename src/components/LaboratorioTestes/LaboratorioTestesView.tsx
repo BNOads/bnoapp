@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FlaskConical, Plus, Search, Filter, X, Beaker, TrendingUp, Activity, CalendarDays, LayoutList, LayoutGrid } from 'lucide-react';
+import { FlaskConical, Plus, Search, Filter, X, Beaker, TrendingUp, Activity, CalendarDays, LayoutList, LayoutGrid, ListFilter, GripVertical, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { useLaboratorioTestes } from '@/hooks/useLaboratorioTestes';
 import { useTestePermissions } from '@/hooks/useTestePermissions';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,6 +40,67 @@ export const LaboratorioTestesView = () => {
   const [concludingTesteId, setConcludingTesteId] = useState<string | null>(null);
   const [concludingTesteName, setConcludingTesteName] = useState('');
   const [viewMode, setViewMode] = useState<'lista' | 'agrupado'>('agrupado');
+
+  // Definição das colunas configuráveis
+  const columnDefinitions = [
+    { id: 'status', label: 'Status', default: true },
+    { id: 'nome', label: 'Nome', default: true },
+    { id: 'data', label: 'Data', default: true },
+    { id: 'cliente', label: 'Cliente', default: true },
+    { id: 'funil', label: 'Funil', default: true },
+    { id: 'tipo', label: 'Tipo', default: true },
+    { id: 'gestor', label: 'Gestor', default: true },
+    { id: 'validacao', label: 'Validação', default: true },
+  ];
+
+  const defaultColumnOrder = columnDefinitions.map(c => c.id);
+
+  // Estado para colunas visíveis (carrega do localStorage)
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('testes_visible_columns');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return columnDefinitions.filter(c => c.default).map(c => c.id);
+      }
+    }
+    return columnDefinitions.filter(c => c.default).map(c => c.id);
+  });
+
+  // Estado para ordem das colunas (carrega do localStorage)
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('testes_column_order');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const allColumnsSet = new Set(defaultColumnOrder);
+        const validOrder = parsed.filter((id: string) => allColumnsSet.has(id));
+        const missing = defaultColumnOrder.filter(id => !validOrder.includes(id));
+        return [...validOrder, ...missing];
+      } catch {
+        return defaultColumnOrder;
+      }
+    }
+    return defaultColumnOrder;
+  });
+
+  // Persistir preferências
+  useEffect(() => {
+    localStorage.setItem('testes_visible_columns', JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
+  useEffect(() => {
+    localStorage.setItem('testes_column_order', JSON.stringify(columnOrder));
+  }, [columnOrder]);
+
+  const toggleColumn = (columnId: string) => {
+    setVisibleColumns(prev =>
+      prev.includes(columnId)
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId]
+    );
+  };
 
   const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
   const [gestores, setGestores] = useState<{ id: string; user_id: string; nome: string }[]>([]);
@@ -125,7 +194,7 @@ export const LaboratorioTestesView = () => {
       validacao: data.validacao,
       resultado_observado: data.resultado_observado ? parseFloat(data.resultado_observado) : null,
       aprendizados: data.aprendizados || null,
-    }).eq('id', concludingTesteId);
+    } as any).eq('id', concludingTesteId);
 
     // Insert comment with the result description
     await supabase.from('testes_laboratorio_comentarios').insert({
@@ -162,19 +231,9 @@ export const LaboratorioTestesView = () => {
 
   if (permLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="space-y-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-1/3" />
-            <div className="h-4 bg-gray-200 rounded w-1/2" />
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-24 bg-gray-200 rounded-lg" />
-              ))}
-            </div>
-            <div className="h-64 bg-gray-200 rounded-lg" />
-          </div>
-        </div>
+      <div className="container mx-auto p-6 text-center">
+        <div className="animate-spin h-8 w-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4" />
+        <p className="text-muted-foreground font-medium">Carregando permissões...</p>
       </div>
     );
   }
@@ -354,6 +413,28 @@ export const LaboratorioTestesView = () => {
             </Badge>
           )}
         </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <ListFilter className="h-4 w-4 mr-2" />
+              Colunas
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[200px]">
+            <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {columnDefinitions.map((col) => (
+              <DropdownMenuCheckboxItem
+                key={col.id}
+                checked={visibleColumns.includes(col.id)}
+                onCheckedChange={() => toggleColumn(col.id)}
+              >
+                {col.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Collapsible Filter Panel */}
@@ -629,6 +710,9 @@ export const LaboratorioTestesView = () => {
                 canEditOwn={canEditOwn}
                 canArchive={canArchive}
                 currentUserId={currentUserId}
+                visibleColumns={visibleColumns}
+                columnOrder={columnOrder}
+                onColumnOrderChange={setColumnOrder}
               />
             ) : (
               <TestesGroupedView
@@ -645,6 +729,9 @@ export const LaboratorioTestesView = () => {
                 canEditOwn={canEditOwn}
                 canArchive={canArchive}
                 currentUserId={currentUserId}
+                visibleColumns={visibleColumns}
+                columnOrder={columnOrder}
+                onColumnOrderChange={setColumnOrder}
               />
             )
           )}

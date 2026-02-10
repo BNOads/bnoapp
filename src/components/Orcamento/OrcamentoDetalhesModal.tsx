@@ -8,8 +8,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, Calendar, FileText, History, TrendingUp, Info } from 'lucide-react';
+import { DollarSign, Calendar, FileText, History, TrendingUp, Info, FileImage, AlertCircle } from 'lucide-react';
 import { getCategoriaLabel, getCategoriaDescricao, MESES, STATUS_ORCAMENTO } from '@/lib/orcamentoConstants';
+import { OrcamentoCriativosTab } from './OrcamentoCriativosTab';
 
 interface OrcamentoDetalhes {
   id: string;
@@ -25,6 +26,7 @@ interface OrcamentoDetalhes {
   data_atualizacao?: string;
   created_at?: string;
   cliente_nome?: string;
+  cliente_id?: string;
 }
 
 interface HistoricoItem {
@@ -40,11 +42,17 @@ interface OrcamentoDetalhesModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orcamento: OrcamentoDetalhes | null;
+  initialTab?: string;
 }
 
-export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento }: OrcamentoDetalhesModalProps) => {
+export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento, initialTab = "info" }: OrcamentoDetalhesModalProps) => {
   const [historico, setHistorico] = useState<HistoricoItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab, open]);
 
   useEffect(() => {
     if (open && orcamento?.id) {
@@ -138,10 +146,14 @@ export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento }: Orcame
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="info" className="flex items-center gap-2">
               <Info className="h-4 w-4" />
               Informações
+            </TabsTrigger>
+            <TabsTrigger value="criativos" className="flex items-center gap-2">
+              <FileImage className="h-4 w-4" />
+              Criativos
             </TabsTrigger>
             <TabsTrigger value="historico" className="flex items-center gap-2">
               <History className="h-4 w-4" />
@@ -229,6 +241,17 @@ export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento }: Orcame
               <p className="text-xs text-muted-foreground text-center">
                 Última atualização: {format(new Date(orcamento.data_atualizacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
               </p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="criativos" className="mt-4">
+            {orcamento.id && orcamento.cliente_id ? (
+              <OrcamentoCriativosTab orcamentoId={orcamento.id} clienteId={orcamento.cliente_id} />
+            ) : (
+              <div className="text-center py-8">
+                <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Informações do cliente não encontradas para este funil.</p>
+              </div>
             )}
           </TabsContent>
 
