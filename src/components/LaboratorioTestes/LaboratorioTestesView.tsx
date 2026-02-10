@@ -31,7 +31,7 @@ export const LaboratorioTestesView = () => {
   const [editingTeste, setEditingTeste] = useState<TesteLaboratorio | null>(null);
   const [concludingTesteId, setConcludingTesteId] = useState<string | null>(null);
   const [concludingTesteName, setConcludingTesteName] = useState('');
-  const [viewMode, setViewMode] = useState<'lista' | 'agrupado'>('lista');
+  const [viewMode, setViewMode] = useState<'lista' | 'agrupado'>('agrupado');
 
   const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
   const [gestores, setGestores] = useState<{ id: string; user_id: string; nome: string }[]>([]);
@@ -197,46 +197,31 @@ export const LaboratorioTestesView = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar testes..."
-              value={filters.search}
-              onChange={(e) => updateFilter('search', e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <div className="flex items-center p-1 bg-muted rounded-lg border ml-2">
-            <Button
-              variant={viewMode === 'lista' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('lista')}
-              className={viewMode === 'lista' ? 'bg-white shadow-sm h-8 px-3' : 'h-8 px-3 text-muted-foreground'}
-            >
-              <LayoutList className="h-4 w-4 mr-2" />
-              Tabela
-            </Button>
-            <Button
-              variant={viewMode === 'agrupado' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('agrupado')}
-              className={viewMode === 'agrupado' ? 'bg-white shadow-sm h-8 px-3' : 'h-8 px-3 text-muted-foreground'}
-            >
-              <LayoutGrid className="h-4 w-4 mr-2" />
-              Agrupado
-            </Button>
-          </div>
-          {canCreate && (
+        {canCreate && (
+          <motion.div
+            animate={{
+              scale: [1, 1.03, 1],
+              boxShadow: [
+                "0px 0px 0px rgba(124, 58, 237, 0)",
+                "0px 0px 15px rgba(124, 58, 237, 0.4)",
+                "0px 0px 0px rgba(124, 58, 237, 0)"
+              ]
+            }}
+            transition={{
+              repeat: Infinity,
+              duration: 2,
+              ease: "easeInOut"
+            }}
+          >
             <Button
               onClick={() => setShowNovoModal(true)}
-              className="bg-violet-600 hover:bg-violet-700"
+              className="bg-violet-600 hover:bg-violet-700 h-11 px-6 text-base font-semibold shadow-lg transition-all hover:scale-105 active:scale-95"
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-5 w-5" />
               Novo Teste
             </Button>
-          )}
-        </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Stats Row */}
@@ -372,162 +357,202 @@ export const LaboratorioTestesView = () => {
       </div>
 
       {/* Collapsible Filter Panel */}
-      {showFilters && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {/* Cliente */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Cliente</label>
-                <Select
-                  value={filters.cliente_id || 'all'}
-                  onValueChange={(v) => updateFilter('cliente_id', v === 'all' ? '' : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os clientes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os clientes</SelectItem>
-                    {clientes.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      {
+        showFilters && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {/* Cliente */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Cliente</label>
+                  <Select
+                    value={filters.cliente_id || 'all'}
+                    onValueChange={(v) => updateFilter('cliente_id', v === 'all' ? '' : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos os clientes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os clientes</SelectItem>
+                      {clientes.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Funil */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Funil</label>
+                  <Select
+                    value={filters.funil || 'all'}
+                    onValueChange={(v) => updateFilter('funil', v === 'all' ? '' : v)}
+                    disabled={!filters.cliente_id}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={filters.cliente_id ? 'Selecione o funil' : 'Selecione um cliente primeiro'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os funis</SelectItem>
+                      {funis.map((f) => (
+                        <SelectItem key={f} value={f}>{f}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Gestor */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Gestor</label>
+                  <Select
+                    value={filters.gestor_id || 'all'}
+                    onValueChange={(v) => updateFilter('gestor_id', v === 'all' ? '' : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos os gestores" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os gestores</SelectItem>
+                      {gestores.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Tipo */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Tipo</label>
+                  <Select
+                    value={filters.tipo_teste || 'all'}
+                    onValueChange={(v) => updateFilter('tipo_teste', v === 'all' ? '' : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos os tipos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os tipos</SelectItem>
+                      {Object.entries(TIPO_LABELS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Status */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Status</label>
+                  <Select
+                    value={filters.status || 'all'}
+                    onValueChange={(v) => updateFilter('status', v === 'all' ? '' : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos os status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os status</SelectItem>
+                      {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Validacao */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Validacao</label>
+                  <Select
+                    value={filters.validacao || 'all'}
+                    onValueChange={(v) => updateFilter('validacao', v === 'all' ? '' : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas as validacoes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as validacoes</SelectItem>
+                      {Object.entries(VALIDACAO_LABELS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Data Inicio */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Data Inicio</label>
+                  <Input
+                    type="date"
+                    value={filters.data_inicio}
+                    onChange={(e) => updateFilter('data_inicio', e.target.value)}
+                  />
+                </div>
+
+                {/* Data Fim */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Data Fim</label>
+                  <Input
+                    type="date"
+                    value={filters.data_fim}
+                    onChange={(e) => updateFilter('data_fim', e.target.value)}
+                  />
+                </div>
               </div>
 
-              {/* Funil */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Funil</label>
-                <Select
-                  value={filters.funil || 'all'}
-                  onValueChange={(v) => updateFilter('funil', v === 'all' ? '' : v)}
-                  disabled={!filters.cliente_id}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={filters.cliente_id ? 'Selecione o funil' : 'Selecione um cliente primeiro'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os funis</SelectItem>
-                    {funis.map((f) => (
-                      <SelectItem key={f} value={f}>{f}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {hasActiveFilters && (
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Limpar Filtros
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+      }
 
-              {/* Gestor */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Gestor</label>
-                <Select
-                  value={filters.gestor_id || 'all'}
-                  onValueChange={(v) => updateFilter('gestor_id', v === 'all' ? '' : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os gestores" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os gestores</SelectItem>
-                    {gestores.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* Search and Toggle Row */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome do teste, cliente ou gestor..."
+            value={filters.search}
+            onChange={(e) => updateFilter('search', e.target.value)}
+            className="pl-11 h-12 text-base shadow-sm border-gray-300 focus:border-violet-500 focus:ring-violet-500 rounded-xl"
+          />
+        </div>
 
-              {/* Tipo */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Tipo</label>
-                <Select
-                  value={filters.tipo_teste || 'all'}
-                  onValueChange={(v) => updateFilter('tipo_teste', v === 'all' ? '' : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os tipos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os tipos</SelectItem>
-                    {Object.entries(TIPO_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Status */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Status</label>
-                <Select
-                  value={filters.status || 'all'}
-                  onValueChange={(v) => updateFilter('status', v === 'all' ? '' : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os status</SelectItem>
-                    {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Validacao */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Validacao</label>
-                <Select
-                  value={filters.validacao || 'all'}
-                  onValueChange={(v) => updateFilter('validacao', v === 'all' ? '' : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todas as validacoes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as validacoes</SelectItem>
-                    {Object.entries(VALIDACAO_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Data Inicio */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Data Inicio</label>
-                <Input
-                  type="date"
-                  value={filters.data_inicio}
-                  onChange={(e) => updateFilter('data_inicio', e.target.value)}
-                />
-              </div>
-
-              {/* Data Fim */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Data Fim</label>
-                <Input
-                  type="date"
-                  value={filters.data_fim}
-                  onChange={(e) => updateFilter('data_fim', e.target.value)}
-                />
-              </div>
-            </div>
-
-            {hasActiveFilters && (
-              <div className="mt-4 flex justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4 mr-1" />
-                  Limpar Filtros
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+        <div className="flex items-center p-1.5 bg-gray-100 rounded-2xl border shadow-sm self-end md:self-auto">
+          <Button
+            variant={viewMode === 'lista' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('lista')}
+            className={viewMode === 'lista'
+              ? 'bg-white shadow-md h-9 px-5 rounded-xl font-bold text-violet-700'
+              : 'h-9 px-5 text-muted-foreground hover:bg-gray-200 rounded-xl transition-all'}
+          >
+            <LayoutList className="h-4 w-4 mr-2" />
+            Tabela
+          </Button>
+          <Button
+            variant={viewMode === 'agrupado' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('agrupado')}
+            className={viewMode === 'agrupado'
+              ? 'bg-white shadow-md h-9 px-5 rounded-xl font-bold text-violet-700'
+              : 'h-9 px-5 text-muted-foreground hover:bg-gray-200 rounded-xl transition-all'}
+          >
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            Agrupado
+          </Button>
+        </div>
+      </div>
 
       {/* Tabs */}
       <Tabs defaultValue="lista" className="w-full">
@@ -645,15 +670,17 @@ export const LaboratorioTestesView = () => {
         currentColaboradorId={currentColaboradorId}
       />
 
-      {editingTeste && (
-        <EditarTesteModal
-          open={!!editingTeste}
-          onOpenChange={(open) => { if (!open) setEditingTeste(null); }}
-          teste={editingTeste}
-          onSuccess={refetch}
-          updateTeste={updateTeste}
-        />
-      )}
+      {
+        editingTeste && (
+          <EditarTesteModal
+            open={!!editingTeste}
+            onOpenChange={(open) => { if (!open) setEditingTeste(null); }}
+            teste={editingTeste}
+            onSuccess={refetch}
+            updateTeste={updateTeste}
+          />
+        )
+      }
 
       <ConcluirTesteModal
         open={!!concludingTesteId}
@@ -661,6 +688,6 @@ export const LaboratorioTestesView = () => {
         onConfirm={handleConfirmConclude}
         testeName={concludingTesteName}
       />
-    </div>
+    </div >
   );
 };
