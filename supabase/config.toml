@@ -2,18 +2,14 @@ project_id = "tbdooscfrrkwfutkdjha"
 
 [auth]
 enabled = true
-external_email_redirect_urls = []
-external_phone_redirect_urls = []
-external_providers_enabled = true
-sms_provider = "twilio"
 
 [auth.external.google]
 enabled = true
-redirect_urls = []
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
 
 [db]
-pooler_enabled = false
-major_version = 15
+major_version = 17
 
 [realtime]
 enabled = true

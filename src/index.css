@@ -291,6 +291,22 @@ body {
   flex-shrink: 0;
 }
 
+/* Laboratório de Testes - Efervescente animation para testes rodando */
+@keyframes efervescente {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.3), 0 0 8px rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5), 0 0 16px rgba(16, 185, 129, 0.25);
+    border-color: rgba(16, 185, 129, 0.7);
+  }
+}
+
+.badge-rodando {
+  animation: efervescente 2s ease-in-out infinite;
+}
+
 @keyframes cursorLabelFade {
   0%, 85% { opacity: 1; }
   100% { opacity: 0; }

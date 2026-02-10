@@ -21,6 +21,7 @@ import { LancamentosAtivos } from "@/components/Dashboard/LancamentosAtivos";
 import { AtalhosRapidos } from "@/components/Dashboard/AtalhosRapidos";
 import { MeusClientesCard } from "@/components/Dashboard/MeusClientesCard";
 import { AniversariosProximos } from "@/components/Dashboard/AniversariosProximos";
+import { TestesProximosVencer } from "@/components/Dashboard/TestesProximosVencer";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -393,6 +394,7 @@ export function DashboardView() {
       {/* Sidebar - Atalhos Rápidos (Desktop) */}
       <aside className="hidden lg:block w-1/4 min-w-[250px] space-y-4">
         <AniversariosProximos />
+        <TestesProximosVencer />
         <AtalhosRapidos variant="sidebar" />
         <MeusClientesCard />
       </aside>
@@ -403,6 +405,7 @@ export function DashboardView() {
         {/* Atalhos Rápidos & Meus Clientes (Mobile Only) */}
         <div className="space-y-6 lg:hidden">
           <AniversariosProximos />
+          <TestesProximosVencer />
           <AtalhosRapidos variant="grid" />
           <MeusClientesCard />
         </div>

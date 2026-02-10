@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download, Heart } from "lucide-react";
+import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download, Heart, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -100,6 +100,14 @@ export const FerramentasView = () => {
   const { toast } = useToast();
 
   const tools: Tool[] = [
+    {
+      id: "laboratorio-testes",
+      title: "Laboratório de Testes",
+      description: "Registre, acompanhe e aprenda com testes de tráfego de forma centralizada",
+      icon: FlaskConical,
+      component: null,
+      color: "text-violet-600"
+    },
     {
       id: "criador-criativos",
       title: "Criador de Criativos",
@@ -367,6 +375,11 @@ export const FerramentasView = () => {
   };
 
   const handleToolSelect = (toolId: string) => {
+    // Redirecionar para /laboratorio-testes
+    if (toolId === 'laboratorio-testes') {
+      navigate('/laboratorio-testes');
+      return;
+    }
     // Redirecionar para /criador-criativos
     if (toolId === 'criador-criativos') {
       navigate('/criador-criativos');

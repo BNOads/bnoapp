@@ -40,6 +40,8 @@ import ArquivoReuniao from "./pages/ArquivoReuniao";
 import CriadorCriativos from "./pages/CriadorCriativos";
 import CRMPage from "./pages/CRM";
 import CulturaTimePage from "./pages/CulturaTime";
+import LaboratorioTestes from "./pages/LaboratorioTestes";
+import LaboratorioTesteDetalhes from "./pages/LaboratorioTesteDetalhes";
 import { AppLayout } from "@/components/Layout/AppLayout";
 
 const queryClient = new QueryClient({
@@ -191,6 +193,16 @@ function App() {
                   <Route path="/criador-criativos" element={
                     <ProtectedRoute>
                       <CriadorCriativos />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/laboratorio-testes" element={
+                    <ProtectedRoute>
+                      <LaboratorioTestes />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/laboratorio-testes/:id" element={
+                    <ProtectedRoute>
+                      <LaboratorioTesteDetalhes />
                     </ProtectedRoute>
                   } />
                   <Route path="/crm" element={<CRMPage />} />
