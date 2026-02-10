@@ -48,15 +48,52 @@ export const CreativeDownloaderView = () => {
 
             // Handle YouTube specific message or limitation
             if (data.hosting === 'youtube') {
-                if (data.message && data.message.includes("/download")) {
+                console.log("Detectado YouTube, tentando download via youtube-dl function...");
+
+                const { data: ytData, error: ytError } = await supabase.functions.invoke('youtube-dl', {
+                    body: { url },
+                });
+
+                if (ytError) {
+                    console.error("Erro no youtube-dl:", ytError);
                     toast({
-                        title: "YouTube Download",
-                        description: "O download direto do YouTube via web não é suportado por esta API (requer bot Telegram). Tente outro link ou plataforma.",
-                        variant: "warning",
+                        title: "Erro no YouTube",
+                        description: "Não foi possível processar o vídeo do YouTube. Tente novamente mais tarde.",
+                        variant: "destructive",
                     });
-                    // If no download_url is present, return early to avoid error
-                    if (!data.download_url && !data.url) return;
+                    return;
                 }
+
+                // Create a blob from the response stream/data if possible, or handle the download link if the function returns one. 
+                // The current youtube-dl function returns a stream. 
+                // However, invoke returns JSON by default unless responseType is set.
+
+                // Let's adjust the invoke to handle blob response
+                const response = await supabase.functions.invoke('youtube-dl', {
+                    body: { url },
+                    responseType: 'blob'
+                });
+
+                if (response.error) {
+                    throw new Error("Erro no download do YouTube: " + response.error.message);
+                }
+
+                // Create download link from blob
+                const blob = response.data;
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = "video.mp4"; // Name could be improved if we parse header
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(downloadUrl);
+
+                toast({
+                    title: "Sucesso!",
+                    description: "Download do YouTube iniciado.",
+                });
+                return;
             }
 
             // Logic to find the best download link

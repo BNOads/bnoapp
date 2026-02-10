@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import ytdl from "npm:@distube/ytdl-core";
+import ytdl from "npm:@distube/ytdl-core@latest";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -23,6 +23,7 @@ serve(async (req) => {
 
         console.log(`Processing YouTube URL: ${url}`);
 
+        // Basic validation
         if (!ytdl.validateURL(url)) {
             return new Response(JSON.stringify({ error: 'Invalid YouTube URL' }), {
                 status: 400,
@@ -30,16 +31,16 @@ serve(async (req) => {
             });
         }
 
-        // Get video info
+        // Get info
         const info = await ytdl.getInfo(url);
         const title = info.videoDetails.title.replace(/[^\w\s]/gi, '');
         console.log(`Video Title: ${title}`);
 
-        // Select format: mp4 with audio and video, or fallback
-        const format = ytdl.chooseFormat(info.formats, { quality: '18' }); // 18 is usually 360p mp4 with audio
-
+        // Choose format
+        const format = ytdl.chooseFormat(info.formats, { quality: '18' });
         console.log(`Format found: ${format.itag}`);
 
+        // Get stream
         const stream = ytdl(url, { format: format });
 
         // Create a readable stream from the node stream
@@ -52,6 +53,7 @@ serve(async (req) => {
                     controller.close();
                 });
                 stream.on('error', (err) => {
+                    console.error("Stream error:", err);
                     controller.error(err);
                 });
             },
@@ -66,8 +68,11 @@ serve(async (req) => {
         });
 
     } catch (error) {
-        console.error('Error:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        console.error('Error details:', error);
+        return new Response(JSON.stringify({
+            error: error.message,
+            stack: error.stack
+        }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
