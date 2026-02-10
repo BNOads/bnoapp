@@ -16,7 +16,7 @@ interface TesteVencendo {
   subtitle: string;
   diasRestantes: number | null; // null = no data_fim, uses diasRodando
   diasRodando: number;
-  tipo: 'vencendo' | 'rodando_longo';
+  tipo: 'vencendo' | 'rodando_longo' | 'normal';
 }
 
 export function TestesProximosVencer() {
@@ -39,16 +39,16 @@ export function TestesProximosVencer() {
       let query = supabase
         .from('testes_laboratorio')
         .select(`
-          id, nome, data_inicio, data_fim,
+          id, nome, data_inicio, data_fim, created_at, created_by,
           cliente:clientes!cliente_id(nome),
           gestor:gestor_responsavel_id(id, nome)
         `)
         .eq('status', 'rodando')
         .eq('arquivado', false);
 
-      // Non-admins only see their own tests
+      // Non-admins only see their own tests (managed OR created)
       if (!isAdmin && userData?.id) {
-        query = query.eq('gestor_responsavel_id', userData.id);
+        query = query.or(`gestor_responsavel_id.eq.${userData.id},created_by.eq.${userData.user_id}`);
       }
 
       const { data, error } = await query;
@@ -64,6 +64,12 @@ export function TestesProximosVencer() {
         const gestorNome = t.gestor?.nome || null;
         const gestorLabel = isAdmin && gestorNome ? ` · ${gestorNome}` : '';
 
+        // Fallback to created_at if data_inicio is missing
+        const startDateStr = t.data_inicio || t.created_at;
+        const startDate = startDateStr ? new Date(startDateStr.split('T')[0] + 'T00:00:00') : new Date();
+
+
+
         // Tests with a planned data_fim approaching/past
         if (t.data_fim) {
           const dataFim = new Date(t.data_fim + 'T00:00:00');
@@ -73,7 +79,7 @@ export function TestesProximosVencer() {
               id: t.id,
               nome: t.nome,
               diasRestantes: dias,
-              diasRodando: t.data_inicio ? differenceInDays(hoje, new Date(t.data_inicio + 'T00:00:00')) : 0,
+              diasRodando: differenceInDays(hoje, startDate),
               tipo: 'vencendo',
               label: dias < 0
                 ? `Vencido ${Math.abs(dias)}d`
@@ -84,12 +90,22 @@ export function TestesProximosVencer() {
                     : `${dias} dias`,
               subtitle: `${clienteNome}${gestorLabel} · Fim: ${format(dataFim, "dd/MM", { locale: ptBR })}`,
             });
+          } else {
+            // Normal running test with deadline far away
+            resultado.push({
+              id: t.id,
+              nome: t.nome,
+              diasRestantes: dias,
+              diasRodando: differenceInDays(hoje, startDate),
+              tipo: 'normal',
+              label: `${dias} dias restantes`,
+              subtitle: `${clienteNome}${gestorLabel} · Fim: ${format(dataFim, "dd/MM", { locale: ptBR })}`,
+            });
           }
         }
         // Tests running for more than 14 days without data_fim
-        else if (t.data_inicio) {
-          const dataInicio = new Date(t.data_inicio + 'T00:00:00');
-          const diasRodando = differenceInDays(hoje, dataInicio);
+        else if (startDate) {
+          const diasRodando = differenceInDays(hoje, startDate);
           if (diasRodando >= 14) {
             resultado.push({
               id: t.id,
@@ -99,6 +115,17 @@ export function TestesProximosVencer() {
               tipo: 'rodando_longo',
               label: `${diasRodando}d rodando`,
               subtitle: `${clienteNome}${gestorLabel} · Inicio: ${format(dataInicio, "dd/MM", { locale: ptBR })}`,
+            });
+          } else {
+            // Normal running test
+            resultado.push({
+              id: t.id,
+              nome: t.nome,
+              diasRestantes: null,
+              diasRodando,
+              tipo: 'normal',
+              label: 'Em andamento',
+              subtitle: `${clienteNome}${gestorLabel} · Inicio: ${format(startDate, "dd/MM", { locale: ptBR })}`,
             });
           }
         }
@@ -129,31 +156,35 @@ export function TestesProximosVencer() {
   const getStyle = (teste: TesteVencendo) => {
     if (teste.tipo === 'vencendo') {
       const dias = teste.diasRestantes ?? 0;
-      if (dias < 0) return { badgeClass: "bg-red-500 text-white border-red-500", rowClass: "bg-red-50 border border-red-200 hover:bg-red-100", iconBg: "bg-red-100", isAlert: true };
-      if (dias === 0) return { badgeClass: "bg-red-500 text-white border-red-500 animate-pulse", rowClass: "bg-red-50 border border-red-200 hover:bg-red-100", iconBg: "bg-red-100", isAlert: true };
-      if (dias <= 3) return { badgeClass: "bg-amber-500 text-white border-amber-500", rowClass: "bg-amber-50 border border-amber-200 hover:bg-amber-100", iconBg: "bg-amber-100", isAlert: false };
-      return { badgeClass: "bg-slate-100 text-slate-700 border-slate-200", rowClass: "bg-muted/50 hover:bg-muted", iconBg: "bg-amber-100", isAlert: false };
+      if (dias < 0) return { badgeClass: "bg-red-500 text-white border-red-500", rowClass: "bg-red-50 border border-red-200 hover:bg-red-100", iconBg: "bg-red-100", iconClass: "text-red-600", isAlert: true };
+      if (dias === 0) return { badgeClass: "bg-red-500 text-white border-red-500 animate-pulse", rowClass: "bg-red-50 border border-red-200 hover:bg-red-100", iconBg: "bg-red-100", iconClass: "text-red-600", isAlert: true };
+      if (dias <= 3) return { badgeClass: "bg-amber-500 text-white border-amber-500", rowClass: "bg-amber-50 border border-amber-200 hover:bg-amber-100", iconBg: "bg-amber-100", iconClass: "text-amber-600", isAlert: false };
+      return { badgeClass: "bg-slate-100 text-slate-700 border-slate-200", rowClass: "bg-muted/50 hover:bg-muted", iconBg: "bg-slate-100", iconClass: "text-slate-600", isAlert: false };
     }
-    // rodando_longo
-    return { badgeClass: "bg-blue-100 text-blue-700 border-blue-200", rowClass: "bg-blue-50/50 border border-blue-100 hover:bg-blue-50", iconBg: "bg-blue-100", isAlert: false };
+    if (teste.tipo === 'rodando_longo') {
+      return { badgeClass: "bg-blue-100 text-blue-700 border-blue-200", rowClass: "bg-blue-50/50 border border-blue-100 hover:bg-blue-50", iconBg: "bg-blue-100", iconClass: "text-blue-600", isAlert: false };
+    }
+
+    // normal
+    return { badgeClass: "bg-emerald-100 text-emerald-700 border-emerald-200", rowClass: "bg-white border-border hover:bg-muted/50", iconBg: "bg-emerald-100", iconClass: "text-emerald-600", isAlert: false };
   };
 
   return (
-    <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50/50 to-background shadow-lg overflow-hidden">
+    <Card className="border-2 border-violet-100 bg-gradient-to-br from-violet-50/50 to-background shadow-lg overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <div className="p-2 rounded-full bg-amber-100">
-            <FlaskConical className="h-5 w-5 text-amber-600" />
+          <div className="p-2 rounded-full bg-violet-100">
+            <FlaskConical className="h-5 w-5 text-violet-600" />
           </div>
-          <span>Testes em Atencao</span>
-          <Badge variant="secondary" className="ml-auto bg-amber-100 text-amber-700">
+          <span>Testes Rodando</span>
+          <Badge variant="secondary" className="ml-auto bg-violet-100 text-violet-700">
             {testes.length}
           </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {testes.map((teste) => {
-          const { badgeClass, rowClass, iconBg, isAlert } = getStyle(teste);
+          const { badgeClass, rowClass, iconBg, iconClass, isAlert } = getStyle(teste);
 
           return (
             <button
@@ -163,9 +194,9 @@ export function TestesProximosVencer() {
             >
               <div className={`p-1.5 rounded-md ${iconBg}`}>
                 {isAlert ? (
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <AlertTriangle className={`h-4 w-4 ${iconClass}`} />
                 ) : (
-                  <Clock className="h-4 w-4 text-amber-600" />
+                  <Clock className={`h-4 w-4 ${iconClass}`} />
                 )}
               </div>
 

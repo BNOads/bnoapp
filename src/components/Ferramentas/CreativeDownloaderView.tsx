@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Download, Youtube, Instagram, Facebook, Loader2, ArrowLeft, Disc } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const CreativeDownloaderView = () => {
     const navigate = useNavigate();
@@ -22,53 +23,48 @@ export const CreativeDownloaderView = () => {
             return;
         }
 
+
+
         setIsLoading(true);
 
         try {
             console.log("Iniciando download para:", url);
-            const response = await fetch("https://api.zm.io.vn/v1/social/autolink", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "apikey": "2AdCUOpm"
-                },
-                body: JSON.stringify({ url })
+
+            // Using Supabase Edge Function proxy
+            const { data, error } = await supabase.functions.invoke('fastsaver-proxy', {
+                body: { url },
             });
 
-            const data = await response.json();
+            if (error) {
+                console.error("Proxy error:", error);
+                throw new Error("Erro ao conectar com o servidor proxy: " + error.message);
+            }
+
             console.log("API Response:", data);
 
-            // API returns { error: false, ... } on success.
-            // If error is true or status is present and not 200, assume error.
             if (data.error) {
-                throw new Error(data.message || "Erro retornado pela API: " + JSON.stringify(data));
+                throw new Error(data.message || "Erro retornado pela API.");
+            }
+
+            // Handle YouTube specific message or limitation
+            if (data.hosting === 'youtube') {
+                if (data.message && data.message.includes("/download")) {
+                    toast({
+                        title: "YouTube Download",
+                        description: "O download direto do YouTube via web não é suportado por esta API (requer bot Telegram). Tente outro link ou plataforma.",
+                        variant: "warning",
+                    });
+                    // If no download_url is present, return early to avoid error
+                    if (!data.download_url && !data.url) return;
+                }
             }
 
             // Logic to find the best download link
             let downloadLink = "";
-            let foundMedia = null;
 
-            if (data.medias && Array.isArray(data.medias)) {
-                // Try to find video with audio (is_audio: true) and mp4 extension
-                foundMedia = data.medias.find((m: any) => m.type === 'video' && m.is_audio === true && m.extension === 'mp4');
-
-                // Fallback: any mp4 video
-                if (!foundMedia) {
-                    foundMedia = data.medias.find((m: any) => m.type === 'video' && m.extension === 'mp4');
-                }
-
-                // Fallback: any video
-                if (!foundMedia) {
-                    foundMedia = data.medias.find((m: any) => m.type === 'video');
-                }
-
-                if (foundMedia) {
-                    downloadLink = foundMedia.url;
-                }
-            }
-
-            // Last resort fallbacks
-            if (!downloadLink && data.url) {
+            if (data.download_url) {
+                downloadLink = data.download_url;
+            } else if (data.url) {
                 downloadLink = data.url;
             }
 
@@ -82,9 +78,11 @@ export const CreativeDownloaderView = () => {
                 });
             } else {
                 console.error("Nenhum link encontrado na resposta:", data);
+                // If we already showed a toast for YouTube, don't throw detailed error
+                if (data.hosting === 'youtube') return;
+
                 throw new Error("Link de download não encontrado na resposta.");
             }
-
 
         } catch (error: any) {
             console.error("Download error:", error);
