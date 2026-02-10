@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FlaskConical, Plus, Search, Filter, X, Beaker, TrendingUp, Activity, CalendarDays } from 'lucide-react';
+import { FlaskConical, Plus, Search, Filter, X, Beaker, TrendingUp, Activity, CalendarDays, LayoutList, LayoutGrid } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import { TesteRelatorios } from './TesteRelatorios';
 import { TemplatesManager } from './TemplatesManager';
 import type { TesteFilters, TesteLaboratorio } from '@/types/laboratorio-testes';
 import { DEFAULT_FILTERS, STATUS_LABELS, VALIDACAO_LABELS, TIPO_LABELS, CANAL_LABELS } from '@/types/laboratorio-testes';
+import { TestesGroupedView } from './TestesGroupedView';
 
 export const LaboratorioTestesView = () => {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ export const LaboratorioTestesView = () => {
   const [editingTeste, setEditingTeste] = useState<TesteLaboratorio | null>(null);
   const [concludingTesteId, setConcludingTesteId] = useState<string | null>(null);
   const [concludingTesteName, setConcludingTesteName] = useState('');
+  const [viewMode, setViewMode] = useState<'lista' | 'agrupado'>('lista');
 
   const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
   const [gestores, setGestores] = useState<{ id: string; user_id: string; nome: string }[]>([]);
@@ -204,6 +206,26 @@ export const LaboratorioTestesView = () => {
               onChange={(e) => updateFilter('search', e.target.value)}
               className="pl-9"
             />
+          </div>
+          <div className="flex items-center p-1 bg-muted rounded-lg border ml-2">
+            <Button
+              variant={viewMode === 'lista' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('lista')}
+              className={viewMode === 'lista' ? 'bg-white shadow-sm h-8 px-3' : 'h-8 px-3 text-muted-foreground'}
+            >
+              <LayoutList className="h-4 w-4 mr-2" />
+              Tabela
+            </Button>
+            <Button
+              variant={viewMode === 'agrupado' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('agrupado')}
+              className={viewMode === 'agrupado' ? 'bg-white shadow-sm h-8 px-3' : 'h-8 px-3 text-muted-foreground'}
+            >
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Agrupado
+            </Button>
           </div>
           {canCreate && (
             <Button
@@ -567,21 +589,39 @@ export const LaboratorioTestesView = () => {
               </CardContent>
             </Card>
           ) : (
-            <TestesTable
-              testes={testes}
-              loading={loading}
-              onNavigate={handleNavigate}
-              onEdit={handleEdit}
-              onArchive={handleArchive}
-              onDuplicate={handleDuplicate}
-              onStartTeste={handleStartTeste}
-              onConcludeTeste={handleConcludeTeste}
-              onRedoTeste={handleRedoTeste}
-              canEditAll={canEditAll}
-              canEditOwn={canEditOwn}
-              canArchive={canArchive}
-              currentUserId={currentUserId}
-            />
+            viewMode === 'lista' ? (
+              <TestesTable
+                testes={testes}
+                loading={loading}
+                onNavigate={handleNavigate}
+                onEdit={handleEdit}
+                onArchive={handleArchive}
+                onDuplicate={handleDuplicate}
+                onStartTeste={handleStartTeste}
+                onConcludeTeste={handleConcludeTeste}
+                onRedoTeste={handleRedoTeste}
+                canEditAll={canEditAll}
+                canEditOwn={canEditOwn}
+                canArchive={canArchive}
+                currentUserId={currentUserId}
+              />
+            ) : (
+              <TestesGroupedView
+                testes={testes}
+                loading={loading}
+                onNavigate={handleNavigate}
+                onEdit={handleEdit}
+                onArchive={handleArchive}
+                onDuplicate={handleDuplicate}
+                onStartTeste={handleStartTeste}
+                onConcludeTeste={handleConcludeTeste}
+                onRedoTeste={handleRedoTeste}
+                canEditAll={canEditAll}
+                canEditOwn={canEditOwn}
+                canArchive={canArchive}
+                currentUserId={currentUserId}
+              />
+            )
           )}
         </TabsContent>
 
