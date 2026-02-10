@@ -171,7 +171,10 @@ export function TestesProximosVencer() {
 
   return (
     <Card className="border-2 border-violet-100 bg-gradient-to-br from-violet-50/50 to-background shadow-lg overflow-hidden">
-      <CardHeader className="pb-3">
+      <CardHeader
+        className="pb-3 cursor-pointer transition-colors hover:opacity-80"
+        onClick={() => navigate("/laboratorio-testes")}
+      >
         <CardTitle className="flex items-center gap-2 text-lg">
           <div className="p-2 rounded-full bg-violet-100">
             <FlaskConical className="h-5 w-5 text-violet-600" />

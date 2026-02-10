@@ -11,11 +11,7 @@ import { useTesteTemplates } from '@/hooks/useLaboratorioTestes';
 import { useToast } from '@/hooks/use-toast';
 import type { TesteFormData, TesteTemplate } from '@/types/laboratorio-testes';
 import { DEFAULT_FORM_DATA, TIPO_LABELS, CANAL_LABELS, STATUS_LABELS, METRICA_LABELS } from '@/types/laboratorio-testes';
-
-interface Cliente {
-  id: string;
-  nome: string;
-}
+import { ClientSelect } from '@/components/Clientes/ClientSelect';
 
 interface Gestor {
   id: string;
@@ -50,13 +46,11 @@ export const NovoTesteModal = ({
     ...initialData,
   });
   const [loading, setLoading] = useState(false);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [gestores, setGestores] = useState<Gestor[]>([]);
   const [funis, setFunis] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
-      loadClientes();
       loadGestores();
       setFormData({
         ...DEFAULT_FORM_DATA,
@@ -83,21 +77,6 @@ export const NovoTesteModal = ({
       setFormData(prev => ({ ...prev, funil: '' }));
     }
   }, [formData.cliente_id]);
-
-  const loadClientes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('id, nome')
-        .eq('ativo', true)
-        .order('nome');
-
-      if (error) throw error;
-      setClientes(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
-    }
-  };
 
   const loadGestores = async () => {
     try {
@@ -183,21 +162,10 @@ export const NovoTesteModal = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="cliente_id">Cliente *</Label>
-                <Select
+                <ClientSelect
                   value={formData.cliente_id}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, cliente_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientes.map(cliente => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               <div className="space-y-2">

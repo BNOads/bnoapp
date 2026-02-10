@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CriativoSelector } from './CriativoSelector';
+import { ClientSelect } from '@/components/Clientes/ClientSelect';
 
 interface NovoLancamentoModalProps {
   open: boolean;
@@ -272,7 +273,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
             .select('user_id')
             .eq('id', formData.gestor_responsavel_id)
             .single();
-          
+
           if (gestor?.user_id) {
             gestorUserId = gestor.user_id;
           }
@@ -349,7 +350,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
                 {formData.cliente_id && ' ✅'}
                 {formData.gestor_responsavel_id && ' → Gestor associado ✓'}
               </Label>
-              <Select
+              <ClientSelect
                 value={formData.cliente_id}
                 onValueChange={async (value) => {
                   handleInputChange('cliente_id', value);
@@ -367,18 +368,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
                     }
                   }
                 }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
 
             {formData.cliente_id && (

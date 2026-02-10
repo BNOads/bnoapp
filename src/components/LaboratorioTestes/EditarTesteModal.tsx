@@ -10,11 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { TesteFormData, TesteLaboratorio, ValidacaoTesteLab } from '@/types/laboratorio-testes';
 import { TIPO_LABELS, CANAL_LABELS, STATUS_LABELS, VALIDACAO_LABELS, METRICA_LABELS } from '@/types/laboratorio-testes';
-
-interface Cliente {
-  id: string;
-  nome: string;
-}
+import { ClientSelect } from '@/components/Clientes/ClientSelect';
 
 interface Gestor {
   id: string;
@@ -65,7 +61,6 @@ export const EditarTesteModal = ({
   });
   const [validacao, setValidacao] = useState<ValidacaoTesteLab>('em_teste');
   const [loading, setLoading] = useState(false);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [gestores, setGestores] = useState<Gestor[]>([]);
   const [funis, setFunis] = useState<string[]>([]);
 
@@ -95,7 +90,6 @@ export const EditarTesteModal = ({
         link_experimento: teste.link_experimento || '',
       });
       setValidacao(teste.validacao);
-      loadClientes();
       loadGestores();
     }
   }, [teste, open]);
@@ -117,21 +111,6 @@ export const EditarTesteModal = ({
       setFormData(prev => ({ ...prev, funil: '' }));
     }
   }, [formData.cliente_id]);
-
-  const loadClientes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('id, nome')
-        .eq('ativo', true)
-        .order('nome');
-
-      if (error) throw error;
-      setClientes(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
-    }
-  };
 
   const loadGestores = async () => {
     try {
@@ -214,21 +193,10 @@ export const EditarTesteModal = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-cliente_id">Cliente *</Label>
-                <Select
+                <ClientSelect
                   value={formData.cliente_id}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, cliente_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientes.map(cliente => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               <div className="space-y-2">
