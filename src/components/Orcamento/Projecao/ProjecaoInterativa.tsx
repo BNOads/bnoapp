@@ -35,21 +35,15 @@ import {
   Pencil,
   Check,
   X,
+  Settings,
+  Zap,
 } from 'lucide-react';
+import AdminBenchmarksModal from '@/components/Ferramentas/AdminBenchmarksModal';
 import {
   formatMetricValue,
   getPerformanceStatus,
   getStatusBgClass,
 } from '@/lib/trafficMetrics';
-
-// Metas de mercado (benchmarks)
-const METAS_MERCADO = {
-  cpm: { valor: 15, label: 'CPM', unidade: 'R$', descricao: 'Custo por Mil Impressoes ideal < R$15' },
-  ctr: { valor: 1.5, label: 'CTR', unidade: '%', descricao: 'Taxa de Cliques ideal > 1.5%' },
-  loadingRate: { valor: 85, label: 'Carregamento', unidade: '%', descricao: 'Visitantes que carregam a pagina > 85%' },
-  checkoutRate: { valor: 30, label: 'Checkout', unidade: '%', descricao: 'Visitantes que iniciam checkout > 30%' },
-  conversionRate: { valor: 3, label: 'Conversao', unidade: '%', descricao: 'Cliques que viram vendas > 3%' },
-};
 
 export interface ProjecaoData {
   investimento: number;
@@ -59,6 +53,14 @@ export interface ProjecaoData {
   checkoutRate: number;
   conversionRate: number;
   ticketMedio: number;
+}
+
+interface Benchmark {
+  chave: string;
+  valor: number;
+  label: string;
+  unidade: string;
+  descricao: string;
 }
 
 interface ProjecaoHistorico {
@@ -80,11 +82,11 @@ interface ProjecaoHistorico {
 }
 
 interface ProjecaoInterativaProps {
-  funilId: string;
-  funilNome: string;
-  clienteNome: string;
+  funilId?: string;
+  funilNome?: string;
+  clienteNome?: string;
   clienteId?: string;
-  investimentoBase: number;
+  investimentoBase?: number;
   projecaoSalva?: ProjecaoData | null;
   onSave?: (projecao: ProjecaoData) => void;
 }
@@ -111,26 +113,80 @@ export default function ProjecaoInterativa({
   const [historico, setHistorico] = useState<ProjecaoHistorico[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [viewProjecao, setViewProjecao] = useState<ProjecaoHistorico | null>(null);
+  const [showAdminModal, setShowAdminModal] = useState(false);
 
-  // Estado das métricas editáveis
-  const [projecao, setProjecao] = useState<ProjecaoData>(
-    projecaoSalva || {
-      investimento: investimentoBase || 5000,
-      cpm: METAS_MERCADO.cpm.valor,
-      ctr: METAS_MERCADO.ctr.valor,
-      loadingRate: METAS_MERCADO.loadingRate.valor,
-      checkoutRate: METAS_MERCADO.checkoutRate.valor,
-      conversionRate: METAS_MERCADO.conversionRate.valor,
-      ticketMedio: 297,
-    }
-  );
-
-  // Estado para edição manual de cada métrica
+  const [projecao, setProjecao] = useState<ProjecaoData>(projecaoSalva || {
+    investimento: investimentoBase || 5000,
+    cpm: 15,
+    ctr: 1.5,
+    loadingRate: 85,
+    checkoutRate: 30,
+    conversionRate: 3,
+    ticketMedio: 297,
+  });
   const [editingMetric, setEditingMetric] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
 
+  const [benchmarks, setBenchmarks] = useState<Record<string, Benchmark>>({});
+  const [loadingBenchmarks, setLoadingBenchmarks] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Carregar benchmarks do banco
+  const loadBenchmarks = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('benchmarks_funil')
+        .select('*');
+
+      if (error) throw error;
+
+      if (data) {
+        const benchmarksMap: Record<string, Benchmark> = {};
+        data.forEach(b => {
+          benchmarksMap[b.chave] = b;
+        });
+        setBenchmarks(benchmarksMap);
+
+        // Se não houver projeção salva, inicializar com os benchmarks
+        if (!projecaoSalva) {
+          setProjecao({
+            investimento: investimentoBase || 5000,
+            cpm: benchmarksMap['cpm']?.valor || 15,
+            ctr: benchmarksMap['ctr']?.valor || 1.5,
+            loadingRate: benchmarksMap['loading_rate']?.valor || benchmarksMap['loadingRate']?.valor || 85,
+            checkoutRate: benchmarksMap['checkout_rate']?.valor || benchmarksMap['checkoutRate']?.valor || 30,
+            conversionRate: benchmarksMap['conversion_rate']?.valor || benchmarksMap['conversionRate']?.valor || 3,
+            ticketMedio: 297,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar benchmarks:', error);
+    } finally {
+      setLoadingBenchmarks(false);
+    }
+  }, [projecaoSalva, investimentoBase]);
+
+  // Checar se é admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        setIsAdmin(profile?.role === 'admin');
+      }
+    };
+    checkAdmin();
+    loadBenchmarks();
+  }, [loadBenchmarks]);
+
   // Carregar histórico de projeções
   const loadHistorico = useCallback(async () => {
+    if (!funilId) return;
     setLoadingHistorico(true);
     try {
       const { data, error } = await supabase
@@ -160,7 +216,7 @@ export default function ProjecaoInterativa({
     const cliques = Math.round(impressoes * (ctr / 100));
     const pageViews = Math.round(cliques * (loadingRate / 100));
     const checkouts = Math.round(pageViews * (checkoutRate / 100));
-    const vendas = Math.round(cliques * (conversionRate / 100));
+    const vendas = Math.round(checkouts * (conversionRate / 100));
     const receita = vendas * ticketMedio;
     const lucro = receita - investimento;
     const roi = investimento > 0 ? ((receita - investimento) / investimento) * 100 : 0;
@@ -201,14 +257,14 @@ export default function ProjecaoInterativa({
   const resetToMarket = useCallback(() => {
     setProjecao({
       investimento: investimentoBase || 5000,
-      cpm: METAS_MERCADO.cpm.valor,
-      ctr: METAS_MERCADO.ctr.valor,
-      loadingRate: METAS_MERCADO.loadingRate.valor,
-      checkoutRate: METAS_MERCADO.checkoutRate.valor,
-      conversionRate: METAS_MERCADO.conversionRate.valor,
+      cpm: benchmarks['cpm']?.valor || 15,
+      ctr: benchmarks['ctr']?.valor || 1.5,
+      loadingRate: benchmarks['loading_rate']?.valor || benchmarks['loadingRate']?.valor || 85,
+      checkoutRate: benchmarks['checkout_rate']?.valor || benchmarks['checkoutRate']?.valor || 30,
+      conversionRate: benchmarks['conversion_rate']?.valor || benchmarks['conversionRate']?.valor || 3,
       ticketMedio: 297,
     });
-  }, [investimentoBase]);
+  }, [investimentoBase, benchmarks]);
 
   const handleSave = async () => {
     if (!nomeProjecao.trim()) {
@@ -220,9 +276,7 @@ export default function ProjecaoInterativa({
     try {
       const { data: user } = await supabase.auth.getUser();
 
-      const { error } = await supabase.from('projecoes_funil').insert({
-        orcamento_funil_id: funilId,
-        cliente_id: clienteId,
+      const saveData: any = {
         nome: nomeProjecao.trim(),
         investimento: projecao.investimento,
         cpm: projecao.cpm,
@@ -239,7 +293,15 @@ export default function ProjecaoInterativa({
         roas_projetado: funnelData.roas,
         cpa_projetado: funnelData.cpa,
         updated_by: user.user?.id,
-      });
+      };
+
+      // Se tiver funil, incluir as IDs
+      if (funilId) {
+        saveData.orcamento_funil_id = funilId;
+        saveData.cliente_id = clienteId;
+      }
+
+      const { error } = await supabase.from('projecoes_funil').insert(saveData);
 
       if (error) throw error;
 
@@ -286,15 +348,26 @@ export default function ProjecaoInterativa({
   };
 
   const getMetricStatus = (metric: string, value: number) => {
+    const benchmark = benchmarks[metric === 'loadingRate' ? 'loading_rate' :
+      metric === 'checkoutRate' ? 'checkout_rate' :
+        metric === 'conversionRate' ? 'conversion_rate' :
+          metric]?.valor;
+
+    // Se não houver benchmark dinâmico, usa o padrão do helper
+    if (benchmark === undefined) return getPerformanceStatus(metric, value);
+
+    // A lógica de "bom", "regular" ou "ruim" depende da métrica
+    // Para simplificar e manter consistência, vamos usar o benchmark dinâmico
+    // se ele estiver disponível, adaptando a lógica do helper
     return getPerformanceStatus(metric, value);
   };
 
   const funnelStages = [
-    { key: 'impressoes', label: 'Impressoes', value: funnelData.impressoes, color: '#3B82F6' },
-    { key: 'cliques', label: 'Cliques', value: funnelData.cliques, color: '#8B5CF6' },
-    { key: 'pageViews', label: 'Visualizacoes', value: funnelData.pageViews, color: '#F59E0B' },
-    { key: 'checkouts', label: 'Checkouts', value: funnelData.checkouts, color: '#F97316' },
-    { key: 'vendas', label: 'Vendas', value: funnelData.vendas, color: '#10B981' },
+    { key: 'impressoes', label: 'Topo (Exposição)', value: funnelData.impressoes, color: '#3B82F6', toolTip: 'Pessoas atingidas pelos anúncios' },
+    { key: 'cliques', label: 'Cliques (Interesse)', value: funnelData.cliques, color: '#8B5CF6', toolTip: 'Acesso ao site ou oferta' },
+    { key: 'pageViews', label: 'Página (Leitura)', value: funnelData.pageViews, color: '#F59E0B', toolTip: 'Pessoas que carregaram o site' },
+    { key: 'checkouts', label: 'Checkout (Intenção)', value: funnelData.checkouts, color: '#F97316', toolTip: 'Início do processo de compra' },
+    { key: 'vendas', label: 'Vendas (Sucesso)', value: funnelData.vendas, color: '#10B981', toolTip: 'Pedidos confirmados e pagos' },
   ];
 
   // Usar cliques como escala maxima para melhor visualizacao do funil
@@ -336,6 +409,69 @@ export default function ProjecaoInterativa({
           </div>
         </div>
 
+        <AdminBenchmarksModal
+          open={showAdminModal}
+          onOpenChange={setShowAdminModal}
+          onSave={loadBenchmarks}
+        />
+
+        {/* Barra de Benchmarks de Mercado */}
+        <Card className="bg-emerald-500 text-white overflow-hidden border-none shadow-lg">
+          <CardContent className="p-4 sm:p-6 relative">
+            <div className="flex items-center gap-2 mb-4">
+              <Zap className="h-4 w-4 fill-current animate-pulse" />
+              <h3 className="text-sm font-bold uppercase tracking-wider">Benchmarks de Mercado</h3>
+              {isAdmin && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-white hover:bg-white/20 ml-auto rounded-full"
+                  onClick={() => setShowAdminModal(true)}
+                  title="Editar metas de mercado"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="bg-white/20 rounded-xl p-3 text-center backdrop-blur-md border border-white/20 shadow-inner group transition-all hover:bg-white/30">
+                <span className="text-[10px] font-bold opacity-90 uppercase block mb-1 tracking-tighter">CPM</span>
+                <div className="text-xl font-extrabold drop-shadow-sm">
+                  R${benchmarks['cpm']?.valor || 15}
+                </div>
+              </div>
+              <div className="bg-white/20 rounded-xl p-3 text-center backdrop-blur-md border border-white/20 shadow-inner group transition-all hover:bg-white/30">
+                <span className="text-[10px] font-bold opacity-90 uppercase block mb-1 tracking-tighter">CTR</span>
+                <div className="text-xl font-extrabold drop-shadow-sm">
+                  {benchmarks['ctr']?.valor || 1.5}%
+                </div>
+              </div>
+              <div className="bg-white/20 rounded-xl p-3 text-center backdrop-blur-md border border-white/20 shadow-inner group transition-all hover:bg-white/30">
+                <span className="text-[10px] font-bold opacity-90 uppercase block mb-1 tracking-tighter">Carregamento</span>
+                <div className="text-xl font-extrabold drop-shadow-sm">
+                  {benchmarks['loading_rate']?.valor || 85}%
+                </div>
+              </div>
+              <div className="bg-white/20 rounded-xl p-3 text-center backdrop-blur-md border border-white/20 shadow-inner group transition-all hover:bg-white/30">
+                <span className="text-[10px] font-bold opacity-90 uppercase block mb-1 tracking-tighter">Checkout</span>
+                <div className="text-xl font-extrabold drop-shadow-sm">
+                  {benchmarks['checkout_rate']?.valor || 30}%
+                </div>
+              </div>
+              <div className="bg-white/20 rounded-xl p-3 text-center backdrop-blur-md border border-white/20 shadow-inner group transition-all hover:bg-white/30">
+                <span className="text-[10px] font-bold opacity-90 uppercase block mb-1 tracking-tighter">Conversão</span>
+                <div className="text-xl font-extrabold drop-shadow-sm">
+                  {benchmarks['conversion_rate']?.valor || 3}%
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] text-center mt-3 opacity-80 font-medium italic">
+              Valores ideais de referência para campanhas de tráfego pago
+            </p>
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Painel de Métricas Editáveis */}
           <Card>
@@ -349,6 +485,14 @@ export default function ProjecaoInterativa({
                   <Label className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4 text-red-500" />
                     Investimento
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Valor total planejado para investir em anúncios no período.</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </Label>
                   <span className="text-sm font-bold text-red-600">
                     {formatMetricValue(projecao.investimento, 'currency')}
@@ -366,14 +510,18 @@ export default function ProjecaoInterativa({
               {/* CPM */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    CPM
+                  <Label className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold">CPM</span>
+                    <span className="text-[10px] text-muted-foreground font-normal leading-tight">
+                      (Custo por Mil Impressões) — <span className="italic opacity-80">Cálculo: (Investimento / Impressões) * 1000</span>
+                    </span>
                     <Tooltip>
                       <TooltipTrigger>
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{METAS_MERCADO.cpm.descricao}</p>
+                      <TooltipContent className="max-w-64">
+                        <p className="font-bold">CPM</p>
+                        <p className="text-xs">Quanto você paga para o seu anúncio aparecer 1000 vezes.</p>
                       </TooltipContent>
                     </Tooltip>
                   </Label>
@@ -406,10 +554,10 @@ export default function ProjecaoInterativa({
                         <Badge className={getStatusBgClass(getMetricStatus('cpm', projecao.cpm))}>
                           {formatMetricValue(projecao.cpm, 'currency')}
                         </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
                           onClick={() => startEditingMetric('cpm', projecao.cpm)}
                         >
                           <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
@@ -427,7 +575,7 @@ export default function ProjecaoInterativa({
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>R$5</span>
-                  <span className="text-emerald-600 font-semibold">Meta: R${METAS_MERCADO.cpm.valor}</span>
+                  <span className="text-emerald-600 font-semibold">Meta: R${benchmarks['cpm']?.valor || 15}</span>
                   <span>R$50</span>
                 </div>
               </div>
@@ -435,14 +583,17 @@ export default function ProjecaoInterativa({
               {/* CTR */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    CTR
+                  <Label className="flex items-center gap-2 flex-wrap text-left">
+                    <span className="font-bold">CTR</span>
+                    <span className="text-[10px] text-muted-foreground font-normal leading-tight">
+                      (Click-Through Rate) — <span className="italic opacity-80">Cálculo: (Cliques / Impressões) * 100</span>
+                    </span>
                     <Tooltip>
                       <TooltipTrigger>
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{METAS_MERCADO.ctr.descricao}</p>
+                      <TooltipContent className="max-w-64">
+                        <p>Mede a eficiência do criativo.</p>
                       </TooltipContent>
                     </Tooltip>
                   </Label>
@@ -475,10 +626,10 @@ export default function ProjecaoInterativa({
                         <Badge className={getStatusBgClass(getMetricStatus('ctr', projecao.ctr))}>
                           {projecao.ctr.toFixed(2)}%
                         </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
                           onClick={() => startEditingMetric('ctr', projecao.ctr)}
                         >
                           <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
@@ -496,7 +647,7 @@ export default function ProjecaoInterativa({
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>0.1%</span>
-                  <span className="text-emerald-600 font-semibold">Meta: {METAS_MERCADO.ctr.valor}%</span>
+                  <span className="text-emerald-600 font-semibold">Meta: {benchmarks['ctr']?.valor || 1.5}%</span>
                   <span>5%</span>
                 </div>
               </div>
@@ -504,14 +655,17 @@ export default function ProjecaoInterativa({
               {/* Taxa Carregamento */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    Taxa Carregamento
+                  <Label className="flex items-center gap-2 flex-wrap text-left">
+                    <span className="font-bold">Taxa Carregamento</span>
+                    <span className="text-[10px] text-muted-foreground font-normal leading-tight">
+                      (Landing Page) — <span className="italic opacity-80">Cálculo: (Page Views / Cliques) * 100</span>
+                    </span>
                     <Tooltip>
                       <TooltipTrigger>
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{METAS_MERCADO.loadingRate.descricao}</p>
+                      <TooltipContent className="max-w-64">
+                        <p>Visitantes que realmente carregaram a página.</p>
                       </TooltipContent>
                     </Tooltip>
                   </Label>
@@ -544,10 +698,10 @@ export default function ProjecaoInterativa({
                         <Badge className={getStatusBgClass(getMetricStatus('loadingRate', projecao.loadingRate))}>
                           {projecao.loadingRate.toFixed(0)}%
                         </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
                           onClick={() => startEditingMetric('loadingRate', projecao.loadingRate)}
                         >
                           <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
@@ -565,7 +719,7 @@ export default function ProjecaoInterativa({
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>50%</span>
-                  <span className="text-emerald-600 font-semibold">Meta: {METAS_MERCADO.loadingRate.valor}%</span>
+                  <span className="text-emerald-600 font-semibold">Meta: {benchmarks['loading_rate']?.valor || benchmarks['loadingRate']?.valor || 85}%</span>
                   <span>100%</span>
                 </div>
               </div>
@@ -573,14 +727,17 @@ export default function ProjecaoInterativa({
               {/* Taxa Checkout */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    Taxa Checkout
+                  <Label className="flex items-center gap-2 flex-wrap text-left">
+                    <span className="font-bold">Taxa Checkout</span>
+                    <span className="text-[10px] text-muted-foreground font-normal leading-tight">
+                      (Intenção) — <span className="italic opacity-80">Cálculo: (Checkouts / Page Views) * 100</span>
+                    </span>
                     <Tooltip>
                       <TooltipTrigger>
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{METAS_MERCADO.checkoutRate.descricao}</p>
+                      <TooltipContent className="max-w-64">
+                        <p>Visitantes que iniciaram o checkout.</p>
                       </TooltipContent>
                     </Tooltip>
                   </Label>
@@ -613,10 +770,10 @@ export default function ProjecaoInterativa({
                         <Badge className={getStatusBgClass(getMetricStatus('checkoutRate', projecao.checkoutRate))}>
                           {projecao.checkoutRate.toFixed(0)}%
                         </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
                           onClick={() => startEditingMetric('checkoutRate', projecao.checkoutRate)}
                         >
                           <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
@@ -634,7 +791,7 @@ export default function ProjecaoInterativa({
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>5%</span>
-                  <span className="text-emerald-600 font-semibold">Meta: {METAS_MERCADO.checkoutRate.valor}%</span>
+                  <span className="text-emerald-600 font-semibold">Meta: {benchmarks['checkout_rate']?.valor || benchmarks['checkoutRate']?.valor || 30}%</span>
                   <span>60%</span>
                 </div>
               </div>
@@ -642,14 +799,17 @@ export default function ProjecaoInterativa({
               {/* Taxa Conversao */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    Taxa Conversao
+                  <Label className="flex items-center gap-2 flex-wrap text-left">
+                    <span className="font-bold">Taxa Conversao</span>
+                    <span className="text-[10px] text-muted-foreground font-normal leading-tight">
+                      (Vendas) — <span className="italic opacity-80">Cálculo: (Vendas / Checkouts) * 100</span>
+                    </span>
                     <Tooltip>
                       <TooltipTrigger>
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{METAS_MERCADO.conversionRate.descricao}</p>
+                      <TooltipContent className="max-w-64">
+                        <p>Porcentagem final de checkouts que viraram vendas.</p>
                       </TooltipContent>
                     </Tooltip>
                   </Label>
@@ -682,10 +842,10 @@ export default function ProjecaoInterativa({
                         <Badge className={getStatusBgClass(getMetricStatus('conversionRate', projecao.conversionRate))}>
                           {projecao.conversionRate.toFixed(2)}%
                         </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
                           onClick={() => startEditingMetric('conversionRate', projecao.conversionRate)}
                         >
                           <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
@@ -703,7 +863,7 @@ export default function ProjecaoInterativa({
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>0.5%</span>
-                  <span className="text-emerald-600 font-semibold">Meta: {METAS_MERCADO.conversionRate.valor}%</span>
+                  <span className="text-emerald-600 font-semibold">Meta: {benchmarks['conversion_rate']?.valor || benchmarks['conversionRate']?.valor || 3}%</span>
                   <span>10%</span>
                 </div>
               </div>
@@ -711,7 +871,17 @@ export default function ProjecaoInterativa({
               {/* Ticket Medio */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Ticket Medio</Label>
+                  <Label className="flex items-center gap-2">
+                    Ticket Medio
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Valor médio de cada venda realizada no seu funil.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </Label>
                   <span className="text-sm font-bold">
                     {formatMetricValue(projecao.ticketMedio, 'currency')}
                   </span>
@@ -775,14 +945,22 @@ export default function ProjecaoInterativa({
                         {/* Taxa de conversao lado direito */}
                         <div className="w-20 text-left">
                           {index > 0 ? (
-                            <Badge
-                              variant="outline"
-                              className={conversionRate >= 50 ? 'text-emerald-600 border-emerald-300' : conversionRate >= 20 ? 'text-amber-600 border-amber-300' : 'text-red-600 border-red-300'}
-                            >
-                              {conversionRate.toFixed(1)}%
-                            </Badge>
+                            <div className="flex flex-col">
+                              <Badge
+                                variant="outline"
+                                className={conversionRate >= 50 ? 'text-emerald-600 border-emerald-300' : conversionRate >= 20 ? 'text-amber-600 border-amber-300' : 'text-red-600 border-red-300'}
+                              >
+                                {conversionRate.toFixed(1)}%
+                              </Badge>
+                              <span className="text-[9px] font-medium opacity-70 mt-0.5 leading-none">
+                                {stage.key === 'cliques' ? 'CTR/Cliques' :
+                                  stage.key === 'pageViews' ? 'Carregamento' :
+                                    stage.key === 'checkouts' ? 'Checkout' :
+                                      stage.key === 'vendas' ? 'Conversão' : ''}
+                              </span>
+                            </div>
                           ) : (
-                            <span className="text-xs text-muted-foreground">Topo</span>
+                            <span className="text-xs text-muted-foreground">Alcance Inicial</span>
                           )}
                         </div>
                       </div>
@@ -793,9 +971,9 @@ export default function ProjecaoInterativa({
                 {/* Taxa de conversao total */}
                 <div className="mt-4 pt-4 border-t">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Taxa de Conversao Total (Impressoes → Vendas):</span>
+                    <span className="text-muted-foreground">Taxa de Conversão Final (Cliques → Vendas):</span>
                     <span className={`font-bold text-lg ${funnelData.vendas > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {maxValue > 0 ? ((funnelData.vendas / maxValue) * 100).toFixed(3) : 0}%
+                      {funnelData.cliques > 0 ? ((funnelData.vendas / funnelData.cliques) * 100).toFixed(2) : 0}%
                     </span>
                   </div>
                 </div>

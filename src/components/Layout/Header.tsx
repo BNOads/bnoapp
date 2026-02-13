@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useNavigate, useLocation, Link } from "react-router-dom";
@@ -58,12 +58,21 @@ export const Header = ({ }: HeaderProps) => {
       icon: Rocket,
       path: '/ferramentas'
     },
+    {
+      id: 'projecoes',
+      label: 'Projeções',
+      icon: Calculator,
+      path: '/ferramentas/projecoes'
+    },
   ];
 
   const getActiveTab = () => {
     const currentPath = location.pathname;
 
     // Check for ferramentas sub-routes
+    if (currentPath.startsWith('/ferramentas/projecoes')) {
+      return 'projecoes';
+    }
     if (currentPath.startsWith('/ferramentas')) {
       return 'ferramentas';
     }

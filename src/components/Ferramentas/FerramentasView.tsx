@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download, Heart, FlaskConical } from "lucide-react";
+import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download, Heart, FlaskConical, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -204,6 +204,14 @@ export const FerramentasView = () => {
       icon: Link,
       component: <LinksView />,
       color: "text-emerald-600"
+    },
+    {
+      id: "simulador-funil",
+      title: "Simulador de Funil",
+      description: "Simule cenários e projete resultados de tráfego de forma independente",
+      icon: Calculator,
+      component: null, // Redirecionamento para /ferramentas/projecoes
+      color: "text-blue-600"
     },
     {
       id: "nps",
@@ -410,9 +418,13 @@ export const FerramentasView = () => {
       navigate('/assistente');
       return;
     }
-    // Redirecionamento para /cultura-time (Cultura & Time)
+    // Redirecionamento para cultura-time (Cultura & Time)
     if (toolId === 'cultura-time') {
       navigate('/cultura-time');
+      return;
+    }
+    if (toolId === 'simulador-funil') {
+      navigate('/ferramentas/projecoes');
       return;
     }
     setSelectedTool(toolId);

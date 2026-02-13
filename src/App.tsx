@@ -43,6 +43,7 @@ import CulturaTimePage from "./pages/CulturaTime";
 import LaboratorioTestes from "./pages/LaboratorioTestes";
 import LaboratorioTesteDetalhes from "./pages/LaboratorioTesteDetalhes";
 import { AppLayout } from "@/components/Layout/AppLayout";
+import FerramentaProjecaoView from "@/components/Ferramentas/FerramentaProjecaoView";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -168,6 +169,11 @@ function App() {
                   <Route path="/ferramentas" element={
                     <ProtectedRoute>
                       <FerramentasPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/ferramentas/projecoes" element={
+                    <ProtectedRoute>
+                      <FerramentaProjecaoView />
                     </ProtectedRoute>
                   } />
                   <Route path="/ferramentas/:toolName" element={
