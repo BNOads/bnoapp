@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -35,8 +36,8 @@ import {
   Pencil,
   Check,
   X,
-  Settings,
   Zap,
+  UserPlus,
 } from 'lucide-react';
 import AdminBenchmarksModal from '@/components/Ferramentas/AdminBenchmarksModal';
 import {
@@ -97,6 +98,7 @@ const STAGE_ICONS = {
   pageViews: <Target className="h-5 w-5" />,
   checkouts: <ShoppingCart className="h-5 w-5" />,
   vendas: <CheckCircle className="h-5 w-5" />,
+  cadastros: <UserPlus className="h-5 w-5" />,
 };
 
 export default function ProjecaoInterativa({
@@ -108,6 +110,7 @@ export default function ProjecaoInterativa({
   projecaoSalva,
   onSave,
 }: ProjecaoInterativaProps) {
+  const [activeTab, setActiveTab] = useState<'vendas' | 'cadastros'>('vendas');
   const [saving, setSaving] = useState(false);
   const [nomeProjecao, setNomeProjecao] = useState('');
   const [historico, setHistorico] = useState<ProjecaoHistorico[]>([]);
@@ -215,6 +218,16 @@ export default function ProjecaoInterativa({
     const impressoes = cpm > 0 ? Math.round((investimento / cpm) * 1000) : 0;
     const cliques = Math.round(impressoes * (ctr / 100));
     const pageViews = Math.round(cliques * (loadingRate / 100));
+
+    if (activeTab === 'cadastros') {
+      const cadastros = Math.round(pageViews * (conversionRate / 100));
+      const cpl = cadastros > 0 ? investimento / cadastros : 0;
+      return {
+        impressoes, cliques, pageViews, cadastros, cpl,
+        checkouts: 0, vendas: 0, receita: 0, lucro: 0, roi: 0, roas: 0, cpa: 0
+      };
+    }
+
     const checkouts = Math.round(pageViews * (checkoutRate / 100));
     const vendas = Math.round(checkouts * (conversionRate / 100));
     const receita = vendas * ticketMedio;
@@ -224,7 +237,7 @@ export default function ProjecaoInterativa({
     const cpa = vendas > 0 ? investimento / vendas : 0;
 
     return { impressoes, cliques, pageViews, checkouts, vendas, receita, lucro, roi, roas, cpa };
-  }, [projecao]);
+  }, [projecao, activeTab]);
 
   const handleMetricChange = useCallback((key: keyof ProjecaoData, value: number) => {
     setProjecao((prev) => ({ ...prev, [key]: value }));
@@ -366,8 +379,13 @@ export default function ProjecaoInterativa({
     { key: 'impressoes', label: 'Topo (Exposição)', value: funnelData.impressoes, color: '#3B82F6', toolTip: 'Pessoas atingidas pelos anúncios' },
     { key: 'cliques', label: 'Cliques (Interesse)', value: funnelData.cliques, color: '#8B5CF6', toolTip: 'Acesso ao site ou oferta' },
     { key: 'pageViews', label: 'Página (Leitura)', value: funnelData.pageViews, color: '#F59E0B', toolTip: 'Pessoas que carregaram o site' },
-    { key: 'checkouts', label: 'Checkout (Intenção)', value: funnelData.checkouts, color: '#F97316', toolTip: 'Início do processo de compra' },
-    { key: 'vendas', label: 'Vendas (Sucesso)', value: funnelData.vendas, color: '#10B981', toolTip: 'Pedidos confirmados e pagos' },
+    ...(activeTab === 'cadastros'
+      ? [{ key: 'cadastros', label: 'Cadastros (Leads)', value: funnelData.cadastros, color: '#10B981', toolTip: 'Pessoas que completaram o cadastro' }]
+      : [
+        { key: 'checkouts', label: 'Checkout (Intenção)', value: funnelData.checkouts, color: '#F97316', toolTip: 'Início do processo de compra' },
+        { key: 'vendas', label: 'Vendas (Sucesso)', value: funnelData.vendas, color: '#10B981', toolTip: 'Pedidos confirmados e pagos' }
+      ]
+    ),
   ];
 
   // Usar cliques como escala maxima para melhor visualizacao do funil
@@ -415,6 +433,20 @@ export default function ProjecaoInterativa({
           onSave={loadBenchmarks}
         />
 
+        {/* Sub-abas Vendas / Cadastros */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'vendas' | 'cadastros')} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="vendas" className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Vendas
+            </TabsTrigger>
+            <TabsTrigger value="cadastros" className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Cadastros
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {/* Barra de Benchmarks de Mercado */}
         <Card className="bg-emerald-500 text-white overflow-hidden border-none shadow-lg">
           <CardContent className="p-4 sm:p-6 relative">
@@ -434,7 +466,7 @@ export default function ProjecaoInterativa({
               )}
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className={`grid grid-cols-2 ${activeTab === 'cadastros' ? 'md:grid-cols-4' : 'md:grid-cols-5'} gap-3`}>
               <div className="bg-white/20 rounded-xl p-3 text-center backdrop-blur-md border border-white/20 shadow-inner group transition-all hover:bg-white/30">
                 <span className="text-[10px] font-bold opacity-90 uppercase block mb-1 tracking-tighter">CPM</span>
                 <div className="text-xl font-extrabold drop-shadow-sm">
@@ -453,16 +485,18 @@ export default function ProjecaoInterativa({
                   {benchmarks['loading_rate']?.valor || 85}%
                 </div>
               </div>
-              <div className="bg-white/20 rounded-xl p-3 text-center backdrop-blur-md border border-white/20 shadow-inner group transition-all hover:bg-white/30">
-                <span className="text-[10px] font-bold opacity-90 uppercase block mb-1 tracking-tighter">Checkout</span>
-                <div className="text-xl font-extrabold drop-shadow-sm">
-                  {benchmarks['checkout_rate']?.valor || 30}%
+              {activeTab === 'vendas' && (
+                <div className="bg-white/20 rounded-xl p-3 text-center backdrop-blur-md border border-white/20 shadow-inner group transition-all hover:bg-white/30">
+                  <span className="text-[10px] font-bold opacity-90 uppercase block mb-1 tracking-tighter">Checkout</span>
+                  <div className="text-xl font-extrabold drop-shadow-sm">
+                    {benchmarks['checkout_rate']?.valor || 30}%
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="bg-white/20 rounded-xl p-3 text-center backdrop-blur-md border border-white/20 shadow-inner group transition-all hover:bg-white/30">
-                <span className="text-[10px] font-bold opacity-90 uppercase block mb-1 tracking-tighter">Conversão</span>
+                <span className="text-[10px] font-bold opacity-90 uppercase block mb-1 tracking-tighter">{activeTab === 'cadastros' ? 'Conversão' : 'Conversão'}</span>
                 <div className="text-xl font-extrabold drop-shadow-sm">
-                  {benchmarks['conversion_rate']?.valor || 3}%
+                  {activeTab === 'cadastros' ? '50%' : `${benchmarks['conversion_rate']?.valor || 3}%`}
                 </div>
               </div>
             </div>
@@ -724,92 +758,99 @@ export default function ProjecaoInterativa({
                 </div>
               </div>
 
-              {/* Taxa Checkout */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2 flex-wrap text-left">
-                    <span className="font-bold">Taxa Checkout</span>
-                    <span className="text-[10px] text-muted-foreground font-normal leading-tight">
-                      (Intenção) — <span className="italic opacity-80">Cálculo: (Checkouts / Page Views) * 100</span>
-                    </span>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="h-3 w-3 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-64">
-                        <p>Visitantes que iniciaram o checkout.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    {editingMetric === 'checkoutRate' ? (
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="w-20 h-7 text-sm"
-                          step="1"
-                          min={5}
-                          max={60}
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') confirmEditMetric('checkoutRate', 5, 60);
-                            if (e.key === 'Escape') cancelEditMetric();
-                          }}
-                        />
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('checkoutRate', 5, 60)}>
-                          <Check className="h-3.5 w-3.5 text-green-600" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEditMetric}>
-                          <X className="h-3.5 w-3.5 text-red-600" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <Badge className={getStatusBgClass(getMetricStatus('checkoutRate', projecao.checkoutRate))}>
-                          {projecao.checkoutRate.toFixed(0)}%
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => startEditingMetric('checkoutRate', projecao.checkoutRate)}
-                        >
-                          <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                        </Button>
-                      </>
-                    )}
+              {/* Taxa Checkout - apenas no modo Vendas */}
+              {activeTab === 'vendas' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2 flex-wrap text-left">
+                      <span className="font-bold">Taxa Checkout</span>
+                      <span className="text-[10px] text-muted-foreground font-normal leading-tight">
+                        (Intenção) — <span className="italic opacity-80">Cálculo: (Checkouts / Page Views) * 100</span>
+                      </span>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-64">
+                          <p>Visitantes que iniciaram o checkout.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      {editingMetric === 'checkoutRate' ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-20 h-7 text-sm"
+                            step="1"
+                            min={5}
+                            max={60}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') confirmEditMetric('checkoutRate', 5, 60);
+                              if (e.key === 'Escape') cancelEditMetric();
+                            }}
+                          />
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('checkoutRate', 5, 60)}>
+                            <Check className="h-3.5 w-3.5 text-green-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEditMetric}>
+                            <X className="h-3.5 w-3.5 text-red-600" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <Badge className={getStatusBgClass(getMetricStatus('checkoutRate', projecao.checkoutRate))}>
+                            {projecao.checkoutRate.toFixed(0)}%
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => startEditingMetric('checkoutRate', projecao.checkoutRate)}
+                          >
+                            <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <Slider
+                    value={[projecao.checkoutRate]}
+                    onValueChange={([value]) => handleMetricChange('checkoutRate', value)}
+                    min={5}
+                    max={60}
+                    step={1}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>5%</span>
+                    <span className="text-emerald-600 font-semibold">Meta: {benchmarks['checkout_rate']?.valor || benchmarks['checkoutRate']?.valor || 30}%</span>
+                    <span>60%</span>
                   </div>
                 </div>
-                <Slider
-                  value={[projecao.checkoutRate]}
-                  onValueChange={([value]) => handleMetricChange('checkoutRate', value)}
-                  min={5}
-                  max={60}
-                  step={1}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>5%</span>
-                  <span className="text-emerald-600 font-semibold">Meta: {benchmarks['checkout_rate']?.valor || benchmarks['checkoutRate']?.valor || 30}%</span>
-                  <span>60%</span>
-                </div>
-              </div>
+              )}
 
               {/* Taxa Conversao */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-2 flex-wrap text-left">
-                    <span className="font-bold">Taxa Conversao</span>
+                    <span className="font-bold">{activeTab === 'cadastros' ? 'Taxa Conversão' : 'Taxa Conversao'}</span>
                     <span className="text-[10px] text-muted-foreground font-normal leading-tight">
-                      (Vendas) — <span className="italic opacity-80">Cálculo: (Vendas / Checkouts) * 100</span>
+                      {activeTab === 'cadastros'
+                        ? <>(Cadastros) — <span className="italic opacity-80">Cálculo: (Cadastros / Page Views) * 100</span></>
+                        : <>(Vendas) — <span className="italic opacity-80">Cálculo: (Vendas / Checkouts) * 100</span></>
+                      }
                     </span>
                     <Tooltip>
                       <TooltipTrigger>
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-64">
-                        <p>Porcentagem final de checkouts que viraram vendas.</p>
+                        <p>{activeTab === 'cadastros'
+                          ? 'Porcentagem de visitantes da página que completaram o cadastro.'
+                          : 'Porcentagem final de checkouts que viraram vendas.'}</p>
                       </TooltipContent>
                     </Tooltip>
                   </Label>
@@ -821,16 +862,16 @@ export default function ProjecaoInterativa({
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           className="w-20 h-7 text-sm"
-                          step="0.1"
-                          min={0.5}
-                          max={10}
+                          step={activeTab === 'cadastros' ? '1' : '0.1'}
+                          min={activeTab === 'cadastros' ? 5 : 0.5}
+                          max={activeTab === 'cadastros' ? 100 : 10}
                           autoFocus
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') confirmEditMetric('conversionRate', 0.5, 10);
+                            if (e.key === 'Enter') confirmEditMetric('conversionRate', activeTab === 'cadastros' ? 5 : 0.5, activeTab === 'cadastros' ? 100 : 10);
                             if (e.key === 'Escape') cancelEditMetric();
                           }}
                         />
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('conversionRate', 0.5, 10)}>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('conversionRate', activeTab === 'cadastros' ? 5 : 0.5, activeTab === 'cadastros' ? 100 : 10)}>
                           <Check className="h-3.5 w-3.5 text-green-600" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEditMetric}>
@@ -840,7 +881,7 @@ export default function ProjecaoInterativa({
                     ) : (
                       <>
                         <Badge className={getStatusBgClass(getMetricStatus('conversionRate', projecao.conversionRate))}>
-                          {projecao.conversionRate.toFixed(2)}%
+                          {projecao.conversionRate.toFixed(activeTab === 'cadastros' ? 0 : 2)}%
                         </Badge>
                         <Button
                           variant="ghost"
@@ -857,43 +898,45 @@ export default function ProjecaoInterativa({
                 <Slider
                   value={[projecao.conversionRate]}
                   onValueChange={([value]) => handleMetricChange('conversionRate', value)}
-                  min={0.5}
-                  max={10}
-                  step={0.1}
+                  min={activeTab === 'cadastros' ? 5 : 0.5}
+                  max={activeTab === 'cadastros' ? 100 : 10}
+                  step={activeTab === 'cadastros' ? 1 : 0.1}
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>0.5%</span>
-                  <span className="text-emerald-600 font-semibold">Meta: {benchmarks['conversion_rate']?.valor || benchmarks['conversionRate']?.valor || 3}%</span>
-                  <span>10%</span>
+                  <span>{activeTab === 'cadastros' ? '5%' : '0.5%'}</span>
+                  <span className="text-emerald-600 font-semibold">Meta: {activeTab === 'cadastros' ? '50' : (benchmarks['conversion_rate']?.valor || benchmarks['conversionRate']?.valor || 3)}%</span>
+                  <span>{activeTab === 'cadastros' ? '100%' : '10%'}</span>
                 </div>
               </div>
 
-              {/* Ticket Medio */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    Ticket Medio
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="h-3 w-3 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Valor médio de cada venda realizada no seu funil.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </Label>
-                  <span className="text-sm font-bold">
-                    {formatMetricValue(projecao.ticketMedio, 'currency')}
-                  </span>
+              {/* Ticket Medio - apenas no modo Vendas */}
+              {activeTab === 'vendas' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      Ticket Medio
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Valor médio de cada venda realizada no seu funil.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </Label>
+                    <span className="text-sm font-bold">
+                      {formatMetricValue(projecao.ticketMedio, 'currency')}
+                    </span>
+                  </div>
+                  <Input
+                    type="number"
+                    value={projecao.ticketMedio}
+                    onChange={(e) => handleMetricChange('ticketMedio', parseFloat(e.target.value) || 0)}
+                    step="10"
+                    min="0"
+                  />
                 </div>
-                <Input
-                  type="number"
-                  value={projecao.ticketMedio}
-                  onChange={(e) => handleMetricChange('ticketMedio', parseFloat(e.target.value) || 0)}
-                  step="10"
-                  min="0"
-                />
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -956,7 +999,8 @@ export default function ProjecaoInterativa({
                                 {stage.key === 'cliques' ? 'CTR/Cliques' :
                                   stage.key === 'pageViews' ? 'Carregamento' :
                                     stage.key === 'checkouts' ? 'Checkout' :
-                                      stage.key === 'vendas' ? 'Conversão' : ''}
+                                      stage.key === 'vendas' ? 'Conversão' :
+                                        stage.key === 'cadastros' ? 'Conversão' : ''}
                               </span>
                             </div>
                           ) : (
@@ -971,9 +1015,17 @@ export default function ProjecaoInterativa({
                 {/* Taxa de conversao total */}
                 <div className="mt-4 pt-4 border-t">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Taxa de Conversão Final (Cliques → Vendas):</span>
-                    <span className={`font-bold text-lg ${funnelData.vendas > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {funnelData.cliques > 0 ? ((funnelData.vendas / funnelData.cliques) * 100).toFixed(2) : 0}%
+                    <span className="text-muted-foreground">
+                      {activeTab === 'cadastros'
+                        ? 'Taxa de Conversão Final (Cliques → Cadastros):'
+                        : 'Taxa de Conversão Final (Cliques → Vendas):'}
+                    </span>
+                    <span className={`font-bold text-lg ${activeTab === 'cadastros'
+                      ? (funnelData.cadastros > 0 ? 'text-emerald-600' : 'text-red-500')
+                      : (funnelData.vendas > 0 ? 'text-emerald-600' : 'text-red-500')}`}>
+                      {activeTab === 'cadastros'
+                        ? (funnelData.cliques > 0 ? ((funnelData.cadastros / funnelData.cliques) * 100).toFixed(2) : 0)
+                        : (funnelData.cliques > 0 ? ((funnelData.vendas / funnelData.cliques) * 100).toFixed(2) : 0)}%
                     </span>
                   </div>
                 </div>
@@ -989,49 +1041,76 @@ export default function ProjecaoInterativa({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Investimento</p>
-                    <p className="text-xl font-bold text-red-600">
-                      {formatMetricValue(projecao.investimento, 'currency')}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Receita Projetada</p>
-                    <p className="text-xl font-bold text-green-600">
-                      {formatMetricValue(funnelData.receita, 'currency')}
-                    </p>
-                  </div>
-                  <div className={`p-3 rounded-lg ${funnelData.lucro >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
-                    <p className="text-xs text-muted-foreground">Lucro Projetado</p>
-                    <p className={`text-xl font-bold ${funnelData.lucro >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatMetricValue(funnelData.lucro, 'currency')}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Vendas Projetadas</p>
-                    <p className="text-xl font-bold text-purple-600">{funnelData.vendas}</p>
-                  </div>
-                </div>
+                {activeTab === 'cadastros' ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Investimento</p>
+                        <p className="text-xl font-bold text-red-600">
+                          {formatMetricValue(projecao.investimento, 'currency')}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Cadastros Projetados</p>
+                        <p className="text-xl font-bold text-emerald-600">{funnelData.cadastros}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 mt-4">
+                      <div className="text-center p-3 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                        <p className="text-xs text-muted-foreground">Custo por Lead (CPL)</p>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {formatMetricValue(funnelData.cpl, 'currency')}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Investimento</p>
+                        <p className="text-xl font-bold text-red-600">
+                          {formatMetricValue(projecao.investimento, 'currency')}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Receita Projetada</p>
+                        <p className="text-xl font-bold text-green-600">
+                          {formatMetricValue(funnelData.receita, 'currency')}
+                        </p>
+                      </div>
+                      <div className={`p-3 rounded-lg ${funnelData.lucro >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                        <p className="text-xs text-muted-foreground">Lucro Projetado</p>
+                        <p className={`text-xl font-bold ${funnelData.lucro >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatMetricValue(funnelData.lucro, 'currency')}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Vendas Projetadas</p>
+                        <p className="text-xl font-bold text-purple-600">{funnelData.vendas}</p>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-3 gap-3 mt-4">
-                  <div className="text-center p-2 border rounded-lg">
-                    <p className="text-xs text-muted-foreground">ROI</p>
-                    <p className={`text-lg font-bold ${funnelData.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {funnelData.roi.toFixed(1)}%
-                    </p>
-                  </div>
-                  <div className="text-center p-2 border rounded-lg">
-                    <p className="text-xs text-muted-foreground">ROAS</p>
-                    <p className="text-lg font-bold text-blue-600">{funnelData.roas.toFixed(2)}x</p>
-                  </div>
-                  <div className="text-center p-2 border rounded-lg">
-                    <p className="text-xs text-muted-foreground">CPA</p>
-                    <p className="text-lg font-bold text-orange-600">
-                      {formatMetricValue(funnelData.cpa, 'currency')}
-                    </p>
-                  </div>
-                </div>
+                    <div className="grid grid-cols-3 gap-3 mt-4">
+                      <div className="text-center p-2 border rounded-lg">
+                        <p className="text-xs text-muted-foreground">ROI</p>
+                        <p className={`text-lg font-bold ${funnelData.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {funnelData.roi.toFixed(1)}%
+                        </p>
+                      </div>
+                      <div className="text-center p-2 border rounded-lg">
+                        <p className="text-xs text-muted-foreground">ROAS</p>
+                        <p className="text-lg font-bold text-blue-600">{funnelData.roas.toFixed(2)}x</p>
+                      </div>
+                      <div className="text-center p-2 border rounded-lg">
+                        <p className="text-xs text-muted-foreground">CPA</p>
+                        <p className="text-lg font-bold text-orange-600">
+                          {formatMetricValue(funnelData.cpa, 'currency')}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
