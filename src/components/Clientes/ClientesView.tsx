@@ -154,12 +154,12 @@ export const ClientesView = () => {
   const [clientCategories, setClientCategories] = useState<any[]>([]);
   const [categoriesManagerOpen, setCategoriesManagerOpen] = useState(false);
   const [fieldOptionsManagerOpen, setFieldOptionsManagerOpen] = useState(false);
-  
+
   // Field options filters
   const [situacaoFilter, setSituacaoFilter] = useState<string>('all');
   const [etapaOnboardingFilter, setEtapaOnboardingFilter] = useState<string>('all');
   const [etapaTrafegoFilter, setEtapaTrafegoFilter] = useState<string>('all');
-  
+
   // Load field options
   const situacaoOptions = useFieldOptions('situacao_cliente');
   const etapaOnboardingOptions = useFieldOptions('etapa_onboarding');
@@ -262,7 +262,7 @@ export const ClientesView = () => {
   };
 
   const isColumnVisible = (columnId: string) => visibleColumns.includes(columnId);
-  
+
   const getColumnLabel = (columnId: string) => {
     return columnDefinitions.find(c => c.id === columnId)?.label || columnId;
   };
@@ -675,14 +675,10 @@ export const ClientesView = () => {
       </div>
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:space-x-2">
         {canCreateContent && <>
-          <Button variant="outline" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => window.open('https://forms.clickup.com/36694061/f/12zu1d-44913/5SA3APCY8WF3WVCL8N', '_blank')}>
+          <Button variant="hero" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => window.open('https://forms.clickup.com/36694061/f/12zu1d-44913/5SA3APCY8WF3WVCL8N', '_blank')}>
             <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
             <span className="hidden sm:inline">Criar Novo Cliente</span>
             <span className="sm:hidden">Novo Cliente</span>
-          </Button>
-          <Button variant="hero" size="sm" className="sm:size-default lg:size-lg w-full sm:w-auto" onClick={() => setModalOpen(true)}>
-            <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-            Novo Painel
           </Button>
         </>}
       </div>
@@ -873,443 +869,443 @@ export const ClientesView = () => {
               onClienteUpdate={carregarClientes}
             />
           ) : (
-          <Card className={`bg-card border shadow-card ${activeTab === 'desativados' ? 'border-destructive/30' : 'border-border'}`}>
-            <div className={`p-6 border-b ${activeTab === 'desativados' ? 'bg-destructive/5 border-destructive/30' : 'border-border'}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className={`text-lg font-semibold ${activeTab === 'desativados' ? 'text-destructive' : 'text-foreground'}`}>
-                    {activeTab === 'ativos' ? 'Clientes Ativos' : 'Clientes Desativados'} ({sortedAndFilteredClientes.length})
-                  </h3>
-                  {/* Dropdown de configuração de colunas */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-8 gap-2 text-primary border-primary/50 hover:bg-primary/10" title="Configurar colunas visíveis">
-                        <Eye className="h-4 w-4" />
-                        <span className="text-sm font-medium">Colunas</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-48">
-                      <div className="px-2 py-1.5 text-sm font-semibold">Colunas Visíveis</div>
-                      {columnDefinitions.map((column) => (
-                        <DropdownMenuItem
-                          key={column.id}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            toggleColumn(column.id);
-                          }}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Checkbox
-                            checked={isColumnVisible(column.id)}
-                            onCheckedChange={() => toggleColumn(column.id)}
-                          />
-                          <span>{column.label}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                {clientesSelecionados.length > 0 && canCreateContent && <Button onClick={() => setEdicaoMassaModalOpen(true)} variant="outline" size="sm">
-                  <EditIcon className="h-4 w-4 mr-2" />
-                  Editar {clientesSelecionados.length} selecionado(s)
-                </Button>}
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              {loading ? <div className="flex justify-center items-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div> : sortedAndFilteredClientes.length === 0 ? <div className="text-center py-8">
-                <p className="text-muted-foreground">
-                  {clientes.length === 0 ? "Nenhum cliente encontrado." : "Nenhum cliente corresponde aos filtros aplicados."}
-                </p>
-                {clientes.length === 0 && canCreateContent && <Button onClick={() => setModalOpen(true)} className="mt-4">
-                  Criar Primeiro Painel
-                </Button>}
-                {clientes.length > 0 && <Button onClick={limparFiltros} variant="outline" className="mt-4">
-                  Limpar Filtros
-                </Button>}
-              </div> : <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleColumnDragEnd}
-              >
-                <Table>
-                <TableHeader>
-                  <TableRow>
-                    {canCreateContent && activeTab === 'ativos' && <TableHead className="w-12">
-                      <Checkbox checked={clientesSelecionados.length === sortedAndFilteredClientes.length} onCheckedChange={toggleSelectAll} />
-                    </TableHead>}
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('nome')}>
-                      <div className="flex items-center">
-                        Cliente
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <SortableContext items={orderedVisibleColumns} strategy={horizontalListSortingStrategy}>
-                      {orderedVisibleColumns.map((columnId) => (
-                        <SortableTableHead
-                          key={columnId}
-                          id={columnId}
-                          onClick={() => handleSort(columnId)}
-                          className={`hover:bg-muted/50 ${['situacao_cliente', 'etapa_onboarding', 'etapa_trafego', 'gestor', 'cs'].includes(columnId) ? 'text-center' : ''}`}
-                        >
-                          {getColumnLabel(columnId)}
-                          <ArrowUpDown className="ml-2 h-4 w-4" />
-                        </SortableTableHead>
-                      ))}
-                    </SortableContext>
-                    <TableHead className="text-center">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedAndFilteredClientes.map(cliente => <TableRow key={cliente.id} className={`hover:bg-muted/50 h-16 ${activeTab === 'desativados' ? 'opacity-70' : ''}`}>
-                    {canCreateContent && activeTab === 'ativos' && <TableCell className="py-3">
-                      <Checkbox checked={clientesSelecionados.includes(cliente.id)} onCheckedChange={() => toggleClienteSelection(cliente.id)} />
-                    </TableCell>}
-                    <TableCell className="py-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <a href={`/painel/${cliente.id}`} onClick={e => {
-                            // Se não for ctrl+click nem cmd+click, prevenir o comportamento padrão e navegar programaticamente
-                            if (!e.ctrlKey && !e.metaKey) {
+            <Card className={`bg-card border shadow-card ${activeTab === 'desativados' ? 'border-destructive/30' : 'border-border'}`}>
+              <div className={`p-6 border-b ${activeTab === 'desativados' ? 'bg-destructive/5 border-destructive/30' : 'border-border'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className={`text-lg font-semibold ${activeTab === 'desativados' ? 'text-destructive' : 'text-foreground'}`}>
+                      {activeTab === 'ativos' ? 'Clientes Ativos' : 'Clientes Desativados'} ({sortedAndFilteredClientes.length})
+                    </h3>
+                    {/* Dropdown de configuração de colunas */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 gap-2 text-primary border-primary/50 hover:bg-primary/10" title="Configurar colunas visíveis">
+                          <Eye className="h-4 w-4" />
+                          <span className="text-sm font-medium">Colunas</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-48">
+                        <div className="px-2 py-1.5 text-sm font-semibold">Colunas Visíveis</div>
+                        {columnDefinitions.map((column) => (
+                          <DropdownMenuItem
+                            key={column.id}
+                            onClick={(e) => {
                               e.preventDefault();
-                              navigate(`/painel/${cliente.id}`, {
-                                state: {
-                                  from: '/?tab=clientes'
-                                }
-                              });
-                            }
-                            // Para ctrl+click ou cmd+click, deixar o comportamento padrão do navegador
-                          }} className="font-medium text-foreground hover:text-primary transition-colors text-base">
-                            {cliente.nome}
-                          </a>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-primary"
-                            onClick={() => {
-                              setClienteHistorico({ id: cliente.id, nome: cliente.nome });
-                              setHistoricoModalOpen(true);
+                              toggleColumn(column.id);
                             }}
-                            title="Ver histórico de alterações"
+                            className="flex items-center gap-2 cursor-pointer"
                           >
-                            <History className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && <div className="flex flex-wrap gap-1 mt-1">
-                          {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => <Badge key={index} variant="outline" className="text-xs">
-                            {funil}
-                          </Badge>)}
-                          {cliente.funis_trabalhando.length > 2 && <Badge variant="outline" className="text-xs">
-                            +{cliente.funis_trabalhando.length - 2}
-                          </Badge>}
-                        </div>}
-                      </div>
-                    </TableCell>
-                    {/* Dynamic column cells based on order */}
-                    {orderedVisibleColumns.map((columnId) => {
-                      switch (columnId) {
-                        case 'categoria':
-                          return (
-                            <TableCell key={columnId} className="py-3">
-                              <Badge variant="outline" className={`text-sm ${cliente.categoria === 'negocio_local' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}>
-                                {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
-                              </Badge>
-                            </TableCell>
-                          );
-                        case 'serie':
-                          return (
-                            <TableCell key={columnId} className="py-3">
-                              {canCreateContent && activeTab === 'ativos' ? (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                                      <Badge className={`${getSerieColor(cliente.serie || 'Serie A')} text-xs cursor-pointer hover:opacity-80 flex items-center gap-1`}>
-                                        {cliente.serie || 'Serie A'}
-                                        <ChevronDown className="h-3 w-3" />
-                                      </Badge>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="start" className="bg-background">
-                                    {series.map((serie) => (
-                                      <DropdownMenuItem
-                                        key={serie}
-                                        onClick={() => handleSerieChange(cliente.id, serie, cliente.serie || 'Serie A')}
-                                        className={cliente.serie === serie ? 'bg-muted' : ''}
-                                      >
-                                        <Badge className={`${getSerieColor(serie)} text-xs w-full justify-center`}>
-                                          {serie}
-                                        </Badge>
-                                      </DropdownMenuItem>
-                                    ))}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              ) : (
-                                cliente.serie ? (
-                                  <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
-                                    {cliente.serie}
+                            <Checkbox
+                              checked={isColumnVisible(column.id)}
+                              onCheckedChange={() => toggleColumn(column.id)}
+                            />
+                            <span>{column.label}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  {clientesSelecionados.length > 0 && canCreateContent && <Button onClick={() => setEdicaoMassaModalOpen(true)} variant="outline" size="sm">
+                    <EditIcon className="h-4 w-4 mr-2" />
+                    Editar {clientesSelecionados.length} selecionado(s)
+                  </Button>}
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                {loading ? <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div> : sortedAndFilteredClientes.length === 0 ? <div className="text-center py-8">
+                  <p className="text-muted-foreground">
+                    {clientes.length === 0 ? "Nenhum cliente encontrado." : "Nenhum cliente corresponde aos filtros aplicados."}
+                  </p>
+                  {clientes.length === 0 && canCreateContent && <Button onClick={() => setModalOpen(true)} className="mt-4">
+                    Criar Primeiro Painel
+                  </Button>}
+                  {clientes.length > 0 && <Button onClick={limparFiltros} variant="outline" className="mt-4">
+                    Limpar Filtros
+                  </Button>}
+                </div> : <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleColumnDragEnd}
+                >
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {canCreateContent && activeTab === 'ativos' && <TableHead className="w-12">
+                          <Checkbox checked={clientesSelecionados.length === sortedAndFilteredClientes.length} onCheckedChange={toggleSelectAll} />
+                        </TableHead>}
+                        <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('nome')}>
+                          <div className="flex items-center">
+                            Cliente
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <SortableContext items={orderedVisibleColumns} strategy={horizontalListSortingStrategy}>
+                          {orderedVisibleColumns.map((columnId) => (
+                            <SortableTableHead
+                              key={columnId}
+                              id={columnId}
+                              onClick={() => handleSort(columnId)}
+                              className={`hover:bg-muted/50 ${['situacao_cliente', 'etapa_onboarding', 'etapa_trafego', 'gestor', 'cs'].includes(columnId) ? 'text-center' : ''}`}
+                            >
+                              {getColumnLabel(columnId)}
+                              <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </SortableTableHead>
+                          ))}
+                        </SortableContext>
+                        <TableHead className="text-center">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedAndFilteredClientes.map(cliente => <TableRow key={cliente.id} className={`hover:bg-muted/50 h-16 ${activeTab === 'desativados' ? 'opacity-70' : ''}`}>
+                        {canCreateContent && activeTab === 'ativos' && <TableCell className="py-3">
+                          <Checkbox checked={clientesSelecionados.includes(cliente.id)} onCheckedChange={() => toggleClienteSelection(cliente.id)} />
+                        </TableCell>}
+                        <TableCell className="py-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <a href={`/painel/${cliente.id}`} onClick={e => {
+                                // Se não for ctrl+click nem cmd+click, prevenir o comportamento padrão e navegar programaticamente
+                                if (!e.ctrlKey && !e.metaKey) {
+                                  e.preventDefault();
+                                  navigate(`/painel/${cliente.id}`, {
+                                    state: {
+                                      from: '/?tab=clientes'
+                                    }
+                                  });
+                                }
+                                // Para ctrl+click ou cmd+click, deixar o comportamento padrão do navegador
+                              }} className="font-medium text-foreground hover:text-primary transition-colors text-base">
+                                {cliente.nome}
+                              </a>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                onClick={() => {
+                                  setClienteHistorico({ id: cliente.id, nome: cliente.nome });
+                                  setHistoricoModalOpen(true);
+                                }}
+                                title="Ver histórico de alterações"
+                              >
+                                <History className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && <div className="flex flex-wrap gap-1 mt-1">
+                              {cliente.funis_trabalhando.slice(0, 2).map((funil: string, index: number) => <Badge key={index} variant="outline" className="text-xs">
+                                {funil}
+                              </Badge>)}
+                              {cliente.funis_trabalhando.length > 2 && <Badge variant="outline" className="text-xs">
+                                +{cliente.funis_trabalhando.length - 2}
+                              </Badge>}
+                            </div>}
+                          </div>
+                        </TableCell>
+                        {/* Dynamic column cells based on order */}
+                        {orderedVisibleColumns.map((columnId) => {
+                          switch (columnId) {
+                            case 'categoria':
+                              return (
+                                <TableCell key={columnId} className="py-3">
+                                  <Badge variant="outline" className={`text-sm ${cliente.categoria === 'negocio_local' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}>
+                                    {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
                                   </Badge>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">-</span>
-                                )
-                              )}
-                            </TableCell>
-                          );
-                        case 'situacao_cliente':
-                          return (
-                            <TableCell key={columnId} className="text-center py-3">
-                              {canCreateContent && activeTab === 'ativos' ? (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                                      <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1`}>
-                                        {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
-                                        <ChevronDown className="h-3 w-3" />
+                                </TableCell>
+                              );
+                            case 'serie':
+                              return (
+                                <TableCell key={columnId} className="py-3">
+                                  {canCreateContent && activeTab === 'ativos' ? (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                                          <Badge className={`${getSerieColor(cliente.serie || 'Serie A')} text-xs cursor-pointer hover:opacity-80 flex items-center gap-1`}>
+                                            {cliente.serie || 'Serie A'}
+                                            <ChevronDown className="h-3 w-3" />
+                                          </Badge>
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="start" className="bg-background">
+                                        {series.map((serie) => (
+                                          <DropdownMenuItem
+                                            key={serie}
+                                            onClick={() => handleSerieChange(cliente.id, serie, cliente.serie || 'Serie A')}
+                                            className={cliente.serie === serie ? 'bg-muted' : ''}
+                                          >
+                                            <Badge className={`${getSerieColor(serie)} text-xs w-full justify-center`}>
+                                              {serie}
+                                            </Badge>
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  ) : (
+                                    cliente.serie ? (
+                                      <Badge className={`${getSerieColor(cliente.serie)} text-xs`}>
+                                        {cliente.serie}
                                       </Badge>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="start" className="bg-background">
-                                    {situacaoClienteOptions.map((option) => (
-                                      <DropdownMenuItem
-                                        key={option.value}
-                                        onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.value, cliente.situacao_cliente || 'nao_iniciado')}
-                                        className={cliente.situacao_cliente === option.value ? 'bg-muted' : ''}
-                                      >
-                                        <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
-                                          {option.label}
-                                        </Badge>
-                                      </DropdownMenuItem>
-                                    ))}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              ) : (
-                                <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-sm px-3 py-1`}>
-                                  {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
-                                </Badge>
-                              )}
-                            </TableCell>
-                          );
-                        case 'etapa_onboarding':
-                          return (
-                            <TableCell key={columnId} className="text-center py-3">
-                              {canCreateContent && activeTab === 'ativos' ? (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                                      <Badge style={{ backgroundColor: etapaOnboardingOptions.getColor(cliente.etapa_onboarding) }} className="text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1">
-                                        {etapaOnboardingOptions.getLabel(cliente.etapa_onboarding)}
-                                        <ChevronDown className="h-3 w-3" />
-                                      </Badge>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="start" className="bg-background">
-                                    {etapaOnboardingOptions.options.map((option) => (
-                                      <DropdownMenuItem
-                                        key={option.option_key}
-                                        onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.option_key, cliente.etapa_onboarding || 'onboarding')}
-                                        className={cliente.etapa_onboarding === option.option_key ? 'bg-muted' : ''}
-                                      >
-                                        <Badge style={{ backgroundColor: option.color }} className="text-white text-sm w-full justify-center">
-                                          {option.option_label}
-                                        </Badge>
-                                      </DropdownMenuItem>
-                                    ))}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              ) : (
-                                <Badge style={{ backgroundColor: etapaOnboardingOptions.getColor(cliente.etapa_onboarding) }} className="text-white text-sm px-3 py-1">
-                                  {etapaOnboardingOptions.getLabel(cliente.etapa_onboarding)}
-                                </Badge>
-                              )}
-                            </TableCell>
-                          );
-                        case 'etapa_trafego':
-                          return (
-                            <TableCell key={columnId} className="text-center py-3">
-                              {canCreateContent && activeTab === 'ativos' ? (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                                      <Badge style={{ backgroundColor: etapaTrafegoOptions.getColor(cliente.etapa_trafego) }} className="text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1">
-                                        {etapaTrafegoOptions.getLabel(cliente.etapa_trafego)}
-                                        <ChevronDown className="h-3 w-3" />
-                                      </Badge>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="start" className="bg-background">
-                                    {etapaTrafegoOptions.options.map((option) => (
-                                      <DropdownMenuItem
-                                        key={option.option_key}
-                                        onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.option_key, cliente.etapa_trafego || 'estrategia')}
-                                        className={cliente.etapa_trafego === option.option_key ? 'bg-muted' : ''}
-                                      >
-                                        <Badge style={{ backgroundColor: option.color }} className="text-white text-sm w-full justify-center">
-                                          {option.option_label}
-                                        </Badge>
-                                      </DropdownMenuItem>
-                                    ))}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              ) : (
-                                <Badge style={{ backgroundColor: etapaTrafegoOptions.getColor(cliente.etapa_trafego) }} className="text-white text-sm px-3 py-1">
-                                  {etapaTrafegoOptions.getLabel(cliente.etapa_trafego)}
-                                </Badge>
-                              )}
-                            </TableCell>
-                          );
-                        case 'gestor':
-                          return (
-                            <TableCell key={columnId} className="text-center py-3">
-                              {cliente.primary_gestor ? (
-                                <div className="flex justify-center">
-                                  <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80" onClick={() => {
-                                    setClienteTeam({ id: cliente.id, nome: cliente.nome });
-                                    setTeamModalOpen(true);
-                                  }}>
-                                    <AvatarImage src={cliente.primary_gestor.avatar_url} />
-                                    <AvatarFallback className="text-sm">
-                                      {cliente.primary_gestor.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                </div>
-                              ) : (
-                                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-muted-foreground" onClick={() => {
-                                  setClienteTeam({ id: cliente.id, nome: cliente.nome });
-                                  setTeamModalOpen(true);
-                                }}>
-                                  <Users className="h-5 w-5" />
-                                </Button>
-                              )}
-                            </TableCell>
-                          );
-                        case 'cs':
-                          const csTeam = cliente.client_roles?.filter(cr => cr.role === 'cs') || [];
-                          const primaryCs = cliente.primary_cs;
-                          return (
-                            <TableCell key={columnId} className="text-center py-3">
-                              {primaryCs ? (
-                                <div className="flex justify-center items-center gap-1">
-                                  <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80" onClick={() => {
-                                    setClienteTeam({ id: cliente.id, nome: cliente.nome });
-                                    setTeamModalOpen(true);
-                                  }}>
-                                    <AvatarImage src={primaryCs.avatar_url} />
-                                    <AvatarFallback className="text-sm">
-                                      {primaryCs.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  {csTeam.length > 1 && (
-                                    <Badge variant="secondary" className="text-xs px-1 h-5">
-                                      +{csTeam.length - 1}
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">-</span>
+                                    )
+                                  )}
+                                </TableCell>
+                              );
+                            case 'situacao_cliente':
+                              return (
+                                <TableCell key={columnId} className="text-center py-3">
+                                  {canCreateContent && activeTab === 'ativos' ? (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                                          <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1`}>
+                                            {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
+                                            <ChevronDown className="h-3 w-3" />
+                                          </Badge>
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="start" className="bg-background">
+                                        {situacaoClienteOptions.map((option) => (
+                                          <DropdownMenuItem
+                                            key={option.value}
+                                            onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.value, cliente.situacao_cliente || 'nao_iniciado')}
+                                            className={cliente.situacao_cliente === option.value ? 'bg-muted' : ''}
+                                          >
+                                            <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
+                                              {option.label}
+                                            </Badge>
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  ) : (
+                                    <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-sm px-3 py-1`}>
+                                      {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
                                     </Badge>
                                   )}
-                                </div>
-                              ) : (
-                                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-muted-foreground" onClick={() => {
-                                  setClienteTeam({ id: cliente.id, nome: cliente.nome });
-                                  setTeamModalOpen(true);
-                                }}>
-                                  <Users className="h-5 w-5" />
+                                </TableCell>
+                              );
+                            case 'etapa_onboarding':
+                              return (
+                                <TableCell key={columnId} className="text-center py-3">
+                                  {canCreateContent && activeTab === 'ativos' ? (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                                          <Badge style={{ backgroundColor: etapaOnboardingOptions.getColor(cliente.etapa_onboarding) }} className="text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1">
+                                            {etapaOnboardingOptions.getLabel(cliente.etapa_onboarding)}
+                                            <ChevronDown className="h-3 w-3" />
+                                          </Badge>
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="start" className="bg-background">
+                                        {etapaOnboardingOptions.options.map((option) => (
+                                          <DropdownMenuItem
+                                            key={option.option_key}
+                                            onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.option_key, cliente.etapa_onboarding || 'onboarding')}
+                                            className={cliente.etapa_onboarding === option.option_key ? 'bg-muted' : ''}
+                                          >
+                                            <Badge style={{ backgroundColor: option.color }} className="text-white text-sm w-full justify-center">
+                                              {option.option_label}
+                                            </Badge>
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  ) : (
+                                    <Badge style={{ backgroundColor: etapaOnboardingOptions.getColor(cliente.etapa_onboarding) }} className="text-white text-sm px-3 py-1">
+                                      {etapaOnboardingOptions.getLabel(cliente.etapa_onboarding)}
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                              );
+                            case 'etapa_trafego':
+                              return (
+                                <TableCell key={columnId} className="text-center py-3">
+                                  {canCreateContent && activeTab === 'ativos' ? (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                                          <Badge style={{ backgroundColor: etapaTrafegoOptions.getColor(cliente.etapa_trafego) }} className="text-white text-sm cursor-pointer hover:opacity-80 flex items-center gap-1 px-3 py-1">
+                                            {etapaTrafegoOptions.getLabel(cliente.etapa_trafego)}
+                                            <ChevronDown className="h-3 w-3" />
+                                          </Badge>
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="start" className="bg-background">
+                                        {etapaTrafegoOptions.options.map((option) => (
+                                          <DropdownMenuItem
+                                            key={option.option_key}
+                                            onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.option_key, cliente.etapa_trafego || 'estrategia')}
+                                            className={cliente.etapa_trafego === option.option_key ? 'bg-muted' : ''}
+                                          >
+                                            <Badge style={{ backgroundColor: option.color }} className="text-white text-sm w-full justify-center">
+                                              {option.option_label}
+                                            </Badge>
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  ) : (
+                                    <Badge style={{ backgroundColor: etapaTrafegoOptions.getColor(cliente.etapa_trafego) }} className="text-white text-sm px-3 py-1">
+                                      {etapaTrafegoOptions.getLabel(cliente.etapa_trafego)}
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                              );
+                            case 'gestor':
+                              return (
+                                <TableCell key={columnId} className="text-center py-3">
+                                  {cliente.primary_gestor ? (
+                                    <div className="flex justify-center">
+                                      <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80" onClick={() => {
+                                        setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                                        setTeamModalOpen(true);
+                                      }}>
+                                        <AvatarImage src={cliente.primary_gestor.avatar_url} />
+                                        <AvatarFallback className="text-sm">
+                                          {cliente.primary_gestor.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    </div>
+                                  ) : (
+                                    <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-muted-foreground" onClick={() => {
+                                      setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                                      setTeamModalOpen(true);
+                                    }}>
+                                      <Users className="h-5 w-5" />
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              );
+                            case 'cs':
+                              const csTeam = cliente.client_roles?.filter(cr => cr.role === 'cs') || [];
+                              const primaryCs = cliente.primary_cs;
+                              return (
+                                <TableCell key={columnId} className="text-center py-3">
+                                  {primaryCs ? (
+                                    <div className="flex justify-center items-center gap-1">
+                                      <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80" onClick={() => {
+                                        setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                                        setTeamModalOpen(true);
+                                      }}>
+                                        <AvatarImage src={primaryCs.avatar_url} />
+                                        <AvatarFallback className="text-sm">
+                                          {primaryCs.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      {csTeam.length > 1 && (
+                                        <Badge variant="secondary" className="text-xs px-1 h-5">
+                                          +{csTeam.length - 1}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-muted-foreground" onClick={() => {
+                                      setClienteTeam({ id: cliente.id, nome: cliente.nome });
+                                      setTeamModalOpen(true);
+                                    }}>
+                                      <Users className="h-5 w-5" />
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              );
+                            default:
+                              return null;
+                          }
+                        })}
+
+                        <TableCell className="py-3">
+                          <div className="flex items-center justify-center">
+                            {/* Menu de ações */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                              )}
-                            </TableCell>
-                          );
-                        default:
-                          return null;
-                      }
-                    })}
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                {activeTab === 'ativos' ? (
+                                  <>
+                                    <DropdownMenuItem onClick={e => handleCatalogoClick(cliente, e as any)}>
+                                      <Sheet className="h-4 w-4 mr-2 text-green-600" />
+                                      Catálogo de Criativos
+                                    </DropdownMenuItem>
 
-                    <TableCell className="py-3">
-                      <div className="flex items-center justify-center">
-                        {/* Menu de ações */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            {activeTab === 'ativos' ? (
-                              <>
-                                <DropdownMenuItem onClick={e => handleCatalogoClick(cliente, e as any)}>
-                                  <Sheet className="h-4 w-4 mr-2 text-green-600" />
-                                  Catálogo de Criativos
-                                </DropdownMenuItem>
+                                    {canCreateContent && (
+                                      <DropdownMenuItem onClick={() => {
+                                        setClienteKickoff({
+                                          id: cliente.id,
+                                          nome: cliente.nome
+                                        });
+                                        setKickoffModalOpen(true);
+                                      }}>
+                                        <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                                        Kickoff
+                                      </DropdownMenuItem>
+                                    )}
 
-                                {canCreateContent && (
-                                  <DropdownMenuItem onClick={() => {
-                                    setClienteKickoff({
-                                      id: cliente.id,
-                                      nome: cliente.nome
-                                    });
-                                    setKickoffModalOpen(true);
-                                  }}>
-                                    <FileText className="h-4 w-4 mr-2 text-blue-500" />
-                                    Kickoff
-                                  </DropdownMenuItem>
+                                    {canCreateContent && (
+                                      <DropdownMenuItem onClick={() => handleEditClick(cliente)}>
+                                        <Edit className="h-4 w-4 mr-2" />
+                                        Editar Cliente
+                                      </DropdownMenuItem>
+                                    )}
+
+                                    <DropdownMenuItem onClick={() => navigate(`/painel/${cliente.id}`)}>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      Ver Painel
+                                    </DropdownMenuItem>
+
+                                    <DropdownMenuItem onClick={() => {
+                                      const fullLink = cliente.link_painel?.startsWith('http') ? cliente.link_painel : `${window.location.origin}${cliente.link_painel}`;
+                                      copyToClipboard(fullLink);
+                                    }}>
+                                      <Copy className="h-4 w-4 mr-2" />
+                                      Copiar Link do Painel
+                                    </DropdownMenuItem>
+
+                                    {cliente.pasta_drive_url && (
+                                      <DropdownMenuItem onClick={() => window.open(cliente.pasta_drive_url, '_blank')}>
+                                        <span className="mr-2">📁</span>
+                                        Pasta do Drive
+                                      </DropdownMenuItem>
+                                    )}
+
+                                    {canCreateContent && (
+                                      <DropdownMenuItem onClick={() => handleInativarClick(cliente)} className="text-orange-500">
+                                        <Pause className="h-4 w-4 mr-2" />
+                                        Inativar Cliente
+                                      </DropdownMenuItem>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    {canCreateContent && (
+                                      <DropdownMenuItem onClick={() => handleReativarClick(cliente)} className="text-green-500">
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Reativar Cliente
+                                      </DropdownMenuItem>
+                                    )}
+
+                                    {canCreateContent && (
+                                      <DropdownMenuItem onClick={() => handleDeleteClick(cliente)} className="text-destructive">
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Apagar Cliente
+                                      </DropdownMenuItem>
+                                    )}
+                                  </>
                                 )}
-
-                                {canCreateContent && (
-                                  <DropdownMenuItem onClick={() => handleEditClick(cliente)}>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Editar Cliente
-                                  </DropdownMenuItem>
-                                )}
-
-                                <DropdownMenuItem onClick={() => navigate(`/painel/${cliente.id}`)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Ver Painel
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem onClick={() => {
-                                  const fullLink = cliente.link_painel?.startsWith('http') ? cliente.link_painel : `${window.location.origin}${cliente.link_painel}`;
-                                  copyToClipboard(fullLink);
-                                }}>
-                                  <Copy className="h-4 w-4 mr-2" />
-                                  Copiar Link do Painel
-                                </DropdownMenuItem>
-
-                                {cliente.pasta_drive_url && (
-                                  <DropdownMenuItem onClick={() => window.open(cliente.pasta_drive_url, '_blank')}>
-                                    <span className="mr-2">📁</span>
-                                    Pasta do Drive
-                                  </DropdownMenuItem>
-                                )}
-
-                                {canCreateContent && (
-                                  <DropdownMenuItem onClick={() => handleInativarClick(cliente)} className="text-orange-500">
-                                    <Pause className="h-4 w-4 mr-2" />
-                                    Inativar Cliente
-                                  </DropdownMenuItem>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                {canCreateContent && (
-                                  <DropdownMenuItem onClick={() => handleReativarClick(cliente)} className="text-green-500">
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    Reativar Cliente
-                                  </DropdownMenuItem>
-                                )}
-
-                                {canCreateContent && (
-                                  <DropdownMenuItem onClick={() => handleDeleteClick(cliente)} className="text-destructive">
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Apagar Cliente
-                                  </DropdownMenuItem>
-                                )}
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>)}
-                </TableBody>
-              </Table>
-              </DndContext>}
-            </div>
-          </Card>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>)}
+                    </TableBody>
+                  </Table>
+                </DndContext>}
+              </div>
+            </Card>
           )}
         </div>
       </TabsContent>
