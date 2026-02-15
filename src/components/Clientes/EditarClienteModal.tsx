@@ -18,12 +18,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Palette } from "lucide-react";
+import { Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useFieldOptions } from "@/hooks/useFieldOptions";
 import { TeamAssignmentModal } from "./TeamAssignmentModal";
-import { BrandingConfigModal } from "./BrandingConfigModal";
+
 
 interface EditarClienteModalProps {
   open: boolean;
@@ -35,7 +35,7 @@ interface EditarClienteModalProps {
 export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: EditarClienteModalProps) => {
   const [loading, setLoading] = useState(false);
   const [teamModalOpen, setTeamModalOpen] = useState(false);
-  const [brandingModalOpen, setBrandingModalOpen] = useState(false);
+
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const { toast } = useToast();
   const [formData, setFormData] = useState({
@@ -46,13 +46,10 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
     pasta_drive_url: '',
     link_painel: '',
     observacoes: '',
-    progresso_etapa: 0,
     status_cliente: 'ativo',
-    google_sheet_id: '',
-    google_sheet_aba: 'Dashboard'
   });
   const [categories, setCategories] = useState<any[]>([]);
-  
+
   // Load field options
   const situacaoOptions = useFieldOptions('situacao_cliente');
   const etapaOnboardingOptions = useFieldOptions('etapa_onboarding');
@@ -68,10 +65,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
         pasta_drive_url: cliente.pasta_drive_url || '',
         link_painel: cliente.link_painel || '',
         observacoes: cliente.observacoes || '',
-        progresso_etapa: cliente.progresso_etapa || 0,
         status_cliente: cliente.status_cliente || 'ativo',
-        google_sheet_id: cliente.google_sheet_id || '',
-        google_sheet_aba: cliente.google_sheet_aba || 'Dashboard'
       });
       loadTeamMembers();
     }
@@ -90,7 +84,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
 
   const loadTeamMembers = async () => {
     if (!cliente?.id) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('client_roles')
@@ -152,21 +146,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
     }));
   };
 
-  const extractSheetId = (input: string): string => {
-    // Se já for um ID (não contém /), retorna direto
-    if (!input.includes('/')) {
-      return input.trim();
-    }
 
-    // Extrai ID do link: https://docs.google.com/spreadsheets/d/{ID}/edit
-    const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    return match ? match[1] : input.trim();
-  };
-
-  const handleSheetInputChange = (value: string) => {
-    const extractedId = extractSheetId(value);
-    setFormData(prev => ({ ...prev, google_sheet_id: extractedId }));
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,7 +154,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
         <DialogHeader>
           <DialogTitle>Editar Cliente</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -190,8 +170,8 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
 
             <div className="space-y-2">
               <Label htmlFor="categoria">Categoria *</Label>
-              <Select 
-                value={formData.categoria} 
+              <Select
+                value={formData.categoria}
                 onValueChange={(value) => handleInputChange('categoria', value)}
               >
                 <SelectTrigger>
@@ -231,8 +211,8 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
 
             <div className="space-y-2">
               <Label htmlFor="etapa_atual">Etapa Atual</Label>
-              <Select 
-                value={formData.etapa_atual} 
+              <Select
+                value={formData.etapa_atual}
                 onValueChange={(value) => handleInputChange('etapa_atual', value)}
               >
                 <SelectTrigger>
@@ -251,36 +231,21 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="progresso_etapa">Progresso (%)</Label>
-              <Input
-                id="progresso_etapa"
-                type="number"
-                min="0"
-                max="100"
-                value={formData.progresso_etapa}
-                onChange={(e) => handleInputChange('progresso_etapa', parseInt(e.target.value) || 0)}
-                placeholder="0"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status_cliente">Status do Cliente</Label>
-              <Select 
-                value={formData.status_cliente} 
-                onValueChange={(value) => handleInputChange('status_cliente', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ativo">Ativo</SelectItem>
-                  <SelectItem value="inativo">Inativo</SelectItem>
-                  <SelectItem value="pausado">Pausado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="status_cliente">Status do Cliente</Label>
+            <Select
+              value={formData.status_cliente}
+              onValueChange={(value) => handleInputChange('status_cliente', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ativo">Ativo</SelectItem>
+                <SelectItem value="inativo">Inativo</SelectItem>
+                <SelectItem value="pausado">Pausado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -314,60 +279,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
             />
           </div>
 
-          {/* Seção de Google Sheets */}
-          <div className="space-y-4 border-t pt-4">
-            <Label className="text-base font-semibold">Google Sheets - Métricas do Cliente</Label>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="google_sheet_id">Link ou ID da Planilha</Label>
-                <Input
-                  id="google_sheet_id"
-                  value={formData.google_sheet_id}
-                  onChange={(e) => handleSheetInputChange(e.target.value)}
-                  placeholder="https://docs.google.com/spreadsheets/d/1AbCdEfG... ou 1AbCdEfG..."
-                />
-                <p className="text-xs text-muted-foreground">
-                  Cole o link completo da planilha ou apenas o ID (extraído automaticamente)
-                </p>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="google_sheet_aba">Nome da Aba</Label>
-                <Input
-                  id="google_sheet_aba"
-                  value={formData.google_sheet_aba}
-                  onChange={(e) => handleInputChange('google_sheet_aba', e.target.value)}
-                  placeholder="Dashboard"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Nome da aba/sheet que contém os dados (padrão: Dashboard)
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Seção de Branding */}
-          <div className="space-y-2">
-            <Label>Identidade Visual</Label>
-            <div className="border rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-sm font-medium">Configurar Branding</span>
-                  <p className="text-xs text-muted-foreground">Personalize logo, cores e descritivo</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBrandingModalOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Palette className="h-4 w-4" />
-                  Configurar
-                </Button>
-              </div>
-            </div>
-          </div>
 
           {/* Seção de Equipe */}
           <div className="space-y-2">
@@ -386,7 +298,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
                   Gerenciar Equipe
                 </Button>
               </div>
-              
+
               {teamMembers.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {teamMembers
@@ -404,7 +316,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
                         )}
                       </div>
                     ))}
-                  
+
                   {teamMembers
                     .filter(member => member.role === 'cs')
                     .map((member, index) => (
@@ -428,16 +340,16 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={loading}
             >
               {loading ? 'Salvando...' : 'Salvar Alterações'}
@@ -457,12 +369,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
         }}
       />
 
-      <BrandingConfigModal
-        open={brandingModalOpen}
-        onOpenChange={setBrandingModalOpen}
-        cliente={cliente}
-        onSuccess={onSuccess}
-      />
+
     </Dialog>
   );
 };

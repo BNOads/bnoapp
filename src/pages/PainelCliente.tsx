@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Share2, Edit2, Palette, Rocket } from "lucide-react";
+import { Calendar, FileText, Link2, Video, Search, Copy, Eye, Upload, FolderOpen, DollarSign, Share2, Edit2, Rocket } from "lucide-react";
 import { MessageCircle, ArrowLeft, LogIn, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +14,7 @@ import { TarefasListEnhanced } from "@/components/Clientes/TarefasListEnhanced";
 import { LinksImportantesEnhanced } from "@/components/Clientes/LinksImportantesEnhanced";
 import { OrcamentoPorFunil } from "@/components/Clientes/OrcamentoPorFunil";
 import { EditarClienteModal } from "@/components/Clientes/EditarClienteModal";
-import { BrandingConfigModal } from "@/components/Clientes/BrandingConfigModal";
+
 import { MensagemSemanal } from "@/components/Clientes/MensagemSemanal";
 import { HistoricoMensagensCliente } from "@/components/Clientes/HistoricoMensagensCliente";
 import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
@@ -22,8 +22,7 @@ import { ChecklistCriativosView } from "@/components/Clientes/ChecklistCriativos
 import { MessageSquare } from "lucide-react";
 import { NPSPopup } from "@/components/NPS/NPSPopup";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { ClienteBrandingProvider } from "@/components/Clientes/ClienteBrandingProvider";
-import { ClienteBrandingHeader } from "@/components/Clientes/ClienteBrandingHeader";
+
 import { LancamentoCard } from "@/components/Lancamentos/LancamentoCard";
 import { TestesClientePanel } from "@/components/Clientes/TestesClientePanel";
 import type { User } from "@supabase/supabase-js";
@@ -40,7 +39,7 @@ const PainelCliente = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [brandingModalOpen, setBrandingModalOpen] = useState(false);
+
   const [currentColaboradorId, setCurrentColaboradorId] = useState<string | null>(null);
   const { canManageBudgets, canCreateContent } = useUserPermissions();
   useEffect(() => {
@@ -211,7 +210,7 @@ const PainelCliente = () => {
   }
 
   return (
-    <ClienteBrandingProvider cliente={cliente}>
+    <>
       <Helmet>
         <title>{`${cliente.nome} - Painel do Cliente | BNOads`}</title>
         <meta name="description" content={`Acesse o painel personalizado de ${cliente.nome} na BNOads. Acompanhe gravações de reuniões, tarefas, links importantes, orçamento de funis e muito mais.`} />
@@ -221,7 +220,7 @@ const PainelCliente = () => {
         <meta property="og:site_name" content="BNOads" />
         <meta property="og:title" content={`${cliente.nome} - Painel do Cliente`} />
         <meta property="og:description" content={`Acesse o painel personalizado de ${cliente.nome} na BNOads. Acompanhe gravações, tarefas, links e orçamento dos seus funis de tráfego.`} />
-        <meta property="og:image" content={cliente.branding_enabled && cliente.branding_logo ? cliente.branding_logo : `${window.location.origin}/bnoads-logo-share.png`} />
+        <meta property="og:image" content={`${window.location.origin}/bnoads-logo-share.png`} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:url" content={window.location.href} />
@@ -230,7 +229,7 @@ const PainelCliente = () => {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${cliente.nome} - Painel do Cliente | BNOads`} />
         <meta name="twitter:description" content={`Acesse o painel personalizado de ${cliente.nome} na BNOads. Acompanhe gravações, tarefas, links e orçamento dos seus funis.`} />
-        <meta name="twitter:image" content={cliente.branding_enabled && cliente.branding_logo ? cliente.branding_logo : `${window.location.origin}/bnoads-logo-share.png`} />
+        <meta name="twitter:image" content={`${window.location.origin}/bnoads-logo-share.png`} />
       </Helmet>
 
       {/* NPS Popup - mostrar apenas para não autenticados (clientes) */}
@@ -238,11 +237,6 @@ const PainelCliente = () => {
 
       <div
         className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border"
-        style={{
-          backgroundColor: cliente.branding_enabled && cliente.branding_bg
-            ? cliente.branding_bg
-            : undefined
-        }}
       >
         <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
@@ -255,7 +249,9 @@ const PainelCliente = () => {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>}
                 <div className="min-w-0 flex-1">
-                  <ClienteBrandingHeader clienteNome={cliente.nome} />
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground break-words">
+                    {cliente.nome}
+                  </h1>
                 </div>
               </div>
             </div>
@@ -274,26 +270,15 @@ const PainelCliente = () => {
               )}
 
               {isAuthenticated && canCreateContent && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setBrandingModalOpen(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Palette className="h-4 w-4" />
-                    <span className="hidden sm:inline">Branding</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditModalOpen(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Editar Cliente</span>
-                  </Button>
-                </>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditModalOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Editar Cliente</span>
+                </Button>
               )}
 
               <Button
@@ -319,10 +304,10 @@ const PainelCliente = () => {
           </div>
 
         </div>
-      </div>
+      </div >
 
       {/* Conteúdo Principal - Mobile-First */}
-      <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
+      < div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl" >
         <div className="space-y-4 sm:space-y-6 lg:space-y-8">
           {/* Lançamentos Ativos - Destaque visual com animação */}
           {lancamentosAtivos.length > 0 && (
@@ -330,29 +315,14 @@ const PainelCliente = () => {
               <div className="flex items-center gap-2 px-1">
                 <div className="flex items-center gap-2 flex-1">
                   <div
-                    className="p-2 rounded-lg"
-                    style={{
-                      backgroundColor: cliente.branding_enabled && cliente.branding_primary
-                        ? `${cliente.branding_primary}20`
-                        : 'hsl(var(--primary) / 0.1)'
-                    }}
+                    className="p-2 rounded-lg bg-primary/10"
                   >
                     <Rocket
                       className="h-5 w-5 sm:h-6 sm:w-6"
-                      style={{
-                        color: cliente.branding_enabled && cliente.branding_primary
-                          ? cliente.branding_primary
-                          : undefined
-                      }}
                     />
                   </div>
                   <h2
                     className="text-lg sm:text-xl lg:text-2xl font-bold"
-                    style={{
-                      color: cliente.branding_enabled && cliente.branding_primary
-                        ? cliente.branding_primary
-                        : undefined
-                    }}
                   >
                     Lançamentos Ativos
                   </h2>
@@ -377,19 +347,9 @@ const PainelCliente = () => {
           <section className="space-y-4 flex flex-col h-full min-w-0">
             <h2
               className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1"
-              style={{
-                color: cliente.branding_enabled && cliente.branding_primary
-                  ? cliente.branding_primary
-                  : undefined
-              }}
             >
               <DollarSign
                 className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 mx-0"
-                style={{
-                  color: cliente.branding_enabled && cliente.branding_primary
-                    ? cliente.branding_primary
-                    : undefined
-                }}
               />
               <span className="truncate">Orçamento por Funil</span>
             </h2>
@@ -403,19 +363,9 @@ const PainelCliente = () => {
             <section className="space-y-3 sm:space-y-4 min-w-0">
               <h2
                 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1"
-                style={{
-                  color: cliente.branding_enabled && cliente.branding_primary
-                    ? cliente.branding_primary
-                    : undefined
-                }}
               >
                 <Link2
                   className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0"
-                  style={{
-                    color: cliente.branding_enabled && cliente.branding_primary
-                      ? cliente.branding_primary
-                      : undefined
-                  }}
                 />
                 <span className="truncate">Links Importantes</span>
               </h2>
@@ -439,19 +389,9 @@ const PainelCliente = () => {
             <section className="space-y-3 sm:space-y-4 min-w-0">
               <h2
                 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1"
-                style={{
-                  color: cliente.branding_enabled && cliente.branding_primary
-                    ? cliente.branding_primary
-                    : undefined
-                }}
               >
                 <FileText
                   className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0"
-                  style={{
-                    color: cliente.branding_enabled && cliente.branding_primary
-                      ? cliente.branding_primary
-                      : undefined
-                  }}
                 />
                 <span className="truncate">Tarefas</span>
               </h2>
@@ -475,19 +415,9 @@ const PainelCliente = () => {
           <section className="space-y-3 sm:space-y-4">
             <h2
               className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1"
-              style={{
-                color: cliente.branding_enabled && cliente.branding_primary
-                  ? cliente.branding_primary
-                  : undefined
-              }}
             >
               <Video
                 className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0"
-                style={{
-                  color: cliente.branding_enabled && cliente.branding_primary
-                    ? cliente.branding_primary
-                    : undefined
-                }}
               />
               <span className="truncate">Gravações e Reuniões</span>
             </h2>
@@ -515,23 +445,17 @@ const PainelCliente = () => {
           </section>
 
         </div>
-      </div>
+      </div >
 
       {/* Modais */}
-      <EditarClienteModal
+      < EditarClienteModal
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
         cliente={cliente}
         onSuccess={handleEditSuccess}
       />
 
-      <BrandingConfigModal
-        open={brandingModalOpen}
-        onOpenChange={setBrandingModalOpen}
-        cliente={cliente}
-        onSuccess={handleEditSuccess}
-      />
-    </ClienteBrandingProvider>
+    </>
   );
 };
 
