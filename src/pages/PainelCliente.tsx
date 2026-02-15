@@ -25,6 +25,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 import { LancamentoCard } from "@/components/Lancamentos/LancamentoCard";
 import { TestesClientePanel } from "@/components/Clientes/TestesClientePanel";
+import { ClienteAnunciosDashboard } from "@/components/MetaAds/ClienteAnunciosDashboard";
 import type { User } from "@supabase/supabase-js";
 const PainelCliente = () => {
   const { clienteId } = useParams();
@@ -356,6 +357,11 @@ const PainelCliente = () => {
             <div className="w-full overflow-hidden">
               <OrcamentoPorFunil clienteId={cliente.id} isPublicView={!isAuthenticated} showGestorValues={false} />
             </div>
+          </section>
+
+          {/* Anúncios Meta Ads */}
+          <section className="space-y-4">
+            <ClienteAnunciosDashboard clienteId={cliente.id} />
           </section>
 
           {/* Links e Tarefas - Stack em Mobile, Grid em Desktop */}

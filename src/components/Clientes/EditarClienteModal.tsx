@@ -22,7 +22,10 @@ import { Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useFieldOptions } from "@/hooks/useFieldOptions";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { TeamAssignmentModal } from "./TeamAssignmentModal";
+import { ClienteAdAccountsSection } from "./ClienteAdAccountsSection";
+import { ClienteMetricsConfigSection } from "./ClienteMetricsConfigSection";
 
 
 interface EditarClienteModalProps {
@@ -38,6 +41,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
 
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const { toast } = useToast();
+  const { isAdmin } = useUserPermissions();
   const [formData, setFormData] = useState({
     nome: '',
     categoria: 'negocio_local' as 'negocio_local' | 'infoproduto',
@@ -338,6 +342,16 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
               )}
             </div>
           </div>
+
+          {/* Seção de Contas de Anúncio */}
+          {cliente?.id && (
+            <ClienteAdAccountsSection clienteId={cliente.id} isAdmin={isAdmin} />
+          )}
+
+          {/* Seção de Configuração de Métricas */}
+          {cliente?.id && (
+            <ClienteMetricsConfigSection clienteId={cliente.id} isAdmin={isAdmin} />
+          )}
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button
