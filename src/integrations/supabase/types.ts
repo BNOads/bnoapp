@@ -539,6 +539,36 @@ export type Database = {
         }
         Relationships: []
       }
+      benchmarks_funil: {
+        Row: {
+          chave: string
+          descricao: string | null
+          id: string
+          label: string
+          unidade: string
+          updated_at: string | null
+          valor: number
+        }
+        Insert: {
+          chave: string
+          descricao?: string | null
+          id?: string
+          label: string
+          unidade: string
+          updated_at?: string | null
+          valor: number
+        }
+        Update: {
+          chave?: string
+          descricao?: string | null
+          id?: string
+          label?: string
+          unidade?: string
+          updated_at?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
       campaign_stage_mappings: {
         Row: {
           campaign_name: string
@@ -840,6 +870,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      client_meta_settings: {
+        Row: {
+          cliente_id: string
+          created_at: string | null
+          id: string
+          is_visible: boolean | null
+          metric_event: string | null
+          metric_label: string | null
+          metric_name: string
+          metric_type: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string | null
+          id?: string
+          is_visible?: boolean | null
+          metric_event?: string | null
+          metric_label?: string | null
+          metric_name: string
+          metric_type?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string | null
+          id?: string
+          is_visible?: boolean | null
+          metric_event?: string | null
+          metric_label?: string | null
+          metric_name?: string
+          metric_type?: string | null
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_meta_settings_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_roles: {
         Row: {
@@ -4195,7 +4269,7 @@ export type Database = {
           {
             foreignKeyName: "meta_client_ad_accounts_ad_account_id_fkey"
             columns: ["ad_account_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "meta_ad_accounts"
             referencedColumns: ["id"]
           },
@@ -4421,6 +4495,35 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      orcamento_criativos: {
+        Row: {
+          created_at: string | null
+          folder_name: string
+          id: string
+          orcamento_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          folder_name: string
+          id?: string
+          orcamento_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          folder_name?: string
+          id?: string
+          orcamento_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_criativos_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_funil"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orcamentos_funil: {
         Row: {
@@ -5023,7 +5126,7 @@ export type Database = {
           investimento: number
           loading_rate: number
           nome: string
-          orcamento_funil_id: string
+          orcamento_funil_id: string | null
           receita_projetada: number | null
           roas_projetado: number | null
           roi_projetado: number | null
@@ -5046,7 +5149,7 @@ export type Database = {
           investimento?: number
           loading_rate?: number
           nome: string
-          orcamento_funil_id: string
+          orcamento_funil_id?: string | null
           receita_projetada?: number | null
           roas_projetado?: number | null
           roi_projetado?: number | null
@@ -5069,7 +5172,7 @@ export type Database = {
           investimento?: number
           loading_rate?: number
           nome?: string
-          orcamento_funil_id?: string
+          orcamento_funil_id?: string | null
           receita_projetada?: number | null
           roas_projetado?: number | null
           roi_projetado?: number | null
@@ -5793,6 +5896,289 @@ export type Database = {
           },
         ]
       }
+      testes_laboratorio: {
+        Row: {
+          anotacoes: string | null
+          aprendizados: string | null
+          arquivado: boolean
+          canal: Database["public"]["Enums"]["canal_teste_lab"]
+          cliente_id: string | null
+          created_at: string
+          created_by: string
+          data_fim: string | null
+          data_inicio: string | null
+          funil: string | null
+          gestor_responsavel_id: string
+          hipotese: string | null
+          id: string
+          link_anuncio: string | null
+          link_campanha: string | null
+          link_experimento: string | null
+          meta_metrica: number | null
+          metrica_principal:
+            | Database["public"]["Enums"]["metrica_principal_lab"]
+            | null
+          nome: string
+          o_que_foi_alterado: string | null
+          observacao_equipe: string | null
+          proximos_testes_sugeridos: string | null
+          resultado_observado: number | null
+          status: Database["public"]["Enums"]["status_teste_lab"]
+          template_id: string | null
+          tipo_teste: Database["public"]["Enums"]["tipo_teste_lab"]
+          updated_at: string
+          validacao: Database["public"]["Enums"]["validacao_teste_lab"]
+        }
+        Insert: {
+          anotacoes?: string | null
+          aprendizados?: string | null
+          arquivado?: boolean
+          canal: Database["public"]["Enums"]["canal_teste_lab"]
+          cliente_id?: string | null
+          created_at?: string
+          created_by: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          funil?: string | null
+          gestor_responsavel_id: string
+          hipotese?: string | null
+          id?: string
+          link_anuncio?: string | null
+          link_campanha?: string | null
+          link_experimento?: string | null
+          meta_metrica?: number | null
+          metrica_principal?:
+            | Database["public"]["Enums"]["metrica_principal_lab"]
+            | null
+          nome: string
+          o_que_foi_alterado?: string | null
+          observacao_equipe?: string | null
+          proximos_testes_sugeridos?: string | null
+          resultado_observado?: number | null
+          status?: Database["public"]["Enums"]["status_teste_lab"]
+          template_id?: string | null
+          tipo_teste: Database["public"]["Enums"]["tipo_teste_lab"]
+          updated_at?: string
+          validacao?: Database["public"]["Enums"]["validacao_teste_lab"]
+        }
+        Update: {
+          anotacoes?: string | null
+          aprendizados?: string | null
+          arquivado?: boolean
+          canal?: Database["public"]["Enums"]["canal_teste_lab"]
+          cliente_id?: string | null
+          created_at?: string
+          created_by?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          funil?: string | null
+          gestor_responsavel_id?: string
+          hipotese?: string | null
+          id?: string
+          link_anuncio?: string | null
+          link_campanha?: string | null
+          link_experimento?: string | null
+          meta_metrica?: number | null
+          metrica_principal?:
+            | Database["public"]["Enums"]["metrica_principal_lab"]
+            | null
+          nome?: string
+          o_que_foi_alterado?: string | null
+          observacao_equipe?: string | null
+          proximos_testes_sugeridos?: string | null
+          resultado_observado?: number | null
+          status?: Database["public"]["Enums"]["status_teste_lab"]
+          template_id?: string | null
+          tipo_teste?: Database["public"]["Enums"]["tipo_teste_lab"]
+          updated_at?: string
+          validacao?: Database["public"]["Enums"]["validacao_teste_lab"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testes_laboratorio_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "testes_laboratorio_gestor_responsavel_id_fkey"
+            columns: ["gestor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "testes_laboratorio_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "testes_laboratorio_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      testes_laboratorio_audit_log: {
+        Row: {
+          acao: string
+          campo_alterado: string | null
+          created_at: string
+          id: string
+          teste_id: string
+          user_id: string
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          acao: string
+          campo_alterado?: string | null
+          created_at?: string
+          id?: string
+          teste_id: string
+          user_id: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          acao?: string
+          campo_alterado?: string | null
+          created_at?: string
+          id?: string
+          teste_id?: string
+          user_id?: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testes_laboratorio_audit_log_teste_id_fkey"
+            columns: ["teste_id"]
+            isOneToOne: false
+            referencedRelation: "testes_laboratorio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      testes_laboratorio_comentarios: {
+        Row: {
+          autor_user_id: string
+          comentario: string
+          created_at: string
+          id: string
+          teste_id: string
+        }
+        Insert: {
+          autor_user_id: string
+          comentario: string
+          created_at?: string
+          id?: string
+          teste_id: string
+        }
+        Update: {
+          autor_user_id?: string
+          comentario?: string
+          created_at?: string
+          id?: string
+          teste_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testes_laboratorio_comentarios_teste_id_fkey"
+            columns: ["teste_id"]
+            isOneToOne: false
+            referencedRelation: "testes_laboratorio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      testes_laboratorio_evidencias: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          teste_id: string
+          tipo: string
+          uploaded_by: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          teste_id: string
+          tipo?: string
+          uploaded_by: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          teste_id?: string
+          tipo?: string
+          uploaded_by?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testes_laboratorio_evidencias_teste_id_fkey"
+            columns: ["teste_id"]
+            isOneToOne: false
+            referencedRelation: "testes_laboratorio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      testes_laboratorio_templates: {
+        Row: {
+          ativo: boolean
+          canal: Database["public"]["Enums"]["canal_teste_lab"] | null
+          checklist: Json | null
+          created_at: string
+          created_by: string
+          hipotese: string | null
+          id: string
+          meta_metrica: number | null
+          metrica_principal:
+            | Database["public"]["Enums"]["metrica_principal_lab"]
+            | null
+          nome: string
+          tipo_teste: Database["public"]["Enums"]["tipo_teste_lab"]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          canal?: Database["public"]["Enums"]["canal_teste_lab"] | null
+          checklist?: Json | null
+          created_at?: string
+          created_by: string
+          hipotese?: string | null
+          id?: string
+          meta_metrica?: number | null
+          metrica_principal?:
+            | Database["public"]["Enums"]["metrica_principal_lab"]
+            | null
+          nome: string
+          tipo_teste: Database["public"]["Enums"]["tipo_teste_lab"]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          canal?: Database["public"]["Enums"]["canal_teste_lab"] | null
+          checklist?: Json | null
+          created_at?: string
+          created_by?: string
+          hipotese?: string | null
+          id?: string
+          meta_metrica?: number | null
+          metrica_principal?:
+            | Database["public"]["Enums"]["metrica_principal_lab"]
+            | null
+          nome?: string
+          tipo_teste?: Database["public"]["Enums"]["tipo_teste_lab"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       traffic_campaigns: {
         Row: {
           checkouts: number | null
@@ -6251,6 +6637,12 @@ export type Database = {
     Enums: {
       alert_severity: "info" | "warn" | "urgent"
       alert_status: "open" | "closed"
+      canal_teste_lab:
+        | "meta_ads"
+        | "google_ads"
+        | "tiktok_ads"
+        | "youtube"
+        | "outro"
       categoria_cliente: "negocio_local" | "infoproduto"
       criterio_vitoria:
         | "maior_numero_acoes"
@@ -6271,6 +6663,7 @@ export type Database = {
         | "email_marketing"
         | "upsell"
       kickoff_status: "draft" | "active" | "archived"
+      metrica_principal_lab: "ctr" | "cpl" | "cpa" | "roas" | "conversao_lp"
       nivel_acesso:
         | "admin"
         | "gestor_trafego"
@@ -6296,6 +6689,12 @@ export type Database = {
         | "cancelado"
       status_orcamento_enum: "ativo" | "pausado" | "concluido" | "cancelado"
       status_tarefa: "pendente" | "em_andamento" | "concluida" | "adiada"
+      status_teste_lab:
+        | "planejado"
+        | "rodando"
+        | "pausado"
+        | "concluido"
+        | "cancelado"
       tipo_acesso_dados:
         | "leitura_propria"
         | "leitura_limitada"
@@ -6319,6 +6718,14 @@ export type Database = {
         | "tradicional"
         | "captacao_simples"
       tipo_medicao_desafio: "quantidade_acoes" | "pontuacao" | "check_in_diario"
+      tipo_teste_lab:
+        | "criativo"
+        | "publico"
+        | "estrategia"
+        | "pagina"
+        | "oferta"
+        | "evento"
+      validacao_teste_lab: "em_teste" | "deu_bom" | "deu_ruim" | "inconclusivo"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -6448,6 +6855,13 @@ export const Constants = {
     Enums: {
       alert_severity: ["info", "warn", "urgent"],
       alert_status: ["open", "closed"],
+      canal_teste_lab: [
+        "meta_ads",
+        "google_ads",
+        "tiktok_ads",
+        "youtube",
+        "outro",
+      ],
       categoria_cliente: ["negocio_local", "infoproduto"],
       criterio_vitoria: [
         "maior_numero_acoes",
@@ -6471,6 +6885,7 @@ export const Constants = {
         "upsell",
       ],
       kickoff_status: ["draft", "active", "archived"],
+      metrica_principal_lab: ["ctr", "cpl", "cpa", "roas", "conversao_lp"],
       nivel_acesso: [
         "admin",
         "gestor_trafego",
@@ -6499,6 +6914,13 @@ export const Constants = {
       ],
       status_orcamento_enum: ["ativo", "pausado", "concluido", "cancelado"],
       status_tarefa: ["pendente", "em_andamento", "concluida", "adiada"],
+      status_teste_lab: [
+        "planejado",
+        "rodando",
+        "pausado",
+        "concluido",
+        "cancelado",
+      ],
       tipo_acesso_dados: [
         "leitura_propria",
         "leitura_limitada",
@@ -6529,6 +6951,15 @@ export const Constants = {
         "pontuacao",
         "check_in_diario",
       ],
+      tipo_teste_lab: [
+        "criativo",
+        "publico",
+        "estrategia",
+        "pagina",
+        "oferta",
+        "evento",
+      ],
+      validacao_teste_lab: ["em_teste", "deu_bom", "deu_ruim", "inconclusivo"],
     },
   },
 } as const
