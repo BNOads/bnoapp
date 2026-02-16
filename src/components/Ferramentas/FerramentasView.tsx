@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download, Heart, FlaskConical, Calculator } from "lucide-react";
+import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download, Heart, FlaskConical, Calculator, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -246,6 +246,14 @@ export const FerramentasView = () => {
       component: null, // Redirecionamento para /cultura-time
       color: "text-rose-500"
     },
+    {
+      id: "admin-meta-ads",
+      title: "Admin Meta Ads",
+      description: "Gerencie contas de anúncio, vincule a clientes e visualize status.",
+      icon: Settings,
+      component: null, // Redirecionamento para /admin/meta-ads
+      color: "text-blue-600"
+    },
   ];
 
   // Carregar preferências do usuário
@@ -425,6 +433,10 @@ export const FerramentasView = () => {
     }
     if (toolId === 'simulador-funil') {
       navigate('/ferramentas/projecoes');
+      return;
+    }
+    if (toolId === 'admin-meta-ads') {
+      navigate('/admin/meta-ads');
       return;
     }
     setSelectedTool(toolId);

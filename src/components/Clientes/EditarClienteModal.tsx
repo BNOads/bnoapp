@@ -24,6 +24,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useFieldOptions } from "@/hooks/useFieldOptions";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { TeamAssignmentModal } from "./TeamAssignmentModal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MetaAdAccountManager } from "@/components/MetaAds/MetaAdAccountManager";
+
 
 
 interface EditarClienteModalProps {
@@ -157,191 +160,222 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
           <DialogTitle>Editar Cliente</DialogTitle>
         </DialogHeader>
 
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome do Cliente *</Label>
-              <Input
-                id="nome"
-                value={formData.nome}
-                onChange={(e) => handleInputChange('nome', e.target.value)}
-                placeholder="Digite o nome do cliente"
-                required
-              />
-            </div>
+          <Tabs defaultValue="geral" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="geral">Geral</TabsTrigger>
+              <TabsTrigger value="equipe">Equipe</TabsTrigger>
+              <TabsTrigger value="integracoes">Integrações</TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="categoria">Categoria *</Label>
-              <Select
-                value={formData.categoria}
-                onValueChange={(value) => handleInputChange('categoria', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories && categories.length > 0 ? (
-                    categories.map(cat => (
-                      <SelectItem key={cat.key} value={cat.key}>
-                        <div className="flex items-center gap-2">
-                          <div style={{ width: 12, height: 12, background: cat.color }} className="rounded" />
-                          <span>{cat.label}</span>
-                        </div>
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <>
-                      <SelectItem value="negocio_local">Negócio Local</SelectItem>
-                      <SelectItem value="infoproduto">Infoproduto</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+            <TabsContent value="geral" className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome do Cliente *</Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => handleInputChange('nome', e.target.value)}
+                    placeholder="Digite o nome do cliente"
+                    required
+                  />
+                </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="nicho">Nicho</Label>
-              <Input
-                id="nicho"
-                value={formData.nicho}
-                onChange={(e) => handleInputChange('nicho', e.target.value)}
-                placeholder="Ex: E-commerce, Saúde, Educação"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="etapa_atual">Etapa Atual</Label>
-              <Select
-                value={formData.etapa_atual}
-                onValueChange={(value) => handleInputChange('etapa_atual', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a etapa" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="prospecção">Prospecção</SelectItem>
-                  <SelectItem value="apresentacao">Apresentação</SelectItem>
-                  <SelectItem value="negociacao">Negociação</SelectItem>
-                  <SelectItem value="contrato">Contrato</SelectItem>
-                  <SelectItem value="implantacao">Implantação</SelectItem>
-                  <SelectItem value="ativo">Ativo</SelectItem>
-                  <SelectItem value="pausa">Em Pausa</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status_cliente">Status do Cliente</Label>
-            <Select
-              value={formData.status_cliente}
-              onValueChange={(value) => handleInputChange('status_cliente', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ativo">Ativo</SelectItem>
-                <SelectItem value="inativo">Inativo</SelectItem>
-                <SelectItem value="pausado">Pausado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="pasta_drive_url">Link da Pasta do Google Drive</Label>
-            <Input
-              id="pasta_drive_url"
-              value={formData.pasta_drive_url}
-              onChange={(e) => handleInputChange('pasta_drive_url', e.target.value)}
-              placeholder="https://drive.google.com/drive/folders/..."
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="link_painel">Link do Painel</Label>
-            <Input
-              id="link_painel"
-              value={formData.link_painel}
-              onChange={(e) => handleInputChange('link_painel', e.target.value)}
-              placeholder="URL do painel personalizado"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="observacoes">Observações</Label>
-            <Textarea
-              id="observacoes"
-              value={formData.observacoes}
-              onChange={(e) => handleInputChange('observacoes', e.target.value)}
-              placeholder="Observações gerais sobre o cliente"
-              rows={3}
-            />
-          </div>
-
-
-
-          {/* Seção de Equipe */}
-          <div className="space-y-2">
-            <Label>Equipe Atribuída</Label>
-            <div className="border rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Gestores e CS</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setTeamModalOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Users className="h-4 w-4" />
-                  Gerenciar Equipe
-                </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="categoria">Categoria *</Label>
+                  <Select
+                    value={formData.categoria}
+                    onValueChange={(value) => handleInputChange('categoria', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories && categories.length > 0 ? (
+                        categories.map(cat => (
+                          <SelectItem key={cat.key} value={cat.key}>
+                            <div className="flex items-center gap-2">
+                              <div style={{ width: 12, height: 12, background: cat.color }} className="rounded" />
+                              <span>{cat.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="negocio_local">Negócio Local</SelectItem>
+                          <SelectItem value="infoproduto">Infoproduto</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              {teamMembers.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {teamMembers
-                    .filter(member => member.role === 'gestor')
-                    .map((member, index) => (
-                      <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={member.colaboradores.avatar_url} />
-                          <AvatarFallback>{member.colaboradores.nome.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{member.colaboradores.nome}</span>
-                        <Badge variant="secondary" className="text-xs">Gestor</Badge>
-                        {member.is_primary && (
-                          <Badge variant="default" className="text-xs">Principal</Badge>
-                        )}
-                      </div>
-                    ))}
-
-                  {teamMembers
-                    .filter(member => member.role === 'cs')
-                    .map((member, index) => (
-                      <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={member.colaboradores.avatar_url} />
-                          <AvatarFallback>{member.colaboradores.nome.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{member.colaboradores.nome}</span>
-                        <Badge variant="outline" className="text-xs">CS</Badge>
-                        {member.is_primary && (
-                          <Badge variant="default" className="text-xs">Principal</Badge>
-                        )}
-                      </div>
-                    ))}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nicho">Nicho</Label>
+                  <Input
+                    id="nicho"
+                    value={formData.nicho}
+                    onChange={(e) => handleInputChange('nicho', e.target.value)}
+                    placeholder="Ex: E-commerce, Saúde, Educação"
+                  />
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Nenhuma equipe atribuída</p>
-              )}
-            </div>
-          </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="etapa_atual">Etapa Atual</Label>
+                  <Select
+                    value={formData.etapa_atual}
+                    onValueChange={(value) => handleInputChange('etapa_atual', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a etapa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="prospecção">Prospecção</SelectItem>
+                      <SelectItem value="apresentacao">Apresentação</SelectItem>
+                      <SelectItem value="negociacao">Negociação</SelectItem>
+                      <SelectItem value="contrato">Contrato</SelectItem>
+                      <SelectItem value="implantacao">Implantação</SelectItem>
+                      <SelectItem value="ativo">Ativo</SelectItem>
+                      <SelectItem value="pausa">Em Pausa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status_cliente">Status do Cliente</Label>
+                <Select
+                  value={formData.status_cliente}
+                  onValueChange={(value) => handleInputChange('status_cliente', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ativo">Ativo</SelectItem>
+                    <SelectItem value="inativo">Inativo</SelectItem>
+                    <SelectItem value="pausado">Pausado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pasta_drive_url">Link da Pasta do Google Drive</Label>
+                <Input
+                  id="pasta_drive_url"
+                  value={formData.pasta_drive_url}
+                  onChange={(e) => handleInputChange('pasta_drive_url', e.target.value)}
+                  placeholder="https://drive.google.com/drive/folders/..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="link_painel">Link do Painel</Label>
+                <Input
+                  id="link_painel"
+                  value={formData.link_painel}
+                  onChange={(e) => handleInputChange('link_painel', e.target.value)}
+                  placeholder="URL do painel personalizado"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="observacoes">Observações</Label>
+                <Textarea
+                  id="observacoes"
+                  value={formData.observacoes}
+                  onChange={(e) => handleInputChange('observacoes', e.target.value)}
+                  placeholder="Observações gerais sobre o cliente"
+                  rows={3}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="equipe" className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between mb-4">
+                  <Label className="text-base">Membros da Equipe</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTeamModalOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Users className="h-4 w-4" />
+                    Gerenciar Equipe
+                  </Button>
+                </div>
+
+                {teamMembers.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {teamMembers
+                      .filter(member => member.role === 'gestor')
+                      .map((member, index) => (
+                        <div key={index} className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={member.colaboradores.avatar_url} />
+                            <AvatarFallback>{member.colaboradores.nome.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">{member.colaboradores.nome}</span>
+                            <div className="flex gap-1">
+                              <Badge variant="secondary" className="text-[10px] h-5">Gestor</Badge>
+                              {member.is_primary && (
+                                <Badge variant="default" className="text-[10px] h-5">Principal</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                    {teamMembers
+                      .filter(member => member.role === 'cs')
+                      .map((member, index) => (
+                        <div key={index} className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={member.colaboradores.avatar_url} />
+                            <AvatarFallback>{member.colaboradores.nome.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">{member.colaboradores.nome}</span>
+                            <div className="flex gap-1">
+                              <Badge variant="outline" className="text-[10px] h-5">CS</Badge>
+                              {member.is_primary && (
+                                <Badge variant="default" className="text-[10px] h-5">Principal</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
+                    <p>Nenhuma equipe atribuída a este cliente.</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="integracoes" className="space-y-4 pt-4">
+              {cliente?.id ? (
+                <>
+                  <MetaAdAccountManager clientId={cliente.id} />
+                </>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  Salve o cliente primeiro para gerenciar integrações.
+                </div>
+              )}
+            </TabsContent>
+
+
+          </Tabs>
+
+          <div className="flex justify-end space-x-2 pt-4 border-t mt-4">
             <Button
               type="button"
               variant="outline"

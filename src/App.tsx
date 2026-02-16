@@ -42,20 +42,13 @@ import CRMPage from "./pages/CRM";
 import CulturaTimePage from "./pages/CulturaTime";
 import LaboratorioTestes from "./pages/LaboratorioTestes";
 import LaboratorioTesteDetalhes from "./pages/LaboratorioTesteDetalhes";
+import PublicDashboard from "./pages/PublicDashboard";
+import MetaAdsAdmin from "./pages/MetaAdsAdmin";
 import { AppLayout } from "@/components/Layout/AppLayout";
 import FerramentaProjecaoView from "@/components/Ferramentas/FerramentaProjecaoView";
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutos
-      gcTime: 1000 * 60 * 10, // 10 minutos
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      retry: 1,
-    },
-  },
+  // ... (keep existing code)
 });
 
 function App() {
@@ -80,6 +73,12 @@ function App() {
                   <Route path="/lancamento/:linkPublico" element={<LancamentoPublico />} />
                   <Route path="/r/:slug" element={<ReferenciaPublica />} />
                   <Route path="/referencia/publica/:slug" element={<ReferenciaPublica />} />
+                  <Route path="/painel-publico/:token" element={<PublicDashboard />} />
+                  <Route path="/admin/meta-ads" element={
+                    <ProtectedRoute>
+                      <MetaAdsAdmin />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/referencias" element={
                     <ProtectedRoute>
                       <Referencias />
