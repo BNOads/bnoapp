@@ -915,6 +915,41 @@ export type Database = {
           },
         ]
       }
+      client_public_panel: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          public_token: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          public_token: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          public_token?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_public_panel_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_roles: {
         Row: {
           client_id: string
@@ -4175,6 +4210,74 @@ export type Database = {
           },
         ]
       }
+      meta_campaign_insights: {
+        Row: {
+          action_values: Json | null
+          actions: Json | null
+          ad_account_id: string
+          campaign_id: string
+          campaign_name: string | null
+          clicks: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string | null
+          ctr: number | null
+          date_start: string | null
+          date_stop: string | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          reach: number | null
+          spend: number | null
+        }
+        Insert: {
+          action_values?: Json | null
+          actions?: Json | null
+          ad_account_id: string
+          campaign_id: string
+          campaign_name?: string | null
+          clicks?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          reach?: number | null
+          spend?: number | null
+        }
+        Update: {
+          action_values?: Json | null
+          actions?: Json | null
+          ad_account_id?: string
+          campaign_id?: string
+          campaign_name?: string | null
+          clicks?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          reach?: number | null
+          spend?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_campaign_insights_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "meta_client_ad_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meta_campaigns: {
         Row: {
           ad_account_id: string
@@ -4239,28 +4342,37 @@ export type Database = {
       }
       meta_client_ad_accounts: {
         Row: {
+          account_name: string | null
+          account_status: string | null
           ad_account_id: string
           cliente_id: string
           created_at: string
           created_by: string | null
+          currency: string | null
           id: string
           is_primary: boolean | null
           primary_action_type: string | null
         }
         Insert: {
+          account_name?: string | null
+          account_status?: string | null
           ad_account_id: string
           cliente_id: string
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           id?: string
           is_primary?: boolean | null
           primary_action_type?: string | null
         }
         Update: {
+          account_name?: string | null
+          account_status?: string | null
           ad_account_id?: string
           cliente_id?: string
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           id?: string
           is_primary?: boolean | null
           primary_action_type?: string | null
@@ -6582,6 +6694,14 @@ export type Database = {
       }
       generate_public_token: { Args: never; Returns: string }
       generate_reference_slug: { Args: { titulo: string }; Returns: string }
+      get_client_by_public_token: {
+        Args: { token_input: string }
+        Returns: {
+          client_id: string
+          client_nome: string
+          client_slug: string
+        }[]
+      }
       get_colaborador_dados_sensíveis: {
         Args: { _colaborador_id: string; _motivo?: string }
         Returns: {
