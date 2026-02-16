@@ -79,7 +79,10 @@ export const ColaboradorDetailModal = ({
               <div className="text-left">
                 <p className="text-xs text-muted-foreground">Aniversário</p>
                 <p className="text-sm font-medium text-foreground">
-                  {formatarAniversario(colaborador.data_nascimento)}
+                  {colaborador.data_nascimento ? (() => {
+                    const parts = colaborador.data_nascimento!.split('-');
+                    return `${parts[2]}/${parts[1]} — ${formatarAniversario(colaborador.data_nascimento)}`;
+                  })() : 'Não informado'}
                 </p>
               </div>
             </div>
