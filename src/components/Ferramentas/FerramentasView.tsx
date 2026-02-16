@@ -248,7 +248,7 @@ export const FerramentasView = () => {
     },
     {
       id: "admin-meta-ads",
-      title: "Admin Meta Ads",
+      title: "Integração MetaAds",
       description: "Gerencie contas de anúncio, vincule a clientes e visualize status.",
       icon: Settings,
       component: null, // Redirecionamento para /admin/meta-ads

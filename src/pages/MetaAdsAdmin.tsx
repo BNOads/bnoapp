@@ -345,7 +345,7 @@ id,
         <div className="container mx-auto py-8 space-y-8">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold mb-2">Administração Meta Ads</h1>
+                    <h1 className="text-3xl font-bold mb-2">Integração MetaAds</h1>
                     <p className="text-muted-foreground">Gerencie o vínculo entre contas de anúncio e clientes.</p>
                 </div>
                 <div className="flex gap-2">
