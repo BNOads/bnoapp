@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import { BlocoNotasView } from "./BlocoNotasView";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download, Heart, FlaskConical, Calculator, Plug } from "lucide-react";
+import { FileText, Palette, NotebookPen, BarChart3, ArrowLeft, Calendar, Link, Key, CheckCircle, MessageSquare, GripVertical, Eye, EyeOff, RotateCcw, Trophy, BookOpen, Clock, Users, MessageCircle, Filter, Download, Heart, FlaskConical, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import LancamentosView from "@/components/Lancamentos/LancamentosView";
@@ -12,7 +12,6 @@ import { AcessosLoginsView } from "./AcessosLoginsView";
 import { MensagensSemanaisView } from "./MensagensSemanaisView";
 import { LinksView } from "./LinksView";
 import { CreativeDownloaderView } from "./CreativeDownloaderView";
-import { MetaAdsIntegrationView } from "@/components/MetaAds/MetaAdsIntegrationView";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -108,14 +107,6 @@ export const FerramentasView = () => {
       icon: FlaskConical,
       component: null,
       color: "text-violet-600"
-    },
-    {
-      id: "integracoes-meta",
-      title: "Integrações Meta Ads",
-      description: "Conecte e gerencie contas de anúncio do Meta Ads automaticamente",
-      icon: Plug,
-      component: <MetaAdsIntegrationView />,
-      color: "text-blue-600"
     },
     {
       id: "criador-criativos",

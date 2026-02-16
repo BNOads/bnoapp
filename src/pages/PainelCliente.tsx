@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Component, ReactNode, useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,8 +25,46 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 import { LancamentoCard } from "@/components/Lancamentos/LancamentoCard";
 import { TestesClientePanel } from "@/components/Clientes/TestesClientePanel";
-import { ClienteAnunciosDashboard } from "@/components/MetaAds/ClienteAnunciosDashboard";
+
 import type { User } from "@supabase/supabase-js";
+
+class SectionErrorBoundary extends Component<
+  { section: string; children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { section: string; children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error(`Erro ao renderizar seção "${this.props.section}" no PainelCliente:`, error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Erro ao carregar bloco</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              O bloco "{this.props.section}" falhou ao carregar. Recarregue a página ou tente novamente mais tarde.
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const PainelCliente = () => {
   const { clienteId } = useParams();
   const navigate = useNavigate();
@@ -308,7 +346,7 @@ const PainelCliente = () => {
       </div >
 
       {/* Conteúdo Principal - Mobile-First */}
-      < div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl" >
+      <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
         <div className="space-y-4 sm:space-y-6 lg:space-y-8">
           {/* Lançamentos Ativos - Destaque visual com animação */}
           {lancamentosAtivos.length > 0 && (
@@ -355,13 +393,10 @@ const PainelCliente = () => {
               <span className="truncate">Orçamento por Funil</span>
             </h2>
             <div className="w-full overflow-hidden">
-              <OrcamentoPorFunil clienteId={cliente.id} isPublicView={!isAuthenticated} showGestorValues={false} />
+              <SectionErrorBoundary section="Orçamento por Funil">
+                <OrcamentoPorFunil clienteId={cliente.id} isPublicView={!isAuthenticated} showGestorValues={false} />
+              </SectionErrorBoundary>
             </div>
-          </section>
-
-          {/* Anúncios Meta Ads */}
-          <section className="space-y-4">
-            <ClienteAnunciosDashboard clienteId={cliente.id} />
           </section>
 
           {/* Links e Tarefas - Stack em Mobile, Grid em Desktop */}
@@ -376,19 +411,23 @@ const PainelCliente = () => {
                 <span className="truncate">Links Importantes</span>
               </h2>
               <div className="w-full overflow-hidden">
-                <LinksImportantesEnhanced clienteId={cliente.id} isPublicView={!isAuthenticated} />
+                <SectionErrorBoundary section="Links Importantes">
+                  <LinksImportantesEnhanced clienteId={cliente.id} isPublicView={!isAuthenticated} />
+                </SectionErrorBoundary>
               </div>
 
               {/* Laboratório de Testes - Compacto */}
               <div className="mt-6 lg:mt-8">
-                <TestesClientePanel
-                  clienteId={cliente.id}
-                  clienteNome={cliente.nome}
-                  isAuthenticated={isAuthenticated}
-                  canCreateContent={canCreateContent}
-                  currentUserId={user?.id || null}
-                  currentColaboradorId={currentColaboradorId}
-                />
+                <SectionErrorBoundary section="Laboratório de Testes">
+                  <TestesClientePanel
+                    clienteId={cliente.id}
+                    clienteNome={cliente.nome}
+                    isAuthenticated={isAuthenticated}
+                    canCreateContent={canCreateContent}
+                    currentUserId={user?.id || null}
+                    currentColaboradorId={currentColaboradorId}
+                  />
+                </SectionErrorBoundary>
               </div>
             </section>
 
@@ -402,17 +441,23 @@ const PainelCliente = () => {
                 <span className="truncate">Tarefas</span>
               </h2>
               <div className="w-full overflow-hidden">
-                <TarefasListEnhanced clienteId={cliente.id} tipo="cliente" isPublicView={!isAuthenticated} />
+                <SectionErrorBoundary section="Tarefas">
+                  <TarefasListEnhanced clienteId={cliente.id} tipo="cliente" isPublicView={!isAuthenticated} />
+                </SectionErrorBoundary>
               </div>
 
               {/* Checklist de Criativos - Below tasks */}
               <div className="mt-6">
-                <ChecklistCriativosView clienteId={cliente.id} isPublicView={!isAuthenticated} />
+                <SectionErrorBoundary section="Checklist de Criativos">
+                  <ChecklistCriativosView clienteId={cliente.id} isPublicView={!isAuthenticated} />
+                </SectionErrorBoundary>
               </div>
 
               {/* Diário de Bordo - Positioned below checklist on the right side */}
               <div className="mt-6">
-                <DiarioBordo clienteId={cliente.id} showLancamentoSelector={true} />
+                <SectionErrorBoundary section="Diário de Bordo">
+                  <DiarioBordo clienteId={cliente.id} showLancamentoSelector={true} />
+                </SectionErrorBoundary>
               </div>
             </section>
           </div>
@@ -428,7 +473,9 @@ const PainelCliente = () => {
               <span className="truncate">Gravações e Reuniões</span>
             </h2>
             <div className="w-full overflow-hidden">
-              <GravacoesReunioes clienteId={cliente.id} isPublicView={!isAuthenticated} />
+              <SectionErrorBoundary section="Gravações e Reuniões">
+                <GravacoesReunioes clienteId={cliente.id} isPublicView={!isAuthenticated} />
+              </SectionErrorBoundary>
             </div>
           </section>
 
@@ -436,25 +483,29 @@ const PainelCliente = () => {
           <section className="space-y-3 sm:space-y-4">
             <div className="w-full overflow-hidden space-y-4">
               {isAuthenticated && (
-                <MensagemSemanal
-                  clienteId={cliente.id}
-                  gestorId={cliente.primary_gestor_user_id}
-                  csId={cliente.cs_id}
-                />
+                <SectionErrorBoundary section="Mensagem Semanal">
+                  <MensagemSemanal
+                    clienteId={cliente.id}
+                    gestorId={cliente.primary_gestor_user_id}
+                    csId={cliente.cs_id}
+                  />
+                </SectionErrorBoundary>
               )}
-              <HistoricoMensagensCliente
-                clienteId={cliente.id}
-                clienteNome={cliente.nome}
-                isPublicView={!isAuthenticated}
-              />
+              <SectionErrorBoundary section="Histórico de Mensagens">
+                <HistoricoMensagensCliente
+                  clienteId={cliente.id}
+                  clienteNome={cliente.nome}
+                  isPublicView={!isAuthenticated}
+                />
+              </SectionErrorBoundary>
             </div>
           </section>
 
         </div>
-      </div >
+      </div>
 
       {/* Modais */}
-      < EditarClienteModal
+      <EditarClienteModal
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
         cliente={cliente}
