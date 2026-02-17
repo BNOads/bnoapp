@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { RefreshCw, Search, Pencil, Check, Plus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { RefreshCw, Search, Pencil, Check, Plus, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet, Link as LinkIcon, AlertCircle, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface LancamentoResultadosTabProps {
@@ -677,6 +677,8 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                     <TabsList>
                         <TabsTrigger value="overview">Visão Geral</TabsTrigger>
                         <TabsTrigger value="details">Detalhamento de Métricas</TabsTrigger>
+                        <TabsTrigger value="leads">Leads</TabsTrigger>
+                        <TabsTrigger value="pesquisa">Pesquisa</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="overview" className="space-y-6">
@@ -1138,130 +1140,452 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
 
                     <TabsContent value="details" className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                             {/* Daily Results CTR */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Resultados Diário CTR</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-[300px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                            <XAxis 
-                                                dataKey="date" 
-                                                tickFormatter={(date) => format(new Date(date), 'dd/MM')} 
-                                                minTickGap={30}
-                                            />
-                                            <YAxis 
-                                                tickFormatter={(value) => `${value.toFixed(2)}%`}
-                                            />
-                                            <Tooltip 
-                                                labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
-                                                formatter={(value: number) => [`${value.toFixed(2)}%`, 'CTR']}
-                                            />
-                                            <Legend />
-                                            <Line type="monotone" dataKey="ctr" name="CTR" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </CardContent>
-                        </Card>
+                            {/* Daily Results CTR */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Resultados Diário CTR</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="h-[300px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={chartData}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                <XAxis
+                                                    dataKey="date"
+                                                    tickFormatter={(date) => format(new Date(date), 'dd/MM')}
+                                                    minTickGap={30}
+                                                />
+                                                <YAxis
+                                                    tickFormatter={(value) => `${value.toFixed(2)}%`}
+                                                />
+                                                <Tooltip
+                                                    labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
+                                                    formatter={(value: number) => [`${value.toFixed(2)}%`, 'CTR']}
+                                                />
+                                                <Legend />
+                                                <Line type="monotone" dataKey="ctr" name="CTR" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </CardContent>
+                            </Card>
 
-                        {/* Daily Results Loading % */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Resultados Diário % Carregamento</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-[300px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                            <XAxis 
-                                                dataKey="date" 
-                                                tickFormatter={(date) => format(new Date(date), 'dd/MM')} 
-                                                minTickGap={30}
-                                            />
-                                            <YAxis 
-                                                tickFormatter={(value) => `${value.toFixed(1)}%`}
-                                            />
-                                            <Tooltip 
-                                                labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
-                                                formatter={(value: number) => [`${value.toFixed(2)}%`, '% Carregamento']}
-                                            />
-                                            <Legend />
-                                            <Line type="monotone" dataKey="loading_rate" name="% Carregamento" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </CardContent>
-                        </Card>
+                            {/* Daily Results Loading % */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Resultados Diário % Carregamento</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="h-[300px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={chartData}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                <XAxis
+                                                    dataKey="date"
+                                                    tickFormatter={(date) => format(new Date(date), 'dd/MM')}
+                                                    minTickGap={30}
+                                                />
+                                                <YAxis
+                                                    tickFormatter={(value) => `${value.toFixed(1)}%`}
+                                                />
+                                                <Tooltip
+                                                    labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
+                                                    formatter={(value: number) => [`${value.toFixed(2)}%`, '% Carregamento']}
+                                                />
+                                                <Legend />
+                                                <Line type="monotone" dataKey="loading_rate" name="% Carregamento" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </CardContent>
+                            </Card>
 
-                        {/* Daily Results CPM */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Resultados Diário CPM</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-[300px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                            <XAxis 
-                                                dataKey="date" 
-                                                tickFormatter={(date) => format(new Date(date), 'dd/MM')} 
-                                                minTickGap={30}
-                                            />
-                                            <YAxis 
-                                                tickFormatter={(value) => `R$ ${value}`}
-                                            />
-                                            <Tooltip 
-                                                labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
-                                                formatter={(value: number) => [formatCurrency(value), 'CPM']}
-                                            />
-                                            <Legend />
-                                            <Line type="monotone" dataKey="cpm" name="CPM" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </CardContent>
-                        </Card>
+                            {/* Daily Results CPM */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Resultados Diário CPM</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="h-[300px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={chartData}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                <XAxis
+                                                    dataKey="date"
+                                                    tickFormatter={(date) => format(new Date(date), 'dd/MM')}
+                                                    minTickGap={30}
+                                                />
+                                                <YAxis
+                                                    tickFormatter={(value) => `R$ ${value}`}
+                                                />
+                                                <Tooltip
+                                                    labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
+                                                    formatter={(value: number) => [formatCurrency(value), 'CPM']}
+                                                />
+                                                <Legend />
+                                                <Line type="monotone" dataKey="cpm" name="CPM" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </CardContent>
+                            </Card>
 
-                        {/* Daily Results Page Conversion % */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Resultados Diário % Conversão Página</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-[300px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                            <XAxis 
-                                                dataKey="date" 
-                                                tickFormatter={(date) => format(new Date(date), 'dd/MM')} 
-                                                minTickGap={30}
-                                            />
-                                            <YAxis 
-                                                tickFormatter={(value) => `${value.toFixed(1)}%`}
-                                            />
-                                            <Tooltip 
-                                                labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
-                                                formatter={(value: number) => [`${value.toFixed(2)}%`, '% Conversão']}
-                                            />
-                                            <Legend />
-                                            <Line type="monotone" dataKey="conversion_rate" name="% Conversão" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </CardContent>
-                        </Card>
+                            {/* Daily Results Page Conversion % */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Resultados Diário % Conversão Página</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="h-[300px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={chartData}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                <XAxis
+                                                    dataKey="date"
+                                                    tickFormatter={(date) => format(new Date(date), 'dd/MM')}
+                                                    minTickGap={30}
+                                                />
+                                                <YAxis
+                                                    tickFormatter={(value) => `${value.toFixed(1)}%`}
+                                                />
+                                                <Tooltip
+                                                    labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
+                                                    formatter={(value: number) => [`${value.toFixed(2)}%`, '% Conversão']}
+                                                />
+                                                <Legend />
+                                                <Line type="monotone" dataKey="conversion_rate" name="% Conversão" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
                     </TabsContent>
+
+                    <TabsContent value="leads" className="space-y-6">
+                        <GoogleSheetTab
+                            type="leads"
+                            lancamentoId={lancamento.id}
+                            linkName="Planilha de Leads"
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="pesquisa" className="space-y-6">
+                        <GoogleSheetTab
+                            type="pesquisa"
+                            lancamentoId={lancamento.id}
+                            linkName="Planilha de Pesquisa"
+                        />
+                    </TabsContent>
                 </Tabs>
-    )
-}
-        </div >
+            )}
+        </div>
+    );
+};
+
+// Internal Component for Google Sheets Tab to avoid duplication
+const GoogleSheetTab = ({ type, lancamentoId, linkName }: { type: 'leads' | 'pesquisa', lancamentoId: string, linkName: string }) => {
+    const [url, setUrl] = useState('');
+    const [status, setStatus] = useState<'none' | 'connecting' | 'validated' | 'error'>('none');
+    const [data, setData] = useState<any[]>([]);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [linkId, setLinkId] = useState<string | null>(null);
+    const [lastSync, setLastSync] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+
+    useEffect(() => {
+        fetchLink();
+    }, [lancamentoId, linkName]);
+
+    const fetchLink = async () => {
+        try {
+            setLoading(true);
+            const { data: links, error } = await supabase
+                .from('lancamento_links')
+                .select('*')
+                .eq('lancamento_id', lancamentoId)
+                .eq('nome', linkName)
+                .maybeSingle();
+
+            if (links) {
+                setUrl(links.url);
+                setLinkId(links.id);
+                setLastSync(links.last_sync_at);
+
+                if (links.cached_data && Array.isArray(links.cached_data)) {
+                    setData(links.cached_data);
+                    setStatus('validated');
+                } else if (links.url) {
+                    // Has URL but no data, maybe first load or cleared
+                    setStatus('none');
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching link:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const filteredData = data.filter(row => {
+        if (!searchTerm) return true;
+        return Object.values(row).some(val =>
+            String(val).toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    });
+
+    const sortedData = [...filteredData].sort((a, b) => {
+        if (!sortConfig.key) return 0;
+
+        const valA = a[sortConfig.key];
+        const valB = b[sortConfig.key];
+
+        if (valA === valB) return 0;
+
+        // Try numeric sort
+        const numA = Number(valA);
+        const numB = Number(valB);
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+        }
+
+        // String sort
+        const strA = String(valA).toLowerCase();
+        const strB = String(valB).toLowerCase();
+        return sortConfig.direction === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+    });
+
+    const triggerSync = async (currentLinkId: string) => {
+        if (!currentLinkId) return;
+
+        setStatus('connecting');
+        setErrorMsg(null);
+
+        try {
+            toast.info('Iniciando sincronização...');
+            const { data: result, error } = await supabase.functions.invoke('sync-launch-sheets', {
+                body: { link_id: currentLinkId }
+            });
+
+            if (error) throw error;
+
+            // Check result for specific link status
+            if (result?.results?.[0]?.status === 'error') {
+                throw new Error(result.results[0].message);
+            }
+
+            toast.success('Sincronização concluída!');
+            await fetchLink(); // Reload data from DB
+
+        } catch (error: any) {
+            console.error('Sync error:', error);
+            setStatus('error');
+            setErrorMsg(error.message || 'Erro ao sincronizar planilha.');
+            toast.error('Erro ao sincronizar.');
+        } finally {
+            // fetchLink sets loading false, but if we errored we might need to reset UI state
+            if (status === 'connecting') setStatus(data.length > 0 ? 'validated' : 'error');
+        }
+    };
+
+    const saveAndConnect = async () => {
+        if (!url) return;
+        setStatus('connecting');
+
+        try {
+            const { data: userData } = await supabase.auth.getUser();
+
+            const payload = {
+                lancamento_id: lancamentoId,
+                nome: linkName,
+                url: url,
+                ordem: 99,
+                criado_por: userData.user?.id
+            };
+
+            let currentId = linkId;
+            let error;
+
+            if (linkId) {
+                const { error: updateError } = await supabase
+                    .from('lancamento_links')
+                    .update({ url: url })
+                    .eq('id', linkId);
+                error = updateError;
+            } else {
+                const { data: newLink, error: insertError } = await supabase
+                    .from('lancamento_links')
+                    .insert(payload)
+                    .select()
+                    .single();
+
+                if (newLink) {
+                    setLinkId(newLink.id);
+                    currentId = newLink.id;
+                }
+                error = insertError;
+            }
+
+            if (error) throw error;
+
+            if (currentId) {
+                await triggerSync(currentId);
+            }
+
+        } catch (error: any) {
+            console.error('Error saving link:', error);
+            setStatus('error');
+            setErrorMsg(error.message);
+            toast.error('Erro ao salvar e conectar.');
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                    <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                    {linkName}
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                    {lastSync && (
+                        <span className="text-xs text-muted-foreground mr-2">
+                            Atualizado: {new Date(lastSync).toLocaleString()}
+                        </span>
+                    )}
+                    {status === 'validated' && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            {data.length} registros
+                        </Badge>
+                    )}
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <div className="absolute left-2.5 top-2.5 text-muted-foreground">
+                            <LinkIcon className="h-4 w-4" />
+                        </div>
+                        <Input
+                            placeholder="Cole a URL do Google Sheets aqui..."
+                            className="pl-9"
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                        />
+                    </div>
+                    <Button
+                        onClick={saveAndConnect}
+                        disabled={status === 'connecting' || !url}
+                    >
+                        {status === 'connecting' ? (
+                            <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                        )}
+                        {linkId ? 'Sincronizar' : 'Conectar'}
+                    </Button>
+                </div>
+
+                {/* Error State */}
+                {status === 'error' && (
+                    <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
+                        <AlertCircle className="h-4 w-4" />
+                        {errorMsg}
+                    </div>
+                )}
+
+                {/* Search & Table */}
+                {(status === 'validated' || data.length > 0) && (
+                    <>
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Buscar nos dados..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-9"
+                            />
+                        </div>
+
+                        <div className="border rounded-md overflow-hidden">
+                            <div className="max-h-[500px] overflow-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            {Object.keys(data[0] || {}).map((header, i) => (
+                                                <TableHead
+                                                    key={i}
+                                                    className="whitespace-nowrap cursor-pointer hover:bg-muted/50 transition-colors"
+                                                    onClick={() => handleSort(header)}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        {header}
+                                                        {sortConfig.key === header ? (
+                                                            sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                        ) : (
+                                                            <ArrowUpDown className="h-3 w-3 opacity-30" />
+                                                        )}
+                                                    </div>
+                                                </TableHead>
+                                            ))}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {sortedData.length > 0 ? (
+                                            sortedData.map((row, i) => (
+                                                <TableRow key={i}>
+                                                    {Object.keys(data[0] || {}).map((header, j) => (
+                                                        <TableCell key={j} className="whitespace-nowrap">
+                                                            {String(row[header]).length > 50
+                                                                ? String(row[header]).substring(0, 50) + '...'
+                                                                : row[header]}
+                                                        </TableCell>
+                                                    ))}
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={Object.keys(data[0] || {}).length} className="text-center py-8 text-muted-foreground">
+                                                    Nenhum resultado encontrado para "{searchTerm}"
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            <div className="bg-muted/30 p-2 text-xs text-muted-foreground text-center border-t">
+                                Mostrando {sortedData.length} de {data.length} registros
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {status === 'validated' && data.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                        Planilha conectada, mas nenhum dado encontrado.
+                    </div>
+                )}
+
+                <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
+                    <p className="font-semibold mb-1">Como configurar:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                        <li>A planilha deve ser <strong>Pública</strong> ou acessível para "Qualquer pessoa com o link".</li>
+                        <li>A primeira linha deve conter os cabeçalhos das colunas.</li>
+                        <li><strong>Importante:</strong> O sistema sempre buscará dados da <strong>primeira aba/página</strong> da planilha. Certifique-se de que os dados desejados estejam nela.</li>
+                        <li>Os dados são atualizados automaticamente todos os dias. Você pode forçar a atualização clicando em "Sincronizar".</li>
+                    </ul>
+                </div>
+            </CardContent>
+        </Card>
     );
 };

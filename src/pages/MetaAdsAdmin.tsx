@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MetaSyncHistory } from "@/components/MetaAds/MetaSyncHistory";
+import { formatInTimeZone } from "date-fns-tz";
+import { ptBR } from "date-fns/locale";
 
 interface AdAccount {
     id: string; // Meta Ad Account ID (act_xxx)
@@ -30,6 +32,36 @@ interface LinkedAccount {
     client_nome?: string;
 }
 
+interface AutomationStatus {
+    latestAutomaticLog: any | null;
+    runningAutomaticLog: any | null;
+    nextRunAt: string;
+}
+
+const getNextDailyRunIso = () => {
+    const next = new Date();
+    next.setUTCHours(9, 0, 0, 0); // 06:00 BRT == 09:00 UTC
+    if (next <= new Date()) {
+        next.setUTCDate(next.getUTCDate() + 1);
+    }
+    return next.toISOString();
+};
+
+const formatBrtDateTime = (value?: string | null) => {
+    if (!value) return "-";
+    return formatInTimeZone(value, 'America/Sao_Paulo', "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR });
+};
+
+const normalizeSyncStatus = (status?: string | null): 'success' | 'running' | 'partial' | 'error' => {
+    if (!status) return 'error';
+    const normalized = status.toLowerCase();
+
+    if (['running', 'processando', 'em_andamento', 'in_progress'].includes(normalized)) return 'running';
+    if (['success', 'sucesso', 'completed', 'concluido', 'done'].includes(normalized)) return 'success';
+    if (normalized === 'partial') return 'partial';
+    return 'error';
+};
+
 const MetaAdsAdmin = () => {
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
@@ -45,6 +77,12 @@ const MetaAdsAdmin = () => {
     const [diagnosticResult, setDiagnosticResult] = useState<any>(null);
     const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
     const [testingId, setTestingId] = useState<string | null>(null);
+    const [automationStatus, setAutomationStatus] = useState<AutomationStatus>({
+        latestAutomaticLog: null,
+        runningAutomaticLog: null,
+        nextRunAt: getNextDailyRunIso(),
+    });
+    const [loadingAutomationStatus, setLoadingAutomationStatus] = useState(false);
 
     const { toast } = useToast();
 
@@ -104,8 +142,58 @@ const MetaAdsAdmin = () => {
         );
     };
 
+    const loadAutomationStatus = async (silent = false) => {
+        if (!silent) {
+            setLoadingAutomationStatus(true);
+        }
+
+        try {
+            const [latestResult, runningResult] = await Promise.all([
+                supabase
+                    .from('meta_sync_logs')
+                    .select('id, status, started_at, completed_at, accounts_total, accounts_success, accounts_error, records_synced, error_message, trigger_source')
+                    .eq('trigger_source', 'automatic_daily')
+                    .order('started_at', { ascending: false, nullsFirst: false })
+                    .limit(1)
+                    .maybeSingle(),
+                supabase
+                    .from('meta_sync_logs')
+                    .select('id, status, started_at, completed_at, accounts_total, accounts_success, accounts_error, records_synced, error_message, trigger_source')
+                    .eq('trigger_source', 'automatic_daily')
+                    .eq('status', 'running')
+                    .order('started_at', { ascending: false, nullsFirst: false })
+                    .limit(1)
+                    .maybeSingle(),
+            ]);
+
+            if (latestResult.error) throw latestResult.error;
+            if (runningResult.error) throw runningResult.error;
+
+            setAutomationStatus({
+                latestAutomaticLog: latestResult.data || null,
+                runningAutomaticLog: runningResult.data || null,
+                nextRunAt: getNextDailyRunIso(),
+            });
+        } catch (error) {
+            console.error('Error loading automation status:', error);
+        } finally {
+            if (!silent) {
+                setLoadingAutomationStatus(false);
+            }
+        }
+    };
+
     useEffect(() => {
         loadData();
+        loadAutomationStatus();
+    }, []);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            loadAutomationStatus(true);
+        }, 30000);
+
+        return () => window.clearInterval(interval);
     }, []);
 
     const loadData = async () => {
@@ -266,9 +354,12 @@ id,
     const manualSync = async () => {
         setSyncing(true);
         try {
-            const { error } = await supabase.functions.invoke('meta-ads-sync');
+            const { error } = await supabase.functions.invoke('meta-ads-sync', {
+                body: { trigger_source: 'manual' }
+            });
             if (error) throw error;
             toast({ title: "Sincronização iniciada" });
+            loadAutomationStatus(true);
         } catch (error: any) {
             toast({ title: "Erro na sincronização", description: error.message, variant: "destructive" });
         } finally {
@@ -382,6 +473,24 @@ id,
     };
 
     const sortedAccounts = getSortedAccounts();
+    const runningStatus = normalizeSyncStatus(automationStatus.runningAutomaticLog?.status);
+    const latestAutomaticStatus = normalizeSyncStatus(automationStatus.latestAutomaticLog?.status);
+
+    const automationStatusBadge = (() => {
+        if (runningStatus === 'running') {
+            return <Badge variant="secondary" className="animate-pulse">Executando agora</Badge>;
+        }
+        if (!automationStatus.latestAutomaticLog) {
+            return <Badge variant="outline">Sem execução automática registrada</Badge>;
+        }
+        if (latestAutomaticStatus === 'success') {
+            return <Badge className="bg-green-600 hover:bg-green-700">Última execução: sucesso</Badge>;
+        }
+        if (latestAutomaticStatus === 'partial') {
+            return <Badge className="bg-amber-500 text-black hover:bg-amber-400">Última execução: parcial</Badge>;
+        }
+        return <Badge variant="destructive">Última execução: erro</Badge>;
+    })();
 
     return (
         <div className="container mx-auto py-8 space-y-8">
@@ -401,6 +510,55 @@ id,
                     </Button>
                 </div>
             </div>
+
+            <Card>
+                <CardHeader>
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <CardTitle>Automação Diária Meta Ads</CardTitle>
+                            <CardDescription>
+                                Sincronização automática ativa todos os dias às 06:00 BRT (09:00 UTC).
+                            </CardDescription>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => loadAutomationStatus(false)}
+                            disabled={loadingAutomationStatus}
+                            className="gap-2"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${loadingAutomationStatus ? 'animate-spin' : ''}`} />
+                            Atualizar status
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-1">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Estado</p>
+                        <div>{automationStatusBadge}</div>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Horário</p>
+                        <p className="text-sm font-medium">06:00 BRT (09:00 UTC)</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Última execução automática</p>
+                        <p className="text-sm font-medium">
+                            {formatBrtDateTime(automationStatus.latestAutomaticLog?.started_at || automationStatus.latestAutomaticLog?.created_at)}
+                        </p>
+                        {automationStatus.latestAutomaticLog && (
+                            <p className="text-xs text-muted-foreground">
+                                {Number(automationStatus.latestAutomaticLog.accounts_success || 0)}/
+                                {Number(automationStatus.latestAutomaticLog.accounts_total || 0)} contas com sucesso
+                            </p>
+                        )}
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Próxima execução</p>
+                        <p className="text-sm font-medium">{formatBrtDateTime(automationStatus.nextRunAt)}</p>
+                    </div>
+                </CardContent>
+            </Card>
 
             <Tabs defaultValue="contas" className="space-y-6">
                 <TabsList className="grid w-full max-w-md grid-cols-2">

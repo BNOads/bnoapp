@@ -4039,12 +4039,14 @@ export type Database = {
       meta_ad_accounts: {
         Row: {
           account_status: number | null
+          balance: number | null
           business_name: string | null
           connection_id: string
           created_at: string
           currency: string | null
           id: string
           is_active: boolean | null
+          is_prepay_account: boolean | null
           last_synced_at: string | null
           meta_account_id: string
           name: string
@@ -4054,12 +4056,14 @@ export type Database = {
         }
         Insert: {
           account_status?: number | null
+          balance?: number | null
           business_name?: string | null
           connection_id: string
           created_at?: string
           currency?: string | null
           id?: string
           is_active?: boolean | null
+          is_prepay_account?: boolean | null
           last_synced_at?: string | null
           meta_account_id: string
           name: string
@@ -4069,12 +4073,14 @@ export type Database = {
         }
         Update: {
           account_status?: number | null
+          balance?: number | null
           business_name?: string | null
           connection_id?: string
           created_at?: string
           currency?: string | null
           id?: string
           is_active?: boolean | null
+          is_prepay_account?: boolean | null
           last_synced_at?: string | null
           meta_account_id?: string
           name?: string
@@ -4540,39 +4546,63 @@ export type Database = {
       meta_sync_logs: {
         Row: {
           ad_account_id: string | null
+          accounts_error: number | null
+          accounts_success: number | null
+          accounts_total: number | null
+          completed_at: string | null
           created_at: string
           date_from: string | null
           date_to: string | null
+          details: Json | null
           duration_ms: number | null
           error_message: string | null
           id: string
           records_synced: number | null
+          scope: string | null
+          started_at: string | null
           status: string
           sync_type: string
+          trigger_source: string | null
         }
         Insert: {
           ad_account_id?: string | null
+          accounts_error?: number | null
+          accounts_success?: number | null
+          accounts_total?: number | null
+          completed_at?: string | null
           created_at?: string
           date_from?: string | null
           date_to?: string | null
+          details?: Json | null
           duration_ms?: number | null
           error_message?: string | null
           id?: string
           records_synced?: number | null
+          scope?: string | null
+          started_at?: string | null
           status: string
-          sync_type: string
+          sync_type?: string
+          trigger_source?: string | null
         }
         Update: {
           ad_account_id?: string | null
+          accounts_error?: number | null
+          accounts_success?: number | null
+          accounts_total?: number | null
+          completed_at?: string | null
           created_at?: string
           date_from?: string | null
           date_to?: string | null
+          details?: Json | null
           duration_ms?: number | null
           error_message?: string | null
           id?: string
           records_synced?: number | null
+          scope?: string | null
+          started_at?: string | null
           status?: string
           sync_type?: string
+          trigger_source?: string | null
         }
         Relationships: [
           {

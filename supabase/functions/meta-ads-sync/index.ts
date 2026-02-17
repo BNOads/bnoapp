@@ -32,13 +32,47 @@ const uniqueDestinatarios = (values: Array<string | null | undefined>): string[]
     return Array.from(new Set(values.filter((v): v is string => Boolean(v))));
 };
 
+const VALID_TRIGGER_SOURCES = new Set(['manual', 'automatic_daily']);
+
+const getSyncScope = (adAccountId?: string | null, clientId?: string | null): 'single_account' | 'client_scope' | 'all_linked_accounts' => {
+    if (adAccountId) return 'single_account';
+    if (clientId) return 'client_scope';
+    return 'all_linked_accounts';
+};
+
+const safeNumber = (value: unknown): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeStatus = (status?: string | null): 'success' | 'error' | 'partial' | 'running' => {
+    if (!status) return 'error';
+
+    const normalized = status.toLowerCase();
+    if (['running', 'processando', 'em_andamento', 'in_progress'].includes(normalized)) return 'running';
+    if (['success', 'sucesso', 'completed', 'concluido', 'done'].includes(normalized)) return 'success';
+    if (['partial'].includes(normalized)) return 'partial';
+    return 'error';
+};
+
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
 
+    const requestStartedAt = Date.now();
+    const requestStartedAtIso = new Date(requestStartedAt).toISOString();
+    let logSyncId: string | null = null;
+    let supabase: ReturnType<typeof createClient> | null = null;
+    let triggerSource: string = 'manual';
+    let syncScope: 'single_account' | 'client_scope' | 'all_linked_accounts' = 'all_linked_accounts';
+    let accountDetailsForLog: any[] = [];
+    let recordsSyncedForLog = 0;
+    let accountsSuccessForLog = 0;
+    let accountsErrorForLog = 0;
+
     try {
-        const supabase = createClient(
+        supabase = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
@@ -50,23 +84,29 @@ Deno.serve(async (req) => {
 
         let { ad_account_id, client_id, date_start, date_stop, trigger_source } = await req.json().catch(() => ({}))
 
-        // Default source
-        if (!trigger_source) trigger_source = 'manual';
+        triggerSource = VALID_TRIGGER_SOURCES.has(trigger_source) ? trigger_source : 'manual';
+        syncScope = getSyncScope(ad_account_id, client_id);
 
-        // 1. Log start
         const { data: logSync, error: logError } = await supabase
             .from('meta_sync_logs')
             .insert({
                 ad_account_id: ad_account_id || null, // Best effort logging
                 status: 'running',
-                started_at: new Date().toISOString(),
-                trigger_source: trigger_source
+                sync_type: 'meta_ads',
+                started_at: requestStartedAtIso,
+                trigger_source: triggerSource,
+                scope: syncScope,
+                date_from: date_start || null,
+                date_to: date_stop || null,
+                details: []
             })
             .select()
             .single()
 
         if (logError && logError.code !== '42P01') {
             console.error('Error logging start:', logError)
+        } else if (logSync?.id) {
+            logSyncId = logSync.id;
         }
 
         // 2. Fetch Accounts
@@ -91,6 +131,7 @@ Deno.serve(async (req) => {
         console.log(`Found ${accounts?.length} accounts to sync.`)
 
         const results = []
+        const accountDetails: any[] = []
 
         // Select a system author for creating notifications
         const { data: adminAuthor } = await supabase
@@ -133,8 +174,32 @@ Deno.serve(async (req) => {
             // @ts-ignore
             const metaId = account.meta_ad_accounts?.meta_account_id
 
+            const accountSummary: any = {
+                ad_account_id: account.id,
+                meta_account_id: metaId || null,
+                account_name: account.account_name || account.meta_ad_accounts?.name || metaId || 'Conta sem nome',
+                client_id: account.cliente_id || null,
+                client_name: account?.clientes?.nome || null,
+                date_start: null,
+                date_stop: null,
+                campaign: { status: 'pending', count: 0, error: null },
+                ad: { status: 'pending', count: 0, error: null },
+                total_records: 0,
+                status: 'running'
+            };
+
             if (!metaId) {
                 console.error(`Skipping account ${account.id}: No Meta ID found.`)
+                accountSummary.status = 'error';
+                accountSummary.campaign = { status: 'error', count: 0, error: 'No Meta ID found for linked account.' };
+                accountSummary.ad = { status: 'error', count: 0, error: 'No Meta ID found for linked account.' };
+                accountDetails.push(accountSummary);
+                results.push({
+                    accountId: account.id,
+                    type: 'account',
+                    status: 'error',
+                    error: 'No Meta ID found for linked account.'
+                });
                 continue
             }
 
@@ -171,6 +236,9 @@ Deno.serve(async (req) => {
             } else {
                 console.log(`[Manual Sync] Account ${account.account_name}: Using provided range ${effectiveStart} to ${effectiveEnd}`);
             }
+
+            accountSummary.date_start = effectiveStart;
+            accountSummary.date_stop = effectiveEnd;
 
             // --- 0. Sync Account Details (is_prepay_account & balance) ---
             try {
@@ -384,10 +452,12 @@ Deno.serve(async (req) => {
                     currentUrl = json.paging?.next || null;
                 }
 
+                accountSummary.campaign = { status: 'success', count: totalCampaignsSynced, error: null };
                 results.push({ accountId: account.id, type: 'campaign', count: totalCampaignsSynced, status: 'success' })
 
             } catch (err: any) {
                 console.error(`Campaign sync error for ${account.id}:`, err)
+                accountSummary.campaign = { status: 'error', count: totalCampaignsSynced, error: err.message || 'Campaign sync failed' };
                 results.push({ accountId: account.id, type: 'campaign', status: 'error', error: err.message })
             }
 
@@ -684,6 +754,12 @@ Deno.serve(async (req) => {
                     currentUrl = jsonAd.paging?.next || null;
                 }
 
+                accountSummary.ad = {
+                    status: 'success',
+                    count: totalAdsSynced,
+                    error: null,
+                    debug: adDebugInfo,
+                };
                 results.push({
                     accountId: account.id,
                     type: 'ad',
@@ -694,28 +770,128 @@ Deno.serve(async (req) => {
 
             } catch (err: any) {
                 console.error(`Ad sync error for ${account.id}:`, err)
+                accountSummary.ad = {
+                    status: 'error',
+                    count: totalAdsSynced,
+                    error: err.message || 'Ad sync failed',
+                    debug: adDebugInfo,
+                };
                 results.push({ accountId: account.id, type: 'ad', status: 'error', error: err.message })
+            }
+
+            accountSummary.total_records =
+                safeNumber(accountSummary.campaign?.count) +
+                safeNumber(accountSummary.ad?.count);
+
+            const campaignStatus = normalizeStatus(accountSummary.campaign?.status);
+            const adStatus = normalizeStatus(accountSummary.ad?.status);
+
+            if (campaignStatus === 'success' && adStatus === 'success') {
+                accountSummary.status = 'success';
+            } else if (campaignStatus === 'error' && adStatus === 'error') {
+                accountSummary.status = 'error';
+            } else {
+                accountSummary.status = 'partial';
+            }
+
+            accountDetails.push(accountSummary);
+        }
+
+        accountDetailsForLog = accountDetails;
+        const accountsTotal = accountDetails.length;
+        const accountsSuccess = accountDetails.filter((item: any) => normalizeStatus(item?.status) === 'success').length;
+        const accountsError = accountDetails.filter((item: any) => normalizeStatus(item?.status) !== 'success').length;
+        const totalRecordsSynced = accountDetails.reduce((sum: number, item: any) => sum + safeNumber(item?.total_records), 0);
+
+        accountsSuccessForLog = accountsSuccess;
+        accountsErrorForLog = accountsError;
+        recordsSyncedForLog = totalRecordsSynced;
+
+        let finalStatus: 'success' | 'error' | 'partial' = 'success';
+        if (accountsTotal > 0) {
+            if (accountsError === 0) finalStatus = 'success';
+            else if (accountsSuccess === 0) finalStatus = 'error';
+            else finalStatus = 'partial';
+        }
+
+        if (logSyncId) {
+            const { error: finalLogError } = await supabase
+                .from('meta_sync_logs')
+                .update({
+                    status: finalStatus,
+                    completed_at: new Date().toISOString(),
+                    duration_ms: Math.max(0, Date.now() - requestStartedAt),
+                    records_synced: totalRecordsSynced,
+                    accounts_total: accountsTotal,
+                    accounts_success: accountsSuccess,
+                    accounts_error: accountsError,
+                    details: accountDetails,
+                    trigger_source: triggerSource,
+                    scope: syncScope,
+                    date_from: date_start || null,
+                    date_to: date_stop || null,
+                    error_message: finalStatus === 'error' || finalStatus === 'partial'
+                        ? accountDetails
+                            .filter((item: any) => normalizeStatus(item?.status) !== 'success')
+                            .map((item: any) => `${item?.account_name || item?.meta_account_id || item?.ad_account_id}: ${item?.campaign?.error || item?.ad?.error || 'Erro na sincronização da conta'}`)
+                            .join(' | ')
+                        : null,
+                })
+                .eq('id', logSyncId);
+
+            if (finalLogError) {
+                console.error('Error updating final sync log:', finalLogError);
             }
         }
 
-        // 5. Update Log
-        if (logSync) {
-            await supabase
-                .from('meta_sync_logs')
-                .update({
-                    status: 'success',
-                    completed_at: new Date().toISOString(),
-                })
-                .eq('id', logSync.id)
-        }
-
         return new Response(
-            JSON.stringify({ success: true, results }),
+            JSON.stringify({
+                success: finalStatus !== 'error',
+                status: finalStatus,
+                summary: {
+                    trigger_source: triggerSource,
+                    scope: syncScope,
+                    accounts_total: accountsTotal,
+                    accounts_success: accountsSuccess,
+                    accounts_error: accountsError,
+                    records_synced: totalRecordsSynced,
+                    duration_ms: Math.max(0, Date.now() - requestStartedAt),
+                },
+                account_details: accountDetails,
+                results
+            }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
 
     } catch (error: any) {
         console.error('Sync failed:', error)
+        const completedAt = new Date().toISOString();
+        const accountsTotal = accountDetailsForLog.length;
+        const fallbackAccountsError = accountsErrorForLog || (accountsTotal > 0 ? accountsTotal : 0);
+
+        if (supabase && logSyncId) {
+            const { error: logUpdateError } = await supabase
+                .from('meta_sync_logs')
+                .update({
+                    status: 'error',
+                    completed_at: completedAt,
+                    duration_ms: Math.max(0, Date.now() - requestStartedAt),
+                    records_synced: recordsSyncedForLog,
+                    accounts_total: accountsTotal,
+                    accounts_success: accountsSuccessForLog,
+                    accounts_error: fallbackAccountsError,
+                    details: accountDetailsForLog,
+                    trigger_source: triggerSource,
+                    scope: syncScope,
+                    error_message: error?.message || 'Unexpected sync error',
+                })
+                .eq('id', logSyncId);
+
+            if (logUpdateError) {
+                console.error('Failed to update error sync log:', logUpdateError);
+            }
+        }
+
         return new Response(
             JSON.stringify({ success: false, error: error.message }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

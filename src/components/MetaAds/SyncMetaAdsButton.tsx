@@ -11,7 +11,9 @@ export const SyncMetaAdsButton = () => {
     const handleSync = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase.functions.invoke('meta-ads-sync');
+            const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
+                body: { trigger_source: 'manual' }
+            });
 
             if (error) throw error;
 
