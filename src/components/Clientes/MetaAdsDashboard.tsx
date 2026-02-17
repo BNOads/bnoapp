@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, TrendingUp, DollarSign, MousePointer, Eye, Activity, RefreshCw, ExternalLink, ChevronLeft, ChevronRight, Search, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, TrendingUp, DollarSign, MousePointer, Eye, Activity, RefreshCw, ExternalLink, ChevronLeft, ChevronRight, Search, ArrowUp, ArrowDown, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { startOfMonth, endOfMonth, subDays, format, subMonths, parseISO, compareAsc, eachDayOfInterval } from "date-fns";
@@ -60,7 +60,8 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
     const [searchTerm, setSearchTerm] = useState("");
     const [sortMetric, setSortMetric] = useState("spend"); // spend | clicks | reach
     const [currentPage, setCurrentPage] = useState(1);
-    const adsPerPage = 3;
+    const [adsViewMode, setAdsViewMode] = useState<'grid' | 'table'>('grid');
+    const adsPerPage = adsViewMode === 'grid' ? 3 : 10;
 
     const { toast } = useToast();
 
@@ -321,6 +322,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                             reach: 0,
                             video_3sec: 0,
                             video_p75: 0,
+                            video_thruplay: 0,
                         };
                     }
                     adsMap[item.ad_id].spend += Number(item.spend) || 0;
@@ -331,6 +333,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                     // Video Metrics
                     let v3 = 0;
                     let vP75 = 0;
+                    let vThru = 0;
 
                     const getActionValue = (list: any[], types: string[]) => {
                         if (!Array.isArray(list)) return 0;
@@ -361,8 +364,16 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                         vP75 = getActionValue(item.actions, ['video_p75_watched_actions']);
                     }
 
+                    // ThruPlays (15s)
+                    if (vm && Array.isArray(vm.video_thruplay_watched_actions) && vm.video_thruplay_watched_actions.length > 0) {
+                        vThru = getActionValue(vm.video_thruplay_watched_actions, ['video_thruplay_watched_actions']);
+                    } else {
+                        vThru = getActionValue(item.actions, ['video_thruplay_watched_actions']);
+                    }
+
                     adsMap[item.ad_id].video_3sec += v3;
                     adsMap[item.ad_id].video_p75 += vP75;
+                    adsMap[item.ad_id].video_thruplay += vThru;
                 });
 
                 const finalAds = Object.values(adsMap)
@@ -372,7 +383,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                         ctr: ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0,
                         cpc: ad.clicks > 0 ? ad.spend / ad.clicks : 0,
                         hookRate: ad.impressions > 0 ? (ad.video_3sec / ad.impressions) * 100 : 0,
-                        holdRate: ad.reach > 0 ? (ad.video_p75 / ad.reach) * 100 : 0,
+
                     }));
 
                 // Sorting is handled in render time now, but we set initial state
@@ -861,31 +872,43 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                     <SelectItem value="clicks">Mais Cliques</SelectItem>
                                                     <SelectItem value="reach">Maior Alcance</SelectItem>
                                                     <SelectItem value="impressions">Mais Impressões</SelectItem>
+                                                    <SelectItem value="hookRate">Maior Hook Rate</SelectItem>
+
                                                 </SelectContent>
                                             </Select>
+                                            <div className="flex items-center border rounded-md bg-background">
+                                                <Button
+                                                    variant={adsViewMode === 'grid' ? 'secondary' : 'ghost'}
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-none rounded-l-md"
+                                                    onClick={() => { setAdsViewMode('grid'); setCurrentPage(1); }}
+                                                >
+                                                    <LayoutGrid className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant={adsViewMode === 'table' ? 'secondary' : 'ghost'}
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-none rounded-r-md"
+                                                    onClick={() => { setAdsViewMode('table'); setCurrentPage(1); }}
+                                                >
+                                                    <List className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    {/* Carousel Grid */}
-                                    <div className="relative group">
+                                    {/* Content Switcher */}
+                                    {adsViewMode === 'grid' ? (
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             {currentAds.map((ad) => (
                                                 <div key={ad.id} className="border rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
                                                     <div className="aspect-square w-full bg-slate-100 relative group/image overflow-hidden">
-                                                        {(ad.thumbnail && (ad.thumbnail.includes('render_ad') || ad.thumbnail.includes('facebook.com'))) ? (
-                                                            <iframe
-                                                                src={ad.thumbnail}
-                                                                className="w-full h-full border-0 pointer-events-none"
-                                                                title={ad.name}
-                                                                scrolling="no"
-                                                                referrerPolicy="origin"
-                                                                sandbox="allow-scripts allow-same-origin allow-popups"
-                                                            />
-                                                        ) : ad.thumbnail ? (
+                                                        {ad.thumbnail ? (
                                                             <img
                                                                 src={ad.thumbnail}
                                                                 alt={ad.name}
                                                                 className="w-full h-full object-cover transition-transform duration-300 group-hover/image:scale-105"
+                                                                referrerPolicy="no-referrer"
                                                             />
                                                         ) : (
                                                             <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-slate-50">
@@ -895,8 +918,6 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                                 </div>
                                                             </div>
                                                         )}
-
-
                                                     </div>
 
                                                     <div className="p-4 flex-1 flex flex-col justify-between">
@@ -926,15 +947,11 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                             </div>
 
                                                             {/* Video Metrics */}
-                                                            {(ad.hookRate > 0 || ad.holdRate > 0) && (
-                                                                <div className="grid grid-cols-2 gap-2 text-xs border-t pt-2 mt-2 border-dashed">
+                                                            {ad.hookRate > 0 && (
+                                                                <div className="grid grid-cols-1 gap-2 text-xs border-t pt-2 mt-2 border-dashed">
                                                                     <div className="text-center">
                                                                         <span className="block text-muted-foreground text-[10px] uppercase" title="Plays de 3s / Impressões">Hook Rate</span>
                                                                         <span className="font-semibold text-purple-600">{percent(ad.hookRate)}</span>
-                                                                    </div>
-                                                                    <div className="text-center border-l border-dashed">
-                                                                        <span className="block text-muted-foreground text-[10px] uppercase" title="Vídeos 75% / Alcance">Hold Rate</span>
-                                                                        <span className="font-semibold text-purple-600">{percent(ad.holdRate)}</span>
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -962,37 +979,99 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                 </div>
                                             ))}
                                         </div>
+                                    ) : (
+                                        <div className="rounded-md border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="w-[80px]">Criativo</TableHead>
+                                                        <TableHead>Nome e Link</TableHead>
+                                                        <TableHead className="text-right">Invest.</TableHead>
+                                                        <TableHead className="text-right">Cliques</TableHead>
+                                                        <TableHead className="text-right">CTR</TableHead>
+                                                        <TableHead className="text-right">Alcance</TableHead>
+                                                        <TableHead className="text-right">Hook Rate</TableHead>
 
-                                        {filteredAds.length === 0 && (
-                                            <div className="text-center py-12 text-muted-foreground border rounded-xl border-dashed">
-                                                Nenhum anúncio encontrado para esta busca.
-                                            </div>
-                                        )}
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {currentAds.map((ad) => (
+                                                        <TableRow key={ad.id}>
+                                                            <TableCell>
+                                                                <div className="h-12 w-12 rounded bg-slate-100 overflow-hidden relative">
+                                                                    {ad.thumbnail ? (
+                                                                        <img
+                                                                            src={ad.thumbnail}
+                                                                            alt={ad.name}
+                                                                            className="w-full h-full object-cover"
+                                                                            referrerPolicy="no-referrer"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                                                            <Eye className="h-4 w-4 opacity-20" />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="font-medium text-xs sm:text-sm line-clamp-2" title={ad.name}>
+                                                                        {ad.name}
+                                                                    </span>
+                                                                    {ad.link && (
+                                                                        <a
+                                                                            href={ad.link}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-[10px] text-blue-600 hover:underline flex items-center gap-1"
+                                                                        >
+                                                                            Ver no Instagram <ExternalLink className="h-2 w-2" />
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-right">{currency(ad.spend)}</TableCell>
+                                                            <TableCell className="text-right">{number(ad.clicks)}</TableCell>
+                                                            <TableCell className="text-right font-medium">{percent(ad.ctr)}</TableCell>
+                                                            <TableCell className="text-right">{number(ad.reach)}</TableCell>
+                                                            <TableCell className="text-right text-purple-600 font-medium">{percent(ad.hookRate)}</TableCell>
 
-                                        {/* Navigation Arrows */}
-                                        {totalPages > 1 && (
-                                            <>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="absolute -left-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md bg-white border-slate-200 hidden md:flex disabled:opacity-0 transition-opacity z-10"
-                                                    onClick={prevPage}
-                                                    disabled={currentPage === 1}
-                                                >
-                                                    <ChevronLeft className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="absolute -right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md bg-white border-slate-200 hidden md:flex disabled:opacity-0 transition-opacity z-10"
-                                                    onClick={nextPage}
-                                                    disabled={currentPage === totalPages}
-                                                >
-                                                    <ChevronRight className="h-4 w-4" />
-                                                </Button>
-                                            </>
-                                        )}
-                                    </div>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    )}
+
+                                    {filteredAds.length === 0 && (
+                                        <div className="text-center py-12 text-muted-foreground border rounded-xl border-dashed">
+                                            Nenhum anúncio encontrado para esta busca.
+                                        </div>
+                                    )}
+
+                                    {/* Navigation Arrows */}
+                                    {totalPages > 1 && (
+                                        <>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="absolute -left-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md bg-white border-slate-200 hidden md:flex disabled:opacity-0 transition-opacity z-10"
+                                                onClick={prevPage}
+                                                disabled={currentPage === 1}
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="absolute -right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md bg-white border-slate-200 hidden md:flex disabled:opacity-0 transition-opacity z-10"
+                                                onClick={nextPage}
+                                                disabled={currentPage === totalPages}
+                                            >
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                        </>
+                                    )}
 
                                     {/* Mobile Pagination */}
                                     {totalPages > 1 && (
