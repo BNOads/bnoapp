@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
 
         // Common Fields
         const campaignFields = 'account_id,campaign_name,campaign_id,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop'
-        const adFields = 'account_id,ad_id,ad_name,campaign_id,campaign_name,adset_id,adset_name,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop'
+        const adFields = 'account_id,ad_id,ad_name,campaign_id,campaign_name,adset_id,adset_name,status,effective_status,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop'
 
         // 3. Loop and Fetch
         for (const account of accounts || []) {
@@ -343,6 +343,30 @@ Deno.serve(async (req) => {
                             // A. Link Logic
                             let creativeLink = creative.instagram_permalink_url || null;
 
+                            // Fallback to call_to_action link or link_data link
+                            if (!creativeLink && creative.object_story_spec) {
+                                const spec = creative.object_story_spec;
+                                creativeLink = spec.link_data?.link
+                                    || spec.video_data?.call_to_action?.value?.link
+                                    || spec.template_data?.link_data?.link
+                                    || spec.link_data?.child_attachments?.[0]?.link;
+                            }
+
+                            // Fallback to asset_feed_spec (Dynamic Creative)
+                            if (!creativeLink && creative.asset_feed_spec) {
+                                const assets = creative.asset_feed_spec;
+                                creativeLink = assets.link_urls?.[0]?.website_url;
+                            }
+
+                            // DEBUG: Log creative link finding
+                            if (!creativeLink) {
+                                console.log(`[DEBUG] No link found for ad ${item.ad_id}. Creative keys: ${Object.keys(creative).join(',')}`);
+                                if (creative.object_story_spec) console.log(`[DEBUG] object_story_spec: ${JSON.stringify(creative.object_story_spec)}`);
+                                if (creative.asset_feed_spec) console.log(`[DEBUG] asset_feed_spec: ${JSON.stringify(creative.asset_feed_spec)}`);
+                            } else {
+                                // console.log(`[DEBUG] Found link for ad ${item.ad_id}: ${creativeLink}`);
+                            }
+
                             // B. Thumbnail Logic - from creative{thumbnail_url}
                             let thumbnailUrl = creative.thumbnail_url || creative.image_url;
 
@@ -407,6 +431,8 @@ Deno.serve(async (req) => {
                                     video_p75_watched_actions: item.video_p75_watched_actions || [],
                                     video_thruplay_watched_actions: item.video_thruplay_watched_actions || []
                                 },
+                                status: item.status,
+                                effective_status: item.effective_status,
                                 creative_thumbnail_url: thumbnailUrl,
                                 creative_url: creativeLink,
                                 media_type: mediaType

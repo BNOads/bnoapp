@@ -45,6 +45,8 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
     // New State for Chart and Ads List
     const [chartData, setChartData] = useState<any[]>([]);
     const [adsList, setAdsList] = useState<any[]>([]);
+    const [rawAdInsights, setRawAdInsights] = useState<any[]>([]); // New state for raw data
+    const [groupByCreativeName, setGroupByCreativeName] = useState(false); // New state for toggle preference
     const [campaigns, setCampaigns] = useState<any[]>([]);
     const [campaignPage, setCampaignPage] = useState(1);
     const [funnels, setFunnels] = useState<any[]>([]);
@@ -54,11 +56,13 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
     const [campaignSortCol, setCampaignSortCol] = useState<string>("spend");
     const [campaignSortDir, setCampaignSortDir] = useState<"asc" | "desc">("desc");
     const [metricsConfigOpen, setMetricsConfigOpen] = useState(false);
+    const [togglingAds, setTogglingAds] = useState<Record<string, boolean>>({});
 
     // Features State
     const [lastSync, setLastSync] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
-    const [sortMetric, setSortMetric] = useState("spend"); // spend | clicks | reach
+    const [sortMetric, setSortMetric] = useState("spend"); // spend | clicks | reach | conversions | name
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const [currentPage, setCurrentPage] = useState(1);
     const [adsViewMode, setAdsViewMode] = useState<'grid' | 'table'>('grid');
     const adsPerPage = adsViewMode === 'grid' ? 3 : 10;
@@ -72,7 +76,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
     // Reset pagination when filter/search changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, sortMetric, adsList]);
+    }, [searchTerm, sortMetric, sortDirection, adsList]);
 
     const getDateRange = () => {
         const now = new Date();
@@ -195,6 +199,20 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                 'omn_level_complete', 'start_trial'
             ];
 
+            const getConversionsFromActions = (actions: any[] | null | undefined) => {
+                if (!Array.isArray(actions)) return 0;
+
+                return actions.reduce((total, act) => {
+                    const actionType = act?.action_type;
+                    if (typeof actionType !== 'string') return total;
+
+                    const isConversion = conversionTypes.some(t => actionType === t || actionType.includes(t));
+                    if (!isConversion) return total;
+
+                    return total + (Number(act?.value) || 0);
+                }, 0);
+            };
+
             insights?.forEach(item => {
                 const spend = Number(item.spend) || 0;
                 totals.spend += spend;
@@ -203,14 +221,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                 totals.reach += Number(item.reach) || 0;
 
                 // Conversion Logic
-                let conversions = 0;
-                if (Array.isArray(item.actions)) {
-                    item.actions.forEach((act: any) => {
-                        if (conversionTypes.some(t => act.action_type === t || act.action_type.includes(t))) {
-                            conversions += Number(act.value);
-                        }
-                    });
-                }
+                const conversions = getConversionsFromActions(item.actions);
                 totals.conversions += conversions;
 
                 // Chart Data
@@ -307,88 +318,8 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
             if (adError) {
                 console.error("Error fetching ad insights", adError);
             } else {
-                const adsMap: Record<string, any> = {};
-
-                adInsights?.forEach(item => {
-                    if (!adsMap[item.ad_id]) {
-                        adsMap[item.ad_id] = {
-                            id: item.ad_id,
-                            name: item.ad_name,
-                            thumbnail: item.creative_thumbnail_url || item.creative_url,
-                            link: item.creative_url,
-                            spend: 0,
-                            impressions: 0,
-                            clicks: 0,
-                            reach: 0,
-                            video_3sec: 0,
-                            video_p75: 0,
-                            video_thruplay: 0,
-                            mediaType: item.media_type || 'image',
-                        };
-                    }
-                    adsMap[item.ad_id].spend += Number(item.spend) || 0;
-                    adsMap[item.ad_id].impressions += Number(item.impressions) || 0;
-                    adsMap[item.ad_id].clicks += Number(item.clicks) || 0;
-                    adsMap[item.ad_id].reach += Number(item.reach) || 0;
-
-                    // Video Metrics
-                    let v3 = 0;
-                    let vP75 = 0;
-                    let vThru = 0;
-
-                    const getActionValue = (list: any[], types: string[]) => {
-                        if (!Array.isArray(list)) return 0;
-                        let val = 0;
-                        list.forEach((act: any) => {
-                            if (types.includes(act.action_type)) {
-                                val += Number(act.value);
-                            }
-                        });
-                        return val;
-                    };
-
-                    // Priority: video_metrics column (if populated), otherwise actions column
-                    // Check if video_metrics has valid data, not just empty object from default
-                    const vm = item.video_metrics;
-
-                    // 3-Second Plays / Video Views
-                    if (vm && Array.isArray(vm.video_3_sec_watched_actions) && vm.video_3_sec_watched_actions.length > 0) {
-                        v3 = getActionValue(vm.video_3_sec_watched_actions, ['video_view', 'video_3_sec_watched_actions']);
-                    } else {
-                        v3 = getActionValue(item.actions, ['video_view', 'video_3_sec_watched_actions']);
-                    }
-
-                    // 75% video views
-                    if (vm && Array.isArray(vm.video_p75_watched_actions) && vm.video_p75_watched_actions.length > 0) {
-                        vP75 = getActionValue(vm.video_p75_watched_actions, ['video_p75_watched_actions']);
-                    } else {
-                        vP75 = getActionValue(item.actions, ['video_p75_watched_actions']);
-                    }
-
-                    // ThruPlays (15s)
-                    if (vm && Array.isArray(vm.video_thruplay_watched_actions) && vm.video_thruplay_watched_actions.length > 0) {
-                        vThru = getActionValue(vm.video_thruplay_watched_actions, ['video_thruplay_watched_actions']);
-                    } else {
-                        vThru = getActionValue(item.actions, ['video_thruplay_watched_actions']);
-                    }
-
-                    adsMap[item.ad_id].video_3sec += v3;
-                    adsMap[item.ad_id].video_p75 += vP75;
-                    adsMap[item.ad_id].video_thruplay += vThru;
-                });
-
-                const finalAds = Object.values(adsMap)
-                    .filter((ad: any) => ad.spend > 0) // Only show ads with spend
-                    .map((ad: any) => ({
-                        ...ad,
-                        ctr: ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0,
-                        cpc: ad.clicks > 0 ? ad.spend / ad.clicks : 0,
-                        hookRate: ad.impressions > 0 ? (ad.video_3sec / ad.impressions) * 100 : 0,
-
-                    }));
-
-                // Sorting is handled in render time now, but we set initial state
-                setAdsList(finalAds);
+                // Store raw data to be processed by useEffect
+                setRawAdInsights(adInsights || []);
             }
 
             // 6. Fetch Last Sync Time
@@ -428,6 +359,192 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
             setLoading(false);
         }
     };
+
+    // New useEffect to handle data processing and aggregation
+    useEffect(() => {
+        if (!rawAdInsights.length) {
+            setAdsList([]);
+            return;
+        }
+
+        const conversionTypes = [
+            'purchase', 'lead', 'contact', 'schedule', 'submit_application',
+            'complete_registration', 'onsite_conversion.messaging_conversation_started_7d',
+            'omn_level_complete', 'start_trial'
+        ];
+
+        const sumActionValues = (actions: any[] | null | undefined) => {
+            if (!Array.isArray(actions)) return 0;
+            return actions.reduce((total, act) => total + (Number(act?.value) || 0), 0);
+        };
+
+        const getConversionsFromActions = (actions: any[] | null | undefined) => {
+            if (!Array.isArray(actions)) return 0;
+
+            return actions.reduce((total, act) => {
+                const actionType = act?.action_type;
+                if (typeof actionType !== 'string') return total;
+
+                const isConversion = conversionTypes.some(t => actionType === t || actionType.includes(t));
+                if (!isConversion) return total;
+
+                return total + (Number(act?.value) || 0);
+            }, 0);
+        };
+
+        const adsMap: Record<string, any> = {};
+
+        rawAdInsights.forEach((item: any) => {
+            // Determine the key for aggregation
+            const key = groupByCreativeName ? item.ad_name : item.ad_id;
+
+            if (!adsMap[key]) {
+                adsMap[key] = {
+                    id: key, // Use name or ID as the unique key
+                    ad_id: item.ad_id, // Keep original ID reference (first one found)
+                    name: item.ad_name,
+                    status: item.status || 'ACTIVE', // Status from DB
+                    effective_status: item.effective_status || 'ACTIVE',
+                    thumbnail: item.creative_thumbnail_url || null,
+                    creative_url: item.creative_url || null,
+                    link: item.creative_url || null, // Ensure link property is set for UI compatibility
+                    spend: 0,
+                    impressions: 0,
+                    clicks: 0,
+                    reach: 0, // Added reach
+                    conversions: 0, // Added conversions
+                    roas: 0,
+                    ctr: 0,
+                    cpc: 0,
+                    cpm: 0,
+                    actions: 0,
+                    purchase_roas: 0,
+                    revenue: 0,
+                    purchases: 0,
+                    cr: 0,
+                    cpa: 0,
+                    frequency: 0, // Will average later
+                    count: 0, // To track how many items aggregated
+                    _maxSpend: 0, // Track max spend to pick best creative
+                    video_3sec: 0,
+                    video_p75: 0,
+                    video_thruplay: 0,
+                    mediaType: item.media_type || 'image',
+                };
+            }
+
+            const currentAd = adsMap[key];
+            const itemSpend = Number(item.spend) || 0;
+
+            // Update creative metadata if current item has higher spend AND valid data
+            // Or if current ad has no data yet
+            if (itemSpend > currentAd._maxSpend && (item.creative_url || item.creative_thumbnail_url)) {
+                if (item.creative_url) {
+                    currentAd.creative_url = item.creative_url;
+                    currentAd.link = item.creative_url; // Update link as well
+                }
+                if (item.creative_thumbnail_url) currentAd.thumbnail = item.creative_thumbnail_url;
+                if (item.media_type && item.media_type !== 'image') currentAd.mediaType = item.media_type;
+                currentAd._maxSpend = itemSpend;
+            } else if (!currentAd.creative_url && item.creative_url) {
+                currentAd.creative_url = item.creative_url;
+                currentAd.link = item.creative_url; // Update link as well
+            } else if (!currentAd.thumbnail && item.creative_thumbnail_url) {
+                currentAd.thumbnail = item.creative_thumbnail_url;
+            }
+
+            currentAd.count += 1;
+            currentAd.spend += itemSpend;
+            currentAd.impressions += Number(item.impressions) || 0;
+            currentAd.clicks += Number(item.clicks) || 0;
+            currentAd.reach += Number(item.reach) || 0; // Sum reach
+            currentAd.conversions += getConversionsFromActions(item.actions); // Sum conversions
+
+            // Frequency (weighted average or sum? usually standard average per ad set, but here maybe sum of impressions / reach? simple average for now)
+            currentAd.frequency += Number(item.frequency) || 0;
+
+            // Parse actions
+            let revenue = 0;
+            let purchases = 0;
+            let video3sec = 0;
+            let videoP75 = 0;
+            let videoThruplay = 0;
+
+            if (Array.isArray(item.action_values)) {
+                const purchaseValue = item.action_values.find((a: any) => a.action_type === 'purchase')?.value;
+                if (purchaseValue) revenue = Number(purchaseValue);
+            }
+
+            if (Array.isArray(item.actions)) {
+                const purchaseCount = item.actions.find((a: any) => a.action_type === 'purchase')?.value;
+                if (purchaseCount) purchases = Number(purchaseCount);
+            }
+
+            // Video Metrics
+            // Priority: video_metrics column (if populated), otherwise actions column
+            // Check if video_metrics has valid data, not just empty object from default
+            const vm = item.video_metrics;
+            const itemActions = Array.isArray(item.actions) ? item.actions : [];
+
+            // 3-Second Plays / Video Views
+            if (vm && Array.isArray(vm.video_3_sec_watched_actions) && vm.video_3_sec_watched_actions.length > 0) {
+                video3sec = sumActionValues(vm.video_3_sec_watched_actions);
+            } else {
+                video3sec = sumActionValues(itemActions.filter((a: any) => ['video_view', 'video_3_sec_watched_actions'].includes(a.action_type)));
+            }
+
+            // 75% video views
+            if (vm && Array.isArray(vm.video_p75_watched_actions) && vm.video_p75_watched_actions.length > 0) {
+                videoP75 = sumActionValues(vm.video_p75_watched_actions);
+            } else {
+                videoP75 = sumActionValues(itemActions.filter((a: any) => ['video_p75_watched_actions'].includes(a.action_type)));
+            }
+
+            // ThruPlays (15s)
+            if (vm && Array.isArray(vm.video_thruplay_watched_actions) && vm.video_thruplay_watched_actions.length > 0) {
+                videoThruplay = sumActionValues(vm.video_thruplay_watched_actions);
+            } else {
+                videoThruplay = sumActionValues(itemActions.filter((a: any) => ['video_thruplay_watched_actions'].includes(a.action_type)));
+            }
+
+            currentAd.revenue += revenue;
+            currentAd.purchases += purchases;
+            currentAd.video_3sec += video3sec;
+            currentAd.video_p75 += videoP75;
+            currentAd.video_thruplay += videoThruplay;
+        });
+
+        // Calculate calculated metrics
+        const finalAds = Object.values(adsMap)
+            .filter((ad: any) => ad.spend > 0) // Only show ads with spend
+            .map((ad: any) => {
+                const roas = ad.spend > 0 ? ad.revenue / ad.spend : 0;
+                const cpa = ad.conversions > 0 ? ad.spend / ad.conversions : 0; // Use conversions for CPA
+                const cpc = ad.clicks > 0 ? ad.spend / ad.clicks : 0;
+                const cpm = ad.impressions > 0 ? (ad.spend / ad.impressions) * 1000 : 0;
+                const ctr = ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0;
+                const cr = ad.clicks > 0 ? (ad.purchases / ad.clicks) * 100 : 0;
+                const frequency = ad.count > 0 ? ad.frequency / ad.count : 0; // Simple average of frequency
+
+                // Hook Rate: 3-sec video views / Impressions
+                const hookRate = ad.impressions > 0 ? (ad.video_3sec / ad.impressions) * 100 : 0;
+
+                return {
+                    ...ad,
+                    roas,
+                    cpa,
+                    cpc,
+                    cpm,
+                    ctr,
+                    cr,
+                    frequency,
+                    hookRate
+                };
+            });
+
+        setAdsList(finalAds);
+
+    }, [rawAdInsights, groupByCreativeName]);
 
 
     const handleSync = async () => {
@@ -486,17 +603,31 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
         conversions: { label: 'Conversões', icon: TrendingUp, fmt: number },
         cpa: { label: 'Custo por Resultado', icon: DollarSign, fmt: currency },
         reach: { label: 'Alcance (Est.)', icon: activityIcon, fmt: number },
-        ctr: { label: 'CTR', icon: TrendingUp, fmt: (v: number) => percent(v) },
+        ctr: { label: 'CTR', icon: (props: any) => <TrendingUp {...props} />, fmt: (v: number) => percent(v) },
         cpc: { label: 'CPC', icon: DollarSign, fmt: currency },
         cpm: { label: 'CPM', icon: DollarSign, fmt: currency },
     };
 
     function activityIcon() { return <Activity className="h-4 w-4 text-muted-foreground" /> }
 
+    const stringSortFields = new Set(['name', 'mediaType']);
+    const getDefaultSortDirection = (field: string) => (stringSortFields.has(field) ? 'asc' : 'desc');
+
     // --- Ads List Logic (Filter, Sort, Pagination) ---
     const filteredAds = adsList
         .filter(ad => ad.name.toLowerCase().includes(searchTerm.toLowerCase()))
-        .sort((a, b) => b[sortMetric] - a[sortMetric]);
+        .sort((a, b) => {
+            if (stringSortFields.has(sortMetric)) {
+                const aText = (a[sortMetric] || '').toString();
+                const bText = (b[sortMetric] || '').toString();
+                const comparison = aText.localeCompare(bText, 'pt-BR', { sensitivity: 'base' });
+                return sortDirection === 'asc' ? comparison : -comparison;
+            }
+
+            const aValue = Number(a[sortMetric]) || 0;
+            const bValue = Number(b[sortMetric]) || 0;
+            return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        });
 
     const totalPages = Math.ceil(filteredAds.length / adsPerPage);
     const startIndex = (currentPage - 1) * adsPerPage;
@@ -504,6 +635,50 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
 
     const nextPage = () => setCurrentPage(p => Math.min(p + 1, totalPages));
     const prevPage = () => setCurrentPage(p => Math.max(p - 1, 1));
+
+    const handleSortMetricChange = (value: string) => {
+        setSortMetric(value);
+        setSortDirection(getDefaultSortDirection(value));
+    };
+
+    const handleTableSort = (field: string) => {
+        if (sortMetric === field) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortMetric(field);
+            setSortDirection(getDefaultSortDirection(field));
+        }
+        setCurrentPage(1);
+    };
+
+    const getSortIndicator = (field: string) => {
+        if (sortMetric !== field) return <ArrowDown className="h-3 w-3 opacity-30" />;
+        return sortDirection === 'asc'
+            ? <ArrowUp className="h-3 w-3 text-blue-600" />
+            : <ArrowDown className="h-3 w-3 text-blue-600" />;
+    };
+
+    const SortableAdHead = ({
+        field,
+        label,
+        className = "",
+        align = "left",
+    }: {
+        field: string;
+        label: string;
+        className?: string;
+        align?: "left" | "center" | "right";
+    }) => (
+        <TableHead
+            className={`cursor-pointer select-none hover:bg-muted/50 ${className}`}
+            onClick={() => handleTableSort(field)}
+        >
+            <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : ''}`}>
+                {label}
+                {getSortIndicator(field)}
+            </div>
+        </TableHead>
+    );
 
     return (
         <div className="space-y-6 animate-in fade-in-50 duration-500">
@@ -864,13 +1039,14 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                     className="pl-8"
                                                 />
                                             </div>
-                                            <Select value={sortMetric} onValueChange={setSortMetric}>
+                                            <Select value={sortMetric} onValueChange={handleSortMetricChange}>
                                                 <SelectTrigger className="w-[160px]">
                                                     <SelectValue placeholder="Ordenar por" />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="spend">Mais Gasto</SelectItem>
                                                     <SelectItem value="clicks">Mais Cliques</SelectItem>
+                                                    <SelectItem value="conversions">Mais Conversões</SelectItem>
                                                     <SelectItem value="reach">Maior Alcance</SelectItem>
                                                     <SelectItem value="impressions">Mais Impressões</SelectItem>
                                                     <SelectItem value="hookRate">Maior Hook Rate</SelectItem>
@@ -894,6 +1070,14 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                 >
                                                     <List className="h-4 w-4" />
                                                 </Button>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <span className={`text-sm ${!groupByCreativeName ? 'font-medium' : 'text-muted-foreground'}`}>Separar por ID</span>
+                                                <Switch
+                                                    checked={groupByCreativeName}
+                                                    onCheckedChange={setGroupByCreativeName}
+                                                />
+                                                <span className={`text-sm ${groupByCreativeName ? 'font-medium' : 'text-muted-foreground'}`}>Agrupar por Nome</span>
                                             </div>
                                         </div>
                                     </div>
@@ -966,7 +1150,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                         </div>
 
                                                         <div className="pt-3 mt-auto">
-                                                            {ad.link ? (
+                                                            {!groupByCreativeName && ad.link ? (
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
@@ -974,12 +1158,14 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                                     asChild
                                                                 >
                                                                     <a href={ad.link} target="_blank" rel="noopener noreferrer">
-                                                                        Ver no Instagram <ExternalLink className="h-3 w-3" />
+                                                                        <ExternalLink className="h-3 w-3" />
+                                                                        Ver anúncio
                                                                     </a>
                                                                 </Button>
                                                             ) : (
-                                                                <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" disabled>
-                                                                    Link indisponível
+                                                                <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground cursor-not-allowed" disabled>
+                                                                    <ExternalLink className="h-3 w-3 mr-2 opacity-50" />
+                                                                    {groupByCreativeName ? "Agrupado (Link Oculto)" : "Link indisponível"}
                                                                 </Button>
                                                             )}
                                                         </div>
@@ -992,14 +1178,15 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead className="w-[50px] text-center">Tipo</TableHead>
-                                                        <TableHead className="w-[80px]">Criativo</TableHead>
-                                                        <TableHead>Nome e Link</TableHead>
-                                                        <TableHead className="text-right">Invest.</TableHead>
-                                                        <TableHead className="text-right">Cliques</TableHead>
-                                                        <TableHead className="text-right">CTR</TableHead>
-                                                        <TableHead className="text-right">Alcance</TableHead>
-                                                        <TableHead className="text-right">Hook Rate</TableHead>
+                                                        <SortableAdHead field="mediaType" label="Tipo" className="w-[50px]" align="center" />
+                                                        <SortableAdHead field="name" label="Criativo" className="w-[80px]" align="center" />
+                                                        <SortableAdHead field="name" label="Nome e Link" />
+                                                        <SortableAdHead field="spend" label="Invest." className="text-right" align="right" />
+                                                        <SortableAdHead field="clicks" label="Cliques" className="text-right" align="right" />
+                                                        <SortableAdHead field="conversions" label="Conversões" className="text-right" align="right" />
+                                                        <SortableAdHead field="ctr" label="CTR" className="text-right" align="right" />
+                                                        <SortableAdHead field="reach" label="Alcance" className="text-right" align="right" />
+                                                        <SortableAdHead field="hookRate" label="Hook Rate" className="text-right" align="right" />
 
                                                     </TableRow>
                                                 </TableHeader>
@@ -1048,6 +1235,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                             </TableCell>
                                                             <TableCell className="text-right">{currency(ad.spend)}</TableCell>
                                                             <TableCell className="text-right">{number(ad.clicks)}</TableCell>
+                                                            <TableCell className="text-right">{number(ad.conversions || 0)}</TableCell>
                                                             <TableCell className="text-right font-medium">{percent(ad.ctr)}</TableCell>
                                                             <TableCell className="text-right">{number(ad.reach)}</TableCell>
                                                             <TableCell className="text-right text-purple-600 font-medium">{percent(ad.hookRate)}</TableCell>
