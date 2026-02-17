@@ -310,12 +310,50 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                             impressions: 0,
                             clicks: 0,
                             reach: 0,
+                            video_3sec: 0,
+                            video_thruplay: 0,
                         };
                     }
                     adsMap[item.ad_id].spend += Number(item.spend) || 0;
                     adsMap[item.ad_id].impressions += Number(item.impressions) || 0;
                     adsMap[item.ad_id].clicks += Number(item.clicks) || 0;
                     adsMap[item.ad_id].reach += Number(item.reach) || 0;
+
+                    // Video Metrics
+                    let v3 = 0;
+                    let vThru = 0;
+
+                    const getActionValue = (list: any[], types: string[]) => {
+                        if (!Array.isArray(list)) return 0;
+                        let val = 0;
+                        list.forEach((act: any) => {
+                            if (types.includes(act.action_type)) {
+                                val += Number(act.value);
+                            }
+                        });
+                        return val;
+                    };
+
+                    // Priority: video_metrics column (if populated), otherwise actions column
+                    // Check if video_metrics has valid data, not just empty object from default
+                    const vm = item.video_metrics;
+
+                    // 3-Second Plays / Video Views
+                    if (vm && Array.isArray(vm.video_3_sec_watched_actions) && vm.video_3_sec_watched_actions.length > 0) {
+                        v3 = getActionValue(vm.video_3_sec_watched_actions, ['video_view', 'video_3_sec_watched_actions']);
+                    } else {
+                        v3 = getActionValue(item.actions, ['video_view', 'video_3_sec_watched_actions']);
+                    }
+
+                    // ThruPlays
+                    if (vm && Array.isArray(vm.video_thruplay_watched_actions) && vm.video_thruplay_watched_actions.length > 0) {
+                        vThru = getActionValue(vm.video_thruplay_watched_actions, ['video_thruplay_watched_actions']);
+                    } else {
+                        vThru = getActionValue(item.actions, ['video_thruplay_watched_actions']);
+                    }
+
+                    adsMap[item.ad_id].video_3sec += v3;
+                    adsMap[item.ad_id].video_thruplay += vThru;
                 });
 
                 const finalAds = Object.values(adsMap)
@@ -323,7 +361,9 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                     .map((ad: any) => ({
                         ...ad,
                         ctr: ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0,
-                        cpc: ad.clicks > 0 ? ad.spend / ad.clicks : 0
+                        cpc: ad.clicks > 0 ? ad.spend / ad.clicks : 0,
+                        hookRate: ad.impressions > 0 ? (ad.video_3sec / ad.impressions) * 100 : 0,
+                        holdRate: ad.impressions > 0 ? (ad.video_thruplay / ad.impressions) * 100 : 0,
                     }));
 
                 // Sorting is handled in render time now, but we set initial state
@@ -813,6 +853,20 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                                     <span className="font-semibold">{number(ad.reach)}</span>
                                                                 </div>
                                                             </div>
+
+                                                            {/* Video Metrics */}
+                                                            {(ad.hookRate > 0 || ad.holdRate > 0) && (
+                                                                <div className="grid grid-cols-2 gap-2 text-xs border-t pt-2 mt-2 border-dashed">
+                                                                    <div className="text-center">
+                                                                        <span className="block text-muted-foreground text-[10px] uppercase" title="Plays de 3s / Impressões">Hook Rate</span>
+                                                                        <span className="font-semibold text-purple-600">{percent(ad.hookRate)}</span>
+                                                                    </div>
+                                                                    <div className="text-center border-l border-dashed">
+                                                                        <span className="block text-muted-foreground text-[10px] uppercase" title="ThruPlays / Impressões">Hold Rate</span>
+                                                                        <span className="font-semibold text-purple-600">{percent(ad.holdRate)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>

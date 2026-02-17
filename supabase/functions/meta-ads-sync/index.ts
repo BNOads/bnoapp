@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
 
         // Common Fields
         const campaignFields = 'account_id,campaign_name,campaign_id,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop'
-        const adFields = 'account_id,ad_id,ad_name,campaign_id,campaign_name,adset_id,adset_name,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop'
+        const adFields = 'account_id,ad_id,ad_name,campaign_id,campaign_name,adset_id,adset_name,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,video_play_actions,video_3_sec_watched_actions,video_thruplay_watched_actions,date_start,date_stop'
 
         // 3. Loop and Fetch
         for (const account of accounts || []) {
@@ -360,6 +360,11 @@ Deno.serve(async (req) => {
                                 frequency: item.frequency,
                                 actions: item.actions || [],
                                 action_values: item.action_values || [],
+                                video_metrics: {
+                                    video_play_actions: item.video_play_actions || [],
+                                    video_3_sec_watched_actions: item.video_3_sec_watched_actions || [],
+                                    video_thruplay_watched_actions: item.video_thruplay_watched_actions || []
+                                },
                                 creative_thumbnail_url: thumbnailUrl,
                                 creative_url: creativeLink
                             }
