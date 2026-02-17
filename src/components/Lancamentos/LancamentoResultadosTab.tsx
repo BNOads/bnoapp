@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { RefreshCw, Search, Pencil, Check } from 'lucide-react';
+import { RefreshCw, Search, Pencil, Check, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface LancamentoResultadosTabProps {
@@ -30,6 +30,36 @@ const formatCurrency = (value: number) => {
 
 const formatNumber = (value: number) => {
     return new Intl.NumberFormat('pt-BR').format(value);
+};
+
+const normalizeText = (value: unknown): string => {
+    return typeof value === 'string' ? value.toLowerCase() : '';
+};
+
+const safeCampaignName = (value: unknown): string => {
+    return typeof value === 'string' && value.trim().length > 0
+        ? value
+        : 'Campanha sem nome';
+};
+
+// Priority-ordered list: pick the FIRST matching action type to avoid duplicating conversions
+const LEAD_ACTION_PRIORITY = ['lead', 'complete_registration', 'fb_mobile_complete_registration', 'submit_application', 'contact', 'schedule', 'd2_leads'];
+
+const getLeadsFromActions = (actions: any): number => {
+    if (!actions) return 0;
+    // Handle JSON string
+    let parsed = actions;
+    if (typeof actions === 'string') {
+        try { parsed = JSON.parse(actions); } catch { return 0; }
+    }
+    if (!Array.isArray(parsed)) return 0;
+
+    // Pick only the highest-priority action type to avoid double counting
+    for (const actionType of LEAD_ACTION_PRIORITY) {
+        const match = parsed.find((a: any) => a.action_type === actionType);
+        if (match) return Number(match.value || 0);
+    }
+    return 0;
 };
 
 export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabProps) => {
@@ -86,7 +116,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
     };
 
     const loadAvailableCampaigns = async () => {
-        if (!lancamento?.cliente_id) return;
+        if (!lancamento?.cliente_id || !lancamento?.nome_lancamento) return;
 
         try {
             setSelectionLoading(true);
@@ -123,11 +153,11 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 setManualCampaignIds(autoLinkedIds);
             } else if (manualCampaignIds.length === 0) {
                 // Compute auto-linked on the fly for pre-checking
-                const launchName = lancamento.nome_lancamento.toLowerCase().trim();
+                const launchName = normalizeText(lancamento.nome_lancamento).trim();
                 const launchWords = launchName.split(' ').filter((w: string) => w.length > 2);
                 const autoIds: string[] = [];
                 allCamps.forEach(c => {
-                    const cName = c.campaign_name.toLowerCase();
+                    const cName = normalizeText(c.campaign_name);
                     if (cName.includes(launchName)) {
                         autoIds.push(c.campaign_id);
                         return;
@@ -171,13 +201,18 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
     };
 
     const fetchData = async () => {
-        if (!lancamento?.cliente_id) {
+        if (!lancamento?.cliente_id || !lancamento?.nome_lancamento) {
             setLoading(false);
             return;
         }
 
         try {
             setLoading(true);
+            // Reset state for clean render
+            setCampaigns([]);
+            setChartData([]);
+            setTopCreatives([]);
+            setMetrics({ spend: 0, impressions: 0, clicks: 0, leads: 0, cpc: 0, ctr: 0, cpl: 0, cpm: 0 });
 
             // 0. Fetch latest manual_campaign_ids
             const { data: lancamentoData } = await supabase
@@ -234,11 +269,11 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 ) || [];
             } else {
                 // Fallback: auto-link by name matching
-                const launchName = lancamento.nome_lancamento.toLowerCase().trim();
+                const launchName = normalizeText(lancamento.nome_lancamento).trim();
                 const launchWords = launchName.split(' ').filter((w: string) => w.length > 2);
 
                 relevantCampaigns = allCampaignsData?.filter(c => {
-                    const cName = c.campaign_name.toLowerCase();
+                    const cName = normalizeText(c.campaign_name);
 
                     // 1. Exact Match
                     if (cName.includes(launchName)) return true;
@@ -284,14 +319,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 const spend = Number(item.spend || 0);
                 const impressions = Number(item.impressions || 0);
                 const clicks = Number(item.clicks || 0);
-
-                let leads = 0;
-                if (item.actions) {
-                    const leadActions = item.actions.filter((a: any) =>
-                        ['lead', 'contact', 'submit_application', 'schedule', 'd2_leads', 'fb_mobile_complete_registration', 'complete_registration'].includes(a.action_type)
-                    );
-                    leads = leadActions.reduce((sum: number, a: any) => sum + Number(a.value), 0);
-                }
+                const leads = getLeadsFromActions(item.actions);
 
                 totalMetrics.spend += spend;
                 totalMetrics.impressions += impressions;
@@ -312,7 +340,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 if (!campaignMap.has(item.campaign_id)) {
                     campaignMap.set(item.campaign_id, {
                         id: item.campaign_id,
-                        name: item.campaign_name,
+                        name: safeCampaignName(item.campaign_name),
                         spend: 0,
                         impressions: 0,
                         clicks: 0,
@@ -338,6 +366,11 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
 
             // Prepare Chart Data
             const sortedDaily = Array.from(dailyMap.values()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            console.log('DEBUG: relevantCampaigns', relevantCampaigns);
+            console.log('DEBUG: dailyMap', Object.fromEntries(dailyMap));
+            console.log('DEBUG: sortedDaily Chart Data', sortedDaily);
+
             setChartData(sortedDaily);
 
             // Prepare Campaign List
@@ -388,14 +421,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
 
                     const item = adMap.get(ad.ad_id);
                     const spend = Number(ad.spend || 0);
-
-                    let leads = 0;
-                    if (ad.actions) {
-                        const leadActions = ad.actions.filter((a: any) =>
-                            ['lead', 'contact', 'submit_application', 'schedule', 'd2_leads', 'fb_mobile_complete_registration', 'complete_registration'].includes(a.action_type)
-                        );
-                        leads = leadActions.reduce((sum: number, a: any) => sum + Number(a.value), 0);
-                    }
+                    const leads = getLeadsFromActions(ad.actions);
 
                     item.spend += spend;
                     item.leads += leads;
@@ -469,7 +495,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                 ) : (
                                     <div className="space-y-1">
                                         {availableCampaigns
-                                            .filter(c => c.campaign_name.toLowerCase().includes(manualSearch.toLowerCase()))
+                                            .filter(c => normalizeText(c.campaign_name).includes(normalizeText(manualSearch)))
                                             .map(campaign => {
                                                 const isSelected = manualCampaignIds.includes(campaign.campaign_id);
                                                 return (
@@ -489,8 +515,10 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                                             htmlFor={`camp-${campaign.campaign_id}`}
                                                             className="text-sm cursor-pointer flex-1 user-select-none"
                                                         >
-                                                            <div className="font-medium">{campaign.campaign_name}</div>
-                                                            <div className="text-xs text-muted-foreground">ID: {campaign.campaign_id} • {new Date(campaign.date_start).toLocaleDateString()}</div>
+                                                            <div className="font-medium">{safeCampaignName(campaign.campaign_name)}</div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                ID: {campaign.campaign_id} • {campaign.date_start ? new Date(campaign.date_start).toLocaleDateString() : '-'}
+                                                            </div>
                                                         </label>
                                                     </div>
                                                 );

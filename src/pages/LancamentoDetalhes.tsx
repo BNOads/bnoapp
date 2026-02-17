@@ -1583,7 +1583,7 @@ export default function LancamentoDetalhes() {
         )}
       </TabsContent>
 
-      <TabsContent value="resultados">
+      <TabsContent value="resultados" className="space-y-6">
         {lancamento && (
           <LancamentoResultadosTab lancamento={lancamento} />
         )}

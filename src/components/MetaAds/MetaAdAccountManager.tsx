@@ -68,7 +68,6 @@ export const MetaAdAccountManager = ({ clientId }: MetaAdAccountManagerProps) =>
         account_name: acc.ad_account_details?.name || acc.account_name,
         currency: acc.ad_account_details?.currency || acc.currency,
         account_status: acc.ad_account_details?.account_status,
-        account_status: acc.ad_account_details?.account_status,
         is_prepay_account: acc.ad_account_details?.is_prepay_account,
         balance: acc.ad_account_details?.balance
       })) || [];

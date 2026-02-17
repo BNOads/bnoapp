@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, RefreshCw, Trash2, ArrowUpDown, Link2, Activity, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -401,210 +402,222 @@ id,
                 </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                    <p className="text-sm font-medium mb-1">Buscar</p>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="Buscar por nome ou ID..."
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                </div>
-                <div className="w-full sm:w-[200px]">
-                    <p className="text-sm font-medium mb-1">Status da Conta</p>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Todos" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos</SelectItem>
-                            <SelectItem value="active">Ativas</SelectItem>
-                            <SelectItem value="inactive">Inativas</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="w-full sm:w-[200px]">
-                    <p className="text-sm font-medium mb-1">Vínculo</p>
-                    <Select value={linkFilter} onValueChange={setLinkFilter}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Todos" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos</SelectItem>
-                            <SelectItem value="linked">Vinculadas</SelectItem>
-                            <SelectItem value="unlinked">Não Vinculadas</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
+            <Tabs defaultValue="contas" className="space-y-6">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                    <TabsTrigger value="contas">Contas</TabsTrigger>
+                    <TabsTrigger value="historico">Histórico</TabsTrigger>
+                </TabsList>
 
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <CardTitle>Contas de Anúncio ({adAccounts.length})</CardTitle>
-                            <CardDescription>
-                                {selectedAccounts.length > 0
-                                    ? `${selectedAccounts.length} selecionadas`
-                                    : "Selecione contas para ações em massa"
-                                }
-                            </CardDescription>
-                        </div>
-                        {selectedAccounts.length > 0 && (
-                            <div className="flex items-center gap-2 bg-muted p-2 rounded-md">
-                                <span className="text-sm font-medium">Ações em Massa:</span>
-                                <Select onValueChange={handleBulkLink}>
-                                    <SelectTrigger className="w-[250px]">
-                                        <SelectValue placeholder="Vincular selecionadas a..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {clients.map(client => (
-                                            <SelectItem key={client.id} value={client.id}>
-                                                {client.nome}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                <TabsContent value="contas" className="space-y-6">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <div className="flex-1">
+                            <p className="text-sm font-medium mb-1">Buscar</p>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por nome ou ID..."
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
                             </div>
-                        )}
+                        </div>
+                        <div className="w-full sm:w-[200px]">
+                            <p className="text-sm font-medium mb-1">Status da Conta</p>
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Todos" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="active">Ativas</SelectItem>
+                                    <SelectItem value="inactive">Inativas</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="w-full sm:w-[200px]">
+                            <p className="text-sm font-medium mb-1">Vínculo</p>
+                            <Select value={linkFilter} onValueChange={setLinkFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Todos" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="linked">Vinculadas</SelectItem>
+                                    <SelectItem value="unlinked">Não Vinculadas</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                        <div className="flex justify-center py-8">
-                            <Loader2 className="h-8 w-8 animate-spin" />
-                        </div>
-                    ) : (
-                        <div className="rounded-md border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[50px]">
-                                            <Checkbox
-                                                checked={selectedAccounts.length === adAccounts.length && adAccounts.length > 0}
-                                                onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                                            />
-                                        </TableHead>
-                                        <TableHead className="cursor-pointer" onClick={() => handleSort('name')}>
-                                            Nome <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                                        </TableHead>
-                                        <TableHead className="cursor-pointer" onClick={() => handleSort('id')}>
-                                            ID <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                                        </TableHead>
-                                        <TableHead className="cursor-pointer" onClick={() => handleSort('currency')}>
-                                            Moeda <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                                        </TableHead>
-                                        <TableHead className="cursor-pointer text-right" onClick={() => handleSort('balance')}>
-                                            Balance <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                                        </TableHead>
-                                        <TableHead className="cursor-pointer" onClick={() => handleSort('account_status')}>
-                                            Status <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                                        </TableHead>
-                                        <TableHead>
-                                            Tipo Pagamento
-                                        </TableHead>
-                                        <TableHead className="cursor-pointer" onClick={() => handleSort('client_nome')}>
-                                            Cliente Vinculado <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                                        </TableHead>
-                                        <TableHead>Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {sortedAccounts.map((account) => {
-                                        const link = linkedAccounts.find(l => l.ad_account_id === account.id);
-                                        const isLinked = !!link;
-                                        const isSelected = selectedAccounts.includes(account.id);
 
-                                        return (
-                                            <TableRow key={account.id} className={isSelected ? "bg-muted/50" : ""}>
-                                                <TableCell>
+                    <Card>
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <CardTitle>Contas de Anúncio ({adAccounts.length})</CardTitle>
+                                    <CardDescription>
+                                        {selectedAccounts.length > 0
+                                            ? `${selectedAccounts.length} selecionadas`
+                                            : "Selecione contas para ações em massa"
+                                        }
+                                    </CardDescription>
+                                </div>
+                                {selectedAccounts.length > 0 && (
+                                    <div className="flex items-center gap-2 bg-muted p-2 rounded-md">
+                                        <span className="text-sm font-medium">Ações em Massa:</span>
+                                        <Select onValueChange={handleBulkLink}>
+                                            <SelectTrigger className="w-[250px]">
+                                                <SelectValue placeholder="Vincular selecionadas a..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {clients.map(client => (
+                                                    <SelectItem key={client.id} value={client.id}>
+                                                        {client.nome}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            {loading ? (
+                                <div className="flex justify-center py-8">
+                                    <Loader2 className="h-8 w-8 animate-spin" />
+                                </div>
+                            ) : (
+                                <div className="rounded-md border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-[50px]">
                                                     <Checkbox
-                                                        checked={isSelected}
-                                                        onCheckedChange={(checked) => handleSelectOne(account.id, checked as boolean)}
+                                                        checked={selectedAccounts.length === adAccounts.length && adAccounts.length > 0}
+                                                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                                                     />
-                                                </TableCell>
-                                                <TableCell className="font-medium">{account.name}</TableCell>
-                                                <TableCell className="text-xs text-muted-foreground">{account.id}</TableCell>
-                                                <TableCell>{account.currency}</TableCell>
-                                                <TableCell className="text-right font-medium">
-                                                    {formatBalance(account.available_balance ?? account.balance, account.currency)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={account.account_status === 1 ? 'default' : 'secondary'}>
-                                                        {account.account_status === 1 ? 'Ativa' : 'Inativa'}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-col">
-                                                        <Badge variant={account.is_prepay_account ? 'outline' : 'secondary'} className={account.is_prepay_account ? "border-blue-500 text-blue-500" : ""}>
-                                                            {account.is_prepay_account ? 'Pré-pago' : 'Pós-pago'}
-                                                        </Badge>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {isLinked ? (
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                                                                {link.client_nome || 'Cliente Desconhecido'}
-                                                            </Badge>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-sm text-muted-foreground">-</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            title="Testar Conexão"
-                                                            onClick={(e) => { e.stopPropagation(); testConnection(account.id); }}
-                                                            className="text-muted-foreground hover:text-foreground"
-                                                        >
-                                                            <Activity className="h-4 w-4" />
-                                                        </Button>
-                                                        {isLinked ? (
-                                                            <Button variant="ghost" size="icon" onClick={() => handleUnlink(account.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        ) : (
-                                                            <Select onValueChange={(value) => handleLinkAccount(account.id, value, account.name, account.currency, account.account_status)}>
-                                                                <SelectTrigger className="w-[40px] p-0 border-none bg-transparent hover:bg-muted">
-                                                                    <Link2 className="h-4 w-4 text-muted-foreground" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {clients.map(client => (
-                                                                        <SelectItem key={client.id} value={client.id}>
-                                                                            {client.nome}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer" onClick={() => handleSort('name')}>
+                                                    Nome <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer" onClick={() => handleSort('id')}>
+                                                    ID <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer" onClick={() => handleSort('currency')}>
+                                                    Moeda <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer text-right" onClick={() => handleSort('balance')}>
+                                                    Balance <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer" onClick={() => handleSort('account_status')}>
+                                                    Status <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                                                </TableHead>
+                                                <TableHead>
+                                                    Tipo Pagamento
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer" onClick={() => handleSort('client_nome')}>
+                                                    Cliente Vinculado <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                                                </TableHead>
+                                                <TableHead>Ações</TableHead>
                                             </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {sortedAccounts.map((account) => {
+                                                const link = linkedAccounts.find(l => l.ad_account_id === account.id);
+                                                const isLinked = !!link;
+                                                const isSelected = selectedAccounts.includes(account.id);
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Histórico de Sincronizações</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <MetaSyncHistory />
-                </CardContent>
-            </Card>
+                                                return (
+                                                    <TableRow key={account.id} className={isSelected ? "bg-muted/50" : ""}>
+                                                        <TableCell>
+                                                            <Checkbox
+                                                                checked={isSelected}
+                                                                onCheckedChange={(checked) => handleSelectOne(account.id, checked as boolean)}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="font-medium">{account.name}</TableCell>
+                                                        <TableCell className="text-xs text-muted-foreground">{account.id}</TableCell>
+                                                        <TableCell>{account.currency}</TableCell>
+                                                        <TableCell className="text-right font-medium">
+                                                            {formatBalance(account.available_balance ?? account.balance, account.currency)}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge variant={account.account_status === 1 ? 'default' : 'secondary'}>
+                                                                {account.account_status === 1 ? 'Ativa' : 'Inativa'}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex flex-col">
+                                                                <Badge variant={account.is_prepay_account ? 'outline' : 'secondary'} className={account.is_prepay_account ? "border-blue-500 text-blue-500" : ""}>
+                                                                    {account.is_prepay_account ? 'Pré-pago' : 'Pós-pago'}
+                                                                </Badge>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {isLinked ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                                                                        {link.client_nome || 'Cliente Desconhecido'}
+                                                                    </Badge>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-sm text-muted-foreground">-</span>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-2">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    title="Testar Conexão"
+                                                                    onClick={(e) => { e.stopPropagation(); testConnection(account.id); }}
+                                                                    className="text-muted-foreground hover:text-foreground"
+                                                                >
+                                                                    <Activity className="h-4 w-4" />
+                                                                </Button>
+                                                                {isLinked ? (
+                                                                    <Button variant="ghost" size="icon" onClick={() => handleUnlink(account.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                ) : (
+                                                                    <Select onValueChange={(value) => handleLinkAccount(account.id, value, account.name, account.currency, account.account_status)}>
+                                                                        <SelectTrigger className="w-[40px] p-0 border-none bg-transparent hover:bg-muted">
+                                                                            <Link2 className="h-4 w-4 text-muted-foreground" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {clients.map(client => (
+                                                                                <SelectItem key={client.id} value={client.id}>
+                                                                                    {client.nome}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="historico">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Histórico de Sincronizações</CardTitle>
+                            <CardDescription>Acompanhe os últimos status e execuções da sincronização Meta Ads.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <MetaSyncHistory />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
 
             <Dialog open={isDiagnosticOpen} onOpenChange={setIsDiagnosticOpen}>
                 <DialogContent className="max-w-2xl max-h-[80vh]">
