@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { startOfMonth, endOfMonth, subDays, format, subMonths, parseISO, compareAsc, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { toZonedTime } from 'date-fns-tz';
+import { formatInTimeZone } from 'date-fns-tz';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
     Table,
@@ -501,7 +501,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                         {lastSync && (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
                                 <RefreshCw className="h-3 w-3" />
-                                <span>Atualizado: {format(toZonedTime(lastSync, 'America/Sao_Paulo'), "dd/MM 'às' HH:mm", { locale: ptBR })}</span>
+                                <span>Atualizado: {formatInTimeZone(lastSync, 'America/Sao_Paulo', "dd/MM 'às' HH:mm", { locale: ptBR })}</span>
                             </div>
                         )}
 
