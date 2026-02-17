@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
                             const metaPromises = uniqueAdIds.map(async (adId) => {
                                 try {
                                     const metadataUrl = new URL(`https://graph.facebook.com/v24.0/${adId}`);
-                                    metadataUrl.searchParams.append('fields', 'name,creative{id,thumbnail_url,image_url,title,instagram_permalink_url,object_story_spec,asset_feed_spec}');
+                                    metadataUrl.searchParams.append('fields', 'name,creative{id,thumbnail_url,image_url,title,instagram_permalink_url,object_story_spec,asset_feed_spec,object_type}');
                                     metadataUrl.searchParams.append('thumbnail_width', '400');
                                     metadataUrl.searchParams.append('thumbnail_height', '400');
                                     metadataUrl.searchParams.append('access_token', META_ACCESS_TOKEN);
@@ -260,6 +260,7 @@ Deno.serve(async (req) => {
                                     creative_thumbnail_url: firstData?.creative?.thumbnail_url || null,
                                     creative_image_url: firstData?.creative?.image_url || null,
                                     effective_object_story_id: firstData?.effective_object_story_id || null,
+                                    object_type: firstData?.creative?.object_type || null
                                 }));
                             }
                         }
@@ -373,6 +374,13 @@ Deno.serve(async (req) => {
                                 thumbnailUrl = previewMap.get(item.ad_id);
                             }
 
+                            // D. Media Type Logic
+                            let mediaType = 'image';
+                            if (creative.object_type === 'VIDEO') mediaType = 'video';
+                            else if (creative.object_story_spec?.video_data) mediaType = 'video';
+                            else if (creative.asset_feed_spec?.videos && creative.asset_feed_spec.videos.length > 0) mediaType = 'video';
+                            else if (creative.object_story_spec?.link_data?.child_attachments && creative.object_story_spec.link_data.child_attachments.length > 1) mediaType = 'carousel';
+
                             return {
                                 ad_account_id: account.id,
                                 ad_id: item.ad_id,
@@ -400,7 +408,8 @@ Deno.serve(async (req) => {
                                     video_thruplay_watched_actions: item.video_thruplay_watched_actions || []
                                 },
                                 creative_thumbnail_url: thumbnailUrl,
-                                creative_url: creativeLink
+                                creative_url: creativeLink,
+                                media_type: mediaType
                             }
                         })
 

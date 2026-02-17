@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, TrendingUp, DollarSign, MousePointer, Eye, Activity, RefreshCw, ExternalLink, ChevronLeft, ChevronRight, Search, ArrowUp, ArrowDown, LayoutGrid, List } from "lucide-react";
+import { Loader2, TrendingUp, DollarSign, MousePointer, Eye, Activity, RefreshCw, ExternalLink, ChevronLeft, ChevronRight, Search, ArrowUp, ArrowDown, LayoutGrid, List, Video, Image as ImageIcon, Images } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { startOfMonth, endOfMonth, subDays, format, subMonths, parseISO, compareAsc, eachDayOfInterval } from "date-fns";
@@ -323,6 +323,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                             video_3sec: 0,
                             video_p75: 0,
                             video_thruplay: 0,
+                            mediaType: item.media_type || 'image',
                         };
                     }
                     adsMap[item.ad_id].spend += Number(item.spend) || 0;
@@ -904,12 +905,19 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                 <div key={ad.id} className="border rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
                                                     <div className="aspect-square w-full bg-slate-100 relative group/image overflow-hidden">
                                                         {ad.thumbnail ? (
-                                                            <img
-                                                                src={ad.thumbnail}
-                                                                alt={ad.name}
-                                                                className="w-full h-full object-cover transition-transform duration-300 group-hover/image:scale-105"
-                                                                referrerPolicy="no-referrer"
-                                                            />
+                                                            <>
+                                                                <img
+                                                                    src={ad.thumbnail}
+                                                                    alt={ad.name}
+                                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover/image:scale-105"
+                                                                    referrerPolicy="no-referrer"
+                                                                />
+                                                                <div className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-md backdrop-blur-sm z-10 shadow-sm">
+                                                                    {ad.mediaType === 'video' ? <Video className="h-3.5 w-3.5" /> :
+                                                                        ad.mediaType === 'carousel' ? <Images className="h-3.5 w-3.5" /> :
+                                                                            <ImageIcon className="h-3.5 w-3.5" />}
+                                                                </div>
+                                                            </>
                                                         ) : (
                                                             <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-slate-50">
                                                                 <div className="flex flex-col items-center gap-2">
@@ -984,6 +992,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
+                                                        <TableHead className="w-[50px] text-center">Tipo</TableHead>
                                                         <TableHead className="w-[80px]">Criativo</TableHead>
                                                         <TableHead>Nome e Link</TableHead>
                                                         <TableHead className="text-right">Invest.</TableHead>
@@ -997,6 +1006,13 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                 <TableBody>
                                                     {currentAds.map((ad) => (
                                                         <TableRow key={ad.id}>
+                                                            <TableCell className="text-center">
+                                                                <div className="flex justify-center text-muted-foreground">
+                                                                    {ad.mediaType === 'video' ? <Video className="h-4 w-4" /> :
+                                                                        ad.mediaType === 'carousel' ? <Images className="h-4 w-4" /> :
+                                                                            <ImageIcon className="h-4 w-4" />}
+                                                                </div>
+                                                            </TableCell>
                                                             <TableCell>
                                                                 <div className="h-12 w-12 rounded bg-slate-100 overflow-hidden relative">
                                                                     {ad.thumbnail ? (
