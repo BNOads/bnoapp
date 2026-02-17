@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
                             const metaPromises = uniqueAdIds.map(async (adId) => {
                                 try {
                                     const metadataUrl = new URL(`https://graph.facebook.com/v24.0/${adId}`);
-                                    metadataUrl.searchParams.append('fields', 'name,creative{id,thumbnail_url,image_url,title,instagram_permalink_url,object_story_spec}');
+                                    metadataUrl.searchParams.append('fields', 'name,creative{id,thumbnail_url,image_url,title,instagram_permalink_url,object_story_spec,asset_feed_spec}');
                                     metadataUrl.searchParams.append('thumbnail_width', '400');
                                     metadataUrl.searchParams.append('thumbnail_height', '400');
                                     metadataUrl.searchParams.append('access_token', META_ACCESS_TOKEN);
@@ -279,10 +279,24 @@ Deno.serve(async (req) => {
                         uniqueAdIds.forEach(adId => {
                             const meta = adMetadataMap.get(adId);
                             const creative = meta?.creative || {};
-                            const hasThumb = creative.thumbnail_url || creative.image_url
-                                || creative.object_story_spec?.link_data?.picture
-                                || creative.object_story_spec?.video_data?.image_url
-                                || creative.object_story_spec?.template_data?.link_data?.picture;
+
+                            // Check all possible sources for a thumbnail
+                            let hasThumb = creative.thumbnail_url || creative.image_url;
+
+                            // Check object_story_spec
+                            if (!hasThumb && creative.object_story_spec) {
+                                hasThumb = creative.object_story_spec.link_data?.picture
+                                    || creative.object_story_spec.video_data?.image_url
+                                    || creative.object_story_spec.template_data?.link_data?.picture
+                                    || creative.object_story_spec.link_data?.child_attachments?.[0]?.picture;
+                            }
+
+                            // Check asset_feed_spec (Dynamic Creative)
+                            if (!hasThumb && creative.asset_feed_spec) {
+                                const assets = creative.asset_feed_spec;
+                                hasThumb = assets.images?.[0]?.url
+                                    || assets.videos?.[0]?.thumbnail_url;
+                            }
 
                             if (!hasThumb) {
                                 adsMissingThumb.add(adId as string);
@@ -339,6 +353,18 @@ Deno.serve(async (req) => {
                                     thumbnailUrl = spec.video_data.image_url;
                                 } else if (spec.template_data?.link_data?.picture) {
                                     thumbnailUrl = spec.template_data.link_data.picture;
+                                } else if (spec.link_data?.child_attachments?.[0]?.picture) {
+                                    thumbnailUrl = spec.link_data.child_attachments[0].picture;
+                                }
+                            }
+
+                            // Check asset_feed_spec (Dynamic Creative)
+                            if (!thumbnailUrl && creative.asset_feed_spec) {
+                                const assets = creative.asset_feed_spec;
+                                if (assets.images && assets.images.length > 0) {
+                                    thumbnailUrl = assets.images[0].url;
+                                } else if (assets.videos && assets.videos.length > 0) {
+                                    thumbnailUrl = assets.videos[0].thumbnail_url;
                                 }
                             }
 

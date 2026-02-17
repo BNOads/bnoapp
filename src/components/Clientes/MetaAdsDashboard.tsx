@@ -872,12 +872,14 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                             {currentAds.map((ad) => (
                                                 <div key={ad.id} className="border rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
                                                     <div className="aspect-square w-full bg-slate-100 relative group/image overflow-hidden">
-                                                        {ad.thumbnail && ad.thumbnail.includes('preview_iframe') ? (
+                                                        {(ad.thumbnail && (ad.thumbnail.includes('render_ad') || ad.thumbnail.includes('facebook.com'))) ? (
                                                             <iframe
                                                                 src={ad.thumbnail}
                                                                 className="w-full h-full border-0 pointer-events-none"
                                                                 title={ad.name}
                                                                 scrolling="no"
+                                                                referrerPolicy="origin"
+                                                                sandbox="allow-scripts allow-same-origin allow-popups"
                                                             />
                                                         ) : ad.thumbnail ? (
                                                             <img
@@ -894,25 +896,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                             </div>
                                                         )}
 
-                                                        {/* Action Overlay */}
-                                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/image:opacity-100 transition-opacity flex items-center justify-center p-4">
-                                                            {ad.link ? (
-                                                                <Button
-                                                                    variant="secondary"
-                                                                    size="sm"
-                                                                    className="gap-2 font-medium"
-                                                                    asChild
-                                                                >
-                                                                    <a href={ad.link} target="_blank" rel="noopener noreferrer">
-                                                                        Ver no Instagram <ExternalLink className="h-3 w-3" />
-                                                                    </a>
-                                                                </Button>
-                                                            ) : (
-                                                                <span className="text-white text-xs font-medium px-3 py-1 bg-white/20 rounded-full backdrop-blur-sm">
-                                                                    Link indisponível
-                                                                </span>
-                                                            )}
-                                                        </div>
+
                                                     </div>
 
                                                     <div className="p-4 flex-1 flex flex-col justify-between">
@@ -953,6 +937,25 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                                         <span className="font-semibold text-purple-600">{percent(ad.holdRate)}</span>
                                                                     </div>
                                                                 </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="pt-3 mt-auto">
+                                                            {ad.link ? (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="w-full gap-2 text-xs"
+                                                                    asChild
+                                                                >
+                                                                    <a href={ad.link} target="_blank" rel="noopener noreferrer">
+                                                                        Ver no Instagram <ExternalLink className="h-3 w-3" />
+                                                                    </a>
+                                                                </Button>
+                                                            ) : (
+                                                                <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" disabled>
+                                                                    Link indisponível
+                                                                </Button>
                                                             )}
                                                         </div>
                                                     </div>
