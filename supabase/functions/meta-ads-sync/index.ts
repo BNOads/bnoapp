@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
 
         // Common Fields
         const campaignFields = 'account_id,campaign_name,campaign_id,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop'
-        const adFields = 'account_id,ad_id,ad_name,campaign_id,campaign_name,adset_id,adset_name,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,video_play_actions,video_3_sec_watched_actions,video_p75_watched_actions,video_thruplay_watched_actions,date_start,date_stop'
+        const adFields = 'account_id,ad_id,ad_name,campaign_id,campaign_name,adset_id,adset_name,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,video_play_actions,video_thruplay_watched_actions,date_start,date_stop'
 
         // 3. Loop and Fetch
         for (const account of accounts || []) {
@@ -194,6 +194,7 @@ Deno.serve(async (req) => {
             urlAd.searchParams.append('time_range', JSON.stringify({ since: effectiveStart, until: effectiveEnd }))
 
             let totalAdsSynced = 0;
+            let adDebugInfo: any = null;
 
             try {
                 let currentUrl = urlAd.toString();
@@ -215,44 +216,51 @@ Deno.serve(async (req) => {
                         const uniqueAdIds = [...new Set(adInsights.map((i: any) => i.ad_id))]
                         const adMetadataMap = new Map()
 
-                        // 2. Batch Fetch Ad Metadata (Creative & Story ID)
+                        // 2. Fetch Ad Metadata individually (creative{thumbnail_url})
+                        let metadataError: string | null = null;
                         if (uniqueAdIds.length > 0) {
-                            const chunks = []
-                            for (let i = 0; i < uniqueAdIds.length; i += 50) {
-                                chunks.push(uniqueAdIds.slice(i, i + 50))
+                            console.log(`Fetching metadata for ${uniqueAdIds.length} ads...`);
+
+                            // Fetch each ad individually to avoid batch permission issues
+                            const metaPromises = uniqueAdIds.map(async (adId) => {
+                                try {
+                                    const metadataUrl = new URL(`https://graph.facebook.com/v24.0/${adId}`);
+                                    metadataUrl.searchParams.append('fields', 'name,creative{id,thumbnail_url,image_url,title,instagram_permalink_url,object_story_spec}');
+                                    metadataUrl.searchParams.append('thumbnail_width', '400');
+                                    metadataUrl.searchParams.append('thumbnail_height', '400');
+                                    metadataUrl.searchParams.append('access_token', META_ACCESS_TOKEN);
+
+                                    const metaRes = await fetch(metadataUrl);
+                                    const metaJson = await metaRes.json();
+
+                                    if (metaJson.error) {
+                                        if (!metadataError) metadataError = metaJson.error.message;
+                                        console.warn(`Metadata error for ad ${adId}: ${metaJson.error.message}`);
+                                    } else {
+                                        adMetadataMap.set(adId, metaJson);
+                                    }
+                                } catch (e: any) {
+                                    if (!metadataError) metadataError = e.message;
+                                }
+                            });
+
+                            // Process in batches of 10 to avoid rate limiting
+                            for (let i = 0; i < metaPromises.length; i += 10) {
+                                await Promise.all(metaPromises.slice(i, i + 10));
                             }
 
-                            for (const chunk of chunks) {
-                                const metadataUrl = new URL(`https://graph.facebook.com/v24.0/`)
-                                metadataUrl.searchParams.append('ids', chunk.join(','))
-                                metadataUrl.searchParams.append('fields', 'name,creative{id,thumbnail_url,image_url,title,instagram_permalink_url,object_story_spec},preview_shareable_link,effective_object_story_id')
-                                metadataUrl.searchParams.append('thumbnail_width', '400')
-                                metadataUrl.searchParams.append('thumbnail_height', '400')
-                                metadataUrl.searchParams.append('access_token', META_ACCESS_TOKEN)
-
-                                const metaRes = await fetch(metadataUrl)
-                                const metaJson = await metaRes.json()
-
-                                if (metaJson.error) {
-                                    console.error('Ad metadata fetch error:', metaJson.error);
-                                } else {
-                                    const entries = Object.entries(metaJson);
-                                    // Log first entry raw response for debugging
-                                    if (entries.length > 0) {
-                                        const [firstId, firstData] = entries[0] as [string, any];
-                                        console.log('RAW Meta API response (first ad):', JSON.stringify({
-                                            ad_id: firstId,
-                                            has_creative: !!firstData.creative,
-                                            creative_keys: firstData.creative ? Object.keys(firstData.creative) : [],
-                                            creative_thumbnail_url: firstData.creative?.thumbnail_url || null,
-                                            creative_image_url: firstData.creative?.image_url || null,
-                                            effective_object_story_id: firstData.effective_object_story_id || null,
-                                        }));
-                                    }
-                                    entries.forEach(([id, data]: [string, any]) => {
-                                        adMetadataMap.set(id, data)
-                                    })
-                                }
+                            console.log(`Metadata fetched: ${adMetadataMap.size}/${uniqueAdIds.length} ads`);
+                            if (adMetadataMap.size > 0) {
+                                const firstKey = adMetadataMap.keys().next().value;
+                                const firstData = adMetadataMap.get(firstKey);
+                                console.log('RAW Meta API response (first ad):', JSON.stringify({
+                                    ad_id: firstKey,
+                                    has_creative: !!firstData?.creative,
+                                    creative_keys: firstData?.creative ? Object.keys(firstData.creative) : [],
+                                    creative_thumbnail_url: firstData?.creative?.thumbnail_url || null,
+                                    creative_image_url: firstData?.creative?.image_url || null,
+                                    effective_object_story_id: firstData?.effective_object_story_id || null,
+                                }));
                             }
                         }
 
@@ -263,71 +271,8 @@ Deno.serve(async (req) => {
                             if (meta?.creative?.thumbnail_url) adsWithCreativeThumb++;
                         });
                         console.log(`Creative thumbnail_url found for ${adsWithCreativeThumb}/${uniqueAdIds.length} ads`);
-                        // Log sample creative data for first ad
-                        const sampleMeta = adMetadataMap.get(uniqueAdIds[0]);
-                        if (sampleMeta) {
-                            console.log('Sample ad creative data:', JSON.stringify({
-                                ad_id: uniqueAdIds[0],
-                                creative_id: sampleMeta.creative?.id,
-                                thumbnail_url: sampleMeta.creative?.thumbnail_url,
-                                image_url: sampleMeta.creative?.image_url,
-                                has_object_story_spec: !!sampleMeta.creative?.object_story_spec,
-                                effective_object_story_id: sampleMeta.effective_object_story_id,
-                            }));
-                        }
 
-                        // 4. Identify Missing Images/Links and Fetch from Post (effective_object_story_id)
-                        const storyIdsToFetch = new Set<string>();
-
-                        uniqueAdIds.forEach(adId => {
-                            const meta = adMetadataMap.get(adId);
-                            if (meta) {
-                                const creative = meta.creative || {};
-                                // Check if we found a direct thumbnail first
-                                const hasMainThumb = creative.thumbnail_url || creative.image_url;
-                                // Check deep fields
-                                const hasDeepThumb = creative.object_story_spec?.link_data?.picture || creative.object_story_spec?.video_data?.image_url || creative.object_story_spec?.template_data?.link_data?.picture;
-                                // Check link
-                                const hasLink = creative.instagram_permalink_url;
-
-                                // If missing thumbnail or link, and we have a story ID, fetch the post
-                                if ((!hasMainThumb && !hasDeepThumb || !hasLink) && meta.effective_object_story_id) {
-                                    storyIdsToFetch.add(meta.effective_object_story_id);
-                                }
-                            }
-                        });
-
-
-                        const postMetadataMap = new Map();
-
-                        if (storyIdsToFetch.size > 0) {
-                            const storyIdArray = Array.from(storyIdsToFetch);
-                            const chunks = [];
-                            console.log(`Fetching supplementary data for ${storyIdArray.length} ads (Post ID)...`);
-                            for (let i = 0; i < storyIdArray.length; i += 50) {
-                                chunks.push(storyIdArray.slice(i, i + 50));
-                            }
-
-                            for (const chunk of chunks) {
-                                const postUrl = new URL(`https://graph.facebook.com/v24.0/`)
-                                postUrl.searchParams.append('ids', chunk.join(','))
-                                postUrl.searchParams.append('fields', 'full_picture,picture,permalink_url') // Added permalink_url
-                                postUrl.searchParams.append('access_token', META_ACCESS_TOKEN)
-
-                                const postRes = await fetch(postUrl)
-                                const postJson = await postRes.json()
-
-                                if (postJson.error) {
-                                    console.error('Post metadata fetch error:', postJson.error);
-                                } else {
-                                    Object.entries(postJson).forEach(([id, data]: [string, any]) => {
-                                        postMetadataMap.set(id, data);
-                                    });
-                                }
-                            }
-                        }
-
-                        // 5. Fetch Ad Previews for ads still missing thumbnails
+                        // 4. Fetch Ad Previews for ads still missing thumbnails
                         const previewMap = new Map<string, string>();
                         const adsMissingThumb = new Set<string>();
 
@@ -340,10 +285,7 @@ Deno.serve(async (req) => {
                                 || creative.object_story_spec?.template_data?.link_data?.picture;
 
                             if (!hasThumb) {
-                                const post = meta?.effective_object_story_id ? postMetadataMap.get(meta.effective_object_story_id) : null;
-                                if (!post?.full_picture && !post?.picture) {
-                                    adsMissingThumb.add(adId as string);
-                                }
+                                adsMissingThumb.add(adId as string);
                             }
                         });
 
@@ -360,10 +302,8 @@ Deno.serve(async (req) => {
 
                                     if (pJson.data?.[0]?.body) {
                                         const iframeHtml = pJson.data[0].body;
-                                        // Extract iframe src URL
                                         const srcMatch = iframeHtml.match(/src="([^"]+)"/);
                                         if (srcMatch?.[1]) {
-                                            // Decode HTML entities
                                             const iframeSrc = srcMatch[1].replace(/&amp;/g, '&');
                                             previewMap.set(adId, iframeSrc);
                                         }
@@ -378,37 +318,17 @@ Deno.serve(async (req) => {
                             console.log(`Got ${previewMap.size} previews from ${adsMissingThumb.size} ads`);
                         }
 
-                        // Log thumbnail resolution summary
-                        console.log(`Thumbnail resolution: ${adsWithCreativeThumb} from creative.thumbnail_url, ${postMetadataMap.size} post fallbacks, ${previewMap.size} preview fallbacks`);
+                        console.log(`Thumbnail resolution: ${adsWithCreativeThumb} from creative, ${previewMap.size} from preview`);
 
-                        // 6. Upsert Ad Data
+                        // 5. Upsert Ad Data
                         const upsertAdData = adInsights.map((item: any) => {
                             const meta = adMetadataMap.get(item.ad_id)
                             const creative = meta?.creative || {}
 
-                            // A. Link Logic - Prioritize Instagram Permalink, then Post Permalink
-                            let creativeLink = creative.instagram_permalink_url;
+                            // A. Link Logic
+                            let creativeLink = creative.instagram_permalink_url || null;
 
-                            if (!creativeLink && meta?.effective_object_story_id) {
-                                // Try fallback post fetch
-                                const post = postMetadataMap.get(meta.effective_object_story_id);
-                                if (post?.permalink_url) {
-                                    creativeLink = post.permalink_url;
-                                }
-                            }
-
-                            if (!creativeLink) {
-                                creativeLink = meta?.preview_shareable_link
-                            }
-
-                            if (!creativeLink && meta?.effective_object_story_id) {
-                                const parts = meta.effective_object_story_id.split('_')
-                                if (parts.length === 2) {
-                                    creativeLink = `https://www.facebook.com/${parts[0]}/posts/${parts[1]}`
-                                }
-                            }
-
-                            // B. Thumbnail Logic - directly from creative{thumbnail_url}
+                            // B. Thumbnail Logic - from creative{thumbnail_url}
                             let thumbnailUrl = creative.thumbnail_url || creative.image_url;
 
                             if (!thumbnailUrl && creative.object_story_spec) {
@@ -422,18 +342,7 @@ Deno.serve(async (req) => {
                                 }
                             }
 
-                            // C. Fallback to Post Picture
-                            if (!thumbnailUrl && meta?.effective_object_story_id) {
-                                let post = postMetadataMap.get(meta.effective_object_story_id);
-
-                                if (post?.full_picture) {
-                                    thumbnailUrl = post.full_picture;
-                                } else if (post?.picture) {
-                                    thumbnailUrl = post.picture;
-                                }
-                            }
-
-                            // D. Fallback to Ad Preview (iframe src)
+                            // C. Fallback to Ad Preview (iframe src)
                             if (!thumbnailUrl && previewMap.has(item.ad_id)) {
                                 thumbnailUrl = previewMap.get(item.ad_id);
                             }
@@ -460,14 +369,31 @@ Deno.serve(async (req) => {
                                 action_values: item.action_values || [],
                                 video_metrics: {
                                     video_play_actions: item.video_play_actions || [],
-                                    video_3_sec_watched_actions: item.video_3_sec_watched_actions || [],
-                                    video_p75_watched_actions: item.video_p75_watched_actions || [],
+                                    video_3_sec_watched_actions: [],
+                                    video_p75_watched_actions: [],
                                     video_thruplay_watched_actions: item.video_thruplay_watched_actions || []
                                 },
                                 creative_thumbnail_url: thumbnailUrl,
                                 creative_url: creativeLink
                             }
                         })
+
+                        // Save debug info
+                        const firstKey = adMetadataMap.keys().next().value;
+                        const firstMeta = firstKey ? adMetadataMap.get(firstKey) : null;
+                        adDebugInfo = {
+                            total_unique_ads: adMetadataMap.size,
+                            metadata_error: metadataError,
+                            ads_with_creative_thumbnail: Array.from(adMetadataMap.values()).filter((m: any) => m?.creative?.thumbnail_url).length,
+                            ads_with_creative_image: Array.from(adMetadataMap.values()).filter((m: any) => m?.creative?.image_url).length,
+                            ads_with_story_id: Array.from(adMetadataMap.values()).filter((m: any) => m?.effective_object_story_id).length,
+                            preview_map_size: previewMap?.size || 0,
+                            sample_ad: firstMeta ? {
+                                ad_id: firstKey,
+                                raw_creative: firstMeta.creative || null,
+                                effective_object_story_id: firstMeta.effective_object_story_id || null,
+                            } : null,
+                        };
 
                         // Log thumbnail coverage
                         const withThumb = upsertAdData.filter((d: any) => d.creative_thumbnail_url).length;
@@ -490,7 +416,13 @@ Deno.serve(async (req) => {
                     currentUrl = jsonAd.paging?.next || null;
                 }
 
-                results.push({ accountId: account.id, type: 'ad', count: totalAdsSynced, status: 'success' })
+                results.push({
+                    accountId: account.id,
+                    type: 'ad',
+                    count: totalAdsSynced,
+                    status: 'success',
+                    debug: adDebugInfo,
+                })
 
             } catch (err: any) {
                 console.error(`Ad sync error for ${account.id}:`, err)
