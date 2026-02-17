@@ -4,13 +4,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, TrendingUp, DollarSign, MousePointer, Eye, Activity, RefreshCw, ExternalLink, ChevronLeft, ChevronRight, Search, ArrowUp, ArrowDown, LayoutGrid, List, Video, Image as ImageIcon, Images } from "lucide-react";
+import { Loader2, TrendingUp, DollarSign, MousePointer, Eye, Activity, RefreshCw, ExternalLink, ChevronLeft, ChevronRight, Search, ArrowUp, ArrowDown, LayoutGrid, List, Video, Image as ImageIcon, Images, Settings, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { startOfMonth, endOfMonth, subDays, format, subMonths, parseISO, compareAsc, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatInTimeZone } from 'date-fns-tz';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import {
     Table,
     TableBody,
@@ -25,8 +25,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MetaMetricsConfig } from "@/components/MetaAds/MetaMetricsConfig";
-import { Settings } from "lucide-react";
 
 
 interface MetaAdsDashboardProps {
@@ -681,15 +681,69 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
     const percent = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 2 }).format(val / 100);
 
     const CARD_CONFIG: Record<string, any> = {
-        spend: { label: 'Investimento', icon: DollarSign, fmt: currency },
-        impressions: { label: 'Impressões', icon: Eye, fmt: number },
-        clicks: { label: 'Cliques', icon: MousePointer, fmt: number },
-        conversions: { label: 'Conversões', icon: TrendingUp, fmt: number },
-        cpa: { label: 'Custo por Resultado', icon: DollarSign, fmt: currency },
-        reach: { label: 'Alcance (Est.)', icon: activityIcon, fmt: number },
-        ctr: { label: 'CTR', icon: (props: any) => <TrendingUp {...props} />, fmt: (v: number) => percent(v) },
-        cpc: { label: 'CPC', icon: DollarSign, fmt: currency },
-        cpm: { label: 'CPM', icon: DollarSign, fmt: currency },
+        spend: {
+            label: 'Investimento',
+            icon: DollarSign,
+            fmt: currency,
+            description: 'Total investido em mídia no período selecionado.',
+            formula: 'Soma de todos os gastos (spend) das campanhas.',
+        },
+        impressions: {
+            label: 'Impressões',
+            icon: Eye,
+            fmt: number,
+            description: 'Quantidade de vezes que os anúncios foram exibidos.',
+            formula: 'Soma das impressões das campanhas.',
+        },
+        clicks: {
+            label: 'Cliques',
+            icon: MousePointer,
+            fmt: number,
+            description: 'Quantidade total de cliques nos anúncios.',
+            formula: 'Soma dos cliques das campanhas.',
+        },
+        conversions: {
+            label: 'Conversões',
+            icon: TrendingUp,
+            fmt: number,
+            description: 'Total de ações de conversão atribuídas pelo Meta Ads.',
+            formula: 'Soma de ações do tipo purchase, lead, contact, schedule, submit_application, complete_registration, messaging_conversation_started_7d, omn_level_complete e start_trial.',
+        },
+        cpa: {
+            label: 'Custo por Resultado',
+            icon: DollarSign,
+            fmt: currency,
+            description: 'Quanto foi gasto, em média, por conversão.',
+            formula: 'Investimento ÷ Conversões.',
+        },
+        reach: {
+            label: 'Alcance (Est.)',
+            icon: activityIcon,
+            fmt: number,
+            description: 'Quantidade estimada de pessoas únicas impactadas.',
+            formula: 'Soma do alcance (reach) estimado das campanhas.',
+        },
+        ctr: {
+            label: 'CTR',
+            icon: (props: any) => <TrendingUp {...props} />,
+            fmt: (v: number) => percent(v),
+            description: 'Taxa de cliques em relação às impressões.',
+            formula: '(Cliques ÷ Impressões) x 100.',
+        },
+        cpc: {
+            label: 'CPC',
+            icon: DollarSign,
+            fmt: currency,
+            description: 'Custo médio por clique.',
+            formula: 'Investimento ÷ Cliques.',
+        },
+        cpm: {
+            label: 'CPM',
+            icon: DollarSign,
+            fmt: currency,
+            description: 'Custo para gerar mil impressões.',
+            formula: '(Investimento ÷ Impressões) x 1.000.',
+        },
     };
 
     function activityIcon() { return <Activity className="h-4 w-4 text-muted-foreground" /> }
@@ -866,28 +920,44 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                     ) : (
                         <>
                             {/* Metrics Cards */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                {Object.keys(CARD_CONFIG).map(key => {
-                                    if (!visibleMetrics.includes(key)) return null;
-                                    const conf = CARD_CONFIG[key];
-                                    const Icon = conf.icon;
-                                    return (
-                                        <Card key={key}>
-                                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                                <CardTitle className="text-sm font-medium">
-                                                    {conf.label}
-                                                </CardTitle>
-                                                <Icon className="h-4 w-4 text-muted-foreground" />
-                                            </CardHeader>
-                                            <CardContent>
-                                                <div className="text-2xl font-bold">
-                                                    {conf.fmt(metrics[key] || 0)}
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    );
-                                })}
-                            </div>
+                            <TooltipProvider>
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {Object.keys(CARD_CONFIG).map(key => {
+                                        if (!visibleMetrics.includes(key)) return null;
+                                        const conf = CARD_CONFIG[key];
+                                        const Icon = conf.icon;
+                                        return (
+                                            <Card key={key}>
+                                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                                    <CardTitle className="text-sm font-medium flex items-center gap-1.5">
+                                                        <span>{conf.label}</span>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <button type="button" aria-label={`Legenda da métrica ${conf.label}`} className="text-muted-foreground hover:text-foreground transition-colors">
+                                                                    <Info className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="max-w-72">
+                                                                <p className="text-xs font-semibold">{conf.label}</p>
+                                                                <p className="text-xs mt-1">{conf.description}</p>
+                                                                <p className="text-xs mt-2 text-muted-foreground">
+                                                                    <span className="font-semibold">Cálculo:</span> {conf.formula}
+                                                                </p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </CardTitle>
+                                                    <Icon className="h-4 w-4 text-muted-foreground" />
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="text-2xl font-bold">
+                                                        {conf.fmt(metrics[key] || 0)}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                            </TooltipProvider>
 
                             {/* Chart Section */}
                             {chartData.length > 0 && (
@@ -918,7 +988,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                     tick={{ fill: '#6B7280', fontSize: 12 }}
                                                     tickFormatter={(value) => `R$${value}`}
                                                 />
-                                                <Tooltip
+                                                <RechartsTooltip
                                                     formatter={(value: number) => [currency(value), 'Investimento']}
                                                     labelStyle={{ color: '#111827' }}
                                                     contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
