@@ -10,12 +10,17 @@ import { Loader2, RefreshCw, Trash2, ArrowUpDown, Link2, Activity, AlertCircle, 
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { MetaSyncHistory } from "@/components/MetaAds/MetaSyncHistory";
 
 interface AdAccount {
     id: string; // Meta Ad Account ID (act_xxx)
     name: string;
     currency: string;
     account_status: number;
+    is_prepay_account?: boolean;
+    balance?: number | string;
+    available_balance?: number;
+    balance_source?: string;
 }
 
 interface LinkedAccount {
@@ -41,6 +46,22 @@ const MetaAdsAdmin = () => {
     const [testingId, setTestingId] = useState<string | null>(null);
 
     const { toast } = useToast();
+
+    const formatBalance = (balance?: number | string, currency?: string) => {
+        if (balance === undefined || balance === null || balance === "") {
+            return "-";
+        }
+
+        const parsed = Number(balance);
+        if (Number.isNaN(parsed)) {
+            return String(balance);
+        }
+
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: currency || 'BRL'
+        }).format(parsed);
+    };
 
     const testConnection = async (adAccountId: string) => {
         setTestingId(adAccountId);
@@ -94,14 +115,25 @@ const MetaAdsAdmin = () => {
             if (metaError) throw metaError;
             if (!metaData.success) throw new Error(metaData.error || 'Failed to fetch accounts');
 
-            setAdAccounts(metaData.data || []);
+            setAdAccounts((metaData.data || []).map((acc: any) => {
+                const sourceBalance = acc.available_balance ?? acc.balance;
+                const parsedBalance = sourceBalance !== undefined && sourceBalance !== null ? Number(sourceBalance) : undefined;
+                const hasValidBalance = typeof parsedBalance === "number" && !Number.isNaN(parsedBalance);
+
+                // Apply same heuristic as backend: if verified balance > 0, assume prepaid
+                if (!acc.is_prepay_account && hasValidBalance && parsedBalance !== 0) {
+                    return { ...acc, balance: parsedBalance, available_balance: parsedBalance, is_prepay_account: true };
+                }
+
+                return { ...acc, balance: hasValidBalance ? parsedBalance : acc.balance, available_balance: hasValidBalance ? parsedBalance : undefined };
+            }));
 
             // 2. Fetch linked accounts
             const { data: dbLinks, error: dbError } = await supabase
                 .from('meta_client_ad_accounts')
                 .select(`
 id,
-    ad_account_primary: meta_ad_accounts(meta_account_id),
+    ad_account_primary: meta_ad_accounts(meta_account_id, is_prepay_account, balance),
         cliente_id,
         clientes(id, nome)
             `);
@@ -292,6 +324,15 @@ id,
                     bValue = linkedAccounts.find(l => l.ad_account_id === b.id)?.client_nome || '';
                 }
 
+                if (sortConfig.key === 'account_status' || sortConfig.key === 'balance') {
+                    const aNumber = Number(aValue ?? 0);
+                    const bNumber = Number(bValue ?? 0);
+
+                    if (aNumber < bNumber) return sortConfig.direction === 'asc' ? -1 : 1;
+                    if (aNumber > bNumber) return sortConfig.direction === 'asc' ? 1 : -1;
+                    return 0;
+                }
+
                 // Handle nulls/undefined strings for safe comparison
                 aValue = (aValue || '').toString().toLowerCase();
                 bValue = (bValue || '').toString().toLowerCase();
@@ -457,8 +498,14 @@ id,
                                         <TableHead className="cursor-pointer" onClick={() => handleSort('currency')}>
                                             Moeda <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                                         </TableHead>
+                                        <TableHead className="cursor-pointer text-right" onClick={() => handleSort('balance')}>
+                                            Balance <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                                        </TableHead>
                                         <TableHead className="cursor-pointer" onClick={() => handleSort('account_status')}>
                                             Status <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                                        </TableHead>
+                                        <TableHead>
+                                            Tipo Pagamento
                                         </TableHead>
                                         <TableHead className="cursor-pointer" onClick={() => handleSort('client_nome')}>
                                             Cliente Vinculado <ArrowUpDown className="ml-2 h-4 w-4 inline" />
@@ -483,10 +530,20 @@ id,
                                                 <TableCell className="font-medium">{account.name}</TableCell>
                                                 <TableCell className="text-xs text-muted-foreground">{account.id}</TableCell>
                                                 <TableCell>{account.currency}</TableCell>
+                                                <TableCell className="text-right font-medium">
+                                                    {formatBalance(account.available_balance ?? account.balance, account.currency)}
+                                                </TableCell>
                                                 <TableCell>
                                                     <Badge variant={account.account_status === 1 ? 'default' : 'secondary'}>
                                                         {account.account_status === 1 ? 'Ativa' : 'Inativa'}
                                                     </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <Badge variant={account.is_prepay_account ? 'outline' : 'secondary'} className={account.is_prepay_account ? "border-blue-500 text-blue-500" : ""}>
+                                                            {account.is_prepay_account ? 'Pré-pago' : 'Pós-pago'}
+                                                        </Badge>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     {isLinked ? (
@@ -539,6 +596,16 @@ id,
                     )}
                 </CardContent>
             </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Histórico de Sincronizações</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <MetaSyncHistory />
+                </CardContent>
+            </Card>
+
             <Dialog open={isDiagnosticOpen} onOpenChange={setIsDiagnosticOpen}>
                 <DialogContent className="max-w-2xl max-h-[80vh]">
                     <DialogHeader>

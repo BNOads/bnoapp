@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { User } from "@supabase/supabase-js";
+import { FormattedNotificationText } from "@/components/Notifications/FormattedNotificationText";
 
 interface Notification {
   id: string;
@@ -215,9 +216,11 @@ export default function NotificationPopup() {
           <CardContent className="pt-0">
             <div className="space-y-4">
               <div className="prose prose-sm max-w-none">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {currentNotification.conteudo}
-                </p>
+                <FormattedNotificationText
+                  as="p"
+                  className="whitespace-pre-wrap text-sm leading-relaxed"
+                  text={currentNotification.conteudo}
+                />
               </div>
               
               <div className="flex gap-2 pt-2">

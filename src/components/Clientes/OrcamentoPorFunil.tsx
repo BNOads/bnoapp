@@ -11,7 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp, Power, GripVertical, RotateCcw, CheckCircle, Info, Rocket, ExternalLink, FileImage } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { DollarSign, Calendar, History, Download, Plus, Edit2, Eye, Trash2, Search, Filter, Users, TrendingUp, Power, GripVertical, RotateCcw, CheckCircle, Info, Rocket, ExternalLink, FileImage, Megaphone, Link2, Unlink } from "lucide-react";
 import { CATEGORIAS_FUNIL, getCategoriaLabel, getCategoriaDescricao, getCategoriaCor } from "@/lib/orcamentoConstants";
 import { OrcamentoDetalhesModal } from "@/components/Orcamento/OrcamentoDetalhesModal";
 import { OrcamentoStatusToggle } from "./OrcamentoStatusToggle";
@@ -40,7 +42,10 @@ interface OrcamentoFunil {
   // Campos para lançamentos integrados
   isLancamento?: boolean;
   lancamento_id?: string;
+  lancamento_link_publico?: string | null;
   lancamento_status?: string;
+  linked_campaigns?: { id: string; name: string }[];
+  manual_campaigns?: string[] | null;
 }
 
 // Componente card draggable
@@ -54,6 +59,9 @@ const SortableOrcamentoCard = ({
   onHistorico,
   onDetalhes,
   onStatusChange,
+  onEditCampaigns,
+  onOpenCreatives,
+  allCampaigns,
   formatarMoeda
 }: {
   orcamento: OrcamentoFunil;
@@ -65,9 +73,24 @@ const SortableOrcamentoCard = ({
   onHistorico: (o: OrcamentoFunil) => void;
   onDetalhes: (o: OrcamentoFunil) => void;
   onStatusChange: (id: string, status: boolean) => void;
+  onEditCampaigns: (orcamentoId: string, campaigns: { id: string; name: string }[]) => void;
   onOpenCreatives: (o: OrcamentoFunil) => void;
+  allCampaigns: { id: string; name: string }[];
   formatarMoeda: (v: number) => string;
 }) => {
+  const [showCampaignEditor, setShowCampaignEditor] = useState(false);
+  const [campaignSearch, setCampaignSearch] = useState("");
+  const lancamentoUrl = orcamento.lancamento_link_publico
+    ? `/lancamento/${orcamento.lancamento_link_publico}`
+    : !isPublicView && orcamento.lancamento_id
+      ? `/lancamentos/${orcamento.lancamento_id}`
+      : null;
+
+  const handleOpenLancamento = () => {
+    if (!lancamentoUrl) return;
+    window.open(lancamentoUrl, '_blank');
+  };
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: orcamento.id,
     disabled: orcamento.isLancamento
@@ -84,7 +107,7 @@ const SortableOrcamentoCard = ({
       ref={setNodeRef}
       style={style}
       className={`relative w-full transition-all cursor-pointer hover:shadow-md hover:border-primary/50 ${!orcamento.active ? 'opacity-60 grayscale-[0.4]' : ''} ${orcamento.isLancamento ? 'border-l-4 border-l-emerald-500' : ''}`}
-      onClick={() => !isEditMode && (orcamento.isLancamento ? window.open(`/lancamento/${orcamento.lancamento_id}`, '_blank') : onDetalhes(orcamento))}
+      onClick={() => !isEditMode && (orcamento.isLancamento ? handleOpenLancamento() : onDetalhes(orcamento))}
     >
       <CardHeader className="pb-2 sm:pb-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
@@ -132,11 +155,12 @@ const SortableOrcamentoCard = ({
               onClick={(e) => {
                 e.stopPropagation();
                 if (orcamento.isLancamento) {
-                  window.open(`/lancamento/${orcamento.lancamento_id}`, '_blank');
+                  handleOpenLancamento();
                 } else {
                   onDetalhes(orcamento);
                 }
               }}
+              disabled={orcamento.isLancamento && !lancamentoUrl}
               className="h-7 w-7 p-0 sm:h-8 sm:w-8"
               title={orcamento.isLancamento ? "Ver Lançamento" : "Ver detalhes"}
             >
@@ -197,14 +221,76 @@ const SortableOrcamentoCard = ({
                 e.stopPropagation();
                 onOpenCreatives(orcamento);
               }}
+              title="Ver criativos"
             >
               <FileImage className="h-3.5 w-3.5" />
               {orcamento.creatives_loading ? (
                 <div className="h-3 w-3 animate-spin rounded-full border border-primary border-t-transparent" />
               ) : (
-                <span>{orcamento.creative_count || 0} criativos</span>
+                <span>{orcamento.creative_count || 0}</span>
               )}
             </div>
+
+            {/* Linked Campaigns Badge - Click to Edit */}
+            <Dialog open={showCampaignEditor} onOpenChange={setShowCampaignEditor}>
+              <DialogTrigger asChild>
+                <div
+                  className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full cursor-pointer transition-colors ${
+                    orcamento.linked_campaigns && orcamento.linked_campaigns.length > 0
+                      ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                      : 'text-muted-foreground bg-muted/50 hover:bg-muted'
+                  }`}
+                  onClick={(e) => e.stopPropagation()}
+                  title="Editar campanhas vinculadas"
+                >
+                  <Megaphone className="h-3.5 w-3.5" />
+                  <span>{orcamento.linked_campaigns?.length || 0}</span>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="max-w-md" onClick={(e) => e.stopPropagation()}>
+                <DialogHeader>
+                  <DialogTitle className="text-base">Campanhas vinculadas - {orcamento.nome_funil}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <Input
+                    placeholder="Buscar campanhas..."
+                    value={campaignSearch}
+                    onChange={(e) => setCampaignSearch(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                  <ScrollArea className="h-[300px] pr-2">
+                    <div className="space-y-1">
+                      {(allCampaigns || [])
+                        .filter(c => !campaignSearch || c.name.toLowerCase().includes(campaignSearch.toLowerCase()))
+                        .map(camp => {
+                          const isLinked = orcamento.linked_campaigns?.some(lc => lc.id === camp.id) || false;
+                          return (
+                            <div
+                              key={camp.id}
+                              className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted/80 transition-colors ${isLinked ? 'bg-blue-50' : ''}`}
+                              onClick={() => {
+                                const currentLinked = orcamento.linked_campaigns || [];
+                                if (isLinked) {
+                                  onEditCampaigns(orcamento.id, currentLinked.filter(c => c.id !== camp.id));
+                                } else {
+                                  onEditCampaigns(orcamento.id, [...currentLinked, camp]);
+                                }
+                              }}
+                            >
+                              <Checkbox checked={isLinked} className="pointer-events-none" />
+                              <span className="text-sm flex-1 truncate">{camp.name}</span>
+                              {isLinked && <Link2 className="h-3 w-3 text-blue-500 flex-shrink-0" />}
+                            </div>
+                          );
+                        })}
+                      {(allCampaigns || []).filter(c => !campaignSearch || c.name.toLowerCase().includes(campaignSearch.toLowerCase())).length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">Nenhuma campanha encontrada</p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Explicação da Categoria */}
@@ -268,6 +354,7 @@ export const OrcamentoPorFunil = ({
   const [lancamentosData, setLancamentosData] = useState<any[]>([]);
   const [gestoresOrcamentos, setGestoresOrcamentos] = useState<GestorOrcamento[]>([]);
   const [historico, setHistorico] = useState<HistoricoOrcamento[]>([]);
+  const [campaignsData, setCampaignsData] = useState<any[]>([]); // Campaigns for linking
   const [loading, setLoading] = useState(true);
   const [showNovoModal, setShowNovoModal] = useState(false);
   const [showEditarModal, setShowEditarModal] = useState(false);
@@ -315,14 +402,53 @@ export const OrcamentoPorFunil = ({
     etapa_funil: 'lancamento',
     isLancamento: true,
     lancamento_id: lancamento.id,
+    lancamento_link_publico: lancamento.link_publico || null,
     lancamento_status: lancamento.status_lancamento,
   });
+
+  // Helper to link campaigns
+  // If manual_campaigns has campaign IDs saved, use them as source of truth
+  // Otherwise, auto-link by name matching
+  const linkCampaignsToItem = (item: OrcamentoFunil) => {
+    const manual = item.manual_campaigns;
+
+    // If manual list exists and has IDs, use it directly
+    if (manual && Array.isArray(manual) && manual.length > 0) {
+      const linked = campaignsData.filter((camp: any) => manual.includes(camp.id));
+      return { ...item, linked_campaigns: linked };
+    }
+
+    // Fallback: auto-link by name matching
+    if (!campaignsData || campaignsData.length === 0) return { ...item, linked_campaigns: [] };
+
+    const funnelName = item.nome_funil?.toLowerCase() || "";
+    if (!funnelName) return { ...item, linked_campaigns: [] };
+
+    const funnelWords = funnelName.split(' ').filter((w: string) => w.length > 2);
+
+    // Exact match
+    let autoLinked = campaignsData.filter((camp: any) => camp.name.toLowerCase().includes(funnelName));
+
+    // Fuzzy match (if no exact matches)
+    if (autoLinked.length === 0) {
+      autoLinked = campaignsData.filter((camp: any) => {
+        const campaignName = camp.name.toLowerCase();
+        let score = 0;
+        funnelWords.forEach((word: string) => {
+          if (campaignName.includes(word)) score += word.length;
+        });
+        return score > 2;
+      });
+    }
+
+    return { ...item, linked_campaigns: autoLinked };
+  };
 
   // Combinar orçamentos com lançamentos transformados
   const todosItens: OrcamentoFunil[] = [
     ...lancamentosData.map(transformarLancamentoParaOrcamento),
     ...orcamentos
-  ];
+  ].map(linkCampaignsToItem);
 
   // Carregar contagem de criativos para todos os itens
   useEffect(() => {
@@ -493,7 +619,7 @@ export const OrcamentoPorFunil = ({
 
       const { data, error } = await clientInstance
         .from('lancamentos')
-        .select('id, nome_lancamento, investimento_total, status_lancamento, updated_at')
+        .select('id, nome_lancamento, investimento_total, status_lancamento, updated_at, link_publico')
         .eq('cliente_id', clienteId)
         .eq('ativo', true)
         .in('status_lancamento', ['em_captacao', 'cpl', 'remarketing', 'pausado']);
@@ -504,6 +630,65 @@ export const OrcamentoPorFunil = ({
       console.error('Erro ao carregar lançamentos:', error);
     }
   };
+
+  const carregarCampanhasDoCliente = async () => {
+    try {
+      let clientInstance = supabase;
+      if (isPublicView) {
+        const { createPublicSupabaseClient } = await import('@/lib/supabase-public');
+        clientInstance = createPublicSupabaseClient();
+      }
+
+      // 1. Fetch Linked Accounts
+      const { data: fetchedAccounts, error: accountsError } = await clientInstance
+        .from('meta_client_ad_accounts')
+        .select('id, account_name, ad_account_id')
+        .eq('cliente_id', clienteId);
+
+      if (accountsError || !fetchedAccounts || fetchedAccounts.length === 0) return;
+
+      const accountUuids = fetchedAccounts.map(a => a.id);
+
+      // 2. Fetch Unique Campaigns (last 90 days to verify active ones)
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+      const { data: insights, error } = await clientInstance
+        .from('meta_campaign_insights')
+        .select('campaign_id, campaign_name, date_start')
+        .in('ad_account_id', accountUuids)
+        .gte('date_start', ninetyDaysAgo.toISOString().split('T')[0]);
+
+      if (error) {
+        console.error("Error fetching campaigns:", error);
+        return;
+      }
+
+      // Deduplicate based on ID, taking the latest name
+      const uniqueCampaignsMap = new Map();
+      insights?.forEach((item: any) => {
+        // Always overwrite to get latest name maybe? Or first?
+        // Generally newer dates are later in the response or we can sort.
+        // Let's just take the first occurrence or last.
+        // Actually insights might have multiple entries.
+        if (!uniqueCampaignsMap.has(item.campaign_id)) {
+          uniqueCampaignsMap.set(item.campaign_id, { id: item.campaign_id, name: item.campaign_name });
+        }
+      });
+
+      setCampaignsData(Array.from(uniqueCampaignsMap.values()));
+
+    } catch (error) {
+      console.error("Error loading client campaigns:", error);
+    }
+  };
+
+  useEffect(() => {
+    carregarCampanhasDoCliente();
+  }, [clienteId]);
+
+
+
 
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
@@ -751,10 +936,76 @@ export const OrcamentoPorFunil = ({
     }
   };
 
-  const handleStatusChange = (orcamentoId: string, newStatus: boolean) => {
+  const handleEditCampaigns = async (orcamentoId: string, newLinkedCampaigns: { id: string; name: string }[]) => {
+    const campaignIds = newLinkedCampaigns.map(c => c.id);
+
+    const { error } = await supabase
+      .from('orcamentos_funil')
+      .update({ manual_campaigns: campaignIds, updated_at: new Date().toISOString() })
+      .eq('id', orcamentoId);
+
+    if (error) {
+      console.error('Error saving manual campaigns:', error);
+      toast({ title: "Erro", description: "Falha ao salvar campanhas vinculadas.", variant: "destructive" });
+      return;
+    }
+
+    setOrcamentos(prev => prev.map(o =>
+      o.id === orcamentoId ? { ...o, manual_campaigns: campaignIds } : o
+    ));
+  };
+
+  const handleStatusChange = async (orcamentoId: string, newStatus: boolean) => {
+    // 1. Update local state immediately for responsiveness
     setOrcamentos(prev => prev.map(o =>
       o.id === orcamentoId ? { ...o, active: newStatus } : o
     ));
+
+    // 2. Find the budget to get linked campaigns (use todosItens which has linked_campaigns populated)
+    const orcamento = todosItens.find(o => o.id === orcamentoId);
+
+    if (orcamento && orcamento.linked_campaigns && orcamento.linked_campaigns.length > 0) {
+      const statusStr = newStatus ? 'ACTIVE' : 'PAUSED';
+      let successCount = 0;
+      let failCount = 0;
+
+      // 3. Update each linked campaign
+      const promises = orcamento.linked_campaigns.map(async (camp) => {
+        try {
+          const { data, error } = await supabase.functions.invoke('meta-update-campaign-status', {
+            body: { campaign_id: camp.id, status: statusStr }
+          });
+
+          if (error || (data && !data.success)) {
+            console.error(`Failed to update campaign ${camp.id}:`, error || data?.error);
+            failCount++;
+          } else {
+            successCount++;
+          }
+        } catch (err) {
+          console.error(`Exception updating campaign ${camp.id}:`, err);
+          failCount++;
+        }
+      });
+
+      await Promise.all(promises);
+
+      if (successCount > 0) {
+        toast({
+          title: "Atualização de Campanhas",
+          description: `${successCount} campanhas foram ${newStatus ? 'ativadas' : 'pausadas'} no Meta Ads.`,
+          variant: "default" // or success if available
+        });
+      }
+
+      if (failCount > 0) {
+        toast({
+          title: "Atenção",
+          description: `Falha ao atualizar ${failCount} campanhas. Verifique o console.`,
+          variant: "destructive"
+        });
+      }
+    }
   };
   const abrirEdicao = (orcamento: OrcamentoFunil) => {
     setSelectedOrcamento(orcamento);
@@ -934,6 +1185,8 @@ export const OrcamentoPorFunil = ({
                     onHistorico={abrirHistorico}
                     onDetalhes={(o) => abrirDetalhes(o)}
                     onStatusChange={handleStatusChange}
+                    onEditCampaigns={handleEditCampaigns}
+                    allCampaigns={campaignsData}
                     onOpenCreatives={(o) => abrirDetalhes(o, "criativos")}
                     formatarMoeda={formatarMoeda}
                   />

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock, Info, Target, AlertTriangle, Folder } from "lucide-react";
+import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock, Info, Target, AlertTriangle, Folder, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -24,6 +24,7 @@ import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
 import { LancamentoCriativosTab } from "@/components/Lancamentos/LancamentoCriativosTab";
 import EditarLancamentoModal from "@/components/Lancamentos/EditarLancamentoModal";
 import { VincularCriativosModal } from "@/components/Lancamentos/VincularCriativosModal";
+import { LancamentoResultadosTab } from "@/components/Lancamentos/LancamentoResultadosTab";
 
 interface VerbaFase {
   captacao: {
@@ -131,7 +132,7 @@ export default function LancamentoDetalhes() {
   const [editing, setEditing] = useState(false);
   const [editingTab, setEditingTab] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas' | 'checklist' | 'criativos'>('calendario');
+  const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas' | 'checklist' | 'criativos' | 'resultados'>('calendario');
   const [ganttView, setGanttView] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [linkCriativosModalOpen, setLinkCriativosModalOpen] = useState(false);
@@ -949,6 +950,10 @@ export default function LancamentoDetalhes() {
           <Folder className="h-4 w-4" />
           Criativos
         </TabsTrigger>
+        <TabsTrigger value="resultados" className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" />
+          Resultados
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="calendario" className="space-y-6">
@@ -1575,6 +1580,12 @@ export default function LancamentoDetalhes() {
             lancamentoId={lancamento.id}
             onManage={() => setLinkCriativosModalOpen(true)}
           />
+        )}
+      </TabsContent>
+
+      <TabsContent value="resultados">
+        {lancamento && (
+          <LancamentoResultadosTab lancamento={lancamento} />
         )}
       </TabsContent>
     </Tabs>

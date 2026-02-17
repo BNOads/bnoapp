@@ -8,7 +8,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, Calendar, FileText, History, TrendingUp, Info, FileImage, AlertCircle } from 'lucide-react';
+import { DollarSign, Calendar, FileText, History, TrendingUp, Info, FileImage, AlertCircle, Megaphone } from 'lucide-react';
 import { getCategoriaLabel, getCategoriaDescricao, MESES, STATUS_ORCAMENTO } from '@/lib/orcamentoConstants';
 import { OrcamentoCriativosTab } from './OrcamentoCriativosTab';
 
@@ -27,6 +27,7 @@ interface OrcamentoDetalhes {
   created_at?: string;
   cliente_nome?: string;
   cliente_id?: string;
+  linked_campaigns?: { id: string; name: string }[];
 }
 
 interface HistoricoItem {
@@ -146,7 +147,7 @@ export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento, initialT
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="info" className="flex items-center gap-2">
               <Info className="h-4 w-4" />
               Informações
@@ -154,6 +155,10 @@ export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento, initialT
             <TabsTrigger value="criativos" className="flex items-center gap-2">
               <FileImage className="h-4 w-4" />
               Criativos
+            </TabsTrigger>
+            <TabsTrigger value="campanhas" className="flex items-center gap-2">
+              <Megaphone className="h-4 w-4" />
+              Campanhas
             </TabsTrigger>
             <TabsTrigger value="historico" className="flex items-center gap-2">
               <History className="h-4 w-4" />
@@ -252,6 +257,44 @@ export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento, initialT
                 <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">Informações do cliente não encontradas para este funil.</p>
               </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="campanhas" className="mt-4">
+            {!orcamento.linked_campaigns || orcamento.linked_campaigns.length === 0 ? (
+              <div className="text-center py-8">
+                <Megaphone className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Nenhuma campanha vinculada encontrada.</p>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-lg">Campanhas Vinculadas</h3>
+                      <Badge variant="secondary">{orcamento.linked_campaigns.length}</Badge>
+                    </div>
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nome da Campanha</TableHead>
+                            <TableHead className="w-[100px] text-right">ID</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {orcamento.linked_campaigns.map((campanha) => (
+                            <TableRow key={campanha.id}>
+                              <TableCell className="font-medium">{campanha.name}</TableCell>
+                              <TableCell className="text-right text-xs text-muted-foreground">{campanha.id}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 

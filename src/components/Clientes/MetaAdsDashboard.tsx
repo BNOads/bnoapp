@@ -28,6 +28,7 @@ import {
 import { MetaMetricsConfig } from "@/components/MetaAds/MetaMetricsConfig";
 import { Settings } from "lucide-react";
 
+
 interface MetaAdsDashboardProps {
     clientId: string;
     isPublicView?: boolean;
@@ -123,7 +124,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
             // 2. Fetch Linked Accounts
             const { data: fetchedAccounts, error: accountsError } = await supabase
                 .from('meta_client_ad_accounts')
-                .select('id, account_name, ad_account_id, meta_ad_accounts(name)')
+                .select('id, account_name, ad_account_id, meta_ad_accounts(name, is_prepay_account, balance)')
                 .eq('cliente_id', clientId);
 
             if (accountsError) throw accountsError;
@@ -402,9 +403,11 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                 adsMap[key] = {
                     id: key, // Use name or ID as the unique key
                     ad_id: item.ad_id, // Keep original ID reference (first one found)
+                    ad_ids: [item.ad_id], // Track all ad_ids for grouped toggles
                     name: item.ad_name,
                     status: item.status || 'ACTIVE', // Status from DB
                     effective_status: item.effective_status || 'ACTIVE',
+                    _latestDate: item.date_start || '', // Track latest date to pick most recent status
                     thumbnail: item.creative_thumbnail_url || null,
                     creative_url: item.creative_url || null,
                     link: item.creative_url || null, // Ensure link property is set for UI compatibility
@@ -454,6 +457,16 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
             }
 
             currentAd.count += 1;
+            if (!currentAd.ad_ids.includes(item.ad_id)) {
+                currentAd.ad_ids.push(item.ad_id);
+            }
+
+            // Always use the status from the most recent date row
+            if (item.date_start && item.date_start > currentAd._latestDate) {
+                currentAd._latestDate = item.date_start;
+                if (item.status) currentAd.status = item.status;
+                if (item.effective_status) currentAd.effective_status = item.effective_status;
+            }
             currentAd.spend += itemSpend;
             currentAd.impressions += Number(item.impressions) || 0;
             currentAd.clicks += Number(item.clicks) || 0;
@@ -589,6 +602,77 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
         }
     };
 
+
+
+    const handleAdStatusToggle = async (adId: string, currentStatus: string, adIds?: string[]) => {
+        if (!adId) return;
+
+        const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+        // If multiple ad_ids provided (grouped mode), toggle all of them
+        const idsToToggle = adIds && adIds.length > 1 ? adIds : [adId];
+        console.log('Toggling Ads:', { idsToToggle, currentStatus, newStatus });
+
+        // Set loading state for all ids
+        setTogglingAds(prev => {
+            const next = { ...prev };
+            idsToToggle.forEach(id => { next[id] = true; });
+            return next;
+        });
+
+        try {
+            // Call Meta API for each ad in parallel
+            const results = await Promise.all(
+                idsToToggle.map(id =>
+                    supabase.functions.invoke('meta-update-ad-status', {
+                        body: { ad_id: id, status: newStatus }
+                    })
+                )
+            );
+
+            // Check for errors
+            const errors = results.filter(r => r.error || (r.data && !r.data.success));
+            if (errors.length > 0) {
+                const firstError = errors[0];
+                if (firstError.error) throw firstError.error;
+                if (firstError.data && !firstError.data.success) {
+                    console.error('Backend Error Details:', firstError.data.error_details);
+                    throw new Error(firstError.data.error || 'Erro desconhecido ao atualizar status');
+                }
+            }
+
+            const successCount = results.length - errors.length;
+            toast({
+                title: "Status atualizado",
+                description: idsToToggle.length === 1
+                    ? `O anúncio foi ${newStatus === 'ACTIVE' ? 'ativado' : 'pausado'} com sucesso.`
+                    : `${successCount} anúncio(s) ${newStatus === 'ACTIVE' ? 'ativados' : 'pausados'} com sucesso.`,
+            });
+
+            // Optimistic update - update all toggled ad_ids
+            const toggledSet = new Set(idsToToggle);
+            setAdsList(prev => prev.map(ad => {
+                if (toggledSet.has(ad.ad_id) || (ad.ad_ids && ad.ad_ids.some((id: string) => toggledSet.has(id)))) {
+                    return { ...ad, status: newStatus, effective_status: newStatus };
+                }
+                return ad;
+            }));
+
+        } catch (error: any) {
+            console.error('Erro ao atualizar status:', error);
+            toast({
+                title: "Erro ao atualizar",
+                description: error.message || "Não foi possível atualizar o status do anúncio.",
+                variant: "destructive",
+            });
+        } finally {
+            setTogglingAds(prev => {
+                const next = { ...prev };
+                idsToToggle.forEach(id => { next[id] = false; });
+                return next;
+            });
+        }
+    };
+
     if (!metrics && !loading) return null;
 
     // Formatters
@@ -696,6 +780,24 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                 <span>Atualizado: {formatInTimeZone(lastSync, 'America/Sao_Paulo', "dd/MM 'às' HH:mm", { locale: ptBR })}</span>
                             </div>
                         )}
+                        {selectedAccountId !== 'all' && (() => {
+                            const selected = accounts.find(a => a.ad_account_id === selectedAccountId);
+                            if (selected?.meta_ad_accounts?.is_prepay_account !== undefined) {
+                                return (
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <span className={`text-xs px-2 py-0.5 rounded-full border ${selected.meta_ad_accounts.is_prepay_account ? 'border-blue-500 text-blue-500' : 'border-gray-500 text-gray-500'}`}>
+                                            {selected.meta_ad_accounts.is_prepay_account ? 'Pré-pago' : 'Pós-pago'}
+                                        </span>
+                                        {selected.meta_ad_accounts.balance !== undefined && Number(selected.meta_ad_accounts.balance) !== 0 && (
+                                            <span className="text-[10px] text-muted-foreground">
+                                                Saldo: {selected.meta_ad_accounts.balance}
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })()}
 
                     </div>
                 </div>
@@ -722,7 +824,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                 <SelectItem value="all">Todas as Contas</SelectItem>
                                 {accounts.map(acc => (
                                     <SelectItem key={acc.id} value={acc.ad_account_id}>
-                                        {acc.account_name || acc.meta_ad_accounts?.name || 'Conta sem nome'}
+                                        {acc.account_name || acc.meta_ad_accounts?.name || 'Conta sem nome'} {acc.meta_ad_accounts?.is_prepay_account ? '(Pré-pago)' : ''}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -755,568 +857,594 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
             </div>
 
 
-            {
-                loading ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-muted/20 animate-pulse rounded-xl" />)}
-                    </div>
-                ) : (
-                    <>
-                        {/* Metrics Cards */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                            {Object.keys(CARD_CONFIG).map(key => {
-                                if (!visibleMetrics.includes(key)) return null;
-                                const conf = CARD_CONFIG[key];
-                                const Icon = conf.icon;
-                                return (
-                                    <Card key={key}>
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">
-                                                {conf.label}
-                                            </CardTitle>
-                                            <Icon className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">
-                                                {conf.fmt(metrics[key] || 0)}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                );
-                            })}
+            <div className="space-y-6">
+                {
+                    loading ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-muted/20 animate-pulse rounded-xl" />)}
                         </div>
+                    ) : (
+                        <>
+                            {/* Metrics Cards */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                {Object.keys(CARD_CONFIG).map(key => {
+                                    if (!visibleMetrics.includes(key)) return null;
+                                    const conf = CARD_CONFIG[key];
+                                    const Icon = conf.icon;
+                                    return (
+                                        <Card key={key}>
+                                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                                <CardTitle className="text-sm font-medium">
+                                                    {conf.label}
+                                                </CardTitle>
+                                                <Icon className="h-4 w-4 text-muted-foreground" />
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="text-2xl font-bold">
+                                                    {conf.fmt(metrics[key] || 0)}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
 
-                        {/* Chart Section */}
-                        {chartData.length > 0 && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base font-semibold">Investimento Diário</CardTitle>
-                                </CardHeader>
-                                <CardContent className="h-[300px] w-full pt-0">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={chartData}>
-                                            <defs>
-                                                <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
-                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                            <XAxis
-                                                dataKey="date"
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#6B7280', fontSize: 12 }}
-                                                dy={10}
-                                            />
-                                            <YAxis
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#6B7280', fontSize: 12 }}
-                                                tickFormatter={(value) => `R$${value}`}
-                                            />
-                                            <Tooltip
-                                                formatter={(value: number) => [currency(value), 'Investimento']}
-                                                labelStyle={{ color: '#111827' }}
-                                                contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                                cursor={{ stroke: '#3b82f6', strokeWidth: 1 }}
-                                            />
-                                            <Area
-                                                type="monotone"
-                                                dataKey="value"
-                                                stroke="#3b82f6"
-                                                strokeWidth={2}
-                                                fillOpacity={1}
-                                                fill="url(#colorSpend)"
-                                            />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                        )}
+                            {/* Chart Section */}
+                            {chartData.length > 0 && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base font-semibold">Investimento Diário</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="h-[300px] w-full pt-0">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={chartData}>
+                                                <defs>
+                                                    <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                                <XAxis
+                                                    dataKey="date"
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                    tick={{ fill: '#6B7280', fontSize: 12 }}
+                                                    dy={10}
+                                                />
+                                                <YAxis
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                    tick={{ fill: '#6B7280', fontSize: 12 }}
+                                                    tickFormatter={(value) => `R$${value}`}
+                                                />
+                                                <Tooltip
+                                                    formatter={(value: number) => [currency(value), 'Investimento']}
+                                                    labelStyle={{ color: '#111827' }}
+                                                    contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                                    cursor={{ stroke: '#3b82f6', strokeWidth: 1 }}
+                                                />
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="value"
+                                                    stroke="#3b82f6"
+                                                    strokeWidth={2}
+                                                    fillOpacity={1}
+                                                    fill="url(#colorSpend)"
+                                                />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </CardContent>
+                                </Card>
+                            )}
 
 
-                        {/* Campaigns Table - 5 per page */}
-                        {campaigns.length > 0 && (
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                    <CardTitle className="text-base font-semibold">Campanhas</CardTitle>
-                                    <div className="flex items-center gap-2">
-                                        <div className="relative">
-                                            <Search className="absolute left-2 top-1.5 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                placeholder="Buscar campanha..."
-                                                value={campaignSearch}
-                                                onChange={(e) => {
-                                                    setCampaignSearch(e.target.value);
-                                                    setCampaignPage(1);
-                                                }}
-                                                className="h-8 w-[180px] pl-8 text-xs"
-                                            />
-                                        </div>
-                                        {funnels.length > 0 && (
-                                            <Select value={selectedFunnel} onValueChange={(v) => { setSelectedFunnel(v); setCampaignPage(1); }}>
-                                                <SelectTrigger className="h-8 w-[160px] text-xs">
-                                                    <SelectValue placeholder="Funil" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Todos os Funis</SelectItem>
-                                                    <SelectItem value="none">Sem Funil</SelectItem>
-                                                    {funnels.map(f => (
-                                                        <SelectItem key={f.id} value={f.nome_funil}>{f.nome_funil}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
+                            {/* Campaigns Table - 5 per page */}
+                            {campaigns.length > 0 && (
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-base font-semibold">Campanhas</CardTitle>
                                         <div className="flex items-center gap-2">
-                                            <Switch
-                                                checked={onlyActiveCampaigns}
-                                                onCheckedChange={(checked) => {
-                                                    setOnlyActiveCampaigns(checked);
-                                                    setCampaignPage(1);
-                                                }}
-                                                id="active-filter"
-                                            />
-                                            <label htmlFor="active-filter" className="text-sm text-muted-foreground cursor-pointer select-none">
-                                                Apenas ativas
-                                            </label>
+                                            <div className="relative">
+                                                <Search className="absolute left-2 top-1.5 h-4 w-4 text-muted-foreground" />
+                                                <Input
+                                                    placeholder="Buscar campanha..."
+                                                    value={campaignSearch}
+                                                    onChange={(e) => {
+                                                        setCampaignSearch(e.target.value);
+                                                        setCampaignPage(1);
+                                                    }}
+                                                    className="h-8 w-[180px] pl-8 text-xs"
+                                                />
+                                            </div>
+                                            {funnels.length > 0 && (
+                                                <Select value={selectedFunnel} onValueChange={(v) => { setSelectedFunnel(v); setCampaignPage(1); }}>
+                                                    <SelectTrigger className="h-8 w-[160px] text-xs">
+                                                        <SelectValue placeholder="Funil" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Todos os Funis</SelectItem>
+                                                        <SelectItem value="none">Sem Funil</SelectItem>
+                                                        {funnels.map(f => (
+                                                            <SelectItem key={f.id} value={f.nome_funil}>{f.nome_funil}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    checked={onlyActiveCampaigns}
+                                                    onCheckedChange={(checked) => {
+                                                        setOnlyActiveCampaigns(checked);
+                                                        setCampaignPage(1);
+                                                    }}
+                                                    id="active-filter"
+                                                />
+                                                <label htmlFor="active-filter" className="text-sm text-muted-foreground cursor-pointer select-none">
+                                                    Apenas ativas
+                                                </label>
+                                            </div>
                                         </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="rounded-md border">
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="rounded-md border">
+                                            {(() => {
+                                                const filteredCampaigns = campaigns.filter(c => {
+                                                    const matchesSearch = c.name.toLowerCase().includes(campaignSearch.toLowerCase());
+                                                    const matchesActive = onlyActiveCampaigns ? c.spend > 0 : true;
+                                                    const matchesFunnel = selectedFunnel === 'all' ? true : selectedFunnel === 'none' ? !c.funnelName : c.funnelName === selectedFunnel;
+                                                    return matchesSearch && matchesActive && matchesFunnel;
+                                                });
+
+                                                const sortedCampaigns = [...filteredCampaigns].sort((a, b) => {
+                                                    const aVal = a[campaignSortCol] ?? 0;
+                                                    const bVal = b[campaignSortCol] ?? 0;
+                                                    if (typeof aVal === 'string') return campaignSortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                                                    return campaignSortDir === 'asc' ? aVal - bVal : bVal - aVal;
+                                                });
+
+                                                const paginatedCampaigns = sortedCampaigns.slice((campaignPage - 1) * 5, campaignPage * 5);
+
+                                                const totals = filteredCampaigns.reduce((acc, c) => ({
+                                                    spend: acc.spend + c.spend,
+                                                    conversions: acc.conversions + c.conversions,
+                                                    clicks: acc.clicks + c.clicks,
+                                                    impressions: acc.impressions + c.impressions,
+                                                    reach: acc.reach + c.reach,
+                                                }), { spend: 0, conversions: 0, clicks: 0, impressions: 0, reach: 0 });
+                                                const totalsCpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
+                                                const totalsCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+
+                                                const SortableHead = ({ col, label, align = 'right' }: { col: string; label: string; align?: string }) => {
+                                                    const isActive = campaignSortCol === col;
+                                                    return (
+                                                        <TableHead
+                                                            className={`${align === 'right' ? 'text-right' : ''} cursor-pointer select-none hover:bg-muted/50 transition-colors`}
+                                                            onClick={() => {
+                                                                if (isActive) {
+                                                                    setCampaignSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                                                                } else {
+                                                                    setCampaignSortCol(col);
+                                                                    setCampaignSortDir('desc');
+                                                                }
+                                                                setCampaignPage(1);
+                                                            }}
+                                                        >
+                                                            <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+                                                                {label}
+                                                                {isActive ? (
+                                                                    campaignSortDir === 'desc'
+                                                                        ? <ArrowDown className="h-3 w-3 text-blue-600" />
+                                                                        : <ArrowUp className="h-3 w-3 text-blue-600" />
+                                                                ) : (
+                                                                    <ArrowDown className="h-3 w-3 opacity-0 group-hover:opacity-30" />
+                                                                )}
+                                                            </div>
+                                                        </TableHead>
+                                                    );
+                                                };
+
+                                                return (
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow className="group">
+                                                                <SortableHead col="name" label="Campanha" align="left" />
+                                                                <TableHead>Funil</TableHead>
+                                                                <SortableHead col="spend" label="Investimento" />
+                                                                <SortableHead col="conversions" label="Conversões" />
+                                                                <SortableHead col="cpa" label="CPA" />
+                                                                <SortableHead col="clicks" label="Cliques" />
+                                                                <SortableHead col="ctr" label="CTR" />
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {paginatedCampaigns.map((campaign) => (
+                                                                <TableRow key={campaign.id}>
+                                                                    <TableCell className="font-medium max-w-[200px] truncate" title={campaign.name}>
+                                                                        {campaign.name}
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        {campaign.funnelName && (
+                                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-900 text-blue-100">
+                                                                                {campaign.funnelName}
+                                                                            </span>
+                                                                        )}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right">{currency(campaign.spend)}</TableCell>
+                                                                    <TableCell className="text-right">{number(campaign.conversions)}</TableCell>
+                                                                    <TableCell className="text-right">{currency(campaign.cpa)}</TableCell>
+                                                                    <TableCell className="text-right">{number(campaign.clicks)}</TableCell>
+                                                                    <TableCell className="text-right">{percent(campaign.ctr)}</TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                        {filteredCampaigns.length > 0 && (
+                                                            <tfoot>
+                                                                <tr className="border-t-2 bg-muted/30 font-semibold text-sm">
+                                                                    <td className="p-2 pl-4">Total ({filteredCampaigns.length})</td>
+                                                                    <td></td>
+                                                                    <td className="p-2 text-right">{currency(totals.spend)}</td>
+                                                                    <td className="p-2 text-right">{number(totals.conversions)}</td>
+                                                                    <td className="p-2 text-right">{currency(totalsCpa)}</td>
+                                                                    <td className="p-2 text-right">{number(totals.clicks)}</td>
+                                                                    <td className="p-2 text-right">{percent(totalsCtr)}</td>
+                                                                </tr>
+                                                            </tfoot>
+                                                        )}
+                                                    </Table>
+                                                );
+                                            })()}
+                                        </div>
+
+                                        {/* Pagination Controls */}
                                         {(() => {
-                                            const filteredCampaigns = campaigns.filter(c => {
+                                            const count = campaigns.filter(c => {
                                                 const matchesSearch = c.name.toLowerCase().includes(campaignSearch.toLowerCase());
                                                 const matchesActive = onlyActiveCampaigns ? c.spend > 0 : true;
                                                 const matchesFunnel = selectedFunnel === 'all' ? true : selectedFunnel === 'none' ? !c.funnelName : c.funnelName === selectedFunnel;
                                                 return matchesSearch && matchesActive && matchesFunnel;
-                                            });
-
-                                            const sortedCampaigns = [...filteredCampaigns].sort((a, b) => {
-                                                const aVal = a[campaignSortCol] ?? 0;
-                                                const bVal = b[campaignSortCol] ?? 0;
-                                                if (typeof aVal === 'string') return campaignSortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-                                                return campaignSortDir === 'asc' ? aVal - bVal : bVal - aVal;
-                                            });
-
-                                            const paginatedCampaigns = sortedCampaigns.slice((campaignPage - 1) * 5, campaignPage * 5);
-
-                                            const totals = filteredCampaigns.reduce((acc, c) => ({
-                                                spend: acc.spend + c.spend,
-                                                conversions: acc.conversions + c.conversions,
-                                                clicks: acc.clicks + c.clicks,
-                                                impressions: acc.impressions + c.impressions,
-                                                reach: acc.reach + c.reach,
-                                            }), { spend: 0, conversions: 0, clicks: 0, impressions: 0, reach: 0 });
-                                            const totalsCpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
-                                            const totalsCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
-
-                                            const SortableHead = ({ col, label, align = 'right' }: { col: string; label: string; align?: string }) => {
-                                                const isActive = campaignSortCol === col;
-                                                return (
-                                                    <TableHead
-                                                        className={`${align === 'right' ? 'text-right' : ''} cursor-pointer select-none hover:bg-muted/50 transition-colors`}
-                                                        onClick={() => {
-                                                            if (isActive) {
-                                                                setCampaignSortDir(d => d === 'asc' ? 'desc' : 'asc');
-                                                            } else {
-                                                                setCampaignSortCol(col);
-                                                                setCampaignSortDir('desc');
-                                                            }
-                                                            setCampaignPage(1);
-                                                        }}
-                                                    >
-                                                        <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
-                                                            {label}
-                                                            {isActive ? (
-                                                                campaignSortDir === 'desc'
-                                                                    ? <ArrowDown className="h-3 w-3 text-blue-600" />
-                                                                    : <ArrowUp className="h-3 w-3 text-blue-600" />
-                                                            ) : (
-                                                                <ArrowDown className="h-3 w-3 opacity-0 group-hover:opacity-30" />
-                                                            )}
-                                                        </div>
-                                                    </TableHead>
-                                                );
-                                            };
-
+                                            }).length;
+                                            const totalPgs = Math.ceil(count / 5);
+                                            if (totalPgs <= 1) return null;
                                             return (
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow className="group">
-                                                            <SortableHead col="name" label="Campanha" align="left" />
-                                                            <TableHead>Funil</TableHead>
-                                                            <SortableHead col="spend" label="Investimento" />
-                                                            <SortableHead col="conversions" label="Conversões" />
-                                                            <SortableHead col="cpa" label="CPA" />
-                                                            <SortableHead col="clicks" label="Cliques" />
-                                                            <SortableHead col="ctr" label="CTR" />
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {paginatedCampaigns.map((campaign) => (
-                                                            <TableRow key={campaign.id}>
-                                                                <TableCell className="font-medium max-w-[200px] truncate" title={campaign.name}>
-                                                                    {campaign.name}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    {campaign.funnelName && (
-                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-900 text-blue-100">
-                                                                            {campaign.funnelName}
-                                                                        </span>
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell className="text-right">{currency(campaign.spend)}</TableCell>
-                                                                <TableCell className="text-right">{number(campaign.conversions)}</TableCell>
-                                                                <TableCell className="text-right">{currency(campaign.cpa)}</TableCell>
-                                                                <TableCell className="text-right">{number(campaign.clicks)}</TableCell>
-                                                                <TableCell className="text-right">{percent(campaign.ctr)}</TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                    {filteredCampaigns.length > 0 && (
-                                                        <tfoot>
-                                                            <tr className="border-t-2 bg-muted/30 font-semibold text-sm">
-                                                                <td className="p-2 pl-4">Total ({filteredCampaigns.length})</td>
-                                                                <td></td>
-                                                                <td className="p-2 text-right">{currency(totals.spend)}</td>
-                                                                <td className="p-2 text-right">{number(totals.conversions)}</td>
-                                                                <td className="p-2 text-right">{currency(totalsCpa)}</td>
-                                                                <td className="p-2 text-right">{number(totals.clicks)}</td>
-                                                                <td className="p-2 text-right">{percent(totalsCtr)}</td>
-                                                            </tr>
-                                                        </tfoot>
-                                                    )}
-                                                </Table>
+                                                <div className="flex items-center justify-end space-x-2 py-4">
+                                                    <Button variant="outline" size="sm" onClick={() => setCampaignPage(p => Math.max(1, p - 1))} disabled={campaignPage === 1}>
+                                                        <ChevronLeft className="h-4 w-4" />
+                                                    </Button>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        Página {campaignPage} de {totalPgs}
+                                                    </span>
+                                                    <Button variant="outline" size="sm" onClick={() => setCampaignPage(p => Math.min(totalPgs, p + 1))} disabled={campaignPage === totalPgs}>
+                                                        <ChevronRight className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             );
                                         })()}
-                                    </div>
-
-                                    {/* Pagination Controls */}
-                                    {(() => {
-                                        const count = campaigns.filter(c => {
-                                            const matchesSearch = c.name.toLowerCase().includes(campaignSearch.toLowerCase());
-                                            const matchesActive = onlyActiveCampaigns ? c.spend > 0 : true;
-                                            const matchesFunnel = selectedFunnel === 'all' ? true : selectedFunnel === 'none' ? !c.funnelName : c.funnelName === selectedFunnel;
-                                            return matchesSearch && matchesActive && matchesFunnel;
-                                        }).length;
-                                        const totalPgs = Math.ceil(count / 5);
-                                        if (totalPgs <= 1) return null;
-                                        return (
-                                            <div className="flex items-center justify-end space-x-2 py-4">
-                                                <Button variant="outline" size="sm" onClick={() => setCampaignPage(p => Math.max(1, p - 1))} disabled={campaignPage === 1}>
-                                                    <ChevronLeft className="h-4 w-4" />
-                                                </Button>
-                                                <span className="text-sm text-muted-foreground">
-                                                    Página {campaignPage} de {totalPgs}
-                                                </span>
-                                                <Button variant="outline" size="sm" onClick={() => setCampaignPage(p => Math.min(totalPgs, p + 1))} disabled={campaignPage === totalPgs}>
-                                                    <ChevronRight className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        );
-                                    })()}
-                                </CardContent>
-                            </Card>
-                        )}
+                                    </CardContent>
+                                </Card>
+                            )}
 
 
-                        {/* Active Ads List */}
-                        {
-                            adsList.length > 0 && (
-                                <div className="space-y-4">
-                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                                        <h3 className="text-lg font-semibold">Anúncios Ativos</h3>
+                            {/* Active Ads List */}
+                            {
+                                adsList.length > 0 && (
+                                    <div className="space-y-4">
+                                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                            <h3 className="text-lg font-semibold">Anúncios Ativos</h3>
 
-                                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                                            <div className="relative w-full sm:w-64">
-                                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                <Input
-                                                    placeholder="Buscar anúncios..."
-                                                    value={searchTerm}
-                                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                                    className="pl-8"
-                                                />
-                                            </div>
-                                            <Select value={sortMetric} onValueChange={handleSortMetricChange}>
-                                                <SelectTrigger className="w-[160px]">
-                                                    <SelectValue placeholder="Ordenar por" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="spend">Mais Gasto</SelectItem>
-                                                    <SelectItem value="clicks">Mais Cliques</SelectItem>
-                                                    <SelectItem value="conversions">Mais Conversões</SelectItem>
-                                                    <SelectItem value="reach">Maior Alcance</SelectItem>
-                                                    <SelectItem value="impressions">Mais Impressões</SelectItem>
-                                                    <SelectItem value="hookRate">Maior Hook Rate</SelectItem>
+                                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                                <div className="relative w-full sm:w-64">
+                                                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        placeholder="Buscar anúncios..."
+                                                        value={searchTerm}
+                                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                                        className="pl-8"
+                                                    />
+                                                </div>
+                                                <Select value={sortMetric} onValueChange={handleSortMetricChange}>
+                                                    <SelectTrigger className="w-[160px]">
+                                                        <SelectValue placeholder="Ordenar por" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="spend">Mais Gasto</SelectItem>
+                                                        <SelectItem value="clicks">Mais Cliques</SelectItem>
+                                                        <SelectItem value="conversions">Mais Conversões</SelectItem>
+                                                        <SelectItem value="reach">Maior Alcance</SelectItem>
+                                                        <SelectItem value="impressions">Mais Impressões</SelectItem>
+                                                        <SelectItem value="hookRate">Maior Hook Rate</SelectItem>
 
-                                                </SelectContent>
-                                            </Select>
-                                            <div className="flex items-center border rounded-md bg-background">
-                                                <Button
-                                                    variant={adsViewMode === 'grid' ? 'secondary' : 'ghost'}
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-none rounded-l-md"
-                                                    onClick={() => { setAdsViewMode('grid'); setCurrentPage(1); }}
-                                                >
-                                                    <LayoutGrid className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant={adsViewMode === 'table' ? 'secondary' : 'ghost'}
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-none rounded-r-md"
-                                                    onClick={() => { setAdsViewMode('table'); setCurrentPage(1); }}
-                                                >
-                                                    <List className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <span className={`text-sm ${!groupByCreativeName ? 'font-medium' : 'text-muted-foreground'}`}>Separar por ID</span>
-                                                <Switch
-                                                    checked={groupByCreativeName}
-                                                    onCheckedChange={setGroupByCreativeName}
-                                                />
-                                                <span className={`text-sm ${groupByCreativeName ? 'font-medium' : 'text-muted-foreground'}`}>Agrupar por Nome</span>
+                                                    </SelectContent>
+                                                </Select>
+                                                <div className="flex items-center border rounded-md bg-background">
+                                                    <Button
+                                                        variant={adsViewMode === 'grid' ? 'secondary' : 'ghost'}
+                                                        size="icon"
+                                                        className="h-8 w-8 rounded-none rounded-l-md"
+                                                        onClick={() => { setAdsViewMode('grid'); setCurrentPage(1); }}
+                                                    >
+                                                        <LayoutGrid className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant={adsViewMode === 'table' ? 'secondary' : 'ghost'}
+                                                        size="icon"
+                                                        className="h-8 w-8 rounded-none rounded-r-md"
+                                                        onClick={() => { setAdsViewMode('table'); setCurrentPage(1); }}
+                                                    >
+                                                        <List className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <span className={`text-sm ${!groupByCreativeName ? 'font-medium' : 'text-muted-foreground'}`}>Separar por ID</span>
+                                                    <Switch
+                                                        checked={groupByCreativeName}
+                                                        onCheckedChange={setGroupByCreativeName}
+                                                    />
+                                                    <span className={`text-sm ${groupByCreativeName ? 'font-medium' : 'text-muted-foreground'}`}>Agrupar por Nome</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {/* Content Switcher */}
-                                    {adsViewMode === 'grid' ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            {currentAds.map((ad) => (
-                                                <div key={ad.id} className="border rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                                                    <div className="aspect-square w-full bg-slate-100 relative group/image overflow-hidden">
-                                                        {ad.thumbnail ? (
-                                                            <>
-                                                                <img
-                                                                    src={ad.thumbnail}
-                                                                    alt={ad.name}
-                                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover/image:scale-105"
-                                                                    referrerPolicy="no-referrer"
-                                                                />
-                                                                <div className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-md backdrop-blur-sm z-10 shadow-sm">
-                                                                    {ad.mediaType === 'video' ? <Video className="h-3.5 w-3.5" /> :
-                                                                        ad.mediaType === 'carousel' ? <Images className="h-3.5 w-3.5" /> :
-                                                                            <ImageIcon className="h-3.5 w-3.5" />}
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-slate-50">
-                                                                <div className="flex flex-col items-center gap-2">
-                                                                    <Eye className="h-8 w-8 opacity-20" />
-                                                                    <span className="text-xs">Sem prévia</span>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="p-4 flex-1 flex flex-col justify-between">
-                                                        <h4 className="font-medium text-sm line-clamp-2 mb-3 h-10" title={ad.name}>
-                                                            {ad.name}
-                                                        </h4>
-                                                        <div className="space-y-2">
-                                                            <div className="flex justify-between items-center text-xs border-b pb-2">
-                                                                <span className="text-muted-foreground">Investimento</span>
-                                                                <span className="font-bold text-blue-600">{currency(ad.spend)}</span>
-                                                            </div>
-                                                            <div className="grid grid-cols-3 gap-2 text-xs pt-1">
-                                                                <div className="text-center">
-                                                                    <span className="block text-muted-foreground text-[10px] uppercase">Cliques</span>
-                                                                    <span className="font-semibold">{number(ad.clicks)}</span>
-                                                                </div>
-                                                                <div className="text-center border-l border-r">
-                                                                    <span className="block text-muted-foreground text-[10px] uppercase">CTR</span>
-                                                                    <span className={`${ad.ctr > 1 ? 'text-green-600' : 'text-foreground'} font-semibold`}>
-                                                                        {percent(ad.ctr)}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="text-center">
-                                                                    <span className="block text-muted-foreground text-[10px] uppercase">Alcance</span>
-                                                                    <span className="font-semibold">{number(ad.reach)}</span>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Video Metrics */}
-                                                            {ad.hookRate > 0 && (
-                                                                <div className="grid grid-cols-1 gap-2 text-xs border-t pt-2 mt-2 border-dashed">
-                                                                    <div className="text-center">
-                                                                        <span className="block text-muted-foreground text-[10px] uppercase" title="Plays de 3s / Impressões">Hook Rate</span>
-                                                                        <span className="font-semibold text-purple-600">{percent(ad.hookRate)}</span>
+                                        {/* Content Switcher */}
+                                        {adsViewMode === 'grid' ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                {currentAds.map((ad) => (
+                                                    <div key={ad.id} className="border rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                                                        <div className="aspect-square w-full bg-slate-100 relative group/image overflow-hidden">
+                                                            {ad.thumbnail ? (
+                                                                <>
+                                                                    <img
+                                                                        src={ad.thumbnail}
+                                                                        alt={ad.name}
+                                                                        className="w-full h-full object-cover transition-transform duration-300 group-hover/image:scale-105"
+                                                                        referrerPolicy="no-referrer"
+                                                                    />
+                                                                    <div className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-md backdrop-blur-sm z-10 shadow-sm">
+                                                                        {ad.mediaType === 'video' ? <Video className="h-3.5 w-3.5" /> :
+                                                                            ad.mediaType === 'carousel' ? <Images className="h-3.5 w-3.5" /> :
+                                                                                <ImageIcon className="h-3.5 w-3.5" />}
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-slate-50">
+                                                                    <div className="flex flex-col items-center gap-2">
+                                                                        <Eye className="h-8 w-8 opacity-20" />
+                                                                        <span className="text-xs">Sem prévia</span>
                                                                     </div>
                                                                 </div>
                                                             )}
                                                         </div>
 
-                                                        <div className="pt-3 mt-auto">
-                                                            {!groupByCreativeName && ad.link ? (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="w-full gap-2 text-xs"
-                                                                    asChild
-                                                                >
-                                                                    <a href={ad.link} target="_blank" rel="noopener noreferrer">
-                                                                        <ExternalLink className="h-3 w-3" />
-                                                                        Ver anúncio
-                                                                    </a>
-                                                                </Button>
-                                                            ) : (
-                                                                <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground cursor-not-allowed" disabled>
-                                                                    <ExternalLink className="h-3 w-3 mr-2 opacity-50" />
-                                                                    {groupByCreativeName ? "Agrupado (Link Oculto)" : "Link indisponível"}
-                                                                </Button>
-                                                            )}
+                                                        <div className="p-4 flex-1 flex flex-col justify-between">
+                                                            <h4 className="font-medium text-sm line-clamp-2 mb-3 h-10" title={ad.name}>
+                                                                {ad.name}
+                                                            </h4>
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <Switch
+                                                                        id={`switch-${ad.id}`}
+                                                                        checked={ad.status === 'ACTIVE'}
+                                                                        onCheckedChange={() => handleAdStatusToggle(ad.ad_id, ad.status, ad.ad_ids)}
+                                                                        disabled={togglingAds[ad.ad_id]}
+                                                                    />
+                                                                    <label htmlFor={`switch-${ad.id}`} className="text-xs text-muted-foreground cursor-pointer select-none">
+                                                                        {togglingAds[ad.ad_id] ? '...' : (ad.status === 'ACTIVE' ? 'Ativo' : 'Pausado')}
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <div className="flex justify-between items-center text-xs border-b pb-2">
+                                                                    <span className="text-muted-foreground">Investimento</span>
+                                                                    <span className="font-bold text-blue-600">{currency(ad.spend)}</span>
+                                                                </div>
+                                                                <div className="grid grid-cols-3 gap-2 text-xs pt-1">
+                                                                    <div className="text-center">
+                                                                        <span className="block text-muted-foreground text-[10px] uppercase">Cliques</span>
+                                                                        <span className="font-semibold">{number(ad.clicks)}</span>
+                                                                    </div>
+                                                                    <div className="text-center border-l border-r">
+                                                                        <span className="block text-muted-foreground text-[10px] uppercase">CTR</span>
+                                                                        <span className={`${ad.ctr > 1 ? 'text-green-600' : 'text-foreground'} font-semibold`}>
+                                                                            {percent(ad.ctr)}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="text-center">
+                                                                        <span className="block text-muted-foreground text-[10px] uppercase">Alcance</span>
+                                                                        <span className="font-semibold">{number(ad.reach)}</span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Video Metrics */}
+                                                                {ad.hookRate > 0 && (
+                                                                    <div className="grid grid-cols-1 gap-2 text-xs border-t pt-2 mt-2 border-dashed">
+                                                                        <div className="text-center">
+                                                                            <span className="block text-muted-foreground text-[10px] uppercase" title="Plays de 3s / Impressões">Hook Rate</span>
+                                                                            <span className="font-semibold text-purple-600">{percent(ad.hookRate)}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="pt-3 mt-auto">
+                                                                {!groupByCreativeName && ad.link ? (
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="w-full gap-2 text-xs"
+                                                                        asChild
+                                                                    >
+                                                                        <a href={ad.link} target="_blank" rel="noopener noreferrer">
+                                                                            <ExternalLink className="h-3 w-3" />
+                                                                            Ver anúncio
+                                                                        </a>
+                                                                    </Button>
+                                                                ) : (
+                                                                    <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground cursor-not-allowed" disabled>
+                                                                        <ExternalLink className="h-3 w-3 mr-2 opacity-50" />
+                                                                        {groupByCreativeName ? "Agrupado (Link Oculto)" : "Link indisponível"}
+                                                                    </Button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-md border">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <SortableAdHead field="mediaType" label="Tipo" className="w-[50px]" align="center" />
-                                                        <SortableAdHead field="name" label="Criativo" className="w-[80px]" align="center" />
-                                                        <SortableAdHead field="name" label="Nome e Link" />
-                                                        <SortableAdHead field="spend" label="Invest." className="text-right" align="right" />
-                                                        <SortableAdHead field="clicks" label="Cliques" className="text-right" align="right" />
-                                                        <SortableAdHead field="conversions" label="Conversões" className="text-right" align="right" />
-                                                        <SortableAdHead field="ctr" label="CTR" className="text-right" align="right" />
-                                                        <SortableAdHead field="reach" label="Alcance" className="text-right" align="right" />
-                                                        <SortableAdHead field="hookRate" label="Hook Rate" className="text-right" align="right" />
-
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {currentAds.map((ad) => (
-                                                        <TableRow key={ad.id}>
-                                                            <TableCell className="text-center">
-                                                                <div className="flex justify-center text-muted-foreground">
-                                                                    {ad.mediaType === 'video' ? <Video className="h-4 w-4" /> :
-                                                                        ad.mediaType === 'carousel' ? <Images className="h-4 w-4" /> :
-                                                                            <ImageIcon className="h-4 w-4" />}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <div className="h-12 w-12 rounded bg-slate-100 overflow-hidden relative">
-                                                                    {ad.thumbnail ? (
-                                                                        <img
-                                                                            src={ad.thumbnail}
-                                                                            alt={ad.name}
-                                                                            className="w-full h-full object-cover"
-                                                                            referrerPolicy="no-referrer"
-                                                                        />
-                                                                    ) : (
-                                                                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                                                            <Eye className="h-4 w-4 opacity-20" />
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span className="font-medium text-xs sm:text-sm line-clamp-2" title={ad.name}>
-                                                                        {ad.name}
-                                                                    </span>
-                                                                    {ad.link && (
-                                                                        <a
-                                                                            href={ad.link}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="text-[10px] text-blue-600 hover:underline flex items-center gap-1"
-                                                                        >
-                                                                            Ver no Instagram <ExternalLink className="h-2 w-2" />
-                                                                        </a>
-                                                                    )}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell className="text-right">{currency(ad.spend)}</TableCell>
-                                                            <TableCell className="text-right">{number(ad.clicks)}</TableCell>
-                                                            <TableCell className="text-right">{number(ad.conversions || 0)}</TableCell>
-                                                            <TableCell className="text-right font-medium">{percent(ad.ctr)}</TableCell>
-                                                            <TableCell className="text-right">{number(ad.reach)}</TableCell>
-                                                            <TableCell className="text-right text-purple-600 font-medium">{percent(ad.hookRate)}</TableCell>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-md border">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <SortableAdHead field="mediaType" label="Tipo" className="w-[50px]" align="center" />
+                                                            <SortableAdHead field="name" label="Criativo" className="w-[80px]" align="center" />
+                                                            <SortableAdHead field="name" label="Nome e Link" />
+                                                            <SortableAdHead field="spend" label="Invest." className="text-right" align="right" />
+                                                            <SortableAdHead field="clicks" label="Cliques" className="text-right" align="right" />
+                                                            <SortableAdHead field="conversions" label="Conversões" className="text-right" align="right" />
+                                                            <SortableAdHead field="ctr" label="CTR" className="text-right" align="right" />
+                                                            <SortableAdHead field="reach" label="Alcance" className="text-right" align="right" />
+                                                            <SortableAdHead field="hookRate" label="Hook Rate" className="text-right" align="right" />
 
                                                         </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    )}
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {currentAds.map((ad) => (
+                                                            <TableRow key={ad.id}>
+                                                                <TableCell className="text-center">
+                                                                    <div className="flex justify-center text-muted-foreground">
+                                                                        {ad.mediaType === 'video' ? <Video className="h-4 w-4" /> :
+                                                                            ad.mediaType === 'carousel' ? <Images className="h-4 w-4" /> :
+                                                                                <ImageIcon className="h-4 w-4" />}
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <div className="h-12 w-12 rounded bg-slate-100 overflow-hidden relative">
+                                                                        {ad.thumbnail ? (
+                                                                            <img
+                                                                                src={ad.thumbnail}
+                                                                                alt={ad.name}
+                                                                                className="w-full h-full object-cover"
+                                                                                referrerPolicy="no-referrer"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                                                                <Eye className="h-4 w-4 opacity-20" />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="font-medium text-xs sm:text-sm line-clamp-2" title={ad.name}>
+                                                                            {ad.name}
+                                                                        </span>
+                                                                        {ad.link && (
+                                                                            <a
+                                                                                href={ad.link}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                            >
+                                                                                Ver no Instagram <ExternalLink className="h-2 w-2" />
+                                                                            </a>
+                                                                        )}
+                                                                        <div className="flex items-center space-x-2 mt-1">
+                                                                            <Switch
+                                                                                id={`switch-table-${ad.id}`}
+                                                                                checked={ad.status === 'ACTIVE'}
+                                                                                onCheckedChange={() => handleAdStatusToggle(ad.ad_id, ad.status, ad.ad_ids)}
+                                                                                disabled={togglingAds[ad.ad_id]}
+                                                                                className="scale-75 origin-left"
+                                                                            />
+                                                                            <label htmlFor={`switch-table-${ad.id}`} className="text-[10px] text-muted-foreground cursor-pointer select-none">
+                                                                                {togglingAds[ad.ad_id] ? '...' : (ad.status === 'ACTIVE' ? 'Ativo' : 'Pausado')}
+                                                                            </label>
+                                                                        </div>
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">{currency(ad.spend)}</TableCell>
+                                                                <TableCell className="text-right">{number(ad.clicks)}</TableCell>
+                                                                <TableCell className="text-right">{number(ad.conversions || 0)}</TableCell>
+                                                                <TableCell className="text-right font-medium">{percent(ad.ctr)}</TableCell>
+                                                                <TableCell className="text-right">{number(ad.reach)}</TableCell>
+                                                                <TableCell className="text-right text-purple-600 font-medium">{percent(ad.hookRate)}</TableCell>
 
-                                    {filteredAds.length === 0 && (
-                                        <div className="text-center py-12 text-muted-foreground border rounded-xl border-dashed">
-                                            Nenhum anúncio encontrado para esta busca.
-                                        </div>
-                                    )}
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        )}
 
-                                    {/* Navigation Arrows */}
-                                    {totalPages > 1 && (
-                                        <>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                className="absolute -left-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md bg-white border-slate-200 hidden md:flex disabled:opacity-0 transition-opacity z-10"
-                                                onClick={prevPage}
-                                                disabled={currentPage === 1}
-                                            >
-                                                <ChevronLeft className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                className="absolute -right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md bg-white border-slate-200 hidden md:flex disabled:opacity-0 transition-opacity z-10"
-                                                onClick={nextPage}
-                                                disabled={currentPage === totalPages}
-                                            >
-                                                <ChevronRight className="h-4 w-4" />
-                                            </Button>
-                                        </>
-                                    )}
+                                        {filteredAds.length === 0 && (
+                                            <div className="text-center py-12 text-muted-foreground border rounded-xl border-dashed">
+                                                Nenhum anúncio encontrado para esta busca.
+                                            </div>
+                                        )}
 
-                                    {/* Mobile Pagination */}
-                                    {totalPages > 1 && (
-                                        <div className="flex items-center justify-center gap-4 py-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={prevPage}
-                                                disabled={currentPage === 1}
-                                                className="gap-1"
-                                            >
-                                                <ChevronLeft className="h-4 w-4" /> Anterior
-                                            </Button>
-                                            <span className="text-xs text-muted-foreground">
-                                                Página {currentPage} de {totalPages}
-                                            </span>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={nextPage}
-                                                disabled={currentPage === totalPages}
-                                                className="gap-1"
-                                            >
-                                                Próximo <ChevronRight className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            )
-                        }
+                                        {/* Navigation Arrows */}
+                                        {totalPages > 1 && (
+                                            <>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="absolute -left-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md bg-white border-slate-200 hidden md:flex disabled:opacity-0 transition-opacity z-10"
+                                                    onClick={prevPage}
+                                                    disabled={currentPage === 1}
+                                                >
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="absolute -right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md bg-white border-slate-200 hidden md:flex disabled:opacity-0 transition-opacity z-10"
+                                                    onClick={nextPage}
+                                                    disabled={currentPage === totalPages}
+                                                >
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </>
+                                        )}
 
-                        {
-                            adsList.length === 0 && !loading && (
-                                <div className="text-center py-12 text-muted-foreground border rounded-xl border-dashed">
-                                    Nenhum anúncio com gasto registrado para este período.
-                                </div>
-                            )
-                        }
-                    </>
-                )
-            }
+                                        {/* Mobile Pagination */}
+                                        {totalPages > 1 && (
+                                            <div className="flex items-center justify-center gap-4 py-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={prevPage}
+                                                    disabled={currentPage === 1}
+                                                    className="gap-1"
+                                                >
+                                                    <ChevronLeft className="h-4 w-4" /> Anterior
+                                                </Button>
+                                                <span className="text-xs text-muted-foreground">
+                                                    Página {currentPage} de {totalPages}
+                                                </span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={nextPage}
+                                                    disabled={currentPage === totalPages}
+                                                    className="gap-1"
+                                                >
+                                                    Próximo <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            }
+
+                            {
+                                adsList.length === 0 && !loading && (
+                                    <div className="text-center py-12 text-muted-foreground border rounded-xl border-dashed">
+                                        Nenhum anúncio com gasto registrado para este período.
+                                    </div>
+                                )
+                            }
+                        </>
+                    )
+                }
+            </div>
             <Dialog open={metricsConfigOpen} onOpenChange={setMetricsConfigOpen}>
                 <DialogContent>
                     <DialogHeader>

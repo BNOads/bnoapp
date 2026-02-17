@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { User } from "@supabase/supabase-js";
+import { FormattedNotificationText } from "@/components/Notifications/FormattedNotificationText";
 
 interface CreateNotificationModalProps {
   onSuccess?: () => void;
@@ -430,9 +431,11 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
                     }`} />
                     <h4 className="font-medium">{formData.titulo || 'Título da notificação'}</h4>
                   </div>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {formData.conteudo || 'Conteúdo da mensagem...'}
-                  </p>
+                  <FormattedNotificationText
+                    as="p"
+                    className="text-sm text-muted-foreground whitespace-pre-wrap"
+                    text={formData.conteudo || 'Conteúdo da mensagem...'}
+                  />
                   <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
                     <span className={getPriorityColor(formData.prioridade)}>
                       Prioridade: {formData.prioridade}

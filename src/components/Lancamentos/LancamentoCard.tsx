@@ -62,8 +62,8 @@ export const LancamentoCard = ({
   };
 
   const diasRestantes = calcularDiasRestantes();
-  // Sempre usar rota pública de lançamentos
-  const linkDestino = `/lancamento/${lancamento.id}`;
+  const linkPublico = typeof lancamento.link_publico === 'string' ? lancamento.link_publico.trim() : '';
+  const linkDestino = linkPublico ? `/lancamento/${linkPublico}` : `/lancamentos/${lancamento.id}`;
 
   return (
     <Card 

@@ -6,6 +6,32 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const LOW_BALANCE_THRESHOLD = 10; // R$ 10,00
+
+const parseMetaMoney = (value: unknown): number => {
+    if (value === null || value === undefined || value === '') return 0;
+
+    const raw = String(value).trim();
+    if (!raw) return 0;
+
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric)) return 0;
+
+    // Meta often returns money in cents for some fields.
+    return raw.includes('.') ? numeric : numeric / 100;
+};
+
+const formatCurrencyBRL = (value: number): string => {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(value);
+};
+
+const uniqueDestinatarios = (values: Array<string | null | undefined>): string[] => {
+    return Array.from(new Set(values.filter((v): v is string => Boolean(v))));
+};
+
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
@@ -48,9 +74,8 @@ Deno.serve(async (req) => {
             .from('meta_client_ad_accounts')
             .select(`
                 *,
-                meta_ad_accounts (
-                    meta_account_id
-                )
+                meta_ad_accounts(meta_account_id),
+                clientes(id, nome, traffic_manager_id, primary_gestor_user_id)
             `)
 
         if (ad_account_id) {
@@ -66,6 +91,38 @@ Deno.serve(async (req) => {
         console.log(`Found ${accounts?.length} accounts to sync.`)
 
         const results = []
+
+        // Select a system author for creating notifications
+        const { data: adminAuthor } = await supabase
+            .from('colaboradores')
+            .select('user_id')
+            .eq('ativo', true)
+            .in('nivel_acesso', ['admin', 'dono'])
+            .not('user_id', 'is', null)
+            .limit(1)
+            .maybeSingle();
+
+        // Build traffic manager map (colaborador.id -> user_id)
+        const trafficManagerIds = Array.from(new Set(
+            (accounts || [])
+                .map((acc: any) => acc?.clientes?.traffic_manager_id)
+                .filter(Boolean)
+        ));
+
+        const trafficManagerUserMap = new Map<string, string>();
+        if (trafficManagerIds.length > 0) {
+            const { data: trafficManagers } = await supabase
+                .from('colaboradores')
+                .select('id, user_id')
+                .in('id', trafficManagerIds)
+                .eq('ativo', true);
+
+            (trafficManagers || []).forEach((tm: any) => {
+                if (tm?.id && tm?.user_id) {
+                    trafficManagerUserMap.set(tm.id, tm.user_id);
+                }
+            });
+        }
 
         // Common Fields
         const campaignFields = 'account_id,campaign_name,campaign_id,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop'
@@ -113,6 +170,156 @@ Deno.serve(async (req) => {
                 effectiveEnd = todayStr;
             } else {
                 console.log(`[Manual Sync] Account ${account.account_name}: Using provided range ${effectiveStart} to ${effectiveEnd}`);
+            }
+
+            // --- 0. Sync Account Details (is_prepay_account & balance) ---
+            try {
+                const accountUrl = new URL(`https://graph.facebook.com/v24.0/${metaId}`);
+                accountUrl.searchParams.append('fields', 'name,account_status,is_prepay_account,currency,timezone_name,balance,amount_spent,spend_cap');
+                accountUrl.searchParams.append('access_token', META_ACCESS_TOKEN);
+
+                const accRes = await fetch(accountUrl);
+                const accJson = await accRes.json();
+
+                if (accJson.id) {
+                    let isPrepay = accJson.is_prepay_account || false;
+                    const accountStatus = Number(accJson.account_status || account?.account_status || 0);
+
+                    const balanceRaw = parseMetaMoney(accJson.balance);
+                    const amountSpent = parseMetaMoney(accJson.amount_spent);
+                    const spendCap = parseMetaMoney(accJson.spend_cap);
+
+                    // Fallback for cases where balance comes as 0 in postpaid/capped accounts.
+                    let balance = balanceRaw;
+                    if ((balance === 0) && spendCap > 0) {
+                        balance = Math.max(spendCap - amountSpent, 0);
+                    }
+
+                    // If Meta says it's NOT prepay, but there is a positive balance, assume it MIGHT be prepay
+                    // (User requested this heuristic for "CA - Val Justo")
+                    if (!isPrepay && balance !== 0) {
+                        isPrepay = true;
+                    }
+
+                    // Update meta_ad_accounts
+                    const { error: accUpdateError } = await supabase
+                        .from('meta_ad_accounts')
+                        .update({
+                            is_prepay_account: isPrepay,
+                            balance: balance,
+                            account_status: Number.isFinite(accountStatus) ? accountStatus : null,
+                            last_synced_at: new Date().toISOString()
+                        })
+                        .eq('meta_account_id', metaId);
+
+                    if (accUpdateError) {
+                        console.error(`Failed to update account details for ${metaId}:`, accUpdateError);
+                    } else {
+                        console.log(`Updated account details for ${metaId}: is_prepay_account=${isPrepay}, balance=${balance}`);
+                    }
+
+                    // --- 0.1 Low Balance Notification (prepaid active accounts) ---
+                    try {
+                        const isActiveAccount = accountStatus === 1;
+                        const isLowBalance = balance <= LOW_BALANCE_THRESHOLD;
+                        const lowBalanceKey = `meta_low_balance:${metaId}`;
+
+                        const clientData = (account as any)?.clientes;
+                        const clientName = clientData?.nome || 'Cliente sem nome';
+                        const accountName = accJson.name || account?.account_name || metaId;
+
+                        // Resolve traffic manager user_id:
+                        // 1) clientes.traffic_manager_id -> colaboradores.user_id
+                        // 2) fallback clientes.primary_gestor_user_id (already user_id)
+                        const tmUserFromId = clientData?.traffic_manager_id
+                            ? trafficManagerUserMap.get(clientData.traffic_manager_id)
+                            : null;
+                        const trafficManagerUserId = tmUserFromId || clientData?.primary_gestor_user_id || null;
+
+                        const { data: openLowBalanceAvisos, error: openLowBalanceError } = await supabase
+                            .from('avisos')
+                            .select('id')
+                            .eq('ativo', true)
+                            .eq('canais->>meta_low_balance_key', lowBalanceKey)
+                            .limit(1);
+
+                        if (openLowBalanceError) {
+                            console.error(`Error checking open low-balance notice for ${metaId}:`, openLowBalanceError);
+                        }
+
+                        const hasOpenLowBalanceNotice = (openLowBalanceAvisos || []).length > 0;
+
+                        if (isActiveAccount && isPrepay && isLowBalance) {
+                            if (!hasOpenLowBalanceNotice) {
+                                const notificationAuthor = adminAuthor?.user_id || trafficManagerUserId;
+
+                                if (!notificationAuthor) {
+                                    console.warn(`Skipping low-balance notice for ${metaId}: no valid created_by user_id found.`);
+                                } else {
+                                    const destinatarios = uniqueDestinatarios([
+                                        trafficManagerUserId,
+                                        'admin'
+                                    ]);
+
+                                    if (destinatarios.length > 0) {
+                                        const conteudo =
+                                            `O cliente **${clientName}** na conta **${accountName}** está com saldo baixo.\n\n` +
+                                            `Saldo atual: **${formatCurrencyBRL(balance)}**\n` +
+                                            `Limite de alerta: **${formatCurrencyBRL(LOW_BALANCE_THRESHOLD)}**\n\n` +
+                                            `Recomendação: recarregar a conta para evitar interrupção de campanhas.`;
+
+                                        const { error: avisoError } = await supabase
+                                            .from('avisos')
+                                            .insert({
+                                                titulo: `⚠️ Saldo baixo Meta Ads - ${clientName}`,
+                                                conteudo,
+                                                tipo: 'warning',
+                                                prioridade: 'alta',
+                                                destinatarios,
+                                                ativo: true,
+                                                created_by: notificationAuthor,
+                                                canais: {
+                                                    sistema: true,
+                                                    email: false,
+                                                    meta_low_balance_key: lowBalanceKey,
+                                                    meta_account_id: metaId,
+                                                    meta_client_id: account?.cliente_id || null
+                                                },
+                                                data_inicio: new Date().toISOString()
+                                            });
+
+                                        if (avisoError) {
+                                            console.error(`Failed to create low-balance notice for ${metaId}:`, avisoError);
+                                        } else {
+                                            console.log(`Low-balance notice created for ${metaId} (${clientName})`);
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (hasOpenLowBalanceNotice) {
+                            // If recovered (or account stopped/prepay disabled), close previous low-balance notice.
+                            const { error: closeAvisoError } = await supabase
+                                .from('avisos')
+                                .update({
+                                    ativo: false,
+                                    data_fim: new Date().toISOString(),
+                                    updated_at: new Date().toISOString()
+                                })
+                                .eq('ativo', true)
+                                .eq('canais->>meta_low_balance_key', lowBalanceKey);
+
+                            if (closeAvisoError) {
+                                console.error(`Failed to close low-balance notice for ${metaId}:`, closeAvisoError);
+                            } else {
+                                console.log(`Low-balance notice closed for ${metaId}`);
+                            }
+                        }
+                    } catch (notifyError: any) {
+                        console.error(`Error handling low-balance notifications for ${metaId}:`, notifyError);
+                    }
+                }
+            } catch (e: any) {
+                console.error(`Error syncing account details for ${metaId}:`, e);
             }
 
 

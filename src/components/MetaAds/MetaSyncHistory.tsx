@@ -13,17 +13,34 @@ import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, RefreshCw, Clock, User } from "lucide-react";
 
-export const MetaSyncHistory = () => {
+interface MetaSyncHistoryProps {
+    adAccountIds?: string[];
+}
+
+export const MetaSyncHistory = ({ adAccountIds }: MetaSyncHistoryProps) => {
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchLogs = async () => {
-            const { data, error } = await supabase
+            // If filtering is requested but no accounts provided, return empty
+            if (adAccountIds !== undefined && adAccountIds.length === 0) {
+                setLogs([]);
+                setLoading(false);
+                return;
+            }
+
+            let query = supabase
                 .from('meta_sync_logs')
                 .select('*')
                 .order('started_at', { ascending: false })
                 .limit(20);
+
+            if (adAccountIds && adAccountIds.length > 0) {
+                query = query.in('ad_account_id', adAccountIds);
+            }
+
+            const { data, error } = await query;
 
             if (error) {
                 console.error("Error fetching logs:", error);
@@ -34,7 +51,7 @@ export const MetaSyncHistory = () => {
         };
 
         fetchLogs();
-    }, []);
+    }, [adAccountIds]); // Re-fetch if filter changes
 
     if (loading) {
         return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;

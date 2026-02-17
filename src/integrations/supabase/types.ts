@@ -3694,6 +3694,7 @@ export type Database = {
           tipo_lancamento: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at: string
           verba_por_fase: Json | null
+          manual_campaign_ids: string[] | null
         }
         Insert: {
           ativo?: boolean
@@ -3728,6 +3729,7 @@ export type Database = {
           link_publico?: string | null
           link_publico_ativo?: boolean | null
           links_uteis?: Json | null
+          manual_campaign_ids?: string[] | null
           meta_custo_lead?: number | null
           meta_investimento?: number | null
           metas_investimentos?: Json | null
@@ -3792,6 +3794,7 @@ export type Database = {
           ticket_produto?: number | null
           tipo_aulas?: string | null
           tipo_lancamento?: Database["public"]["Enums"]["tipo_lancamento"]
+          manual_campaign_ids?: string[] | null
           updated_at?: string
           verba_por_fase?: Json | null
         }
@@ -4648,6 +4651,7 @@ export type Database = {
           data_atualizacao: string
           etapa_funil: string | null
           id: string
+          manual_campaigns: string[] | null
           nome_funil: string
           observacoes: string | null
           periodo_ano: number | null
@@ -4668,6 +4672,7 @@ export type Database = {
           data_atualizacao?: string
           etapa_funil?: string | null
           id?: string
+          manual_campaigns?: { added: string[]; removed: string[] } | null
           nome_funil: string
           observacoes?: string | null
           periodo_ano?: number | null
@@ -4688,6 +4693,7 @@ export type Database = {
           data_atualizacao?: string
           etapa_funil?: string | null
           id?: string
+          manual_campaigns?: { added: string[]; removed: string[] } | null
           nome_funil?: string
           observacoes?: string | null
           periodo_ano?: number | null

@@ -48,7 +48,10 @@ export const MetaAdAccountManager = ({ clientId }: MetaAdAccountManagerProps) =>
             meta_account_id,
             name,
             currency,
-            account_status
+            account_status,
+            account_status,
+            is_prepay_account,
+            balance
           )
         `)
         .eq('cliente_id', clientId)
@@ -64,7 +67,10 @@ export const MetaAdAccountManager = ({ clientId }: MetaAdAccountManagerProps) =>
         meta_account_id: acc.ad_account_details?.meta_account_id || '---',
         account_name: acc.ad_account_details?.name || acc.account_name,
         currency: acc.ad_account_details?.currency || acc.currency,
-        account_status: acc.ad_account_details?.account_status
+        account_status: acc.ad_account_details?.account_status,
+        account_status: acc.ad_account_details?.account_status,
+        is_prepay_account: acc.ad_account_details?.is_prepay_account,
+        balance: acc.ad_account_details?.balance
       })) || [];
 
       setAccounts(formattedAccounts);
@@ -243,6 +249,14 @@ export const MetaAdAccountManager = ({ clientId }: MetaAdAccountManagerProps) =>
                       <Badge variant="default" className="bg-green-600 hover:bg-green-700">Ativa</Badge>
                     ) : (
                       <Badge variant="secondary">Inativa / Pendente</Badge>
+                    )}
+                    <Badge variant={acc.is_prepay_account ? 'outline' : 'secondary'} className={acc.is_prepay_account ? "border-blue-500 text-blue-500" : ""}>
+                      {acc.is_prepay_account ? 'Pré-pago' : 'Pós-pago'}
+                    </Badge>
+                    {acc.balance !== undefined && Number(acc.balance) !== 0 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Saldo: {acc.balance}
+                      </span>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground font-mono">ID: {acc.meta_account_id} • Moeda: {acc.currency || '---'}</p>

@@ -26,6 +26,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { FormattedNotificationText } from '@/components/Notifications/FormattedNotificationText';
 
 interface Aviso {
   id: string;
@@ -621,7 +622,11 @@ export const AvisosView: React.FC = () => {
                   </div>
                 </div>
                 
-                <p className="text-muted-foreground mb-4">{aviso.conteudo}</p>
+                <FormattedNotificationText
+                  as="p"
+                  className="text-muted-foreground mb-4 whitespace-pre-wrap"
+                  text={aviso.conteudo}
+                />
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">

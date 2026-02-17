@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { User } from "@supabase/supabase-js";
+import { FormattedNotificationText } from "@/components/Notifications/FormattedNotificationText";
 
 interface Notification {
   id: string;
@@ -351,9 +352,11 @@ export default function NotificationBell() {
               </div>
               
               <div className="prose prose-sm max-w-none">
-                <div className="whitespace-pre-wrap">
-                  {selectedNotification.conteudo}
-                </div>
+                <FormattedNotificationText
+                  as="div"
+                  className="whitespace-pre-wrap"
+                  text={selectedNotification.conteudo}
+                />
               </div>
 
               {!selectedNotification.lido && (
@@ -416,9 +419,11 @@ function NotificationCard({ notification, onMarkAsRead, onViewDetails }: Notific
                 <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
               )}
             </div>
-            <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-              {notification.conteudo}
-            </p>
+            <FormattedNotificationText
+              as="p"
+              className="text-xs text-muted-foreground line-clamp-2 mb-2"
+              text={notification.conteudo}
+            />
             <span className="text-xs text-muted-foreground">
               {format(new Date(notification.created_at), 'dd/MM HH:mm', { locale: ptBR })}
             </span>
