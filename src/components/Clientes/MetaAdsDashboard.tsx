@@ -4,11 +4,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, TrendingUp, DollarSign, MousePointer, Eye, Activity, RefreshCw, ExternalLink, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Loader2, TrendingUp, DollarSign, MousePointer, Eye, Activity, RefreshCw, ExternalLink, ChevronLeft, ChevronRight, Search, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { startOfMonth, endOfMonth, subDays, format, subMonths, parseISO, compareAsc, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toZonedTime } from 'date-fns-tz';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
     Table,
@@ -49,6 +50,9 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
     const [funnels, setFunnels] = useState<any[]>([]);
     const [campaignSearch, setCampaignSearch] = useState("");
     const [onlyActiveCampaigns, setOnlyActiveCampaigns] = useState(true);
+    const [selectedFunnel, setSelectedFunnel] = useState<string>("all");
+    const [campaignSortCol, setCampaignSortCol] = useState<string>("spend");
+    const [campaignSortDir, setCampaignSortDir] = useState<"asc" | "desc">("desc");
     const [metricsConfigOpen, setMetricsConfigOpen] = useState(false);
 
     // Features State
@@ -311,7 +315,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                             clicks: 0,
                             reach: 0,
                             video_3sec: 0,
-                            video_thruplay: 0,
+                            video_p75: 0,
                         };
                     }
                     adsMap[item.ad_id].spend += Number(item.spend) || 0;
@@ -321,7 +325,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
 
                     // Video Metrics
                     let v3 = 0;
-                    let vThru = 0;
+                    let vP75 = 0;
 
                     const getActionValue = (list: any[], types: string[]) => {
                         if (!Array.isArray(list)) return 0;
@@ -345,15 +349,15 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                         v3 = getActionValue(item.actions, ['video_view', 'video_3_sec_watched_actions']);
                     }
 
-                    // ThruPlays
-                    if (vm && Array.isArray(vm.video_thruplay_watched_actions) && vm.video_thruplay_watched_actions.length > 0) {
-                        vThru = getActionValue(vm.video_thruplay_watched_actions, ['video_thruplay_watched_actions']);
+                    // 75% video views
+                    if (vm && Array.isArray(vm.video_p75_watched_actions) && vm.video_p75_watched_actions.length > 0) {
+                        vP75 = getActionValue(vm.video_p75_watched_actions, ['video_p75_watched_actions']);
                     } else {
-                        vThru = getActionValue(item.actions, ['video_thruplay_watched_actions']);
+                        vP75 = getActionValue(item.actions, ['video_p75_watched_actions']);
                     }
 
                     adsMap[item.ad_id].video_3sec += v3;
-                    adsMap[item.ad_id].video_thruplay += vThru;
+                    adsMap[item.ad_id].video_p75 += vP75;
                 });
 
                 const finalAds = Object.values(adsMap)
@@ -363,7 +367,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                         ctr: ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0,
                         cpc: ad.clicks > 0 ? ad.spend / ad.clicks : 0,
                         hookRate: ad.impressions > 0 ? (ad.video_3sec / ad.impressions) * 100 : 0,
-                        holdRate: ad.impressions > 0 ? (ad.video_thruplay / ad.impressions) * 100 : 0,
+                        holdRate: ad.reach > 0 ? (ad.video_p75 / ad.reach) * 100 : 0,
                     }));
 
                 // Sorting is handled in render time now, but we set initial state
@@ -497,7 +501,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                         {lastSync && (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
                                 <RefreshCw className="h-3 w-3" />
-                                <span>Atualizado: {format(new Date(lastSync), "dd/MM 'às' HH:mm", { locale: ptBR })}</span>
+                                <span>Atualizado: {format(toZonedTime(lastSync, 'America/Sao_Paulo'), "dd/MM 'às' HH:mm", { locale: ptBR })}</span>
                             </div>
                         )}
 
@@ -658,6 +662,20 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                 className="h-8 w-[180px] pl-8 text-xs"
                                             />
                                         </div>
+                                        {funnels.length > 0 && (
+                                            <Select value={selectedFunnel} onValueChange={(v) => { setSelectedFunnel(v); setCampaignPage(1); }}>
+                                                <SelectTrigger className="h-8 w-[160px] text-xs">
+                                                    <SelectValue placeholder="Funil" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Todos os Funis</SelectItem>
+                                                    <SelectItem value="none">Sem Funil</SelectItem>
+                                                    {funnels.map(f => (
+                                                        <SelectItem key={f.id} value={f.nome_funil}>{f.nome_funil}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
                                         <div className="flex items-center gap-2">
                                             <Switch
                                                 checked={onlyActiveCampaigns}
@@ -675,89 +693,138 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                 </CardHeader>
                                 <CardContent>
                                     <div className="rounded-md border">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Campanha</TableHead>
-                                                    <TableHead>Funil</TableHead>
-                                                    <TableHead className="text-right">Investimento</TableHead>
-                                                    <TableHead className="text-right">Conversões</TableHead>
-                                                    <TableHead className="text-right">CPA</TableHead>
-                                                    <TableHead className="text-right">Cliques</TableHead>
-                                                    <TableHead className="text-right">CTR</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {campaigns
-                                                    .filter(c => {
-                                                        const matchesSearch = c.name.toLowerCase().includes(campaignSearch.toLowerCase());
-                                                        const matchesActive = onlyActiveCampaigns ? c.spend > 0 : true;
-                                                        return matchesSearch && matchesActive;
-                                                    })
-                                                    .slice((campaignPage - 1) * 5, campaignPage * 5)
-                                                    .map((campaign) => (
-                                                        <TableRow key={campaign.id}>
-                                                            <TableCell className="font-medium max-w-[200px] truncate" title={campaign.name}>
-                                                                {campaign.name}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {campaign.funnelName && (
-                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-900 text-blue-100">
-                                                                        {campaign.funnelName}
-                                                                    </span>
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="text-right">{currency(campaign.spend)}</TableCell>
-                                                            <TableCell className="text-right">{number(campaign.conversions)}</TableCell>
-                                                            <TableCell className="text-right">{currency(campaign.cpa)}</TableCell>
-                                                            <TableCell className="text-right">{number(campaign.clicks)}</TableCell>
-                                                            <TableCell className="text-right">{percent(campaign.ctr)}</TableCell>
+                                        {(() => {
+                                            const filteredCampaigns = campaigns.filter(c => {
+                                                const matchesSearch = c.name.toLowerCase().includes(campaignSearch.toLowerCase());
+                                                const matchesActive = onlyActiveCampaigns ? c.spend > 0 : true;
+                                                const matchesFunnel = selectedFunnel === 'all' ? true : selectedFunnel === 'none' ? !c.funnelName : c.funnelName === selectedFunnel;
+                                                return matchesSearch && matchesActive && matchesFunnel;
+                                            });
+
+                                            const sortedCampaigns = [...filteredCampaigns].sort((a, b) => {
+                                                const aVal = a[campaignSortCol] ?? 0;
+                                                const bVal = b[campaignSortCol] ?? 0;
+                                                if (typeof aVal === 'string') return campaignSortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                                                return campaignSortDir === 'asc' ? aVal - bVal : bVal - aVal;
+                                            });
+
+                                            const paginatedCampaigns = sortedCampaigns.slice((campaignPage - 1) * 5, campaignPage * 5);
+
+                                            const totals = filteredCampaigns.reduce((acc, c) => ({
+                                                spend: acc.spend + c.spend,
+                                                conversions: acc.conversions + c.conversions,
+                                                clicks: acc.clicks + c.clicks,
+                                                impressions: acc.impressions + c.impressions,
+                                                reach: acc.reach + c.reach,
+                                            }), { spend: 0, conversions: 0, clicks: 0, impressions: 0, reach: 0 });
+                                            const totalsCpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
+                                            const totalsCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+
+                                            const SortableHead = ({ col, label, align = 'right' }: { col: string; label: string; align?: string }) => {
+                                                const isActive = campaignSortCol === col;
+                                                return (
+                                                    <TableHead
+                                                        className={`${align === 'right' ? 'text-right' : ''} cursor-pointer select-none hover:bg-muted/50 transition-colors`}
+                                                        onClick={() => {
+                                                            if (isActive) {
+                                                                setCampaignSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                                                            } else {
+                                                                setCampaignSortCol(col);
+                                                                setCampaignSortDir('desc');
+                                                            }
+                                                            setCampaignPage(1);
+                                                        }}
+                                                    >
+                                                        <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+                                                            {label}
+                                                            {isActive ? (
+                                                                campaignSortDir === 'desc'
+                                                                    ? <ArrowDown className="h-3 w-3 text-blue-600" />
+                                                                    : <ArrowUp className="h-3 w-3 text-blue-600" />
+                                                            ) : (
+                                                                <ArrowDown className="h-3 w-3 opacity-0 group-hover:opacity-30" />
+                                                            )}
+                                                        </div>
+                                                    </TableHead>
+                                                );
+                                            };
+
+                                            return (
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow className="group">
+                                                            <SortableHead col="name" label="Campanha" align="left" />
+                                                            <TableHead>Funil</TableHead>
+                                                            <SortableHead col="spend" label="Investimento" />
+                                                            <SortableHead col="conversions" label="Conversões" />
+                                                            <SortableHead col="cpa" label="CPA" />
+                                                            <SortableHead col="clicks" label="Cliques" />
+                                                            <SortableHead col="ctr" label="CTR" />
                                                         </TableRow>
-                                                    ))}
-                                            </TableBody>
-                                        </Table>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {paginatedCampaigns.map((campaign) => (
+                                                            <TableRow key={campaign.id}>
+                                                                <TableCell className="font-medium max-w-[200px] truncate" title={campaign.name}>
+                                                                    {campaign.name}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    {campaign.funnelName && (
+                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-900 text-blue-100">
+                                                                            {campaign.funnelName}
+                                                                        </span>
+                                                                    )}
+                                                                </TableCell>
+                                                                <TableCell className="text-right">{currency(campaign.spend)}</TableCell>
+                                                                <TableCell className="text-right">{number(campaign.conversions)}</TableCell>
+                                                                <TableCell className="text-right">{currency(campaign.cpa)}</TableCell>
+                                                                <TableCell className="text-right">{number(campaign.clicks)}</TableCell>
+                                                                <TableCell className="text-right">{percent(campaign.ctr)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                    {filteredCampaigns.length > 0 && (
+                                                        <tfoot>
+                                                            <tr className="border-t-2 bg-muted/30 font-semibold text-sm">
+                                                                <td className="p-2 pl-4">Total ({filteredCampaigns.length})</td>
+                                                                <td></td>
+                                                                <td className="p-2 text-right">{currency(totals.spend)}</td>
+                                                                <td className="p-2 text-right">{number(totals.conversions)}</td>
+                                                                <td className="p-2 text-right">{currency(totalsCpa)}</td>
+                                                                <td className="p-2 text-right">{number(totals.clicks)}</td>
+                                                                <td className="p-2 text-right">{percent(totalsCtr)}</td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    )}
+                                                </Table>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* Pagination Controls */}
-                                    {campaigns.filter(c => {
-                                        const matchesSearch = c.name.toLowerCase().includes(campaignSearch.toLowerCase());
-                                        const matchesActive = onlyActiveCampaigns ? c.spend > 0 : true;
-                                        return matchesSearch && matchesActive;
-                                    }).length > 5 && (
+                                    {(() => {
+                                        const count = campaigns.filter(c => {
+                                            const matchesSearch = c.name.toLowerCase().includes(campaignSearch.toLowerCase());
+                                            const matchesActive = onlyActiveCampaigns ? c.spend > 0 : true;
+                                            const matchesFunnel = selectedFunnel === 'all' ? true : selectedFunnel === 'none' ? !c.funnelName : c.funnelName === selectedFunnel;
+                                            return matchesSearch && matchesActive && matchesFunnel;
+                                        }).length;
+                                        const totalPgs = Math.ceil(count / 5);
+                                        if (totalPgs <= 1) return null;
+                                        return (
                                             <div className="flex items-center justify-end space-x-2 py-4">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setCampaignPage(p => Math.max(1, p - 1))}
-                                                    disabled={campaignPage === 1}
-                                                >
+                                                <Button variant="outline" size="sm" onClick={() => setCampaignPage(p => Math.max(1, p - 1))} disabled={campaignPage === 1}>
                                                     <ChevronLeft className="h-4 w-4" />
                                                 </Button>
                                                 <span className="text-sm text-muted-foreground">
-                                                    Página {campaignPage} de {Math.ceil(campaigns.filter(c => {
-                                                        const matchesSearch = c.name.toLowerCase().includes(campaignSearch.toLowerCase());
-                                                        const matchesActive = onlyActiveCampaigns ? c.spend > 0 : true;
-                                                        return matchesSearch && matchesActive;
-                                                    }).length / 5)}
+                                                    Página {campaignPage} de {totalPgs}
                                                 </span>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setCampaignPage(p => Math.min(Math.ceil(campaigns.filter(c => {
-                                                        const matchesSearch = c.name.toLowerCase().includes(campaignSearch.toLowerCase());
-                                                        const matchesActive = onlyActiveCampaigns ? c.spend > 0 : true;
-                                                        return matchesSearch && matchesActive;
-                                                    }).length / 5), p + 1))}
-                                                    disabled={campaignPage === Math.ceil(campaigns.filter(c => {
-                                                        const matchesSearch = c.name.toLowerCase().includes(campaignSearch.toLowerCase());
-                                                        const matchesActive = onlyActiveCampaigns ? c.spend > 0 : true;
-                                                        return matchesSearch && matchesActive;
-                                                    }).length / 5)}
-                                                >
+                                                <Button variant="outline" size="sm" onClick={() => setCampaignPage(p => Math.min(totalPgs, p + 1))} disabled={campaignPage === totalPgs}>
                                                     <ChevronRight className="h-4 w-4" />
                                                 </Button>
                                             </div>
-                                        )}
+                                        );
+                                    })()}
                                 </CardContent>
                             </Card>
                         )}
@@ -870,7 +937,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                                         <span className="font-semibold text-purple-600">{percent(ad.hookRate)}</span>
                                                                     </div>
                                                                     <div className="text-center border-l border-dashed">
-                                                                        <span className="block text-muted-foreground text-[10px] uppercase" title="ThruPlays / Impressões">Hold Rate</span>
+                                                                        <span className="block text-muted-foreground text-[10px] uppercase" title="Vídeos 75% / Alcance">Hold Rate</span>
                                                                         <span className="font-semibold text-purple-600">{percent(ad.holdRate)}</span>
                                                                     </div>
                                                                 </div>

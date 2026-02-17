@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
 
         // Common Fields
         const campaignFields = 'account_id,campaign_name,campaign_id,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop'
-        const adFields = 'account_id,ad_id,ad_name,campaign_id,campaign_name,adset_id,adset_name,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,video_play_actions,video_3_sec_watched_actions,video_thruplay_watched_actions,date_start,date_stop'
+        const adFields = 'account_id,ad_id,ad_name,campaign_id,campaign_name,adset_id,adset_name,spend,impressions,clicks,reach,cpc,cpm,ctr,frequency,actions,action_values,video_play_actions,video_3_sec_watched_actions,video_p75_watched_actions,video_thruplay_watched_actions,date_start,date_stop'
 
         // 3. Loop and Fetch
         for (const account of accounts || []) {
@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
                             for (const chunk of chunks) {
                                 const metadataUrl = new URL(`https://graph.facebook.com/v19.0/`)
                                 metadataUrl.searchParams.append('ids', chunk.join(','))
-                                metadataUrl.searchParams.append('fields', 'name,creative{thumbnail_url,image_url,title,instagram_permalink_url,object_story_spec},preview_shareable_link,effective_object_story_id')
+                                metadataUrl.searchParams.append('fields', 'name,creative{id,thumbnail_url,image_url,title,instagram_permalink_url,object_story_spec},preview_shareable_link,effective_object_story_id')
                                 metadataUrl.searchParams.append('access_token', META_ACCESS_TOKEN)
 
                                 const metaRes = await fetch(metadataUrl)
@@ -239,15 +239,61 @@ Deno.serve(async (req) => {
                             }
                         }
 
-                        // 3. Identify Missing Images/Links and Fetch from Post (effective_object_story_id)
+                        // 3. Fetch Creative Thumbnails directly (for custom size)
+                        const creativeThumbnailMap = new Map();
+                        const creativeIds = new Set<string>();
+
+                        // Collect Creative IDs
+                        uniqueAdIds.forEach(adId => {
+                            const meta = adMetadataMap.get(adId);
+                            if (meta?.creative?.id) {
+                                creativeIds.add(meta.creative.id);
+                            }
+                        });
+
+
+                        if (creativeIds.size > 0) {
+                            const cidArray = Array.from(creativeIds);
+                            const chunks = [];
+                            console.log(`Fetching HD thumbnails for ${cidArray.length} creatives...`);
+                            for (let i = 0; i < cidArray.length; i += 50) {
+                                chunks.push(cidArray.slice(i, i + 50));
+                            }
+
+                            for (const chunk of chunks) {
+                                const creativeUrl = new URL(`https://graph.facebook.com/v19.0/`)
+                                creativeUrl.searchParams.append('ids', chunk.join(','))
+                                creativeUrl.searchParams.append('fields', 'thumbnail_url') // We want specifically this field
+                                creativeUrl.searchParams.append('thumbnail_width', '400')
+                                creativeUrl.searchParams.append('thumbnail_height', '400')
+                                creativeUrl.searchParams.append('access_token', META_ACCESS_TOKEN)
+
+                                const cRes = await fetch(creativeUrl);
+                                const cJson = await cRes.json();
+
+                                if (!cJson.error) {
+                                    Object.entries(cJson).forEach(([cid, data]: [string, any]) => {
+                                        if (data.thumbnail_url) {
+                                            creativeThumbnailMap.set(cid, data.thumbnail_url);
+                                        }
+                                    });
+                                }
+                            }
+                        }
+
+
+                        // 4. Identify Missing Images/Links and Fetch from Post (effective_object_story_id)
                         const storyIdsToFetch = new Set<string>();
 
                         uniqueAdIds.forEach(adId => {
                             const meta = adMetadataMap.get(adId);
                             if (meta) {
                                 const creative = meta.creative || {};
-                                // Check if main fields are missing
-                                const hasMainThumb = creative.thumbnail_url || creative.image_url;
+                                // Check if we found a direct thumbnail first
+                                const hasDirectThumb = creativeThumbnailMap.has(creative.id);
+
+                                // Check if main fields are missing (if no direct thumb)
+                                const hasMainThumb = hasDirectThumb || creative.thumbnail_url || creative.image_url;
                                 // Check deep fields
                                 const hasDeepThumb = creative.object_story_spec?.link_data?.picture || creative.object_story_spec?.video_data?.image_url || creative.object_story_spec?.template_data?.link_data?.picture;
                                 // Check link
@@ -316,7 +362,11 @@ Deno.serve(async (req) => {
                             }
 
                             // B. Thumbnail Logic
-                            let thumbnailUrl = creative.thumbnail_url || creative.image_url;
+                            let thumbnailUrl = creativeThumbnailMap.get(creative?.id);
+
+                            if (!thumbnailUrl) {
+                                thumbnailUrl = creative.thumbnail_url || creative.image_url;
+                            }
 
                             if (!thumbnailUrl && creative.object_story_spec) {
                                 const spec = creative.object_story_spec;
@@ -364,6 +414,7 @@ Deno.serve(async (req) => {
                                 video_metrics: {
                                     video_play_actions: item.video_play_actions || [],
                                     video_3_sec_watched_actions: item.video_3_sec_watched_actions || [],
+                                    video_p75_watched_actions: item.video_p75_watched_actions || [],
                                     video_thruplay_watched_actions: item.video_thruplay_watched_actions || []
                                 },
                                 creative_thumbnail_url: thumbnailUrl,
