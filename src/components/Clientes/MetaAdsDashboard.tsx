@@ -373,24 +373,32 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
             // 6. Fetch Last Sync Time
             const { data: lastLog } = await supabase
                 .from('meta_sync_logs')
-                .select('completed_at')
+                .select('completed_at, created_at')
                 .eq('status', 'success')
-                .eq('settings_id', settings?.[0]?.id) // Filter by client settings if possible, otherwise generic latest success
-                // Since we don't have settings_id readily available or linked directly in this context without more queries, 
-                // we might want to filter by client_id if the log table supports it, or just rely on the latest successful sync for ANY account linked to this client?
-                // The current log table structure might not have client_id directly.
-                // However, we can filter by the account IDs we found.
-                // .in('ad_account_id', accountUuids) -- if the log table has ad_account_id
-                .order('completed_at', { ascending: false })
+                .in('ad_account_id', accountUuids)
+                .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
 
-            if (lastLog?.completed_at) {
-                setLastSync(lastLog.completed_at);
+            if (lastLog) {
+                setLastSync(lastLog.completed_at || lastLog.created_at);
             } else {
-                // Fallback: try to find logs related to this client's accounts if possible, or just skip
-                // If no logs found, maybe show nothing or 'Nunca'
                 setLastSync(null);
+
+                // Fallback: check campaign insights for latest data
+                if (accountUuids.length > 0) {
+                    const { data: latestInsight } = await supabase
+                        .from('meta_campaign_insights')
+                        .select('created_at')
+                        .in('ad_account_id', accountUuids)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (latestInsight?.created_at) {
+                        setLastSync(latestInsight.created_at);
+                    }
+                }
             }
 
         } catch (error) {

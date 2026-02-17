@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
         const { data: logSync, error: logError } = await supabase
             .from('meta_sync_logs')
             .insert({
+                ad_account_id: ad_account_id || null, // Best effort logging
                 status: 'running',
                 started_at: new Date().toISOString(),
                 trigger_source: trigger_source
