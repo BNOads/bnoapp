@@ -103,12 +103,17 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                 .eq('cliente_id', clientId)
                 .eq('is_visible', true);
 
-            const visibleKeys = settings?.map(s => s.metric_name) || [];
-            if (visibleKeys.length === 0) {
-                setVisibleMetrics(['spend', 'impressions', 'clicks', 'ctr', 'cpc', 'actions']);
-            } else {
-                setVisibleMetrics(visibleKeys);
-            }
+            const visibleKeys = settings?.map(s => {
+                // Backward compatibility for old metric key persisted in DB.
+                return s.metric_name === 'actions' ? 'conversions' : s.metric_name;
+            }) || [];
+
+            const baseMetrics = visibleKeys.length === 0
+                ? ['spend', 'impressions', 'clicks', 'ctr', 'cpc', 'conversions']
+                : visibleKeys;
+
+            // Keep conversions always visible in the top KPI cards.
+            setVisibleMetrics(Array.from(new Set([...baseMetrics, 'conversions'])));
 
             // 2. Fetch Linked Accounts
             const { data: fetchedAccounts, error: accountsError } = await supabase

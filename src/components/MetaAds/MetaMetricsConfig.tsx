@@ -18,7 +18,7 @@ const STANDARD_METRICS = [
     { key: 'cpc', label: 'CPC (Custo por Clique)', type: 'currency' },
     { key: 'cpm', label: 'CPM (Custo por 1000 Impressões)', type: 'currency' },
     { key: 'frequency', label: 'Frequência', type: 'number' },
-    { key: 'actions', label: 'Conversões Totais', type: 'number' },
+    { key: 'conversions', label: 'Conversões', type: 'number' },
 ];
 
 export const MetaMetricsConfig = ({ clientId }: MetaMetricsConfigProps) => {
@@ -50,8 +50,17 @@ export const MetaMetricsConfig = ({ clientId }: MetaMetricsConfigProps) => {
                 configMap[m.key] = true; // Default visible
             });
 
-            // Override with DB settings
+            const hasConversionsSetting = data?.some((setting: any) => setting.metric_name === 'conversions');
+
+            // Override with DB settings (supports legacy key "actions")
             data?.forEach((setting: any) => {
+                if (setting.metric_name === 'actions') {
+                    if (!hasConversionsSetting) {
+                        configMap.conversions = setting.is_visible;
+                    }
+                    return;
+                }
+
                 configMap[setting.metric_name] = setting.is_visible;
             });
 

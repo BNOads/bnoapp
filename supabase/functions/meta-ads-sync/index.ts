@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
 
 
             // --- A. Campaign Insights ---
-            const urlCampaign = new URL(`https://graph.facebook.com/v19.0/${metaId}/insights`)
+            const urlCampaign = new URL(`https://graph.facebook.com/v24.0/${metaId}/insights`)
             urlCampaign.searchParams.append('level', 'campaign')
             urlCampaign.searchParams.append('fields', campaignFields)
             urlCampaign.searchParams.append('access_token', META_ACCESS_TOKEN)
@@ -185,13 +185,13 @@ Deno.serve(async (req) => {
             }
 
             // --- B. Ad Insights ---
-            const urlAd = new URL(`https://graph.facebook.com/v19.0/${metaId}/insights`)
+            const urlAd = new URL(`https://graph.facebook.com/v24.0/${metaId}/insights`)
             urlAd.searchParams.append('level', 'ad')
             urlAd.searchParams.append('fields', adFields)
             urlAd.searchParams.append('access_token', META_ACCESS_TOKEN)
             urlAd.searchParams.append('time_increment', '1')
             urlAd.searchParams.append('limit', '200')
-            urlAd.searchParams.append('time_range', JSON.stringify({ since: date_start, until: date_stop }))
+            urlAd.searchParams.append('time_range', JSON.stringify({ since: effectiveStart, until: effectiveEnd }))
 
             let totalAdsSynced = 0;
 
@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
                             }
 
                             for (const chunk of chunks) {
-                                const metadataUrl = new URL(`https://graph.facebook.com/v19.0/`)
+                                const metadataUrl = new URL(`https://graph.facebook.com/v24.0/`)
                                 metadataUrl.searchParams.append('ids', chunk.join(','))
                                 metadataUrl.searchParams.append('fields', 'name,creative{id,thumbnail_url,image_url,title,instagram_permalink_url,object_story_spec},preview_shareable_link,effective_object_story_id')
                                 metadataUrl.searchParams.append('access_token', META_ACCESS_TOKEN)
@@ -231,7 +231,9 @@ Deno.serve(async (req) => {
                                 const metaRes = await fetch(metadataUrl)
                                 const metaJson = await metaRes.json()
 
-                                if (!metaJson.error) {
+                                if (metaJson.error) {
+                                    console.error('Ad metadata fetch error:', metaJson.error);
+                                } else {
                                     Object.entries(metaJson).forEach(([id, data]: [string, any]) => {
                                         adMetadataMap.set(id, data)
                                     })
@@ -261,7 +263,7 @@ Deno.serve(async (req) => {
                             }
 
                             for (const chunk of chunks) {
-                                const creativeUrl = new URL(`https://graph.facebook.com/v19.0/`)
+                                const creativeUrl = new URL(`https://graph.facebook.com/v24.0/`)
                                 creativeUrl.searchParams.append('ids', chunk.join(','))
                                 creativeUrl.searchParams.append('fields', 'thumbnail_url') // We want specifically this field
                                 creativeUrl.searchParams.append('thumbnail_width', '400')
@@ -271,10 +273,14 @@ Deno.serve(async (req) => {
                                 const cRes = await fetch(creativeUrl);
                                 const cJson = await cRes.json();
 
-                                if (!cJson.error) {
+                                if (cJson.error) {
+                                    console.error('Creative thumbnail fetch error:', cJson.error);
+                                } else {
                                     Object.entries(cJson).forEach(([cid, data]: [string, any]) => {
                                         if (data.thumbnail_url) {
                                             creativeThumbnailMap.set(cid, data.thumbnail_url);
+                                        } else {
+                                            console.warn(`Creative ${cid}: no thumbnail_url returned`, JSON.stringify(data));
                                         }
                                     });
                                 }
@@ -318,7 +324,7 @@ Deno.serve(async (req) => {
                             }
 
                             for (const chunk of chunks) {
-                                const postUrl = new URL(`https://graph.facebook.com/v19.0/`)
+                                const postUrl = new URL(`https://graph.facebook.com/v24.0/`)
                                 postUrl.searchParams.append('ids', chunk.join(','))
                                 postUrl.searchParams.append('fields', 'full_picture,picture,permalink_url') // Added permalink_url
                                 postUrl.searchParams.append('access_token', META_ACCESS_TOKEN)
@@ -326,13 +332,18 @@ Deno.serve(async (req) => {
                                 const postRes = await fetch(postUrl)
                                 const postJson = await postRes.json()
 
-                                if (!postJson.error) {
+                                if (postJson.error) {
+                                    console.error('Post metadata fetch error:', postJson.error);
+                                } else {
                                     Object.entries(postJson).forEach(([id, data]: [string, any]) => {
                                         postMetadataMap.set(id, data);
                                     });
                                 }
                             }
                         }
+
+                        // Log thumbnail resolution summary
+                        console.log(`Thumbnail resolution: ${creativeThumbnailMap.size} HD thumbnails from ${creativeIds.size} creatives, ${postMetadataMap.size} post fallbacks from ${storyIdsToFetch.size} story IDs`);
 
                         // 4. Upsert Ad Data
                         const upsertAdData = adInsights.map((item: any) => {
