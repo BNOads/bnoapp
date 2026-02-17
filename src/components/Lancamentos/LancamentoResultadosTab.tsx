@@ -17,6 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { RefreshCw, Search, Pencil, Check, Plus, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet, Link as LinkIcon, AlertCircle, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { SheetAnalysis } from './SheetAnalysis';
 
 interface LancamentoResultadosTabProps {
     lancamento: any;
@@ -1471,120 +1472,134 @@ const GoogleSheetTab = ({ type, lancamentoId, linkName }: { type: 'leads' | 'pes
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                    <div className="relative flex-1">
-                        <div className="absolute left-2.5 top-2.5 text-muted-foreground">
-                            <LinkIcon className="h-4 w-4" />
+                <Tabs defaultValue="lista" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                        <TabsTrigger value="lista">Lista</TabsTrigger>
+                        <TabsTrigger value="analise">Análise</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="lista" className="space-y-4">
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+
+                                <div className="absolute left-2.5 top-2.5 text-muted-foreground">
+                                    <LinkIcon className="h-4 w-4" />
+                                </div>
+                                <Input
+                                    placeholder="Cole a URL do Google Sheets aqui..."
+                                    className="pl-9"
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                />
+                            </div>
+                            <Button
+                                onClick={saveAndConnect}
+                                disabled={status === 'connecting' || !url}
+                            >
+                                {status === 'connecting' ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                                ) : (
+                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                )}
+                                {linkId ? 'Sincronizar' : 'Conectar'}
+                            </Button>
                         </div>
-                        <Input
-                            placeholder="Cole a URL do Google Sheets aqui..."
-                            className="pl-9"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                        />
-                    </div>
-                    <Button
-                        onClick={saveAndConnect}
-                        disabled={status === 'connecting' || !url}
-                    >
-                        {status === 'connecting' ? (
-                            <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                            <RefreshCw className="h-4 w-4 mr-2" />
+
+                        {/* Error State */}
+                        {status === 'error' && (
+                            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
+                                <AlertCircle className="h-4 w-4" />
+                                {errorMsg}
+                            </div>
                         )}
-                        {linkId ? 'Sincronizar' : 'Conectar'}
-                    </Button>
-                </div>
 
-                {/* Error State */}
-                {status === 'error' && (
-                    <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
-                        <AlertCircle className="h-4 w-4" />
-                        {errorMsg}
-                    </div>
-                )}
+                        {/* Search & Table */}
+                        {(status === 'validated' || data.length > 0) && (
+                            <>
+                                <div className="relative">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Buscar nos dados..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-9"
+                                    />
+                                </div>
 
-                {/* Search & Table */}
-                {(status === 'validated' || data.length > 0) && (
-                    <>
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar nos dados..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-
-                        <div className="border rounded-md overflow-hidden">
-                            <div className="max-h-[500px] overflow-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            {Object.keys(data[0] || {}).map((header, i) => (
-                                                <TableHead
-                                                    key={i}
-                                                    className="whitespace-nowrap cursor-pointer hover:bg-muted/50 transition-colors"
-                                                    onClick={() => handleSort(header)}
-                                                >
-                                                    <div className="flex items-center gap-1">
-                                                        {header}
-                                                        {sortConfig.key === header ? (
-                                                            sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                                                        ) : (
-                                                            <ArrowUpDown className="h-3 w-3 opacity-30" />
-                                                        )}
-                                                    </div>
-                                                </TableHead>
-                                            ))}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {sortedData.length > 0 ? (
-                                            sortedData.map((row, i) => (
-                                                <TableRow key={i}>
-                                                    {Object.keys(data[0] || {}).map((header, j) => (
-                                                        <TableCell key={j} className="whitespace-nowrap">
-                                                            {String(row[header]).length > 50
-                                                                ? String(row[header]).substring(0, 50) + '...'
-                                                                : row[header]}
-                                                        </TableCell>
+                                <div className="border rounded-md overflow-hidden">
+                                    <div className="max-h-[500px] overflow-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    {Object.keys(data[0] || {}).map((header, i) => (
+                                                        <TableHead
+                                                            key={i}
+                                                            className="whitespace-nowrap cursor-pointer hover:bg-muted/50 transition-colors"
+                                                            onClick={() => handleSort(header)}
+                                                        >
+                                                            <div className="flex items-center gap-1">
+                                                                {header}
+                                                                {sortConfig.key === header ? (
+                                                                    sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                                ) : (
+                                                                    <ArrowUpDown className="h-3 w-3 opacity-30" />
+                                                                )}
+                                                            </div>
+                                                        </TableHead>
                                                     ))}
                                                 </TableRow>
-                                            ))
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell colSpan={Object.keys(data[0] || {}).length} className="text-center py-8 text-muted-foreground">
-                                                    Nenhum resultado encontrado para "{searchTerm}"
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {sortedData.length > 0 ? (
+                                                    sortedData.map((row, i) => (
+                                                        <TableRow key={i}>
+                                                            {Object.keys(data[0] || {}).map((header, j) => (
+                                                                <TableCell key={j} className="whitespace-nowrap">
+                                                                    {String(row[header]).length > 50
+                                                                        ? String(row[header]).substring(0, 50) + '...'
+                                                                        : row[header]}
+                                                                </TableCell>
+                                                            ))}
+                                                        </TableRow>
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={Object.keys(data[0] || {}).length} className="text-center py-8 text-muted-foreground">
+                                                            Nenhum resultado encontrado para "{searchTerm}"
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                    <div className="bg-muted/30 p-2 text-xs text-muted-foreground text-center border-t">
+                                        Mostrando {sortedData.length} de {data.length} registros
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {status === 'validated' && data.length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">
+                                Planilha conectada, mas nenhum dado encontrado.
                             </div>
-                            <div className="bg-muted/30 p-2 text-xs text-muted-foreground text-center border-t">
-                                Mostrando {sortedData.length} de {data.length} registros
-                            </div>
+                        )}
+
+                        <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
+                            <p className="font-semibold mb-1">Como configurar:</p>
+                            <ul className="list-disc pl-4 space-y-1">
+                                <li>A planilha deve ser <strong>Pública</strong> ou acessível para "Qualquer pessoa com o link".</li>
+                                <li>A primeira linha deve conter os cabeçalhos das colunas.</li>
+                                <li><strong>Importante:</strong> O sistema sempre buscará dados da <strong>primeira aba/página</strong> da planilha. Certifique-se de que os dados desejados estejam nela.</li>
+                                <li>Os dados são atualizados automaticamente todos os dias. Você pode forçar a atualização clicando em "Sincronizar".</li>
+                            </ul>
                         </div>
-                    </>
-                )}
+                    </TabsContent>
 
-                {status === 'validated' && data.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                        Planilha conectada, mas nenhum dado encontrado.
-                    </div>
-                )}
-
-                <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
-                    <p className="font-semibold mb-1">Como configurar:</p>
-                    <ul className="list-disc pl-4 space-y-1">
-                        <li>A planilha deve ser <strong>Pública</strong> ou acessível para "Qualquer pessoa com o link".</li>
-                        <li>A primeira linha deve conter os cabeçalhos das colunas.</li>
-                        <li><strong>Importante:</strong> O sistema sempre buscará dados da <strong>primeira aba/página</strong> da planilha. Certifique-se de que os dados desejados estejam nela.</li>
-                        <li>Os dados são atualizados automaticamente todos os dias. Você pode forçar a atualização clicando em "Sincronizar".</li>
-                    </ul>
-                </div>
+                    <TabsContent value="analise">
+                        <SheetAnalysis data={data} title={`Análise de ${linkName}`} />
+                    </TabsContent>
+                </Tabs>
             </CardContent>
         </Card>
     );
