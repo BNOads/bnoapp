@@ -226,6 +226,8 @@ Deno.serve(async (req) => {
                                 const metadataUrl = new URL(`https://graph.facebook.com/v24.0/`)
                                 metadataUrl.searchParams.append('ids', chunk.join(','))
                                 metadataUrl.searchParams.append('fields', 'name,creative{id,thumbnail_url,image_url,title,instagram_permalink_url,object_story_spec},preview_shareable_link,effective_object_story_id')
+                                metadataUrl.searchParams.append('thumbnail_width', '400')
+                                metadataUrl.searchParams.append('thumbnail_height', '400')
                                 metadataUrl.searchParams.append('access_token', META_ACCESS_TOKEN)
 
                                 const metaRes = await fetch(metadataUrl)
@@ -234,59 +236,45 @@ Deno.serve(async (req) => {
                                 if (metaJson.error) {
                                     console.error('Ad metadata fetch error:', metaJson.error);
                                 } else {
-                                    Object.entries(metaJson).forEach(([id, data]: [string, any]) => {
+                                    const entries = Object.entries(metaJson);
+                                    // Log first entry raw response for debugging
+                                    if (entries.length > 0) {
+                                        const [firstId, firstData] = entries[0] as [string, any];
+                                        console.log('RAW Meta API response (first ad):', JSON.stringify({
+                                            ad_id: firstId,
+                                            has_creative: !!firstData.creative,
+                                            creative_keys: firstData.creative ? Object.keys(firstData.creative) : [],
+                                            creative_thumbnail_url: firstData.creative?.thumbnail_url || null,
+                                            creative_image_url: firstData.creative?.image_url || null,
+                                            effective_object_story_id: firstData.effective_object_story_id || null,
+                                        }));
+                                    }
+                                    entries.forEach(([id, data]: [string, any]) => {
                                         adMetadataMap.set(id, data)
                                     })
                                 }
                             }
                         }
 
-                        // 3. Fetch Creative Thumbnails directly (for custom size)
-                        const creativeThumbnailMap = new Map();
-                        const creativeIds = new Set<string>();
-
-                        // Collect Creative IDs
+                        // 3. Log creative data for debugging
+                        let adsWithCreativeThumb = 0;
                         uniqueAdIds.forEach(adId => {
                             const meta = adMetadataMap.get(adId);
-                            if (meta?.creative?.id) {
-                                creativeIds.add(meta.creative.id);
-                            }
+                            if (meta?.creative?.thumbnail_url) adsWithCreativeThumb++;
                         });
-
-
-                        if (creativeIds.size > 0) {
-                            const cidArray = Array.from(creativeIds);
-                            const chunks = [];
-                            console.log(`Fetching HD thumbnails for ${cidArray.length} creatives...`);
-                            for (let i = 0; i < cidArray.length; i += 50) {
-                                chunks.push(cidArray.slice(i, i + 50));
-                            }
-
-                            for (const chunk of chunks) {
-                                const creativeUrl = new URL(`https://graph.facebook.com/v24.0/`)
-                                creativeUrl.searchParams.append('ids', chunk.join(','))
-                                creativeUrl.searchParams.append('fields', 'thumbnail_url') // We want specifically this field
-                                creativeUrl.searchParams.append('thumbnail_width', '400')
-                                creativeUrl.searchParams.append('thumbnail_height', '400')
-                                creativeUrl.searchParams.append('access_token', META_ACCESS_TOKEN)
-
-                                const cRes = await fetch(creativeUrl);
-                                const cJson = await cRes.json();
-
-                                if (cJson.error) {
-                                    console.error('Creative thumbnail fetch error:', cJson.error);
-                                } else {
-                                    Object.entries(cJson).forEach(([cid, data]: [string, any]) => {
-                                        if (data.thumbnail_url) {
-                                            creativeThumbnailMap.set(cid, data.thumbnail_url);
-                                        } else {
-                                            console.warn(`Creative ${cid}: no thumbnail_url returned`, JSON.stringify(data));
-                                        }
-                                    });
-                                }
-                            }
+                        console.log(`Creative thumbnail_url found for ${adsWithCreativeThumb}/${uniqueAdIds.length} ads`);
+                        // Log sample creative data for first ad
+                        const sampleMeta = adMetadataMap.get(uniqueAdIds[0]);
+                        if (sampleMeta) {
+                            console.log('Sample ad creative data:', JSON.stringify({
+                                ad_id: uniqueAdIds[0],
+                                creative_id: sampleMeta.creative?.id,
+                                thumbnail_url: sampleMeta.creative?.thumbnail_url,
+                                image_url: sampleMeta.creative?.image_url,
+                                has_object_story_spec: !!sampleMeta.creative?.object_story_spec,
+                                effective_object_story_id: sampleMeta.effective_object_story_id,
+                            }));
                         }
-
 
                         // 4. Identify Missing Images/Links and Fetch from Post (effective_object_story_id)
                         const storyIdsToFetch = new Set<string>();
@@ -296,10 +284,7 @@ Deno.serve(async (req) => {
                             if (meta) {
                                 const creative = meta.creative || {};
                                 // Check if we found a direct thumbnail first
-                                const hasDirectThumb = creativeThumbnailMap.has(creative.id);
-
-                                // Check if main fields are missing (if no direct thumb)
-                                const hasMainThumb = hasDirectThumb || creative.thumbnail_url || creative.image_url;
+                                const hasMainThumb = creative.thumbnail_url || creative.image_url;
                                 // Check deep fields
                                 const hasDeepThumb = creative.object_story_spec?.link_data?.picture || creative.object_story_spec?.video_data?.image_url || creative.object_story_spec?.template_data?.link_data?.picture;
                                 // Check link
@@ -342,10 +327,61 @@ Deno.serve(async (req) => {
                             }
                         }
 
-                        // Log thumbnail resolution summary
-                        console.log(`Thumbnail resolution: ${creativeThumbnailMap.size} HD thumbnails from ${creativeIds.size} creatives, ${postMetadataMap.size} post fallbacks from ${storyIdsToFetch.size} story IDs`);
+                        // 5. Fetch Ad Previews for ads still missing thumbnails
+                        const previewMap = new Map<string, string>();
+                        const adsMissingThumb = new Set<string>();
 
-                        // 4. Upsert Ad Data
+                        uniqueAdIds.forEach(adId => {
+                            const meta = adMetadataMap.get(adId);
+                            const creative = meta?.creative || {};
+                            const hasThumb = creative.thumbnail_url || creative.image_url
+                                || creative.object_story_spec?.link_data?.picture
+                                || creative.object_story_spec?.video_data?.image_url
+                                || creative.object_story_spec?.template_data?.link_data?.picture;
+
+                            if (!hasThumb) {
+                                const post = meta?.effective_object_story_id ? postMetadataMap.get(meta.effective_object_story_id) : null;
+                                if (!post?.full_picture && !post?.picture) {
+                                    adsMissingThumb.add(adId as string);
+                                }
+                            }
+                        });
+
+                        if (adsMissingThumb.size > 0) {
+                            console.log(`Fetching previews for ${adsMissingThumb.size} ads without thumbnails...`);
+                            const previewPromises = Array.from(adsMissingThumb).map(async (adId) => {
+                                try {
+                                    const previewUrl = new URL(`https://graph.facebook.com/v24.0/${adId}/previews`);
+                                    previewUrl.searchParams.append('ad_format', 'MOBILE_FEED_STANDARD');
+                                    previewUrl.searchParams.append('access_token', META_ACCESS_TOKEN);
+
+                                    const pRes = await fetch(previewUrl);
+                                    const pJson = await pRes.json();
+
+                                    if (pJson.data?.[0]?.body) {
+                                        const iframeHtml = pJson.data[0].body;
+                                        // Extract iframe src URL
+                                        const srcMatch = iframeHtml.match(/src="([^"]+)"/);
+                                        if (srcMatch?.[1]) {
+                                            // Decode HTML entities
+                                            const iframeSrc = srcMatch[1].replace(/&amp;/g, '&');
+                                            previewMap.set(adId, iframeSrc);
+                                        }
+                                    } else if (pJson.error) {
+                                        console.warn(`Preview error for ad ${adId}:`, pJson.error.message);
+                                    }
+                                } catch (e: any) {
+                                    console.warn(`Preview fetch failed for ad ${adId}:`, e.message);
+                                }
+                            });
+                            await Promise.all(previewPromises);
+                            console.log(`Got ${previewMap.size} previews from ${adsMissingThumb.size} ads`);
+                        }
+
+                        // Log thumbnail resolution summary
+                        console.log(`Thumbnail resolution: ${adsWithCreativeThumb} from creative.thumbnail_url, ${postMetadataMap.size} post fallbacks, ${previewMap.size} preview fallbacks`);
+
+                        // 6. Upsert Ad Data
                         const upsertAdData = adInsights.map((item: any) => {
                             const meta = adMetadataMap.get(item.ad_id)
                             const creative = meta?.creative || {}
@@ -372,12 +408,8 @@ Deno.serve(async (req) => {
                                 }
                             }
 
-                            // B. Thumbnail Logic
-                            let thumbnailUrl = creativeThumbnailMap.get(creative?.id);
-
-                            if (!thumbnailUrl) {
-                                thumbnailUrl = creative.thumbnail_url || creative.image_url;
-                            }
+                            // B. Thumbnail Logic - directly from creative{thumbnail_url}
+                            let thumbnailUrl = creative.thumbnail_url || creative.image_url;
 
                             if (!thumbnailUrl && creative.object_story_spec) {
                                 const spec = creative.object_story_spec;
@@ -392,7 +424,6 @@ Deno.serve(async (req) => {
 
                             // C. Fallback to Post Picture
                             if (!thumbnailUrl && meta?.effective_object_story_id) {
-                                // Try direct lookup first
                                 let post = postMetadataMap.get(meta.effective_object_story_id);
 
                                 if (post?.full_picture) {
@@ -400,6 +431,11 @@ Deno.serve(async (req) => {
                                 } else if (post?.picture) {
                                     thumbnailUrl = post.picture;
                                 }
+                            }
+
+                            // D. Fallback to Ad Preview (iframe src)
+                            if (!thumbnailUrl && previewMap.has(item.ad_id)) {
+                                thumbnailUrl = previewMap.get(item.ad_id);
                             }
 
                             return {
@@ -432,6 +468,15 @@ Deno.serve(async (req) => {
                                 creative_url: creativeLink
                             }
                         })
+
+                        // Log thumbnail coverage
+                        const withThumb = upsertAdData.filter((d: any) => d.creative_thumbnail_url).length;
+                        const withoutThumb = upsertAdData.filter((d: any) => !d.creative_thumbnail_url).length;
+                        console.log(`Ad thumbnail coverage: ${withThumb}/${upsertAdData.length} with thumbnail, ${withoutThumb} missing`);
+                        if (withoutThumb > 0) {
+                            const missing = upsertAdData.filter((d: any) => !d.creative_thumbnail_url).slice(0, 5);
+                            console.log('Sample ads without thumbnail:', missing.map((d: any) => ({ ad_id: d.ad_id, ad_name: d.ad_name })));
+                        }
 
                         const { error } = await supabase
                             .from('meta_ad_insights')

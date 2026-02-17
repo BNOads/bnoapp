@@ -872,7 +872,14 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                             {currentAds.map((ad) => (
                                                 <div key={ad.id} className="border rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
                                                     <div className="aspect-square w-full bg-slate-100 relative group/image overflow-hidden">
-                                                        {ad.thumbnail ? (
+                                                        {ad.thumbnail && ad.thumbnail.includes('preview_iframe') ? (
+                                                            <iframe
+                                                                src={ad.thumbnail}
+                                                                className="w-full h-full border-0 pointer-events-none"
+                                                                title={ad.name}
+                                                                scrolling="no"
+                                                            />
+                                                        ) : ad.thumbnail ? (
                                                             <img
                                                                 src={ad.thumbnail}
                                                                 alt={ad.name}
