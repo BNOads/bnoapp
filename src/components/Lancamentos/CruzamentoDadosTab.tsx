@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Bar,
@@ -98,6 +99,12 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
   const [leadsLink, setLeadsLink] = useState<LancamentoLinkRow | null>(null);
   const [pesquisaLink, setPesquisaLink] = useState<LancamentoLinkRow | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [utmFilters, setUtmFilters] = useState({
+    utm_campaign: 'all',
+    utm_source: 'all',
+    utm_medium: 'all',
+    utm_term: 'all'
+  });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
     key: 'nome',
     direction: 'asc',
@@ -159,6 +166,27 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
     return buildLaunchSheetCrossing(leadsRows, pesquisaRows);
   }, [leadsRows, pesquisaRows]);
 
+  const uniqueUtms = useMemo(() => {
+    const campaigns = new Set<string>();
+    const sources = new Set<string>();
+    const mediums = new Set<string>();
+    const terms = new Set<string>();
+
+    crossing.matchedPeople.forEach(p => {
+      if (p.utm_campaign) campaigns.add(p.utm_campaign);
+      if (p.utm_source) sources.add(p.utm_source);
+      if (p.utm_medium) mediums.add(p.utm_medium);
+      if (p.utm_term) terms.add(p.utm_term);
+    });
+
+    return {
+      campaigns: Array.from(campaigns).sort(),
+      sources: Array.from(sources).sort(),
+      mediums: Array.from(mediums).sort(),
+      terms: Array.from(terms).sort(),
+    };
+  }, [crossing.matchedPeople]);
+
   const dynamicColumns = useMemo<TableColumn[]>(() => {
     return crossing.questionColumns.map((questionKey) => ({
       key: questionKey,
@@ -174,6 +202,11 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
     const searchLower = searchTerm.trim().toLowerCase();
 
     const rows = crossing.matchedPeople.filter((row) => {
+      if (utmFilters.utm_campaign !== 'all' && row.utm_campaign !== utmFilters.utm_campaign) return false;
+      if (utmFilters.utm_source !== 'all' && row.utm_source !== utmFilters.utm_source) return false;
+      if (utmFilters.utm_medium !== 'all' && row.utm_medium !== utmFilters.utm_medium) return false;
+      if (utmFilters.utm_term !== 'all' && row.utm_term !== utmFilters.utm_term) return false;
+
       if (!searchLower) return true;
       return tableColumns.some((column) => String(row[column.key] ?? '').toLowerCase().includes(searchLower));
     });
@@ -473,7 +506,12 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
                   <Tooltip
                     formatter={(value: number) => [String(value), 'Respondentes']}
                   />
-                  <Legend />
+                  <Legend
+                    wrapperStyle={{ fontSize: '12px' }}
+                    formatter={(value) => {
+                      return <span title={value}>{value.length > 20 ? value.substring(0, 20) + '...' : value}</span>;
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -503,7 +541,58 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Campanha (utm_campaign)</label>
+              <Select value={utmFilters.utm_campaign} onValueChange={(val) => setUtmFilters(prev => ({ ...prev, utm_campaign: val }))}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Campanhas</SelectItem>
+                  {uniqueUtms.campaigns.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Origem (utm_source)</label>
+              <Select value={utmFilters.utm_source} onValueChange={(val) => setUtmFilters(prev => ({ ...prev, utm_source: val }))}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Origens</SelectItem>
+                  {uniqueUtms.sources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Meio (utm_medium)</label>
+              <Select value={utmFilters.utm_medium} onValueChange={(val) => setUtmFilters(prev => ({ ...prev, utm_medium: val }))}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Meios</SelectItem>
+                  {uniqueUtms.mediums.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Termo (utm_term)</label>
+              <Select value={utmFilters.utm_term} onValueChange={(val) => setUtmFilters(prev => ({ ...prev, utm_term: val }))}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Termos</SelectItem>
+                  {uniqueUtms.terms.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="relative pt-2">
             <Input
               placeholder="Buscar por nome, email, telefone, tema ou respostas..."
               value={searchTerm}

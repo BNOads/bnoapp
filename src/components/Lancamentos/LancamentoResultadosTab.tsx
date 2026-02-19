@@ -19,6 +19,10 @@ import { RefreshCw, Search, Pencil, Check, Plus, ArrowUpDown, ArrowUp, ArrowDown
 import { toast } from 'sonner';
 import { SheetAnalysis } from './SheetAnalysis';
 import { CruzamentoDadosTab } from './CruzamentoDadosTab';
+import { MetaDatePicker } from '@/components/ui/date-picker-meta';
+import { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
+import { Calendar as CalendarIcon } from 'lucide-react';
 
 interface LancamentoResultadosTabProps {
     lancamento: any;
@@ -102,6 +106,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
         warm: { spend: 0, leads: 0 },
         hot: { spend: 0, leads: 0 }
     });
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
     const handleSort = (key: string, currentConfig: any, setConfig: any) => {
         let direction: 'asc' | 'desc' = 'desc';
@@ -122,7 +127,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
 
     useEffect(() => {
         fetchData();
-    }, [lancamento]);
+    }, [lancamento, dateRange]);
 
     const handleSync = async () => {
         if (!lancamento?.cliente_id) return;
@@ -291,6 +296,12 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             // if (lancamento.data_inicio_captacao) {
             //      query = query.gte('date_start', lancamento.data_inicio_captacao);
             // }
+            if (dateRange?.from) {
+                query = query.gte('date_start', format(dateRange.from, 'yyyy-MM-dd'));
+            }
+            if (dateRange?.to) {
+                query = query.lte('date_start', format(dateRange.to, 'yyyy-MM-dd'));
+            }
 
             const { data: allCampaignsData, error: campaignError } = await query;
 
@@ -475,6 +486,12 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             // if (lancamento.data_inicio_captacao) {
             //    adQuery = adQuery.gte('date_start', lancamento.data_inicio_captacao);
             // }
+            if (dateRange?.from) {
+                adQuery = adQuery.gte('date_start', format(dateRange.from, 'yyyy-MM-dd'));
+            }
+            if (dateRange?.to) {
+                adQuery = adQuery.lte('date_start', format(dateRange.to, 'yyyy-MM-dd'));
+            }
 
             const { data: adInsights, error: adError } = await adQuery;
 
@@ -579,6 +596,18 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h3 className="text-lg font-medium hidden sm:block">Resultados do Lançamento</h3>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="flex items-center gap-2">
+                        <MetaDatePicker
+                            dateRange={dateRange}
+                            onDateRangeChange={setDateRange}
+                            disabled={loading || syncing}
+                        />
+                        {dateRange && (
+                            <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)}>
+                                Limpar
+                            </Button>
+                        )}
+                    </div>
                     <Dialog open={isSelectionOpen} onOpenChange={(open) => {
                         setIsSelectionOpen(open);
                         if (open) loadAvailableCampaigns();
@@ -814,6 +843,8 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                                         paddingAngle={2}
                                                         dataKey="value"
                                                         stroke="none"
+                                                        label={({ percent }) => percent > 0 ? `${(percent * 100).toFixed(0)}%` : ''}
+                                                        labelLine={false}
                                                     >
                                                         {tempSpendData.map((entry, index) => (
                                                             <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -849,6 +880,8 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                                         paddingAngle={2}
                                                         dataKey="value"
                                                         stroke="none"
+                                                        label={({ percent }) => percent > 0 ? `${(percent * 100).toFixed(0)}%` : ''}
+                                                        labelLine={false}
                                                     >
                                                         {tempLeadsData.map((entry, index) => (
                                                             <Cell key={`cell-${index}`} fill={entry.fill} />

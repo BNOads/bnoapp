@@ -73,8 +73,9 @@ export const SheetAnalysis = ({ data, title }: SheetAnalysisProps) => {
             if (forbidden.includes(lowerKey)) return false;
 
             // Partial match forbidden (e.g. "E-mail Address", "Celular (WhatsApp)")
-            if (lowerKey.includes('email') || lowerKey.includes('e-mail')) return false;
-            if (lowerKey.includes('telefone') || lowerKey.includes('celular') || lowerKey.includes('whatsapp') || lowerKey.includes('phone')) return false;
+            if (lowerKey.includes('email') || lowerKey.includes('e-mail') || lowerKey.includes('e_mail')) return false;
+            if (lowerKey.includes('telefone') || lowerKey.includes('celular') || lowerKey.includes('whatsapp') || lowerKey.includes('phone') || lowerKey.includes('whats')) return false;
+            if (lowerKey.includes('carimbo') || lowerKey.includes('data') || lowerKey.includes('hora') || lowerKey.includes('time')) return false;
 
             // System columns
             if (key.startsWith('_')) return false;
@@ -269,13 +270,20 @@ export const SheetAnalysis = ({ data, title }: SheetAnalysisProps) => {
                                         />
                                         <Legend
                                             verticalAlign="bottom"
-                                            height={80}
+                                            height={120}
                                             iconType="circle"
                                             layout="horizontal"
-                                            wrapperStyle={{ fontSize: '11px', lineHeight: '14px' }}
+                                            wrapperStyle={{
+                                                fontSize: '11px',
+                                                lineHeight: '14px',
+                                                maxHeight: '120px',
+                                                overflowY: 'auto',
+                                                paddingTop: '10px'
+                                            }}
                                             formatter={(value, entry: any) => {
                                                 const { payload } = entry;
-                                                return <span className="text-muted-foreground ml-1">{value} <strong>({payload.percent.toFixed(1)}%)</strong></span>;
+                                                const truncValue = value.length > 25 ? value.substring(0, 25) + '...' : value;
+                                                return <span className="text-muted-foreground ml-1" title={value}>{truncValue} <strong>({payload.percent.toFixed(1)}%)</strong></span>;
                                             }}
                                         />
                                     </PieChart>

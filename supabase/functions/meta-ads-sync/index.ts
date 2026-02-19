@@ -1,5 +1,5 @@
-
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -55,7 +55,7 @@ const normalizeStatus = (status?: string | null): 'success' | 'error' | 'partial
     return 'error';
 };
 
-Deno.serve(async (req) => {
+serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
@@ -800,16 +800,16 @@ Deno.serve(async (req) => {
         accountDetailsForLog = accountDetails;
         const accountsTotal = accountDetails.length;
         const accountsSuccess = accountDetails.filter((item: any) => normalizeStatus(item?.status) === 'success').length;
-        const accountsError = accountDetails.filter((item: any) => normalizeStatus(item?.status) !== 'success').length;
+        const accountsWithErrors = accountDetails.filter((item: any) => normalizeStatus(item?.status) !== 'success').length;
         const totalRecordsSynced = accountDetails.reduce((sum: number, item: any) => sum + safeNumber(item?.total_records), 0);
 
         accountsSuccessForLog = accountsSuccess;
-        accountsErrorForLog = accountsError;
+        accountsErrorForLog = accountsWithErrors;
         recordsSyncedForLog = totalRecordsSynced;
 
         let finalStatus: 'success' | 'error' | 'partial' = 'success';
         if (accountsTotal > 0) {
-            if (accountsError === 0) finalStatus = 'success';
+            if (accountsWithErrors === 0) finalStatus = 'success';
             else if (accountsSuccess === 0) finalStatus = 'error';
             else finalStatus = 'partial';
         }
@@ -824,7 +824,7 @@ Deno.serve(async (req) => {
                     records_synced: totalRecordsSynced,
                     accounts_total: accountsTotal,
                     accounts_success: accountsSuccess,
-                    accounts_error: accountsError,
+                    accounts_error: accountsWithErrors,
                     details: accountDetails,
                     trigger_source: triggerSource,
                     scope: syncScope,

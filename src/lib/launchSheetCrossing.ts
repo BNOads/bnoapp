@@ -214,13 +214,13 @@ const extractPerson = (row: SheetRow): ExtractedPerson => {
   const emailRaw = getFieldValue(
     row,
     ['email', 'e-mail', 'e_mail', 'mail', 'endereco_de_email'],
-    ['email']
+    ['email', 'e_mail', 'mail']
   );
 
   const phoneRaw = getFieldValue(
     row,
     ['telefone', 'phone', 'celular', 'whatsapp'],
-    ['telefone', 'phone', 'celular', 'whatsapp']
+    ['telefone', 'phone', 'celular', 'whatsapp', 'whats', 'wpp']
   );
 
   const nome = getFieldValue(

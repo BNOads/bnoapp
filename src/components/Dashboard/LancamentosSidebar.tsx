@@ -73,9 +73,9 @@ const LaunchTimer = ({ lancamento }: { lancamento: Lancamento }) => {
     return (
         <div className="flex flex-col items-end">
             <span className="text-[10px] text-muted-foreground font-bold mb-0 uppercase tracking-wide">{nextEvent.label}</span>
-            <div className="flex items-center gap-1 font-mono text-blue-700 font-extrabold leading-none">
+            <div className="flex items-center gap-1 font-mono text-blue-700 dark:text-blue-400 font-extrabold leading-none">
                 <span className="text-lg">{String(timeLeft.dias).padStart(2, '0')}</span>
-                <span className="text-[10px] font-bold text-blue-600 uppercase">dias</span>
+                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">dias</span>
             </div>
         </div>
     );
@@ -202,18 +202,18 @@ export function LancamentosSidebar() {
                         >
                             {/* Row 1: Title + Manager */}
                             <div className="flex items-center justify-between gap-2">
-                                <span className="font-extrabold text-[15px] leading-tight text-slate-900 group-hover:text-blue-700 transition-colors line-clamp-2" title={lancamento.nome_lancamento}>
+                                <span className="font-extrabold text-[15px] leading-tight text-slate-900 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors line-clamp-2" title={lancamento.nome_lancamento}>
                                     {lancamento.nome_lancamento}
                                 </span>
                                 {lancamento.gestor_responsavel && (
                                     <div className="flex items-center gap-1 shrink-0">
-                                        <Avatar className="h-4 w-4 border border-slate-100">
+                                        <Avatar className="h-4 w-4 border border-slate-100 dark:border-slate-800">
                                             <AvatarImage src={lancamento.gestor_responsavel.avatar_url || undefined} alt={lancamento.gestor_responsavel.nome} />
-                                            <AvatarFallback className="text-[6px] bg-slate-100 text-slate-600 font-bold">
+                                            <AvatarFallback className="text-[6px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold">
                                                 {lancamento.gestor_responsavel.nome.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-[10px] text-slate-700 font-bold truncate max-w-[80px]">
+                                        <span className="text-[10px] text-slate-700 dark:text-slate-300 font-bold truncate max-w-[80px]">
                                             {lancamento.gestor_responsavel.nome}
                                         </span>
                                     </div>
@@ -229,7 +229,7 @@ export function LancamentosSidebar() {
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-orange-500"></span>
                                     </span>
-                                    <span className="text-[10px] text-orange-700 font-bold uppercase tracking-wide">
+                                    <span className="text-[10px] text-orange-700 dark:text-orange-400 font-bold uppercase tracking-wide">
                                         {pendingCount} Pendências
                                     </span>
                                 </div>
@@ -240,7 +240,7 @@ export function LancamentosSidebar() {
                                 {/* Investment */}
                                 {lancamento.investimento_total > 0 ? (
                                     <div className="flex flex-col justify-center">
-                                        <span className="flex items-center gap-0.5 text-emerald-700 font-extrabold text-[15px] leading-none tracking-tight">
+                                        <span className="flex items-center gap-0.5 text-emerald-700 dark:text-emerald-400 font-extrabold text-[15px] leading-none tracking-tight">
                                             <DollarSign className="h-3.5 w-3.5 stroke-[3]" />
                                             {new Intl.NumberFormat('pt-BR', {
                                                 style: 'currency',
