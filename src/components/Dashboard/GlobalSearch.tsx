@@ -52,7 +52,49 @@ export function GlobalSearch() {
 
     useEffect(() => {
         if (!query) {
-            setResults([]);
+            const fetchBaseData = async () => {
+                setLoading(true);
+                try {
+                    const [clientes, lancamentos] = await Promise.all([
+                        supabase
+                            .from('clientes')
+                            .select('id, nome, nicho, slug')
+                            .eq('ativo', true)
+                            .order('created_at', { ascending: false })
+                            .limit(5),
+                        supabase
+                            .from('lancamentos')
+                            .select('id, nome_lancamento, promessa, clientes!inner(nome)')
+                            .eq('status_lancamento', 'finalizado')
+                            .order('created_at', { ascending: false })
+                            .limit(5)
+                    ]);
+
+                    const newResults: SearchResult[] = [];
+
+                    clientes.data?.forEach(c => newResults.push({
+                        id: c.id,
+                        title: c.nome || c.nicho || 'Sem nome',
+                        type: 'cliente',
+                        url: `/clientes/${c.id}`
+                    }));
+
+                    lancamentos.data?.forEach(l => newResults.push({
+                        id: l.id,
+                        title: l.nome_lancamento,
+                        subtitle: (l.clientes as any)?.nome || 'Sem cliente (Implementação Finalizada)',
+                        type: 'lancamento',
+                        url: `/lancamentos/${l.id}`
+                    }));
+
+                    setResults(newResults);
+                } catch (error) {
+                    console.error("Default search error:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchBaseData();
             return;
         }
 
@@ -60,6 +102,7 @@ export function GlobalSearch() {
             setLoading(true);
             try {
                 const searchTerm = `%${query}%`;
+                const searchLower = query.toLowerCase();
 
                 const [
                     clientes,
@@ -71,26 +114,26 @@ export function GlobalSearch() {
                     // Clientes
                     supabase
                         .from('clientes')
-                        .select('id, nome_fantasia, razao_social')
-                        .or(`nome_fantasia.ilike.${searchTerm},razao_social.ilike.${searchTerm}`)
+                        .select('id, nome, nicho, slug')
+                        .or(`nome.ilike.${searchTerm},slug.ilike.${searchTerm}`)
                         .eq('ativo', true)
-                        .limit(3),
+                        .limit(5),
 
                     // Colaboradores
                     supabase
                         .from('colaboradores')
-                        .select('id, nome, funcao')
+                        .select('id, nome, cargo_display')
                         .ilike('nome', searchTerm)
                         .eq('ativo', true)
-                        .limit(3),
+                        .limit(5),
 
                     // Lançamentos
                     supabase
                         .from('lancamentos')
-                        .select('id, nome_lancamento, especialista')
-                        .or(`nome_lancamento.ilike.${searchTerm},especialista.ilike.${searchTerm}`)
-                        .eq('ativo', true)
-                        .limit(3),
+                        .select('id, nome_lancamento, promessa, clientes!inner(nome)')
+                        .or(`nome_lancamento.ilike.${searchTerm}`)
+                        .not('status_lancamento', 'eq', 'cancelado')
+                        .limit(5),
 
                     // Desafios
                     supabase
@@ -98,21 +141,21 @@ export function GlobalSearch() {
                         .select('id, titulo')
                         .ilike('titulo', searchTerm)
                         .eq('ativo', true)
-                        .limit(3),
+                        .limit(5),
 
                     // Testes
                     supabase
-                        .from('laboratorio_testes')
-                        .select('id, nome_teste, objetivo')
-                        .or(`nome_teste.ilike.${searchTerm},objetivo.ilike.${searchTerm}`)
-                        .limit(3),
+                        .from('testes_laboratorio')
+                        .select('id, nome, hipotese')
+                        .or(`nome.ilike.${searchTerm},hipotese.ilike.${searchTerm}`)
+                        .limit(5),
                 ]);
 
                 const newResults: SearchResult[] = [];
 
                 clientes.data?.forEach(c => newResults.push({
                     id: c.id,
-                    title: c.nome_fantasia || c.razao_social,
+                    title: c.nome || c.nicho || 'Sem nome',
                     type: 'cliente',
                     url: `/clientes/${c.id}`
                 }));
@@ -120,15 +163,23 @@ export function GlobalSearch() {
                 colaboradores.data?.forEach(c => newResults.push({
                     id: c.id,
                     title: c.nome,
-                    subtitle: c.funcao,
+                    subtitle: c.cargo_display || 'Colaborador',
                     type: 'colaborador',
                     url: `/equipe` // Adjust if there's a specific profile page
                 }));
 
-                lancamentos.data?.forEach(l => newResults.push({
+                // Lancamentos filters by client name manually or if the launch has the name 
+                const lancamentoData = lancamentos.data || [];
+                const matchedLancamentos = lancamentoData.filter(l => {
+                    const clientName = (l.clientes as any)?.nome || '';
+                    return l.nome_lancamento.toLowerCase().includes(searchLower) ||
+                        clientName.toLowerCase().includes(searchLower);
+                });
+
+                matchedLancamentos.forEach(l => newResults.push({
                     id: l.id,
                     title: l.nome_lancamento,
-                    subtitle: l.especialista,
+                    subtitle: (l.clientes as any)?.nome || 'Sem cliente',
                     type: 'lancamento',
                     url: `/lancamentos/${l.id}`
                 }));
@@ -142,10 +193,10 @@ export function GlobalSearch() {
 
                 testes.data?.forEach(t => newResults.push({
                     id: t.id,
-                    title: t.nome_teste,
-                    subtitle: t.objetivo,
+                    title: t.nome,
+                    subtitle: t.hipotese,
                     type: 'teste',
-                    url: `/laboratorio-testes` // Adjust to open specific test
+                    url: `/testes` // Adjust to open specific test
                 }));
 
                 setResults(newResults);
@@ -164,14 +215,14 @@ export function GlobalSearch() {
         navigate(url);
     };
 
-    const getIcon = (type: SearchResult['type']) => {
+    const getIconInfo = (type: SearchResult['type']) => {
         switch (type) {
-            case 'cliente': return Briefcase;
-            case 'colaborador': return Users;
-            case 'lancamento': return Rocket;
-            case 'desafio': return Trophy;
-            case 'teste': return FlaskConical;
-            default: return Search;
+            case 'cliente': return { icon: Briefcase, text: 'text-blue-500', bg: 'bg-blue-500/10' };
+            case 'colaborador': return { icon: Users, text: 'text-purple-500', bg: 'bg-purple-500/10' };
+            case 'lancamento': return { icon: Rocket, text: 'text-orange-500', bg: 'bg-orange-500/10' };
+            case 'desafio': return { icon: Trophy, text: 'text-yellow-500', bg: 'bg-yellow-500/10' };
+            case 'teste': return { icon: FlaskConical, text: 'text-emerald-500', bg: 'bg-emerald-500/10' };
+            default: return { icon: Search, text: 'text-gray-500', bg: 'bg-gray-500/10' };
         }
     };
 
@@ -221,7 +272,7 @@ export function GlobalSearch() {
                             {!loading && Object.entries(groupedResults).map(([type, items]) => (
                                 <CommandGroup key={type} heading={type.charAt(0).toUpperCase() + type.slice(1) + 's'}>
                                     {items.map((item) => {
-                                        const Icon = getIcon(item.type);
+                                        const { icon: Icon, text, bg } = getIconInfo(item.type);
                                         return (
                                             <CommandItem
                                                 key={item.id}
@@ -229,8 +280,8 @@ export function GlobalSearch() {
                                                 value={item.id} // Add unique value key
                                                 className="flex items-center gap-3 py-3 cursor-pointer"
                                             >
-                                                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10">
-                                                    <Icon className="h-4 w-4 text-primary" />
+                                                <div className={`flex items-center justify-center h-8 w-8 rounded-full ${bg}`}>
+                                                    <Icon className={`h-4 w-4 ${text}`} />
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="font-medium">{item.title}</span>

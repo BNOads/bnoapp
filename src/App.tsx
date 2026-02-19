@@ -44,6 +44,8 @@ import LaboratorioTestes from "./pages/LaboratorioTestes";
 import LaboratorioTesteDetalhes from "./pages/LaboratorioTesteDetalhes";
 import PublicDashboard from "./pages/PublicDashboard";
 import MetaAdsAdmin from "./pages/MetaAdsAdmin";
+import Tarefas from "./pages/Tarefas";
+import TarefaDetalhe from "./pages/TarefaDetalhe";
 import { AppLayout } from "@/components/Layout/AppLayout";
 import FerramentaProjecaoView from "@/components/Ferramentas/FerramentaProjecaoView";
 
@@ -212,6 +214,16 @@ function App() {
                     </ProtectedRoute>
                   } />
                   <Route path="/crm" element={<CRMPage />} />
+                  <Route path="/tarefas" element={
+                    <ProtectedRoute>
+                      <Tarefas />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/tarefas/:id" element={
+                    <ProtectedRoute>
+                      <TarefaDetalhe />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/" element={
                     <ProtectedRoute>
                       <Index />
