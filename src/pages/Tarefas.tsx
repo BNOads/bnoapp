@@ -21,7 +21,7 @@ import { CreateTaskModal } from "@/components/tasks/modals/CreateTaskModal";
 import { TaskDetailDialog } from "@/components/tasks/details/TaskDetailDialog";
 
 export default function Tarefas() {
-    const { data: currentUser } = useCurrentUser();
+    const { userData: currentUser } = useCurrentUser();
     const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
 
     const [filters, setFilters] = useState<TaskFilters>({

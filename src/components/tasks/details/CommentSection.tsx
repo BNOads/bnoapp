@@ -16,7 +16,7 @@ interface CommentSectionProps {
 
 export function CommentSection({ taskId, comments }: CommentSectionProps) {
     const [newComment, setNewComment] = useState("");
-    const { data: currentUser } = useCurrentUser();
+    const { userData: currentUser } = useCurrentUser();
 
     const { mutate: addComment, isPending } = useCreateComment();
     const { mutate: deleteComment } = useDeleteComment();

@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToggleTaskComplete, useUpdateTask, useCreateTask } from "@/hooks/useTaskMutations";
 import { PRIORITY_LABELS } from "@/types/tasks";
-import { CalendarIcon, Clock, AlertCircle, CheckCircle2, ChevronRight, FileText, Check, Plus, RepeatIcon } from "lucide-react";
+import { CalendarIcon, Clock, AlertCircle, CheckCircle2, ChevronRight, FileText, Check, Plus, RepeatIcon, SkipForward } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export function TodaysTasks() {
-    const { data: currentUser } = useCurrentUser();
+    const { userData: currentUser } = useCurrentUser();
     const userName = currentUser?.nome || currentUser?.email || "";
     const { data: rawTasks = [], isLoading } = useTasks({
         assignee: userName || "BNO_LOADING_USER",
@@ -199,12 +199,12 @@ export function TodaysTasks() {
                                 </AccordionTrigger>
                                 {overdueTasks.length > 0 && (
                                     <Button
-                                        variant="outline"
                                         size="sm"
-                                        className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 gap-1 rounded-md px-2"
+                                        className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 rounded-md px-3 font-medium transition-all shadow-sm"
                                         onClick={handleAdiarTodasAtrasadas}
                                     >
-                                        Adiar todas para hoje
+                                        <SkipForward className="w-3.5 h-3.5" />
+                                        Adiar para Hoje
                                     </Button>
                                 )}
                             </div>

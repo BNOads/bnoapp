@@ -25,7 +25,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
     const [dueDate, setDueDate] = useState<string>("");
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string }[]>([]);
-    const { data: currentUser } = useCurrentUser();
+    const { userData: currentUser } = useCurrentUser();
     const { mutate: createTask, isPending } = useCreateTask();
 
     const getAssignedTo = () => {
