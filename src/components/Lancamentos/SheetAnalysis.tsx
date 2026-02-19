@@ -1,8 +1,15 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
-import { FileText, AlignLeft } from 'lucide-react';
+import { FileText, AlignLeft, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
 
 interface SheetAnalysisProps {
     data: any[];
@@ -12,20 +19,77 @@ interface SheetAnalysisProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#3b82f6', '#6366f1'];
 
 export const SheetAnalysis = ({ data, title }: SheetAnalysisProps) => {
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+    // Detect Date Column
+    const dateColumn = useMemo(() => {
+        if (!data || data.length === 0) return null;
+        const headers = Object.keys(data[0]);
+        // Priority check
+        const candidates = ['Carimbo de data/hora', 'Timestamp', 'Data', 'Date', 'Created at', 'Time'];
+        for (const candidate of candidates) {
+            const match = headers.find(h => h.toLowerCase() === candidate.toLowerCase());
+            if (match) return match;
+        }
+        // Fallback: Check first column if it looks like a date
+        const firstVal = data[0][headers[0]];
+        if (headers[0] && !isNaN(Date.parse(firstVal))) {
+            return headers[0];
+        }
+        return null; // No clear date column found
+    }, [data]);
+
+    const filteredData = useMemo(() => {
+        if (!data) return [];
+        if (!dateRange?.from || !dateColumn) return data;
+
+        const fromTime = dateRange.from.getTime();
+        const toTime = dateRange.to ? dateRange.to.getTime() + 86400000 : fromTime + 86400000; // Inclusive of end day
+
+        return data.filter(row => {
+            const dateVal = row[dateColumn];
+            if (!dateVal) return false;
+
+            // Handle Google Sheets Date formats or ISO
+            let d = new Date(dateVal);
+            if (isNaN(d.getTime())) {
+                // Try parsing "dd/mm/yyyy hh:mm:ss" manually if needed, but assuming standard parse works for now
+                // or if it's Excel serial date (rare in JSON API output usually)
+                return false;
+            }
+            const t = d.getTime();
+            return t >= fromTime && t < toTime;
+        });
+    }, [data, dateRange, dateColumn]);
 
     const analysis = useMemo(() => {
-        if (!data || data.length === 0) return { charts: [], wordClouds: [] };
+        if (!filteredData || filteredData.length === 0) return { charts: [], wordClouds: [] };
 
-        const headers = Object.keys(data[0]).filter(key =>
-            !['id', 'created_at', 'updated_at', 'lancamento_id', 'nome', 'email', 'telefone', 'celular', 'phone', 'data', 'date'].includes(key.toLowerCase()) &&
-            !key.startsWith('_')
-        );
+        const headers = Object.keys(filteredData[0]).filter(key => {
+            const lowerKey = key.toLowerCase();
+            const forbidden = ['id', 'created_at', 'updated_at', 'lancamento_id', 'nome', 'email', 'telefone', 'celular', 'phone', 'whatsapp', 'cpf', 'rg', 'ip'];
+
+            // Exact match forbidden
+            if (forbidden.includes(lowerKey)) return false;
+
+            // Partial match forbidden (e.g. "E-mail Address", "Celular (WhatsApp)")
+            if (lowerKey.includes('email') || lowerKey.includes('e-mail')) return false;
+            if (lowerKey.includes('telefone') || lowerKey.includes('celular') || lowerKey.includes('whatsapp') || lowerKey.includes('phone')) return false;
+
+            // System columns
+            if (key.startsWith('_')) return false;
+
+            // Date column excluded from charts
+            if (key === dateColumn) return false;
+
+            return true;
+        });
 
         const charts: any[] = [];
         const wordClouds: any[] = [];
 
         headers.forEach(header => {
-            const values = data.map(row => String(row[header] || '').trim()).filter(v => v !== '');
+            const values = filteredData.map(row => String(row[header] || '').trim()).filter(v => v !== '');
             const total = values.length;
             if (total === 0) return;
 
@@ -55,17 +119,6 @@ export const SheetAnalysis = ({ data, title }: SheetAnalysisProps) => {
             }
             // 2. Word Cloud (List): Many unique values, appears to be text
             else if (uniqueCount > 15) {
-                // Check if it's long text (avg > 10 chars) to treat as "Open Answer"
-                // Or if it's just many short categories, still maybe word cloud is better than 50 pie slices.
-                // We will take top 30 terms.
-
-                // Simple stop word filter could go here but let's stick to raw values for now as they might be short sentences.
-                // Actually, for word cloud, we usually split by words. 
-                // But the screenshot shows "Word Cloud of sentences" or "Tags". 
-                // "Como você espera ser ajudado" -> Sentences.
-                // "Em qual curso..." -> One or two words.
-
-                // Strategy: If values are long sentences, split words. If short, keep as tags.
                 const avgLength = values.reduce((sum, val) => sum + val.length, 0) / total;
 
                 let cloudData = uniqueValues;
@@ -78,7 +131,7 @@ export const SheetAnalysis = ({ data, title }: SheetAnalysisProps) => {
                     values.forEach(val => {
                         val.split(/\s+/).forEach(word => {
                             const w = word.toLowerCase().replace(/[.,!?;:()]/g, '');
-                            if (w.length > 3 && !['para', 'com', 'que', 'não', 'uma', 'pelo', 'mais'].includes(w)) {
+                            if (w.length > 3 && !['para', 'com', 'que', 'não', 'uma', 'pelo', 'mais', 'estou', 'está', 'fazer', 'como', 'você', 'tenho', 'minha', 'meu', 'muito'].includes(w)) {
                                 wordCounts[w] = (wordCounts[w] || 0) + 1;
                             }
                         });
@@ -91,16 +144,19 @@ export const SheetAnalysis = ({ data, title }: SheetAnalysisProps) => {
                     cloudData = uniqueValues.slice(0, 30);
                 }
 
-                wordClouds.push({
-                    title: header,
-                    data: cloudData,
-                    isSentence
-                });
+                if (cloudData.length > 0) {
+                    wordClouds.push({
+                        title: header,
+                        data: cloudData,
+                        isSentence,
+                        maxCount: cloudData[0].value // For normalization
+                    });
+                }
             }
         });
 
         return { charts, wordClouds };
-    }, [data]);
+    }, [filteredData, dateColumn]);
 
     if (!data || data.length === 0) {
         return <div className="p-8 text-center text-muted-foreground">Sem dados para analisar.</div>;
@@ -108,14 +164,66 @@ export const SheetAnalysis = ({ data, title }: SheetAnalysisProps) => {
 
     return (
         <div className="space-y-8 animate-fade-in">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                     <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
                     <p className="text-muted-foreground">
-                        Total de Respostas: <span className="font-bold text-foreground">{data.length}</span>
+                        Total de Respostas: <span className="font-bold text-foreground">{filteredData.length}</span>
+                        {filteredData.length !== data.length && <span className="text-xs ml-2">(Filtrado de {data.length})</span>}
                     </p>
                 </div>
+
+                {dateColumn && (
+                    <div className="flex items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[240px] justify-start text-left font-normal",
+                                        !dateRange && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (
+                                        dateRange.to ? (
+                                            <>
+                                                {format(dateRange.from, "dd/MM/yy", { locale: ptBR })} -{" "}
+                                                {format(dateRange.to, "dd/MM/yy", { locale: ptBR })}
+                                            </>
+                                        ) : (
+                                            format(dateRange.from, "dd/MM/yy", { locale: ptBR })
+                                        )
+                                    ) : (
+                                        <span>Filtrar por data</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={dateRange?.from}
+                                    selected={dateRange}
+                                    onSelect={setDateRange}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                        {dateRange && (
+                            <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)}>
+                                Limpar
+                            </Button>
+                        )}
+                    </div>
+                )}
             </div>
+
+            {filteredData.length === 0 && (
+                <div className="p-12 text-center border dashed rounded-lg">
+                    <p className="text-muted-foreground">Nenhum dado encontrado para o período selecionado.</p>
+                </div>
+            )}
 
             {/* Categorical Charts (Pie) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -202,18 +310,26 @@ export const SheetAnalysis = ({ data, title }: SheetAnalysisProps) => {
                                 <CardContent>
                                     <div className="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto p-2">
                                         {cloud.data.map((item: any, i: number) => {
-                                            // Simple visual weighting
-                                            const fontSize = Math.max(0.75, Math.min(2, 0.75 + (item.value / data.length) * 3)) + 'rem';
-                                            const opacity = Math.max(0.6, Math.min(1, 0.4 + (item.value / data.length) * 2));
+                                            // Intensity Mapping based on frequency
+                                            // alpha goes from 0.1 (min) to 1 (max)
+                                            // We'll use a primary color base.
+
+                                            const ratio = item.value / cloud.maxCount;
+                                            const opacity = Math.max(0.2, ratio); // min 0.2 opacity
+                                            const fontSize = Math.max(0.8, 0.8 + (ratio * 1.5)) + 'rem'; // scale size a bit too for emphasis
 
                                             return (
                                                 <span
                                                     key={i}
-                                                    className="inline-block bg-muted/50 rounded-md px-2 py-1 text-center transition-all hover:bg-muted hover:scale-105"
-                                                    style={{ fontSize, opacity }}
+                                                    className="inline-block rounded-md px-3 py-1.5 text-center transition-all hover:scale-105 select-none"
+                                                    style={{
+                                                        backgroundColor: `hsl(var(--primary) / ${opacity})`,
+                                                        color: opacity > 0.5 ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))',
+                                                        fontSize
+                                                    }}
                                                     title={`${item.value} ocorrências`}
                                                 >
-                                                    {item.name}
+                                                    {item.name} <span className="ml-1 opacity-70 text-[0.8em]">({item.value})</span>
                                                 </span>
                                             );
                                         })}

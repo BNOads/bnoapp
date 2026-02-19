@@ -47,6 +47,7 @@ import MetaAdsAdmin from "./pages/MetaAdsAdmin";
 import { AppLayout } from "@/components/Layout/AppLayout";
 import FerramentaProjecaoView from "@/components/Ferramentas/FerramentaProjecaoView";
 
+
 const queryClient = new QueryClient({
   // ... (keep existing code)
 });
@@ -217,6 +218,7 @@ function App() {
                     </ProtectedRoute>
                   } />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </AppLayout>

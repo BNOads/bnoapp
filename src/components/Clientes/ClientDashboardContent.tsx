@@ -7,7 +7,7 @@ import { LancamentoCard } from "@/components/Lancamentos/LancamentoCard";
 import { OrcamentoPorFunil } from "@/components/Clientes/OrcamentoPorFunil";
 import { LinksImportantesEnhanced } from "@/components/Clientes/LinksImportantesEnhanced";
 import { TestesClientePanel } from "@/components/Clientes/TestesClientePanel";
-import { TarefasListEnhanced } from "@/components/Clientes/TarefasListEnhanced";
+
 import { ChecklistCriativosView } from "@/components/Clientes/ChecklistCriativos";
 import { DiarioBordo } from "@/components/Clientes/DiarioBordo";
 import { GravacoesReunioes } from "@/components/Clientes/GravacoesReunioes";
@@ -164,6 +164,10 @@ export const ClientDashboardContent = ({
                                 <LinksImportantesEnhanced clienteId={cliente.id} isPublicView={!isAuthenticated} />
                             </div>
 
+                            <div className="mt-6">
+                                <ChecklistCriativosView clienteId={cliente.id} isPublicView={!isAuthenticated} />
+                            </div>
+
                             <div className="mt-6 lg:mt-8">
                                 <TestesClientePanel
                                     clienteId={cliente.id}
@@ -173,20 +177,6 @@ export const ClientDashboardContent = ({
                                     currentUserId={currentUser?.id || null}
                                     currentColaboradorId={currentColaboradorId}
                                 />
-                            </div>
-                        </section>
-
-                        <section className="space-y-3 sm:space-y-4 min-w-0">
-                            <h2 className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 px-1">
-                                <FileText className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                                <span className="truncate">Tarefas</span>
-                            </h2>
-                            <div className="w-full overflow-hidden">
-                                <TarefasListEnhanced clienteId={cliente.id} tipo="cliente" isPublicView={!isAuthenticated} />
-                            </div>
-
-                            <div className="mt-6">
-                                <ChecklistCriativosView clienteId={cliente.id} isPublicView={!isAuthenticated} />
                             </div>
 
                             <div className="mt-6">

@@ -141,8 +141,11 @@ export const LaboratorioTestesView = () => {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const total = testes.length;
     const rodando = testes.filter(t => t.status === 'rodando').length;
-    const concluidos = testes.filter(t => t.status === 'concluido').length;
+    const concluidos = testes.filter(t => t.status === 'concluido' || t.status === 'cancelado').length;
     const vencedores = testes.filter(t => t.validacao === 'deu_bom').length;
+    // Success rate: (Winners / Total Concluded or Cancelled) * 100
+    // If we only want to count 'concluded' (ignoring cancelled), we can remove t.status === 'cancelado'.
+    // Assuming 'concluded' means any finished test.
     const taxaSucesso = concluidos > 0 ? Math.round((vencedores / concluidos) * 100) : 0;
     const doMes = testes.filter(t => t.created_at >= monthStart).length;
     return { total, rodando, taxaSucesso, doMes };

@@ -15,9 +15,16 @@ interface ColaboradorAniversario {
   diasRestantes: number;
 }
 
-export function AniversariosProximos() {
+export interface AniversariosProximosProps {
+  compact?: boolean;
+  className?: string;
+}
+
+export function AniversariosProximos({ compact = false, className }: AniversariosProximosProps) {
   const [aniversariantes, setAniversariantes] = useState<ColaboradorAniversario[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ... existing helper functions (parseDateLocal, calcularDiasParaAniversario) ...
 
   const parseDateLocal = (dateStr: string): Date | null => {
     const parts = dateStr.split('-').map(Number);
@@ -27,24 +34,25 @@ export function AniversariosProximos() {
 
   const calcularDiasParaAniversario = (dataNascimento: string): number | null => {
     if (!dataNascimento) return null;
-    
+
     try {
       const nascimento = parseDateLocal(dataNascimento);
       if (!nascimento) return null;
 
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
-      
+
       const anoAtual = hoje.getFullYear();
       const aniversarioEsteAno = new Date(anoAtual, nascimento.getMonth(), nascimento.getDate());
-      
+
       if (aniversarioEsteAno < hoje) {
         aniversarioEsteAno.setFullYear(anoAtual + 1);
       }
-      
+
       const diferenca = Math.ceil((aniversarioEsteAno.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
       return diferenca;
     } catch (error) {
+      console.error(error);
       return null;
     }
   };
@@ -97,65 +105,56 @@ export function AniversariosProximos() {
   const getAniversarioDate = (dataNascimento: string) => {
     const data = parseDateLocal(dataNascimento);
     if (!data) return 'Data inválida';
-    return format(data, "dd 'de' MMMM", { locale: ptBR });
+    return format(data, "dd/MM", { locale: ptBR });
   };
 
   return (
-    <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background shadow-lg overflow-hidden">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <div className="p-2 rounded-full bg-primary/10">
-            <Cake className="h-5 w-5 text-primary" />
+    <Card className={`border border-blue-100 bg-blue-50/90 shadow-sm ${compact ? 'mt-0' : ''} ${className}`}>
+      <CardHeader className={`${compact ? "p-1.5 pb-0" : "pb-3"}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <div className={`rounded-full bg-blue-100 ${compact ? 'p-0.5' : 'p-2'}`}>
+              <Cake className={`text-blue-600 ${compact ? 'h-3 w-3' : 'h-5 w-5'}`} />
+            </div>
+            <span className={`font-bold text-slate-900 ${compact ? 'text-[10px]' : 'text-lg'}`}>Aniversários Próximos</span>
           </div>
-          <span>Aniversários Próximos</span>
-          <Badge variant="secondary" className="ml-auto">
+          <Badge className="bg-slate-800 text-white hover:bg-slate-700 h-3.5 px-1 min-w-[14px] justify-center text-[8px]">
             {aniversariantes.length}
           </Badge>
-        </CardTitle>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className={`${compact ? "p-1.5 pt-1 space-y-0.5" : "space-y-3"} flex-1 flex flex-col justify-center`}>
         {aniversariantes.map((colab) => {
           const { text, variant, icon: Icon } = getAniversarioLabel(colab.diasRestantes);
           const isToday = colab.diasRestantes === 0;
-          const isSoon = colab.diasRestantes <= 3;
 
           return (
             <div
               key={colab.id}
-              className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                isToday 
-                  ? 'bg-primary/15 border-2 border-primary animate-pulse' 
-                  : isSoon 
-                    ? 'bg-primary/10 border border-primary/30' 
-                    : 'bg-muted/50 hover:bg-muted'
-              }`}
+              className={`flex items-center gap-1.5 rounded-md transition-all bg-white/60 hover:bg-white border border-blue-100/50 ${compact ? 'p-1' : 'p-3'}`}
             >
-              <Avatar className={`h-12 w-12 ring-2 ${isToday ? 'ring-primary ring-offset-2' : 'ring-muted'}`}>
+              <Avatar className={`${compact ? 'h-6 w-6 border border-white shadow-sm' : 'h-12 w-12'}`}>
                 <AvatarImage src={colab.avatar_url || undefined} alt={colab.nome} />
-                <AvatarFallback className={isToday ? 'bg-primary text-primary-foreground' : ''}>
+                <AvatarFallback className="text-[9px] bg-slate-200 text-slate-600">
                   {colab.nome.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              
+
               <div className="flex-1 min-w-0">
-                <p className={`font-semibold truncate ${isToday ? 'text-primary' : ''}`}>
-                  {colab.nome}
-                  {isToday && ' 🎉'}
+                <p className={`font-bold truncate text-slate-900 leading-tight ${compact ? 'text-xs' : ''}`}>
+                  {colab.nome.split(' ')[0]} {colab.nome.split(' ')[1]?.[0]}.
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {getAniversarioDate(colab.data_nascimento)}
+                <p className="text-[9px] text-slate-500 font-medium uppercase tracking-wide mt-0.5">
+                  {format(parseDateLocal(colab.data_nascimento)!, "dd 'de' MMM", { locale: ptBR })}
                 </p>
               </div>
 
-              <Badge 
-                variant={variant}
-                className={`flex items-center gap-1 ${
-                  isToday ? 'bg-primary text-primary-foreground animate-bounce' : ''
-                }`}
-              >
-                <Icon className="h-3 w-3" />
-                {text}
-              </Badge>
+              <div className={`flex items-center gap-1 bg-white border border-slate-200 rounded-md px-1.5 py-0.5 shadow-sm ${isToday ? 'animate-pulse border-blue-300 ring-1 ring-blue-100' : ''}`}>
+                <Icon className={`h-2.5 w-2.5 ${isToday ? 'text-blue-500' : 'text-slate-400'}`} />
+                <span className={`text-[9px] font-bold ${isToday ? 'text-blue-600' : 'text-slate-600'}`}>
+                  {isToday ? 'HOJE' : text}
+                </span>
+              </div>
             </div>
           );
         })}

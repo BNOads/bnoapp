@@ -23,17 +23,18 @@ interface PDICardProps {
   };
   onViewDetails: (pdiId: string) => void;
   isCompleted?: boolean;
+  compact?: boolean;
 }
 
-export function PDICard({ pdi, onViewDetails, isCompleted = false }: PDICardProps) {
+export function PDICard({ pdi, onViewDetails, isCompleted = false, compact = false }: PDICardProps) {
   const aulasCompletas = pdi.aulas.filter(aula => aula.concluida).length;
   const totalAulas = pdi.aulas.length;
   const progresso = totalAulas > 0 ? (aulasCompletas / totalAulas) * 100 : 0;
-  
+
   const dataLimite = new Date(pdi.data_limite);
   const hoje = new Date();
   const diasRestantes = Math.ceil((dataLimite.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   const getStatusColor = () => {
     if (progresso === 100) return "bg-green-500";
     if (diasRestantes < 0) return "bg-red-500";
@@ -49,11 +50,11 @@ export function PDICard({ pdi, onViewDetails, isCompleted = false }: PDICardProp
   };
 
   return (
-    <Card className={`h-full hover:shadow-lg transition-shadow ${isCompleted ? 'bg-green-500/10 border-green-500/30' : ''}`}>
-      <CardHeader className="pb-3">
+    <Card className={`h-full hover:shadow-lg transition-shadow ${isCompleted ? 'bg-green-500/10 border-green-500/30' : ''} ${compact ? 'p-0 text-sm' : ''}`}>
+      <CardHeader className={`${compact ? 'p-3 pb-2' : 'pb-3'}`}>
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-lg">
+            <CardTitle className={`${compact ? 'text-base' : 'text-lg'}`}>
               {pdi.titulo}
             </CardTitle>
             <CardDescription className="line-clamp-2">
@@ -65,16 +66,16 @@ export function PDICard({ pdi, onViewDetails, isCompleted = false }: PDICardProp
               </p>
             )}
           </div>
-          <Badge 
-            variant="outline" 
+          <Badge
+            variant="outline"
             className={`${isCompleted ? 'bg-green-500 text-white' : getStatusColor()} text-white`}
           >
             {isCompleted ? 'Concluído' : getStatusText()}
           </Badge>
         </div>
       </CardHeader>
-      
-      <CardContent className="space-y-4">
+
+      <CardContent className={`${compact ? 'p-3 pt-0 space-y-3' : 'space-y-4'}`}>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span>Progresso</span>
@@ -82,12 +83,12 @@ export function PDICard({ pdi, onViewDetails, isCompleted = false }: PDICardProp
           </div>
           <Progress value={progresso} className="h-2" />
         </div>
-        
+
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
             <span>
-              {diasRestantes >= 0 
+              {diasRestantes >= 0
                 ? `${diasRestantes} dias restantes`
                 : `Atrasado há ${Math.abs(diasRestantes)} dias`
               }
@@ -98,15 +99,15 @@ export function PDICard({ pdi, onViewDetails, isCompleted = false }: PDICardProp
             <span>{totalAulas} aulas</span>
           </div>
         </div>
-        
+
         {progresso === 100 && (
           <div className="flex items-center gap-2 text-green-500 dark:text-green-400 text-sm">
             <CheckCircle className="h-4 w-4" />
             <span>PDI concluído!</span>
           </div>
         )}
-        
-        <Button 
+
+        <Button
           onClick={() => onViewDetails(pdi.id)}
           className="w-full"
           variant={progresso === 100 ? "secondary" : "default"}

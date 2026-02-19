@@ -16,7 +16,7 @@ interface RankingData {
   };
 }
 
-export const Top3Ranking = () => {
+export const Top3Ranking = ({ compact = false }: { compact?: boolean }) => {
   const [top3, setTop3] = useState<RankingData[]>([]);
   const [desafioTitulo, setDesafioTitulo] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -128,9 +128,11 @@ export const Top3Ranking = () => {
           <div className="flex-shrink-0">
             {getPositionIcon(item.posicao)}
           </div>
-          <div className="flex flex-col">
-            <p className="text-sm font-medium text-foreground">{item.colaborador?.nome}</p>
-            <p className="text-xs text-muted-foreground">{item.total_pontos} pts</p>
+          <div className={`flex flex-col ${compact ? 'justify-center' : ''}`}>
+            <p className={`font-medium text-foreground ${compact ? 'text-xs' : 'text-sm'}`}>
+              {compact ? item.colaborador?.nome?.split(' ')[0] : item.colaborador?.nome}
+            </p>
+            <p className="text-[10px] text-muted-foreground">{item.total_pontos} pts</p>
           </div>
         </div>
       ))}

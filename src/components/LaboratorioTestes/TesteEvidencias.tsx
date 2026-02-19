@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Camera, Link as LinkIcon, Plus, Trash2, ExternalLink, Loader2, Image } from 'lucide-react';
+import { Camera, Link as LinkIcon, Plus, Trash2, ExternalLink, Loader2, Image, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { useTesteEvidencias } from '@/hooks/useLaboratorioTestes';
 import { uploadImage } from '@/lib/imageUpload';
 
@@ -16,6 +17,7 @@ export const TesteEvidencias = ({ testeId }: TesteEvidenciasProps) => {
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkDescricao, setLinkDescricao] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -103,12 +105,33 @@ export const TesteEvidencias = ({ testeId }: TesteEvidenciasProps) => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {imagens.map(ev => (
                 <div key={ev.id} className="group relative rounded-lg overflow-hidden border bg-muted/30 aspect-video">
-                  <a href={ev.url} target="_blank" rel="noopener noreferrer">
-                    <img src={ev.url} alt={ev.descricao || 'Evidência'} className="w-full h-full object-cover" />
-                  </a>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button className="w-full h-full cursor-zoom-in">
+                        <img src={ev.url} alt={ev.descricao || 'Evidência'} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl p-0 overflow-hidden border-none bg-black/90 text-white">
+                      <div className="relative w-full h-full flex items-center justify-center p-4">
+                        <img
+                          src={ev.url}
+                          alt={ev.descricao || 'Evidência'}
+                          className="max-w-full max-h-[85vh] object-contain rounded-md"
+                        />
+                        <DialogClose className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors">
+                          <X className="h-5 w-5" />
+                        </DialogClose>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
                   <button
-                    onClick={() => removeEvidencia(ev.id)}
-                    className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeEvidencia(ev.id);
+                    }}
+                    className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
+                    title="Remover imagem"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>

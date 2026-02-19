@@ -175,7 +175,7 @@ export const STATUS_LABELS: Record<StatusTesteLab, string> = {
 
 export const STATUS_COLORS: Record<StatusTesteLab, string> = {
   planejado: 'bg-slate-100 text-slate-700 border-slate-200',
-  rodando: 'bg-emerald-100 text-emerald-700 border-emerald-300 badge-rodando',
+  rodando: 'bg-orange-100 text-orange-700 border-orange-200',
   pausado: 'bg-yellow-100 text-yellow-700 border-yellow-200',
   concluido: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   cancelado: 'bg-red-100 text-red-700 border-red-200',

@@ -343,7 +343,7 @@ export const TestesTable = ({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                                className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                                 onClick={() => onConcludeTeste(teste.id)}
                                 title="Concluir teste"
                               >

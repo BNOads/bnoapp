@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy, Calculator } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy, Calculator, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useNavigate, useLocation, Link } from "react-router-dom";
@@ -11,6 +11,7 @@ import CreateNotificationModal from "@/components/Notifications/CreateNotificati
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
+import ThemeSwitch from "@/components/ui/theme-switch";
 
 interface HeaderProps { }
 
@@ -64,6 +65,7 @@ export const Header = ({ }: HeaderProps) => {
       icon: Calculator,
       path: '/ferramentas/projecoes'
     },
+
   ];
 
   const getActiveTab = () => {
@@ -94,6 +96,10 @@ export const Header = ({ }: HeaderProps) => {
               BNOads
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Sistema interno</p>
+          </div>
+          {/* Mobile Theme Switch */}
+          <div className="sm:hidden ml-2">
+            <ThemeSwitch className="scale-75 origin-left" />
           </div>
         </div>
 
@@ -142,6 +148,11 @@ export const Header = ({ }: HeaderProps) => {
                 })}
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+
+          {/* Theme Switch */}
+          <div className="hidden sm:block">
+            <ThemeSwitch />
           </div>
 
           {/* Admin Create Notification - Always render but conditionally display */}

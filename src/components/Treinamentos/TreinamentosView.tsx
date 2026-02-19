@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Play, Search, Plus, Star, Award, GraduationCap, FileText, Edit, MoreVertical } from "lucide-react";
+import { BookOpen, Play, Search, Plus, Star, Award, GraduationCap, FileText, Edit, MoreVertical, Filter, Clock, CheckCircle, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { POPViewNova } from "./POPViewNova";
+import { PDIEquipeCard } from "@/components/Dashboard/PDIEquipeCard";
 
 interface Aula {
   id: string;
@@ -45,6 +46,74 @@ export const TreinamentosView = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // States for PDIs da Equipe
+  const [pdisEquipe, setPdisEquipe] = useState<any[]>([]);
+  const [loadingPdisEquipe, setLoadingPdisEquipe] = useState(false);
+  const [pdiEquipeFilter, setPdiEquipeFilter] = useState<'todos' | 'ativos' | 'finalizados'>('todos');
+
+  const carregarPdisEquipe = async () => {
+    if (!isAdmin) return;
+
+    try {
+      setLoadingPdisEquipe(true);
+      const { data, error } = await supabase
+        .from('pdis')
+        .select(`
+          *,
+          colaboradores!pdis_colaborador_id_fkey (
+            nome,
+            avatar_url
+          ),
+          pdi_aulas (
+            id,
+            concluida
+          )
+        `)
+        .order('data_limite', { ascending: true });
+
+      if (error) throw error;
+
+      const formatarPdisEquipe = (data || []).map(pdi => {
+        const totalAulas = (pdi.pdi_aulas?.length || 0) + (Array.isArray(pdi.aulas_externas) ? pdi.aulas_externas.length : 0);
+        const aulasConcluidas = (pdi.pdi_aulas?.filter((a: any) => a.concluida).length || 0) +
+          (Array.isArray(pdi.aulas_externas) ? pdi.aulas_externas.filter((a: any) => a.concluida).length : 0);
+        const progresso = totalAulas > 0 ? (aulasConcluidas / totalAulas) * 100 : 0;
+
+        return {
+          id: pdi.id,
+          titulo: pdi.titulo,
+          descricao: pdi.descricao,
+          data_limite: pdi.data_limite,
+          status: pdi.status,
+          colaborador: {
+            nome: pdi.colaboradores?.nome || 'Colaborador',
+            avatar_url: pdi.colaboradores?.avatar_url
+          },
+          progresso,
+          total_aulas: totalAulas,
+          aulas_concluidas: aulasConcluidas
+        };
+      });
+
+      setPdisEquipe(formatarPdisEquipe);
+    } catch (error) {
+      console.error('Erro ao carregar PDIs da equipe:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar PDIs da equipe",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingPdisEquipe(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      carregarPdisEquipe();
+    }
+  }, [isAdmin]);
 
   const carregarDados = async () => {
     try {
@@ -176,7 +245,7 @@ export const TreinamentosView = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="cursos" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className={`grid w-full max-w-md ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <TabsTrigger value="cursos" className="flex items-center gap-2">
             <Play className="h-4 w-4" />
             Cursos
@@ -185,6 +254,12 @@ export const TreinamentosView = () => {
             <FileText className="h-4 w-4" />
             POPs
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="pdis-equipe" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              PDIs da Equipe
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="cursos" className="space-y-6">
@@ -192,11 +267,11 @@ export const TreinamentosView = () => {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar cursos e aulas..." 
-                className="pl-10 bg-background border-border" 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
+              <Input
+                placeholder="Buscar cursos e aulas..."
+                className="pl-10 bg-background border-border"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
             <Button variant="outline" className="shrink-0">
@@ -213,8 +288,8 @@ export const TreinamentosView = () => {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredAulas.map(aula => (
-                  <Card 
-                    key={aula.id} 
+                  <Card
+                    key={aula.id}
                     className="p-4 hover:shadow-card transition-all duration-300 cursor-pointer border-primary/20 bg-primary/5"
                     onClick={() => navigate(`/aula/${aula.id}`)}
                   >
@@ -245,7 +320,7 @@ export const TreinamentosView = () => {
             <h3 className="text-xl font-semibold text-foreground">
               {searchTerm ? `Cursos (${filteredTreinamentos.length})` : 'Cursos Disponíveis'}
             </h3>
-            
+
             {loading ? (
               <div className="flex justify-center items-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -257,8 +332,8 @@ export const TreinamentosView = () => {
                   {searchTerm ? 'Nenhum resultado encontrado' : 'Nenhum treinamento encontrado'}
                 </h4>
                 <p className="text-muted-foreground mb-4">
-                  {searchTerm 
-                    ? 'Tente buscar por outros termos.' 
+                  {searchTerm
+                    ? 'Tente buscar por outros termos.'
                     : 'Ainda não há treinamentos disponíveis na biblioteca.'}
                 </p>
                 {canCreateContent && !searchTerm && (
@@ -284,7 +359,7 @@ export const TreinamentosView = () => {
                               {treinamento.nivel}
                             </Badge>
                           </div>
-                          
+
                           {isAdmin && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -337,33 +412,115 @@ export const TreinamentosView = () => {
         <TabsContent value="pops">
           <POPViewNova />
         </TabsContent>
+
+
+        <TabsContent value="pdis-equipe">
+          <div className="space-y-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground">Acompanhamento da Equipe</h3>
+                <p className="text-muted-foreground">Monitore o desenvolvimento dos colaboradores</p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant={pdiEquipeFilter === 'todos' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPdiEquipeFilter('todos')}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  Todos
+                </Button>
+                <Button
+                  variant={pdiEquipeFilter === 'ativos' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPdiEquipeFilter('ativos')}
+                  className="flex items-center gap-2"
+                >
+                  <Clock className="h-4 w-4" />
+                  Ativos
+                </Button>
+                <Button
+                  variant={pdiEquipeFilter === 'finalizados' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPdiEquipeFilter('finalizados')}
+                  className="flex items-center gap-2"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Finalizados
+                </Button>
+              </div>
+            </div>
+
+            {loadingPdisEquipe ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : pdisEquipe.length === 0 ? (
+              <Card className="p-8 text-center">
+                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-foreground mb-2">
+                  Nenhum PDI encontrado
+                </h4>
+                <p className="text-muted-foreground">
+                  Não há PDIs criados para a equipe no momento.
+                </p>
+              </Card>
+            ) : (() => {
+              const filteredPdisEquipe = pdisEquipe.filter(pdi => {
+                if (pdiEquipeFilter === 'ativos') return pdi.status !== 'concluido';
+                if (pdiEquipeFilter === 'finalizados') return pdi.status === 'concluido';
+                return true;
+              });
+
+              return filteredPdisEquipe.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h4 className="text-lg font-semibold text-foreground mb-2">
+                    Nenhum PDI encontrado com filtro atual
+                  </h4>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredPdisEquipe.map(pdi => (
+                    <PDIEquipeCard
+                      key={pdi.id}
+                      pdi={pdi}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* Modals */}
-      <NovoTreinamentoModal 
-        open={modalOpen} 
-        onOpenChange={setModalOpen} 
+      <NovoTreinamentoModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
         onSuccess={() => {
           carregarDados();
-        }} 
+        }}
       />
 
-      <EditarTreinamentoModal 
-        open={editModalOpen} 
+      <EditarTreinamentoModal
+        open={editModalOpen}
         onOpenChange={setEditModalOpen}
         treinamentoId={treinamentoEditandoId}
         onSuccess={() => {
           carregarDados();
-        }} 
+        }}
       />
-      
-      <NovoPDIModal 
-        open={pdiModalOpen} 
-        onOpenChange={setPdiModalOpen} 
+
+      <NovoPDIModal
+        open={pdiModalOpen}
+        onOpenChange={setPdiModalOpen}
         onSuccess={() => {
           // PDI criado com sucesso
-        }} 
+        }}
       />
-    </div>
+    </div >
   );
 };

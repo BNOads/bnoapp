@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { RefreshCw, Search, Pencil, Check, Plus, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet, Link as LinkIcon, AlertCircle, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { SheetAnalysis } from './SheetAnalysis';
+import { CruzamentoDadosTab } from './CruzamentoDadosTab';
 
 interface LancamentoResultadosTabProps {
     lancamento: any;
@@ -137,13 +138,16 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 }
             });
 
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase Function Error:', error);
+                throw new Error(error.message || 'Erro ao comunicar com o servidor');
+            }
 
             toast.success("Sincronização concluída com sucesso!");
             fetchData();
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao sincronizar dados.");
+            toast.error(`Erro ao sincronizar dados: ${error.message || 'Erro desconhecido'}`);
         } finally {
             setSyncing(false);
         }
@@ -566,6 +570,8 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             fill: checkColors[index % checkColors.length]
         }));
 
+    const hasCampaignData = campaigns.length > 0;
+
     return (
         <div className="space-y-6 animate-fade-in">
 
@@ -598,7 +604,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                 />
                             </div>
 
-                            <ScrollArea className="flex-1 border rounded-md p-2 h-[300px]">
+                            <ScrollArea className="flex-1 border rounded-md p-2 h-[60vh] min-h-[400px]">
                                 {selectionLoading ? (
                                     <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div>
                                 ) : (
@@ -635,6 +641,8 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                         {availableCampaigns.length === 0 && !selectionLoading && (
                                             <div className="text-center p-4 text-muted-foreground">Nenhuma campanha encontrada.</div>
                                         )}
+                                        {/* Helper to ensure scroll detection */}
+                                        <div className="h-1"></div>
                                     </div>
                                 )}
                             </ScrollArea>
@@ -662,484 +670,499 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 </div>
             </div>
 
-            {campaigns.length === 0 ? (
-                <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                        <Target className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
-                        <h3 className="text-lg font-semibold text-muted-foreground">Nenhum dado encontrado</h3>
-                        <p className="text-sm text-muted-foreground max-w-sm text-center mt-2">
-                            Não encontramos campanhas com o nome "{lancamento.nome_lancamento}" nas contas vinculadas.
-                            Verifique se o nome do lançamento corresponde ao nome das campanhas no Meta Ads ou selecione manualmente.
-                        </p>
-                    </CardContent>
-                </Card>
-            ) : (
-                <Tabs defaultValue="overview" className="w-full space-y-6">
-                    <TabsList>
-                        <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-                        <TabsTrigger value="details">Detalhamento de Métricas</TabsTrigger>
-                        <TabsTrigger value="leads">Leads</TabsTrigger>
-                        <TabsTrigger value="pesquisa">Pesquisa</TabsTrigger>
-                    </TabsList>
+            <Tabs defaultValue="overview" className="w-full space-y-6">
+                <TabsList>
+                    <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+                    <TabsTrigger value="details">Detalhamento de Métricas</TabsTrigger>
+                    <TabsTrigger value="leads">Leads</TabsTrigger>
+                    <TabsTrigger value="pesquisa">Pesquisa</TabsTrigger>
+                    <TabsTrigger value="cruzamento">Cruzamento de dados</TabsTrigger>
+                </TabsList>
 
-                    <TabsContent value="overview" className="space-y-6">
-                        {/* KPIs */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground">Investimento Total</CardTitle>
-                                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">{formatCurrency(metrics.spend)}</div>
-                                    <p className="text-xs text-muted-foreground">
-                                        CPC M&eacute;dio: {formatCurrency(metrics.cpc)}
-                                    </p>
-                                </CardContent>
-                            </Card>
+                <TabsContent value="overview" className="space-y-6">
+                    {!hasCampaignData ? (
+                        <Card>
+                            <CardContent className="flex flex-col items-center justify-center py-12">
+                                <Target className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+                                <h3 className="text-lg font-semibold text-muted-foreground">Nenhum dado encontrado</h3>
+                                <p className="text-sm text-muted-foreground max-w-sm text-center mt-2">
+                                    Não encontramos campanhas com o nome "{lancamento.nome_lancamento}" nas contas vinculadas.
+                                    Verifique se o nome do lançamento corresponde ao nome das campanhas no Meta Ads ou selecione manualmente.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <>
+                            {/* KPIs */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">Investimento Total</CardTitle>
+                                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-2xl font-bold">{formatCurrency(metrics.spend)}</div>
+                                        <p className="text-xs text-muted-foreground">
+                                            CPC M&eacute;dio: {formatCurrency(metrics.cpc)}
+                                        </p>
+                                    </CardContent>
+                                </Card>
 
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground">Leads Gerados</CardTitle>
-                                    <Users className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">{formatNumber(metrics.leads)}</div>
-                                    <p className="text-xs text-muted-foreground">
-                                        CPL M&eacute;dio: {formatCurrency(metrics.cpl)}
-                                    </p>
-                                </CardContent>
-                            </Card>
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">Leads Gerados</CardTitle>
+                                        <Users className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-2xl font-bold">{formatNumber(metrics.leads)}</div>
+                                        <p className="text-xs text-muted-foreground">
+                                            CPL M&eacute;dio: {formatCurrency(metrics.cpl)}
+                                        </p>
+                                    </CardContent>
+                                </Card>
 
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground">Impress&otilde;es</CardTitle>
-                                    <Eye className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">{formatNumber(metrics.impressions)}</div>
-                                    <p className="text-xs text-muted-foreground">
-                                        CPM: {formatCurrency(metrics.cpm)}
-                                    </p>
-                                </CardContent>
-                            </Card>
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">Impress&otilde;es</CardTitle>
+                                        <Eye className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-2xl font-bold">{formatNumber(metrics.impressions)}</div>
+                                        <p className="text-xs text-muted-foreground">
+                                            CPM: {formatCurrency(metrics.cpm)}
+                                        </p>
+                                    </CardContent>
+                                </Card>
 
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground">Cliques</CardTitle>
-                                    <MousePointerClick className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">{formatNumber(metrics.clicks)}</div>
-                                    <p className="text-xs text-muted-foreground">
-                                        CTR: {metrics.ctr.toFixed(2)}%
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">Cliques</CardTitle>
+                                        <MousePointerClick className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-2xl font-bold">{formatNumber(metrics.clicks)}</div>
+                                        <p className="text-xs text-muted-foreground">
+                                            CTR: {metrics.ctr.toFixed(2)}%
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            </div>
 
-                        {/* Charts Row: Gauge & Pies */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* Investment Gauge */}
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium text-center">Meta de Investimento</CardTitle>
-                                </CardHeader>
-                                <CardContent className="flex flex-col items-center justify-center relative h-[250px]">
-                                    {investTotal > 0 ? (
-                                        <>
+                            {/* Charts Row: Gauge & Pies */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Investment Gauge */}
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-sm font-medium text-center">Meta de Investimento</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="flex flex-col items-center justify-center relative h-[250px]">
+                                        {investTotal > 0 ? (
+                                            <>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={[
+                                                                { name: 'Investido', value: metrics.spend },
+                                                                { name: 'Restante', value: investRemaining }
+                                                            ]}
+                                                            cx="50%"
+                                                            cy="70%"
+                                                            startAngle={180}
+                                                            endAngle={0}
+                                                            innerRadius={60}
+                                                            outerRadius={85}
+                                                            paddingAngle={0}
+                                                            dataKey="value"
+                                                            stroke="none"
+                                                        >
+                                                            <Cell fill={investProgress > 100 ? '#ef4444' : '#22c55e'} />
+                                                            <Cell fill="#e5e7eb" />
+                                                        </Pie>
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                                <div className="absolute top-[60%] left-0 right-0 text-center pointer-events-none">
+                                                    <div className="text-3xl font-bold">{investProgress.toFixed(1)}%</div>
+                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                        {formatCurrency(metrics.spend)} / {formatCurrency(investTotal)}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                <Target className="h-8 w-8 opacity-50" />
+                                                <span className="text-sm">Meta n&atilde;o definida</span>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                {/* Spend Pie */}
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-sm font-medium text-center">Investimento por Temperatura</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="h-[250px]">
+                                        {tempSpendData.length > 0 ? (
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <PieChart>
                                                     <Pie
-                                                        data={[
-                                                            { name: 'Investido', value: metrics.spend },
-                                                            { name: 'Restante', value: investRemaining }
-                                                        ]}
+                                                        data={tempSpendData}
                                                         cx="50%"
-                                                        cy="70%"
-                                                        startAngle={180}
-                                                        endAngle={0}
+                                                        cy="50%"
                                                         innerRadius={60}
-                                                        outerRadius={85}
-                                                        paddingAngle={0}
+                                                        outerRadius={80}
+                                                        paddingAngle={2}
                                                         dataKey="value"
                                                         stroke="none"
                                                     >
-                                                        <Cell fill={investProgress > 100 ? '#ef4444' : '#22c55e'} />
-                                                        <Cell fill="#e5e7eb" />
+                                                        {tempSpendData.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                        ))}
                                                     </Pie>
+                                                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                                    <Legend verticalAlign="bottom" height={36} />
                                                 </PieChart>
                                             </ResponsiveContainer>
-                                            <div className="absolute top-[60%] left-0 right-0 text-center pointer-events-none">
-                                                <div className="text-3xl font-bold">{investProgress.toFixed(1)}%</div>
-                                                <div className="text-xs text-muted-foreground mt-1">
-                                                    {formatCurrency(metrics.spend)} / {formatCurrency(investTotal)}
-                                                </div>
+                                        ) : (
+                                            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                                                Sem dados de temperatura
                                             </div>
-                                        </>
-                                    ) : (
-                                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                            <Target className="h-8 w-8 opacity-50" />
-                                            <span className="text-sm">Meta n&atilde;o definida</span>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                        )}
+                                    </CardContent>
+                                </Card>
 
-                            {/* Spend Pie */}
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium text-center">Investimento por Temperatura</CardTitle>
-                                </CardHeader>
-                                <CardContent className="h-[250px]">
-                                    {tempSpendData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={tempSpendData}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius={60}
-                                                    outerRadius={80}
-                                                    paddingAngle={2}
-                                                    dataKey="value"
-                                                    stroke="none"
-                                                >
-                                                    {tempSpendData.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                                <Legend verticalAlign="bottom" height={36} />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-                                            Sem dados de temperatura
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                {/* Leads Pie */}
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-sm font-medium text-center">Leads por Temperatura</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="h-[250px]">
+                                        {tempLeadsData.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={tempLeadsData}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={60}
+                                                        outerRadius={80}
+                                                        paddingAngle={2}
+                                                        dataKey="value"
+                                                        stroke="none"
+                                                    >
+                                                        {tempLeadsData.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip formatter={(value: number) => formatNumber(value)} />
+                                                    <Legend verticalAlign="bottom" height={36} />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                                                Sem dados de temperatura
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
 
-                            {/* Leads Pie */}
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium text-center">Leads por Temperatura</CardTitle>
-                                </CardHeader>
-                                <CardContent className="h-[250px]">
-                                    {tempLeadsData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={tempLeadsData}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius={60}
-                                                    outerRadius={80}
-                                                    paddingAngle={2}
-                                                    dataKey="value"
-                                                    stroke="none"
-                                                >
-                                                    {tempLeadsData.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip formatter={(value: number) => formatNumber(value)} />
-                                                <Legend verticalAlign="bottom" height={36} />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-                                            Sem dados de temperatura
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                            </div>
 
-                        </div>
-
-                        {/* Chart */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Evolu&ccedil;&atilde;o de Resultados</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-[400px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <ComposedChart data={chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                            <XAxis
-                                                dataKey="date"
-                                                tickFormatter={(date) => format(new Date(date), 'dd/MM')}
-                                            />
-                                            <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                                            <YAxis
-                                                yAxisId="right"
-                                                orientation="right"
-                                                stroke="#82ca9d"
-                                                tickFormatter={(value) => `R$ ${value}`}
-                                            />
-                                            <Tooltip
-                                                labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
-                                                formatter={(value: any, name: any) => {
-                                                    if (name === 'Custo por Lead' || name === 'Investimento') return formatCurrency(value);
-                                                    return value;
-                                                }}
-                                            />
-                                            <Legend />
-                                            <Bar yAxisId="left" dataKey="leads" name="Leads" fill="#8884d8" radius={[4, 4, 0, 0]} />
-                                            <Bar yAxisId="right" dataKey="spend" name="Investimento" fill="#82ca9d" radius={[4, 4, 0, 0]} />
-                                            <Line yAxisId="right" type="monotone" dataKey="cpl" name="Custo por Lead" stroke="#f97316" strokeWidth={2} />
-                                        </ComposedChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Top Campaigns */}
+                            {/* Chart */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Campanhas do Lan&ccedil;amento</CardTitle>
+                                    <CardTitle>Evolu&ccedil;&atilde;o de Resultados</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="max-h-[400px] overflow-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>
-                                                        <div
-                                                            className="flex items-center space-x-1 cursor-pointer hover:text-foreground transition-colors"
-                                                            onClick={() => handleSort('name', sortConfig, setSortConfig)}
-                                                        >
-                                                            <span>Campanha</span>
-                                                            {sortConfig.key === 'name' ? (
-                                                                sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                                                            ) : (
-                                                                <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
-                                                            )}
-                                                        </div>
-                                                    </TableHead>
-                                                    <TableHead className="text-right">
-                                                        <div
-                                                            className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
-                                                            onClick={() => handleSort('spend', sortConfig, setSortConfig)}
-                                                        >
-                                                            <span>Investimento</span>
-                                                            {sortConfig.key === 'spend' ? (
-                                                                sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                                                            ) : (
-                                                                <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
-                                                            )}
-                                                        </div>
-                                                    </TableHead>
-                                                    <TableHead className="text-right">
-                                                        <div
-                                                            className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
-                                                            onClick={() => handleSort('leads', sortConfig, setSortConfig)}
-                                                        >
-                                                            <span>Leads</span>
-                                                            {sortConfig.key === 'leads' ? (
-                                                                sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                                                            ) : (
-                                                                <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
-                                                            )}
-                                                        </div>
-                                                    </TableHead>
-                                                    <TableHead className="text-right">
-                                                        <div
-                                                            className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
-                                                            onClick={() => handleSort('cpl', sortConfig, setSortConfig)}
-                                                        >
-                                                            <span>Custo por lead</span>
-                                                            {sortConfig.key === 'cpl' ? (
-                                                                sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                                                            ) : (
-                                                                <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
-                                                            )}
-                                                        </div>
-                                                    </TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {sortData(campaigns, sortConfig).map((campaign) => (
-                                                    <TableRow key={campaign.id}>
-                                                        <TableCell className="font-medium text-xs max-w-[200px] truncate" title={campaign.name}>
-                                                            {campaign.name}
-                                                        </TableCell>
-                                                        <TableCell className="text-right text-xs">
-                                                            {formatCurrency(campaign.spend)}
-                                                        </TableCell>
-                                                        <TableCell className="text-right text-xs">
-                                                            {campaign.leads}
-                                                        </TableCell>
-                                                        <TableCell className="text-right text-xs">
-                                                            {formatCurrency(campaign.cpl)}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Creative Leads Pie */}
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium text-center">% Leads por Criativo</CardTitle>
-                                </CardHeader>
-                                <CardContent className="h-[250px]">
-                                    {creativeLeadsData.length > 0 ? (
+                                    <div className="h-[400px]">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={creativeLeadsData}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius={60}
-                                                    outerRadius={80}
-                                                    paddingAngle={2}
-                                                    dataKey="value"
-                                                    stroke="none"
-                                                >
-                                                    {creativeLeadsData.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip formatter={(value: number, name: any, item: any) => [formatNumber(value), item.payload.fullName]} />
-                                                <Legend verticalAlign="bottom" height={36} />
-                                            </PieChart>
+                                            <ComposedChart data={chartData}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                <XAxis
+                                                    dataKey="date"
+                                                    tickFormatter={(date) => format(new Date(date), 'dd/MM')}
+                                                />
+                                                <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
+                                                <YAxis
+                                                    yAxisId="right"
+                                                    orientation="right"
+                                                    stroke="#82ca9d"
+                                                    tickFormatter={(value) => `R$ ${value}`}
+                                                />
+                                                <Tooltip
+                                                    labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
+                                                    formatter={(value: any, name: any) => {
+                                                        if (name === 'Custo por Lead' || name === 'Investimento') return formatCurrency(value);
+                                                        return value;
+                                                    }}
+                                                />
+                                                <Legend />
+                                                <Bar yAxisId="left" dataKey="leads" name="Leads" fill="#8884d8" radius={[4, 4, 0, 0]} />
+                                                <Bar yAxisId="right" dataKey="spend" name="Investimento" fill="#82ca9d" radius={[4, 4, 0, 0]} />
+                                                <Line yAxisId="right" type="monotone" dataKey="cpl" name="Custo por Lead" stroke="#f97316" strokeWidth={2} />
+                                            </ComposedChart>
                                         </ResponsiveContainer>
-                                    ) : (
-                                        <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-                                            Sem dados de leads
-                                        </div>
-                                    )}
+                                    </div>
                                 </CardContent>
                             </Card>
-                        </div>
 
-                        <div className="space-y-6">
-                            {/* Top Creatives */}
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                    <CardTitle>Top criativos (gasto)</CardTitle>
-                                    <div className="relative w-40 sm:w-60">
-                                        <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                                        <Input
-                                            placeholder="Buscar criativo..."
-                                            value={creativeSearch}
-                                            onChange={(e) => setCreativeSearch(e.target.value)}
-                                            className="pl-8 h-8 text-xs"
-                                        />
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="max-h-[400px] overflow-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>
-                                                        <div
-                                                            className="flex items-center space-x-1 cursor-pointer hover:text-foreground transition-colors"
-                                                            onClick={() => handleSort('ad_name', creativeSortConfig, setCreativeSortConfig)}
-                                                        >
-                                                            <span>Criativo</span>
-                                                            {creativeSortConfig.key === 'ad_name' ? (
-                                                                creativeSortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                                                            ) : (
-                                                                <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
-                                                            )}
-                                                        </div>
-                                                    </TableHead>
-                                                    <TableHead className="text-right">
-                                                        <div
-                                                            className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
-                                                            onClick={() => handleSort('spend', creativeSortConfig, setCreativeSortConfig)}
-                                                        >
-                                                            <span>Investimento</span>
-                                                            {creativeSortConfig.key === 'spend' ? (
-                                                                creativeSortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                                                            ) : (
-                                                                <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
-                                                            )}
-                                                        </div>
-                                                    </TableHead>
-                                                    <TableHead className="text-right">
-                                                        <div
-                                                            className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
-                                                            onClick={() => handleSort('leads', creativeSortConfig, setCreativeSortConfig)}
-                                                        >
-                                                            <span>Leads</span>
-                                                            {creativeSortConfig.key === 'leads' ? (
-                                                                creativeSortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                                                            ) : (
-                                                                <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
-                                                            )}
-                                                        </div>
-                                                    </TableHead>
-                                                    <TableHead className="text-right">
-                                                        <div
-                                                            className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
-                                                            onClick={() => handleSort('cpl', creativeSortConfig, setCreativeSortConfig)}
-                                                        >
-                                                            <span>Custo por lead</span>
-                                                            {creativeSortConfig.key === 'cpl' ? (
-                                                                creativeSortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                                                            ) : (
-                                                                <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
-                                                            )}
-                                                        </div>
-                                                    </TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {sortData(
-                                                    topCreatives.filter(c => normalizeText(c.ad_name).includes(normalizeText(creativeSearch))),
-                                                    creativeSortConfig
-                                                ).map((creative) => (
-                                                    <TableRow key={creative.ad_id}>
-                                                        <TableCell className="flex items-center gap-2">
-                                                            {creative.thumbnail ? (
-                                                                <div className="h-10 w-10 relative overflow-hidden rounded group cursor-pointer">
-                                                                    <img src={creative.thumbnail} alt="" className="h-full w-full object-cover" />
-                                                                    {creative.url && (
-                                                                        <a href={creative.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                                                            <Eye className="h-4 w-4 text-white" />
-                                                                        </a>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
-                                                                    <Target className="h-4 w-4 text-muted-foreground" />
-                                                                </div>
-                                                            )}
-                                                            <div className="flex flex-col max-w-[140px]">
-                                                                <span className="text-xs font-medium truncate" title={creative.ad_name}>{creative.ad_name}</span>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Top Campaigns */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Campanhas do Lan&ccedil;amento</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="max-h-[400px] overflow-auto">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>
+                                                            <div
+                                                                className="flex items-center space-x-1 cursor-pointer hover:text-foreground transition-colors"
+                                                                onClick={() => handleSort('name', sortConfig, setSortConfig)}
+                                                            >
+                                                                <span>Campanha</span>
+                                                                {sortConfig.key === 'name' ? (
+                                                                    sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                                ) : (
+                                                                    <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                                                                )}
                                                             </div>
-                                                        </TableCell>
-                                                        <TableCell className="text-right text-xs">
-                                                            {formatCurrency(creative.spend)}
-                                                        </TableCell>
-                                                        <TableCell className="text-right text-xs">
-                                                            {creative.leads}
-                                                        </TableCell>
-                                                        <TableCell className="text-right text-xs">
-                                                            {formatCurrency(creative.cpl)}
-                                                        </TableCell>
+                                                        </TableHead>
+                                                        <TableHead className="text-right">
+                                                            <div
+                                                                className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
+                                                                onClick={() => handleSort('spend', sortConfig, setSortConfig)}
+                                                            >
+                                                                <span>Investimento</span>
+                                                                {sortConfig.key === 'spend' ? (
+                                                                    sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                                ) : (
+                                                                    <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                                                                )}
+                                                            </div>
+                                                        </TableHead>
+                                                        <TableHead className="text-right">
+                                                            <div
+                                                                className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
+                                                                onClick={() => handleSort('leads', sortConfig, setSortConfig)}
+                                                            >
+                                                                <span>Leads</span>
+                                                                {sortConfig.key === 'leads' ? (
+                                                                    sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                                ) : (
+                                                                    <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                                                                )}
+                                                            </div>
+                                                        </TableHead>
+                                                        <TableHead className="text-right">
+                                                            <div
+                                                                className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
+                                                                onClick={() => handleSort('cpl', sortConfig, setSortConfig)}
+                                                            >
+                                                                <span>Custo por lead</span>
+                                                                {sortConfig.key === 'cpl' ? (
+                                                                    sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                                ) : (
+                                                                    <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                                                                )}
+                                                            </div>
+                                                        </TableHead>
                                                     </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {sortData(campaigns, sortConfig).map((campaign) => (
+                                                        <TableRow key={campaign.id}>
+                                                            <TableCell className="font-medium text-xs max-w-[200px] truncate" title={campaign.name}>
+                                                                {campaign.name}
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-xs">
+                                                                {formatCurrency(campaign.spend)}
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-xs">
+                                                                {campaign.leads}
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-xs">
+                                                                {formatCurrency(campaign.cpl)}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
 
-                    </TabsContent>
+                                {/* Creative Leads Pie */}
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-sm font-medium text-center">% Leads por Criativo</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="h-[250px]">
+                                        {creativeLeadsData.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={creativeLeadsData}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={60}
+                                                        outerRadius={80}
+                                                        paddingAngle={2}
+                                                        dataKey="value"
+                                                        stroke="none"
+                                                    >
+                                                        {creativeLeadsData.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip formatter={(value: number, name: any, item: any) => [formatNumber(value), item.payload.fullName]} />
+                                                    <Legend verticalAlign="bottom" height={36} />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                                                Sem dados de leads
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </div>
 
-                    <TabsContent value="details" className="space-y-6">
+                            <div className="space-y-6">
+                                {/* Top Creatives */}
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle>Top criativos (gasto)</CardTitle>
+                                        <div className="relative w-40 sm:w-60">
+                                            <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                                            <Input
+                                                placeholder="Buscar criativo..."
+                                                value={creativeSearch}
+                                                onChange={(e) => setCreativeSearch(e.target.value)}
+                                                className="pl-8 h-8 text-xs"
+                                            />
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="max-h-[400px] overflow-auto">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>
+                                                            <div
+                                                                className="flex items-center space-x-1 cursor-pointer hover:text-foreground transition-colors"
+                                                                onClick={() => handleSort('ad_name', creativeSortConfig, setCreativeSortConfig)}
+                                                            >
+                                                                <span>Criativo</span>
+                                                                {creativeSortConfig.key === 'ad_name' ? (
+                                                                    creativeSortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                                ) : (
+                                                                    <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                                                                )}
+                                                            </div>
+                                                        </TableHead>
+                                                        <TableHead className="text-right">
+                                                            <div
+                                                                className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
+                                                                onClick={() => handleSort('spend', creativeSortConfig, setCreativeSortConfig)}
+                                                            >
+                                                                <span>Investimento</span>
+                                                                {creativeSortConfig.key === 'spend' ? (
+                                                                    creativeSortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                                ) : (
+                                                                    <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                                                                )}
+                                                            </div>
+                                                        </TableHead>
+                                                        <TableHead className="text-right">
+                                                            <div
+                                                                className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
+                                                                onClick={() => handleSort('leads', creativeSortConfig, setCreativeSortConfig)}
+                                                            >
+                                                                <span>Leads</span>
+                                                                {creativeSortConfig.key === 'leads' ? (
+                                                                    creativeSortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                                ) : (
+                                                                    <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                                                                )}
+                                                            </div>
+                                                        </TableHead>
+                                                        <TableHead className="text-right">
+                                                            <div
+                                                                className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
+                                                                onClick={() => handleSort('cpl', creativeSortConfig, setCreativeSortConfig)}
+                                                            >
+                                                                <span>Custo por lead</span>
+                                                                {creativeSortConfig.key === 'cpl' ? (
+                                                                    creativeSortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                                ) : (
+                                                                    <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                                                                )}
+                                                            </div>
+                                                        </TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {sortData(
+                                                        topCreatives.filter(c => normalizeText(c.ad_name).includes(normalizeText(creativeSearch))),
+                                                        creativeSortConfig
+                                                    ).map((creative) => (
+                                                        <TableRow key={creative.ad_id}>
+                                                            <TableCell className="flex items-center gap-2">
+                                                                {creative.thumbnail ? (
+                                                                    <div className="h-10 w-10 relative overflow-hidden rounded group cursor-pointer">
+                                                                        <img src={creative.thumbnail} alt="" className="h-full w-full object-cover" />
+                                                                        {creative.url && (
+                                                                            <a href={creative.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                                                <Eye className="h-4 w-4 text-white" />
+                                                                            </a>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                                                                        <Target className="h-4 w-4 text-muted-foreground" />
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex flex-col max-w-[140px]">
+                                                                    <span className="text-xs font-medium truncate" title={creative.ad_name}>{creative.ad_name}</span>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-xs">
+                                                                {formatCurrency(creative.spend)}
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-xs">
+                                                                {creative.leads}
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-xs">
+                                                                {formatCurrency(creative.cpl)}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </>
+                    )}
+                </TabsContent>
+
+                <TabsContent value="details" className="space-y-6">
+                    {!hasCampaignData ? (
+                        <Card>
+                            <CardContent className="flex flex-col items-center justify-center py-12">
+                                <Target className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+                                <h3 className="text-lg font-semibold text-muted-foreground">Nenhum dado encontrado</h3>
+                                <p className="text-sm text-muted-foreground max-w-sm text-center mt-2">
+                                    Não encontramos campanhas com o nome "{lancamento.nome_lancamento}" nas contas vinculadas.
+                                    Verifique se o nome do lançamento corresponde ao nome das campanhas no Meta Ads ou selecione manualmente.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Daily Results CTR */}
                             <Card>
@@ -1261,25 +1284,29 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                 </CardContent>
                             </Card>
                         </div>
-                    </TabsContent>
+                    )}
+                </TabsContent>
 
-                    <TabsContent value="leads" className="space-y-6">
-                        <GoogleSheetTab
-                            type="leads"
-                            lancamentoId={lancamento.id}
-                            linkName="Planilha de Leads"
-                        />
-                    </TabsContent>
+                <TabsContent value="leads" className="space-y-6">
+                    <GoogleSheetTab
+                        type="leads"
+                        lancamentoId={lancamento.id}
+                        linkName="Planilha de Leads"
+                    />
+                </TabsContent>
 
-                    <TabsContent value="pesquisa" className="space-y-6">
-                        <GoogleSheetTab
-                            type="pesquisa"
-                            lancamentoId={lancamento.id}
-                            linkName="Planilha de Pesquisa"
-                        />
-                    </TabsContent>
-                </Tabs>
-            )}
+                <TabsContent value="pesquisa" className="space-y-6">
+                    <GoogleSheetTab
+                        type="pesquisa"
+                        lancamentoId={lancamento.id}
+                        linkName="Planilha de Pesquisa"
+                    />
+                </TabsContent>
+
+                <TabsContent value="cruzamento" className="space-y-6">
+                    <CruzamentoDadosTab lancamentoId={lancamento.id} />
+                </TabsContent>
+            </Tabs>
         </div>
     );
 };

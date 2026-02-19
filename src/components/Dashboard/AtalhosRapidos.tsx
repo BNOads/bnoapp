@@ -47,6 +47,57 @@ const SortableShortcut = ({ id, shortcut, isEditMode, onRemove, variant = 'grid'
 
     const Icon = shortcut.icon;
     const isSidebar = variant === 'sidebar';
+    const isHeader = variant === 'header';
+
+    // Header specific styles
+    if (isHeader) {
+        return (
+            <div
+                ref={setNodeRef}
+                style={style}
+                className={`
+                    relative group flex flex-col items-center justify-center 
+                    w-[80px] h-[70px] flex-shrink-0
+                    bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg transition-all 
+                    ${isDragging ? 'z-50 shadow-xl scale-105' : ''} 
+                    ${!isEditMode && 'cursor-pointer hover:scale-[1.05] hover:shadow-lg'}
+                `}
+                onClick={() => {
+                    if (!isEditMode && !shortcut.comingSoon) {
+                        navigate(shortcut.route);
+                    }
+                }}
+            >
+                {isEditMode && (
+                    <>
+                        <div {...attributes} {...listeners} className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing" />
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 z-20 shadow-sm opacity-100"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onRemove(id);
+                            }}
+                        >
+                            <X className="h-3 w-3" />
+                        </Button>
+                    </>
+                )}
+
+                <div className={`mb-1 ${shortcut.comingSoon ? 'opacity-70' : ''}`}>
+                    <Icon className={`h-5 w-5 text-white ${shortcut.comingSoon ? 'opacity-50' : ''}`} />
+                </div>
+
+                <span className={`
+                    text-[10px] text-center font-medium leading-tight text-white/90 line-clamp-2 px-1
+                    ${shortcut.comingSoon ? 'opacity-70' : ''}
+                `}>
+                    {shortcut.title}
+                </span>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -122,7 +173,7 @@ const SortableShortcut = ({ id, shortcut, isEditMode, onRemove, variant = 'grid'
 };
 
 interface AtalhosRapidosProps {
-    variant?: 'grid' | 'sidebar';
+    variant?: 'grid' | 'sidebar' | 'header';
 }
 
 export const AtalhosRapidos = ({ variant = 'grid' }: AtalhosRapidosProps) => {
@@ -131,8 +182,8 @@ export const AtalhosRapidos = ({ variant = 'grid' }: AtalhosRapidosProps) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { toast } = useToast();
 
-    // Auto-detect variant based on screen size could be done here, but cleaner to pass as prop from parent
     const isSidebar = variant === 'sidebar';
+    const isHeader = variant === 'header';
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -181,40 +232,61 @@ export const AtalhosRapidos = ({ variant = 'grid' }: AtalhosRapidosProps) => {
         .filter(Boolean) as typeof AVAILABLE_SHORTCUTS;
 
     return (
-        <div className="space-y-4">
-            <div className={`flex items-center justify-between ${isSidebar ? 'mb-2' : ''}`}>
-                <h3 className="text-xl lg:text-2xl font-bold flex items-center gap-2">
-                    <Rocket className="h-6 w-6 text-primary" />
-                    {!isSidebar && "Acesso Rápido"}
-                    {isSidebar && <span className="hidden lg:inline">Acesso Rápido</span>}
-                </h3>
-                <div className="flex gap-2">
+        <div className={isHeader ? "w-full overflow-x-auto pb-2 scrollbar-hide" : "space-y-4"}>
+            {!isHeader && (
+                <div className={`flex items-center justify-between ${isSidebar ? 'mb-2' : ''}`}>
+                    <h3 className="text-xl lg:text-2xl font-bold flex items-center gap-2">
+                        <Rocket className="h-6 w-6 text-primary" />
+                        {!isSidebar && "Acesso Rápido"}
+                        {isSidebar && <span className="hidden lg:inline">Acesso Rápido</span>}
+                    </h3>
+                    <div className="flex gap-2">
+                        {isEditMode ? (
+                            <>
+                                <Button variant="outline" size="sm" onClick={() => {
+                                    setShortcuts(DEFAULT_SHORTCUTS);
+                                    localStorage.setItem('dashboard-shortcuts', JSON.stringify(DEFAULT_SHORTCUTS));
+                                }}>
+                                    <RotateCcw className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" onClick={() => setIsEditMode(false)}>
+                                    <Save className="h-4 w-4" />
+                                </Button>
+                            </>
+                        ) : (
+                            <Button variant="ghost" size="sm" onClick={() => setIsEditMode(true)}>
+                                <Settings className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {isHeader && (
+                <div className="flex items-center gap-2 mb-2">
+                    <p className="text-white/80 text-xs font-medium">Acesso Rápido</p>
                     {isEditMode ? (
-                        <>
-                            <Button variant="outline" size="sm" onClick={() => {
-                                setShortcuts(DEFAULT_SHORTCUTS);
-                                localStorage.setItem('dashboard-shortcuts', JSON.stringify(DEFAULT_SHORTCUTS));
-                            }}>
-                                <RotateCcw className="h-4 w-4" />
+                        <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-5 w-5 text-white/70 hover:text-white" onClick={() => setIsEditMode(false)}>
+                                <Save className="h-3 w-3" />
                             </Button>
-                            <Button size="sm" onClick={() => setIsEditMode(false)}>
-                                <Save className="h-4 w-4" />
-                            </Button>
-                        </>
+                        </div>
                     ) : (
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditMode(true)}>
-                            <Settings className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-5 w-5 text-white/50 hover:text-white" onClick={() => setIsEditMode(true)}>
+                            <Settings className="h-3 w-3" />
                         </Button>
                     )}
                 </div>
-            </div>
+            )}
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={shortcuts} strategy={rectSortingStrategy}>
                     <div className={
                         isSidebar
                             ? "flex flex-col space-y-3"
-                            : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
+                            : isHeader
+                                ? "flex items-center gap-3"
+                                : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
                     }>
                         {activeShortcutsData.map((shortcut) => (
                             <SortableShortcut
@@ -227,18 +299,20 @@ export const AtalhosRapidos = ({ variant = 'grid' }: AtalhosRapidosProps) => {
                             />
                         ))}
 
-                        {/* Add Button - Always Visible */}
+                        {/* Add Button */}
                         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                             <DialogTrigger asChild>
                                 <div className={
                                     isSidebar
                                         ? "flex items-center justify-center p-4 border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30 rounded-xl cursor-pointer transition-all min-h-[64px]"
-                                        : "flex flex-col items-center justify-center p-4 border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30 rounded-xl cursor-pointer transition-all h-28"
+                                        : isHeader
+                                            ? "flex flex-col items-center justify-center w-[80px] h-[70px] flex-shrink-0 border border-dashed border-white/20 hover:bg-white/10 rounded-lg cursor-pointer transition-all"
+                                            : "flex flex-col items-center justify-center p-4 border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30 rounded-xl cursor-pointer transition-all h-28"
                                 }>
-                                    <div className={`rounded-full bg-muted ${isSidebar ? 'p-1.5 mr-3' : 'p-2 mb-2'}`}>
-                                        <Plus className={`${isSidebar ? 'h-4 w-4' : 'h-5 w-5'} text-muted-foreground`} />
+                                    <div className={`rounded-full ${isSidebar ? 'bg-muted p-1.5 mr-3' : isHeader ? 'p-1' : 'bg-muted p-2 mb-2'}`}>
+                                        <Plus className={`${isSidebar ? 'h-4 w-4' : isHeader ? 'h-4 w-4 text-white/70' : 'h-5 w-5'} ${!isHeader && 'text-muted-foreground'}`} />
                                     </div>
-                                    <span className={`font-medium text-muted-foreground ${isSidebar ? 'text-sm' : 'text-xs'}`}>Adicionar</span>
+                                    <span className={`font-medium ${isSidebar ? 'text-sm text-muted-foreground' : isHeader ? 'text-[10px] text-white/70' : 'text-xs text-muted-foreground'}`}>Adicionar</span>
                                 </div>
                             </DialogTrigger>
                             <DialogContent>
