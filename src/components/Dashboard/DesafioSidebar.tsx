@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trophy, Calendar, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Top3Ranking } from "@/components/Gamificacao/Top3Ranking";
+import { Badge } from "@/components/ui/badge";
 
 export function DesafioSidebar() {
     const navigate = useNavigate();
@@ -36,7 +37,19 @@ export function DesafioSidebar() {
         carregarDesafio();
     }, []);
 
-    if (loading) return <Card className="animate-pulse h-[200px]" />;
+    if (loading) {
+        return (
+            <Card className="border-yellow-500/20 bg-yellow-50/30 dark:bg-yellow-900/5 h-full min-h-[140px] flex flex-col justify-center animate-pulse">
+                <CardContent className="p-3 flex gap-4 items-center">
+                    <div className="h-10 w-10 rounded-full bg-yellow-200/50 shrink-0" />
+                    <div className="space-y-2 flex-1">
+                        <div className="h-4 bg-yellow-200/50 rounded w-1/3" />
+                        <div className="h-3 bg-yellow-200/50 rounded w-1/4" />
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
 
     if (!desafioAtual) return null;
 
@@ -63,12 +76,16 @@ export function DesafioSidebar() {
                     <h4 className="font-bold text-base leading-tight text-foreground" title={desafioAtual.titulo}>
                         {desafioAtual.titulo}
                     </h4>
-                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-background/50 w-fit px-2 py-1 rounded-md border border-border/20">
-                        <Calendar className="h-3.5 w-3.5" />
-                        <span>
-                            {format(new Date(desafioAtual.data_inicio), "dd/MM", { locale: ptBR })} - {format(new Date(desafioAtual.data_fim), "dd/MM", { locale: ptBR })}
-                        </span>
-                    </div>
+                    {(() => {
+                        const diasRestantes = differenceInDays(new Date(desafioAtual.data_fim), new Date());
+                        return (
+                            <div className="mt-1">
+                                <Badge variant={diasRestantes > 7 ? "default" : "destructive"}>
+                                    {diasRestantes > 0 ? `${diasRestantes} dias restantes` : 'Encerrado'}
+                                </Badge>
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 <div className="min-w-0 shrink-0">

@@ -6755,6 +6755,83 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_document_folders: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workspace_documents: {
+        Row: {
+          content_html: string
+          created_at: string
+          emoji: string | null
+          folder_id: string | null
+          id: string
+          is_favorite: boolean
+          is_public: boolean
+          public_slug: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content_html?: string
+          created_at?: string
+          emoji?: string | null
+          folder_id?: string | null
+          id?: string
+          is_favorite?: boolean
+          is_public?: boolean
+          public_slug?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content_html?: string
+          created_at?: string
+          emoji?: string | null
+          folder_id?: string | null
+          id?: string
+          is_favorite?: boolean
+          is_public?: boolean
+          public_slug?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_document_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       yjs_snapshots: {
         Row: {
           block_id: string

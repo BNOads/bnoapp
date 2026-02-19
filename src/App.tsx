@@ -29,6 +29,7 @@ import Referencias from "./pages/Referencias";
 import ReferenciaEdit from "./pages/ReferenciaEdit";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import DocumentoPublico from "./pages/DocumentoPublico";
 import DebriefingsView from "@/components/Debriefings/DebriefingsView";
 import NovoDebriefing from "@/components/Debriefings/NovoDebriefing";
 import DebriefingDetalhes from "@/components/Debriefings/DebriefingDetalhes";
@@ -74,6 +75,7 @@ function App() {
                   <Route path="/auth/reset-password" element={<ResetPassword />} />
                   <Route path="/pop/publico/:id" element={<POPPublico />} />
                   <Route path="/lancamento/:linkPublico" element={<LancamentoPublico />} />
+                  <Route path="/documentos/publico/:slug" element={<DocumentoPublico />} />
                   <Route path="/r/:slug" element={<ReferenciaPublica />} />
                   <Route path="/referencia/publica/:slug" element={<ReferenciaPublica />} />
                   <Route path="/painel-publico/:token" element={<PublicDashboard />} />

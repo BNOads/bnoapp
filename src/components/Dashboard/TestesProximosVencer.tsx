@@ -149,7 +149,31 @@ export function TestesProximosVencer() {
     }
   };
 
-  if (loading || testes.length === 0) {
+  if (loading) {
+    return (
+      <Card className="border-2 border-violet-100 bg-gradient-to-br from-violet-50/50 to-background shadow-lg overflow-hidden animate-pulse">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-violet-100" />
+            <div className="h-5 w-32 bg-muted rounded" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {[1, 2].map(i => (
+            <div key={i} className="w-full flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+              <div className="h-8 w-8 rounded-md bg-muted/50" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 w-24 bg-muted rounded" />
+                <div className="h-2 w-16 bg-muted rounded" />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (testes.length === 0) {
     return null;
   }
 

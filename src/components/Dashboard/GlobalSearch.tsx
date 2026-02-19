@@ -16,20 +16,49 @@ import {
     Trophy,
     FlaskConical,
     Briefcase,
+    FileText,
     Loader2,
-    ChevronRight
+    ChevronRight,
+    CheckSquare,
+    Wrench
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ColaboradorDetailModal } from "@/components/CulturaTime/TimeEmCampo/ColaboradorDetailModal";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { EditarColaboradorModal } from "@/components/Colaboradores/EditarColaboradorModal";
+import { AlterarSenhaModal } from "@/components/Colaboradores/AlterarSenhaModal";
 
 interface SearchResult {
     id: string;
     title: string;
     subtitle?: string;
-    type: 'cliente' | 'colaborador' | 'lancamento' | 'desafio' | 'teste';
+    type: 'cliente' | 'colaborador' | 'lancamento' | 'desafio' | 'teste' | 'tarefa' | 'documento' | 'ferramenta';
     url: string;
+    colaboradorData?: any;
 }
+
+const STATIC_TOOLS = [
+    { id: "cultura-time", title: "Cultura & Time", url: "/cultura-time", subtitle: "Página" },
+    { id: "clientes", title: "Clientes", url: "/clientes", subtitle: "Página" },
+    { id: "treinamentos", title: "Treinamentos", url: "/treinamentos", subtitle: "Página" },
+    { id: "ferramentas", title: "Ferramentas", url: "/ferramentas", subtitle: "Página" },
+    { id: "criador-criativos", title: "Criador de Criativos", url: "/criador-criativos", subtitle: "Ferramenta" },
+    { id: "arquivo-reuniao", title: "Arquivo de Reunião", url: "/arquivo-reuniao", subtitle: "Ferramenta" },
+    { id: "referencias", title: "Referências", url: "/referencias", subtitle: "Ferramenta" },
+    { id: "debriefings", title: "Debriefings", url: "/ferramentas/debriefings", subtitle: "Ferramenta" },
+    { id: "notas", title: "Bloco de Notas", url: "/ferramentas/notas", subtitle: "Ferramenta" },
+    { id: "documentos", title: "Documentos", url: "/ferramentas/documentos", subtitle: "Ferramenta" },
+    { id: "orcamentos-funil", title: "Orçamentos", url: "/ferramentas/orcamentos-funil", subtitle: "Ferramenta" },
+    { id: "utm-builder", title: "Criador de UTM", url: "/ferramentas/utm-builder", subtitle: "Ferramenta" },
+    { id: "acessos-logins", title: "Acessos & Logins", url: "/ferramentas/acessos-logins", subtitle: "Ferramenta" },
+    { id: "mensagens-semanais", title: "Mensagens Semanais", url: "/ferramentas/mensagens-semanais", subtitle: "Ferramenta" },
+    { id: "links", title: "Links Importantes", url: "/ferramentas/links", subtitle: "Ferramenta" },
+    { id: "nps", title: "NPS", url: "/nps", subtitle: "Ferramenta" },
+    { id: "desafio-gamificacao", title: "Desafio Gamificação", url: "/gamificacao", subtitle: "Ferramenta" },
+    { id: "tarefas", title: "Minhas Tarefas", url: "/tarefas", subtitle: "Página" },
+];
 
 export function GlobalSearch() {
     const [open, setOpen] = useState(false);
@@ -37,6 +66,13 @@ export function GlobalSearch() {
     const [results, setResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+
+    // Modals state for Colaborador
+    const { isAdmin } = useUserPermissions();
+    const [detailModalOpen, setDetailModalOpen] = useState(false);
+    const [selectedColaborador, setSelectedColaborador] = useState<any>(null);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [senhaModalOpen, setSenhaModalOpen] = useState(false);
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -55,7 +91,7 @@ export function GlobalSearch() {
             const fetchBaseData = async () => {
                 setLoading(true);
                 try {
-                    const [clientes, lancamentos] = await Promise.all([
+                    const [clientes, lancamentos, documentos] = await Promise.all([
                         supabase
                             .from('clientes')
                             .select('id, nome, nicho, slug')
@@ -67,6 +103,11 @@ export function GlobalSearch() {
                             .select('id, nome_lancamento, promessa, clientes!inner(nome)')
                             .eq('status_lancamento', 'finalizado')
                             .order('created_at', { ascending: false })
+                            .limit(5),
+                        supabase
+                            .from('workspace_documents')
+                            .select('id, title, emoji, is_public')
+                            .order('updated_at', { ascending: false })
                             .limit(5)
                     ]);
 
@@ -85,6 +126,14 @@ export function GlobalSearch() {
                         subtitle: (l.clientes as any)?.nome || 'Sem cliente (Implementação Finalizada)',
                         type: 'lancamento',
                         url: `/lancamentos/${l.id}`
+                    }));
+
+                    documentos.data?.forEach(d => newResults.push({
+                        id: d.id,
+                        title: `${d.emoji || "📝"} ${d.title || 'Sem título'}`,
+                        subtitle: d.is_public ? 'Documento público' : 'Documento privado',
+                        type: 'documento',
+                        url: `/ferramentas/documentos?doc=${d.id}`
                     }));
 
                     setResults(newResults);
@@ -109,7 +158,9 @@ export function GlobalSearch() {
                     colaboradores,
                     lancamentos,
                     desafios,
-                    testes
+                    testes,
+                    tarefas,
+                    documentos
                 ] = await Promise.all([
                     // Clientes
                     supabase
@@ -122,7 +173,7 @@ export function GlobalSearch() {
                     // Colaboradores
                     supabase
                         .from('colaboradores')
-                        .select('id, nome, cargo_display')
+                        .select('*')
                         .ilike('nome', searchTerm)
                         .eq('ativo', true)
                         .limit(5),
@@ -149,6 +200,20 @@ export function GlobalSearch() {
                         .select('id, nome, hipotese')
                         .or(`nome.ilike.${searchTerm},hipotese.ilike.${searchTerm}`)
                         .limit(5),
+
+                    // Tarefas
+                    supabase
+                        .from('tasks')
+                        .select('id, title, assignee')
+                        .ilike('title', searchTerm)
+                        .limit(5),
+
+                    // Documentos
+                    supabase
+                        .from('workspace_documents')
+                        .select('id, title, emoji, is_public')
+                        .or(`title.ilike.${searchTerm},content_html.ilike.${searchTerm}`)
+                        .limit(5),
                 ]);
 
                 const newResults: SearchResult[] = [];
@@ -165,7 +230,8 @@ export function GlobalSearch() {
                     title: c.nome,
                     subtitle: c.cargo_display || 'Colaborador',
                     type: 'colaborador',
-                    url: `/equipe` // Adjust if there's a specific profile page
+                    url: `#`, // Will open modal instead
+                    colaboradorData: c
                 }));
 
                 // Lancamentos filters by client name manually or if the launch has the name 
@@ -199,6 +265,35 @@ export function GlobalSearch() {
                     url: `/testes` // Adjust to open specific test
                 }));
 
+                tarefas.data?.forEach(t => newResults.push({
+                    id: t.id,
+                    title: t.title,
+                    subtitle: t.assignee || 'Sem responsável',
+                    type: 'tarefa',
+                    url: `/tarefas/${t.id}`
+                }));
+
+                documentos.data?.forEach(d => newResults.push({
+                    id: d.id,
+                    title: `${d.emoji || "📝"} ${d.title || 'Sem título'}`,
+                    subtitle: d.is_public ? 'Documento público' : 'Documento privado',
+                    type: 'documento',
+                    url: `/ferramentas/documentos?doc=${d.id}`
+                }));
+
+                const matchedTools = STATIC_TOOLS.filter(t =>
+                    t.title.toLowerCase().includes(searchLower) ||
+                    t.subtitle.toLowerCase().includes(searchLower)
+                );
+
+                matchedTools.forEach(t => newResults.push({
+                    id: t.id,
+                    title: t.title,
+                    subtitle: t.subtitle,
+                    type: 'ferramenta',
+                    url: t.url
+                }));
+
                 setResults(newResults);
             } catch (error) {
                 console.error("Search error:", error);
@@ -210,9 +305,25 @@ export function GlobalSearch() {
         return () => clearTimeout(timer);
     }, [query]);
 
-    const handleSelect = (url: string) => {
+    const handleSelect = (item: SearchResult) => {
+        if (item.type === 'colaborador' && item.colaboradorData) {
+            setOpen(false);
+            setSelectedColaborador(item.colaboradorData);
+            setDetailModalOpen(true);
+            return;
+        }
         setOpen(false);
-        navigate(url);
+        navigate(item.url);
+    };
+
+    const handleEdit = (colab: any) => {
+        setSelectedColaborador(colab);
+        setEditModalOpen(true);
+    };
+
+    const handleChangePassword = (colab: any) => {
+        setSelectedColaborador(colab);
+        setSenhaModalOpen(true);
     };
 
     const getIconInfo = (type: SearchResult['type']) => {
@@ -222,6 +333,9 @@ export function GlobalSearch() {
             case 'lancamento': return { icon: Rocket, text: 'text-orange-500', bg: 'bg-orange-500/10' };
             case 'desafio': return { icon: Trophy, text: 'text-yellow-500', bg: 'bg-yellow-500/10' };
             case 'teste': return { icon: FlaskConical, text: 'text-emerald-500', bg: 'bg-emerald-500/10' };
+            case 'tarefa': return { icon: CheckSquare, text: 'text-blue-400', bg: 'bg-blue-400/10' };
+            case 'documento': return { icon: FileText, text: 'text-indigo-500', bg: 'bg-indigo-500/10' };
+            case 'ferramenta': return { icon: Wrench, text: 'text-zinc-500', bg: 'bg-zinc-500/10' };
             default: return { icon: Search, text: 'text-gray-500', bg: 'bg-gray-500/10' };
         }
     };
@@ -276,7 +390,7 @@ export function GlobalSearch() {
                                         return (
                                             <CommandItem
                                                 key={item.id}
-                                                onSelect={() => handleSelect(item.url)}
+                                                onSelect={() => handleSelect(item)}
                                                 value={item.id} // Add unique value key
                                                 className="flex items-center gap-3 py-3 cursor-pointer"
                                             >
@@ -300,6 +414,30 @@ export function GlobalSearch() {
                     </Command>
                 </DialogContent>
             </Dialog>
+
+            {/* Modals for Colaborador */}
+            <ColaboradorDetailModal
+                open={detailModalOpen}
+                onOpenChange={setDetailModalOpen}
+                colaborador={selectedColaborador}
+                isAdmin={isAdmin}
+                onEdit={handleEdit}
+                onChangePassword={handleChangePassword}
+            />
+
+            <EditarColaboradorModal
+                open={editModalOpen}
+                onOpenChange={setEditModalOpen}
+                colaborador={selectedColaborador}
+                onSuccess={() => { }} // No need to refresh the search list immediately, or we could trigger a re-search
+            />
+
+            <AlterarSenhaModal
+                open={senhaModalOpen}
+                onOpenChange={setSenhaModalOpen}
+                colaborador={selectedColaborador}
+                onSuccess={() => { }}
+            />
         </>
     );
 }

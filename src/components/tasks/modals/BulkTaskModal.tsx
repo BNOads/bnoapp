@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateBulkTasks } from "@/hooks/useTaskMutations";
 import { supabase } from "@/integrations/supabase/client";
-import { TaskPriority, RecurrenceType, RECURRENCE_LABELS } from "@/types/tasks";
+import { TaskPriority, RecurrenceType, RECURRENCE_LABELS, PRIORITY_LABELS } from "@/types/tasks";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -111,9 +111,9 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="baixa">Baixa</SelectItem>
-                                    <SelectItem value="media">Média</SelectItem>
-                                    <SelectItem value="alta">Alta</SelectItem>
+                                    <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
+                                    <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
+                                    <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

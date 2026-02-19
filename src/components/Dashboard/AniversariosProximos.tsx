@@ -92,7 +92,33 @@ export function AniversariosProximos({ compact = false, className }: Aniversario
     carregarAniversarios();
   }, []);
 
-  if (loading || aniversariantes.length === 0) {
+  if (loading) {
+    return (
+      <Card className={`border border-blue-100 bg-blue-50/50 shadow-sm ${compact ? 'mt-0' : ''} ${className}`}>
+        <CardHeader className={`${compact ? "p-1.5 pb-0" : "pb-3"}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className={`rounded-full bg-blue-100 animate-pulse ${compact ? 'p-2' : 'p-3'}`} />
+              <div className={`h-4 bg-slate-200 animate-pulse rounded w-32`} />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className={`${compact ? "p-1.5 pt-1 space-y-0.5" : "space-y-3"} flex-1 flex flex-col justify-center`}>
+          {[1, 2].map((i) => (
+            <div key={i} className={`flex items-center gap-2 rounded-md bg-white/40 border border-blue-50 animate-pulse ${compact ? 'p-1' : 'p-3'}`}>
+              <div className={`rounded-full bg-slate-200 ${compact ? 'h-6 w-6' : 'h-12 w-12'}`} />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-slate-200 rounded w-20" />
+                <div className="h-2 bg-slate-200 rounded w-12" />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (aniversariantes.length === 0) {
     return null;
   }
 
@@ -142,7 +168,7 @@ export function AniversariosProximos({ compact = false, className }: Aniversario
 
               <div className="flex-1 min-w-0">
                 <p className={`font-bold truncate text-slate-900 leading-tight ${compact ? 'text-xs' : ''}`}>
-                  {colab.nome.split(' ')[0]} {colab.nome.split(' ')[1]?.[0]}.
+                  {colab.nome}
                 </p>
                 <p className="text-[9px] text-slate-500 font-medium uppercase tracking-wide mt-0.5">
                   {format(parseDateLocal(colab.data_nascimento)!, "dd 'de' MMM", { locale: ptBR })}

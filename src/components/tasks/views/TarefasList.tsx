@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Task } from "@/types/tasks";
+import { Task, PRIORITY_LABELS } from "@/types/tasks";
 import { isOverdue, isToday } from "@/lib/dateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +74,7 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                         {groupTasks.map(task => (
                             <div
                                 key={task.id}
-                                className={`group flex items-center justify-between p-3 rounded-lg border bg-card hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer ${task.completed ? "opacity-60 bg-muted/30" : ""}`}
+                                className={`group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${task.completed ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" : "bg-card hover:border-primary/50 hover:shadow-sm"}`}
                                 onClick={() => onTaskClick(task.id)}
                             >
                                 <div className="flex items-center gap-3 overflow-hidden">
@@ -82,12 +82,12 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                         <Checkbox
                                             checked={task.completed}
                                             onCheckedChange={(c) => toggleComplete({ id: task.id, completed: c as boolean })}
-                                            className="mt-0.5"
+                                            className={`mt-0.5 rounded-sm ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : ""}`}
                                         />
                                     </div>
 
                                     <div className="flex flex-col truncate">
-                                        <span className={`text-sm font-medium truncate ${task.completed ? "line-through text-muted-foreground" : ""}`}>
+                                        <span className={`text-sm font-medium truncate ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                                             {task.title}
                                         </span>
                                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
@@ -118,8 +118,8 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
 
                                 <div className="flex items-center gap-3 shrink-0">
                                     {task.priority && !task.completed && (
-                                        <Badge variant={task.priority === "alta" ? "destructive" : task.priority === "media" ? "secondary" : "outline"} className="capitalize text-[10px] h-5 px-1.5">
-                                            {task.priority}
+                                        <Badge variant={task.priority === "alta" ? "destructive" : task.priority === "media" ? "secondary" : "outline"} className={`capitalize text-[10px] h-5 px-1.5 font-medium ${task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' : task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 border-transparent text-white' : ''}`}>
+                                            {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
                                         </Badge>
                                     )}
 

@@ -71,12 +71,11 @@ const LaunchTimer = ({ lancamento }: { lancamento: Lancamento }) => {
     if (!nextEvent || !timeLeft) return <span className="text-xs text-muted-foreground">-</span>;
 
     return (
-        <div className="flex flex-col items-end">
-            <span className="text-[10px] text-muted-foreground font-bold mb-0 uppercase tracking-wide">{nextEvent.label}</span>
-            <div className="flex items-center gap-1 font-mono text-blue-700 dark:text-blue-400 font-extrabold leading-none">
-                <span className="text-lg">{String(timeLeft.dias).padStart(2, '0')}</span>
-                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">dias</span>
-            </div>
+        <div className="flex flex-col items-end gap-1">
+            <span className="text-[10px] text-muted-foreground font-bold mb-0 uppercase tracking-wide leading-none">{nextEvent.label}</span>
+            <Badge variant={timeLeft.dias > 7 ? "default" : "destructive"} className="text-[11px] py-0 px-2 min-h-[22px]">
+                {timeLeft.dias > 0 ? `${timeLeft.dias} dias restantes` : 'Hoje'}
+            </Badge>
         </div>
     );
 };
@@ -171,7 +170,18 @@ export function LancamentosSidebar() {
     };
 
     if (loading) {
-        return <Card className="animate-pulse h-[200px]" />;
+        return (
+            <Card className="h-[250px] animate-pulse">
+                <CardHeader className="pb-1.5 pt-3 px-3">
+                    <div className="h-4 w-32 bg-muted rounded" />
+                </CardHeader>
+                <CardContent className="space-y-2 p-2 mt-2">
+                    {[1, 2].map(i => (
+                        <div key={i} className="p-2 rounded-lg border bg-card/50 h-[68px]" />
+                    ))}
+                </CardContent>
+            </Card>
+        );
     }
 
     if (lancamentos.length === 0) return null;
@@ -190,7 +200,22 @@ export function LancamentosSidebar() {
                 </div>
             </CardHeader>
             <CardContent className="space-y-1 p-2">
-                {lancamentos.map((lancamento) => {
+                {[...lancamentos].sort((a, b) => {
+                    const getProximoEvento = (l: Lancamento) => {
+                        const datas = [
+                            l.data_inicio_captacao, l.data_fim_captacao, l.data_inicio_aquecimento,
+                            l.data_inicio_cpl, l.data_inicio_carrinho, l.data_fechamento
+                        ].filter((d): d is string => d !== null);
+                        const futuros = datas.filter(d => isFuture(parseISO(d))).map(d => parseISO(d).getTime()).sort((x, y) => x - y);
+                        return futuros.length > 0 ? futuros[0] : null;
+                    };
+                    const nextA = getProximoEvento(a);
+                    const nextB = getProximoEvento(b);
+                    if (!nextA && !nextB) return 0;
+                    if (!nextA) return 1;
+                    if (!nextB) return -1;
+                    return nextA - nextB;
+                }).map((lancamento) => {
                     const checklist = lancamento.checklist_configuracao || {};
                     const pendingCount = Object.values(checklist).filter(val => val === false).length;
 
@@ -206,14 +231,14 @@ export function LancamentosSidebar() {
                                     {lancamento.nome_lancamento}
                                 </span>
                                 {lancamento.gestor_responsavel && (
-                                    <div className="flex items-center gap-1 shrink-0">
-                                        <Avatar className="h-4 w-4 border border-slate-100 dark:border-slate-800">
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <Avatar className="h-6 w-6 border border-slate-100 dark:border-slate-800">
                                             <AvatarImage src={lancamento.gestor_responsavel.avatar_url || undefined} alt={lancamento.gestor_responsavel.nome} />
-                                            <AvatarFallback className="text-[6px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold">
+                                            <AvatarFallback className="text-[8px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold">
                                                 {lancamento.gestor_responsavel.nome.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-[10px] text-slate-700 dark:text-slate-300 font-bold truncate max-w-[80px]">
+                                        <span className="text-xs text-slate-700 dark:text-slate-300 font-bold truncate max-w-[100px]">
                                             {lancamento.gestor_responsavel.nome}
                                         </span>
                                     </div>

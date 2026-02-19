@@ -25,6 +25,7 @@ import { AniversariosProximos } from "@/components/Dashboard/AniversariosProximo
 import { TestesProximosVencer } from "@/components/Dashboard/TestesProximosVencer";
 import { DesafioSidebar } from "@/components/Dashboard/DesafioSidebar";
 import { LancamentosSidebar } from "@/components/Dashboard/LancamentosSidebar";
+import { TodaysTasks } from "@/components/tasks/widgets/TodaysTasks";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -424,14 +425,12 @@ export function DashboardView() {
 
         {/* Right Section: Desafio + Birthday + Settings */}
         <div className="flex flex-col lg:flex-row gap-3 items-stretch w-full lg:w-auto">
-          <div className="w-full lg:w-[320px] text-foreground">
+          <div className="w-full lg:w-[320px] text-foreground h-full">
             <DesafioSidebar />
           </div>
           {/* Birthday & Settings */}
-          <div className="min-w-0 w-full lg:w-[280px] flex flex-col justify-end gap-3 h-auto">
-            <div className="w-full h-auto">
-              <AniversariosProximos compact={true} />
-            </div>
+          <div className="min-w-0 w-full lg:w-[280px] h-full">
+            <AniversariosProximos compact={true} className="h-full flex flex-col" />
           </div>
 
         </div>
@@ -455,8 +454,18 @@ export function DashboardView() {
           </div>
 
           {loadingPdis ? (
-            <div className="flex justify-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <div className="flex flex-col gap-3">
+              {[1, 2].map(i => (
+                <Card key={i} className="p-4 flex flex-col gap-3 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded bg-muted" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-muted rounded w-3/4" />
+                      <div className="h-3 bg-muted rounded w-1/2" />
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
           ) : pdis.length === 0 ? (
             <Card className="p-4 text-center bg-muted/20">
@@ -485,6 +494,10 @@ export function DashboardView() {
 
         {/* View Only Badge */}
         {!canCreateContent && <ViewOnlyBadge />}
+
+        <div className="w-full">
+          <TodaysTasks />
+        </div>
 
         {
           desafioAtual && (

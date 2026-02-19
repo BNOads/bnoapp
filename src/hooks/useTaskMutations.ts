@@ -17,7 +17,7 @@ export function useCreateTask() {
                     .from("colaboradores")
                     .select("user_id")
                     .eq("nome", newTask.assignee)
-                    .single();
+                    .maybeSingle();
                 if (profile?.user_id) assigned_to_id = profile.user_id;
             }
 

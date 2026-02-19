@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateTask } from "@/hooks/useTaskMutations";
 import { supabase } from "@/integrations/supabase/client";
-import { TaskPriority, RecurrenceType, RECURRENCE_LABELS } from "@/types/tasks";
+import { TaskPriority, RecurrenceType, RECURRENCE_LABELS, PRIORITY_LABELS } from "@/types/tasks";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface CreateTaskModalProps {
     open: boolean;
@@ -24,8 +25,19 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
     const [dueDate, setDueDate] = useState<string>("");
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string }[]>([]);
-
+    const { data: currentUser } = useCurrentUser();
     const { mutate: createTask, isPending } = useCreateTask();
+
+    const getAssignedTo = () => {
+        if (defaultAssignee) return defaultAssignee;
+        return currentUser ? (currentUser.nome || currentUser.email || "unassigned") : "unassigned";
+    };
+
+    useEffect(() => {
+        if (!defaultAssignee && currentUser) {
+            setAssignee(getAssignedTo());
+        }
+    }, [currentUser, defaultAssignee]);
 
     useEffect(() => {
         if (open) {
@@ -35,7 +47,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
             // Reset values when opened
             setTitle("");
             setDescription("");
-            setAssignee(defaultAssignee || "unassigned");
+            setAssignee(getAssignedTo());
             setPriority("media");
             setRecurrence("none");
             setCategory("none");
@@ -48,15 +60,13 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
 
         createTask(
             {
-                task: {
-                    title,
-                    description,
-                    assignee: assignee !== "unassigned" ? assignee : null,
-                    priority,
-                    category: category !== "none" ? category : null,
-                    recurrence: recurrence !== "none" ? recurrence : null,
-                    due_date: dueDate || null,
-                }
+                title,
+                description,
+                assignee: assignee !== "unassigned" ? assignee : null,
+                priority,
+                category: category !== "none" ? category : null,
+                recurrence: recurrence !== "none" ? recurrence : null,
+                due_date: dueDate || null,
             },
             {
                 onSuccess: () => {
@@ -117,9 +127,9 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="baixa">Baixa</SelectItem>
-                                    <SelectItem value="media">Média</SelectItem>
-                                    <SelectItem value="alta">Alta</SelectItem>
+                                    <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
+                                    <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
+                                    <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

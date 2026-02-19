@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBulkUpdateTasks, useBulkDeleteTasks } from "@/hooks/useTaskMutations";
 import { supabase } from "@/integrations/supabase/client";
-import { TaskPriority, TaskUpdate } from "@/types/tasks";
+import { TaskPriority, TaskUpdate, PRIORITY_LABELS } from "@/types/tasks";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, Trash2 } from "lucide-react";
 
@@ -132,9 +132,9 @@ export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSele
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="no-change">Sem alteração</SelectItem>
-                                <SelectItem value="baixa">Baixa</SelectItem>
-                                <SelectItem value="media">Média</SelectItem>
-                                <SelectItem value="alta">Alta</SelectItem>
+                                <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
+                                <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
+                                <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

@@ -67,10 +67,10 @@ export function SubtaskList({ taskId, subtasks, parentSubtaskId, level = 0 }: Su
                         <Checkbox
                             checked={subtask.completed}
                             onCheckedChange={(checked) => toggleComplete({ id: subtask.id, completed: checked as boolean, taskId })}
-                            className="mt-0.5"
+                            className={subtask.completed ? "mt-0.5 border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white rounded-sm" : "mt-0.5 rounded-sm"}
                         />
 
-                        <span className={`text-sm flex-1 ${subtask.completed ? "line-through text-muted-foreground" : ""}`}>
+                        <span className={`text-sm flex-1 ${subtask.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                             {subtask.title}
                         </span>
 

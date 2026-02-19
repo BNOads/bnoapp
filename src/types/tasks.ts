@@ -16,6 +16,12 @@ export type TaskHistoryInsert = Database['public']['Tables']['task_history']['In
 
 export type TaskPriority = "alta" | "media" | "baixa";
 
+export const PRIORITY_LABELS: Record<TaskPriority, string> = {
+    alta: "Copa do Mundo",
+    media: "Libertadores",
+    baixa: "Brasileirão",
+};
+
 export type RecurrenceType = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "semiannual" | "yearly";
 
 export const RECURRENCE_LABELS: Record<RecurrenceType, string> = {

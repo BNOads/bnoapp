@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { List, Kanban, Users, BarChart3, Plus, Search, Layers } from "lucide-react";
+import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag } from "lucide-react";
 
 import { useTasks, TaskFilters } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -13,6 +13,7 @@ import { TaskKanban } from "@/components/tasks/views/TaskKanban";
 import { TasksByPersonView } from "@/components/tasks/views/TasksByPersonView";
 import { AdminTasksPanel } from "@/components/tasks/views/AdminTasksPanel";
 import { exportTasksToPDF } from "@/lib/exportTasksPdf";
+import { PRIORITY_LABELS } from "@/types/tasks";
 
 import { BulkTaskModal } from "@/components/tasks/modals/BulkTaskModal";
 import { BulkEditModal } from "@/components/tasks/modals/BulkEditModal";
@@ -28,8 +29,12 @@ export default function Tarefas() {
         priority: "all",
         category: "all",
         assignee: "all",
+        recurrence: "all",
+        status: "all",
+        date: "all"
     });
-    const [activeView, setActiveView] = useState("list");
+    const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "usuario">("minhas");
+    const [hideCompleted, setHideCompleted] = useState(false);
 
     // Selection for ByPerson view mainly, but could be global
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
@@ -44,7 +49,22 @@ export default function Tarefas() {
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-    const { data: tasks = [], isLoading } = useTasks(filters);
+    // Prepare payload dynamically for useTasks to route "Minhas" cleanly
+    const appliedFilters = { ...filters };
+    if (activeMainTab === "minhas") {
+        appliedFilters.assignee = currentUser?.nome || currentUser?.email || "";
+    } else if (filters.assignee && filters.assignee !== "all") {
+        // use specific assignee if selected
+    } else {
+        appliedFilters.assignee = "all";
+    }
+
+    const { data: tasks = [], isLoading } = useTasks(appliedFilters);
+
+    const pendingCount = tasks.filter(t => !t.completed).length;
+    const completedCount = tasks.filter(t => t.completed).length;
+    const overdueCount = tasks.filter(t => !t.completed && t.due_date && t.due_date < new Date().toISOString().split('T')[0]).length; // naive isOverdue inline
+    const highPriorityCount = tasks.filter(t => !t.completed && t.priority === "alta").length;
 
     const handleTaskClick = (id: string) => {
         setSelectedTaskId(id);
@@ -62,25 +82,51 @@ export default function Tarefas() {
             return <div className="flex items-center justify-center p-12 text-muted-foreground">Carregando tarefas...</div>;
         }
 
-        if (activeView === "list") return <TarefasList tasks={tasks} onTaskClick={handleTaskClick} />;
-        if (activeView === "kanban") return <TaskKanban tasks={tasks} onTaskClick={handleTaskClick} />;
-        if (activeView === "person") return <TasksByPersonView
-            tasks={tasks}
-            onTaskClick={handleTaskClick}
-            selectedTasks={selectedTasks}
-            onToggleSelectTask={handleToggleSelectTask}
-            onCreateTaskForPerson={(person) => {
-                setCreateDefaultAssignee(person);
-                setIsCreateOpen(true);
-            }}
-        />;
-        if (activeView === "admin" && isAdmin) return <AdminTasksPanel tasks={tasks} />;
+        if (activeMainTab === "minhas") {
+            const filteredTasks = hideCompleted ? tasks.filter(t => !t.completed) : tasks;
+            return <TarefasList tasks={filteredTasks} onTaskClick={handleTaskClick} />;
+        }
+
+        const ByPersonBase = (
+            <TasksByPersonView
+                tasks={tasks}
+                onTaskClick={handleTaskClick}
+                selectedTasks={selectedTasks}
+                onToggleSelectTask={handleToggleSelectTask}
+                onCreateTaskForPerson={(person) => {
+                    setCreateDefaultAssignee(person);
+                    setIsCreateOpen(true);
+                }}
+                gridLayout={activeMainTab === "usuario"}
+                hideCompleted={hideCompleted}
+            />
+        );
+
+        if (activeMainTab === "time") {
+            return ByPersonBase;
+        }
+
+        if (activeMainTab === "usuario") {
+            return (
+                <div className="space-y-6 w-full max-w-[1400px] mx-auto xl:px-4">
+                    {isAdmin && <AdminTasksPanel tasks={tasks} />}
+                    <div className="mt-8">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold flex items-center gap-2">
+                                <Users className="w-5 h-5" /> Tarefas por Responsável
+                            </h2>
+                        </div>
+                        {ByPersonBase}
+                    </div>
+                </div>
+            );
+        }
 
         return null;
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] bg-background">
+        <div className="flex flex-col min-h-screen bg-background pb-20">
             <div className="p-6 pb-4 border-b">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                     <div>
@@ -91,83 +137,175 @@ export default function Tarefas() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        {selectedTasks.length > 0 && activeView === "person" && (
+                        {selectedTasks.length > 0 && (activeMainTab === "time" || activeMainTab === "usuario") && (
                             <Button variant="secondary" onClick={() => setIsBulkEditOpen(true)} className="gap-2">
                                 <Layers className="w-4 h-4" />
                                 Editar Lote ({selectedTasks.length})
                             </Button>
                         )}
 
+                        <label className="text-sm font-medium flex items-center gap-2 mr-2 cursor-pointer select-none text-muted-foreground bg-muted p-1.5 px-3 rounded-md border">
+                            <input
+                                type="checkbox"
+                                checked={hideCompleted}
+                                onChange={(e) => setHideCompleted(e.target.checked)}
+                                className="rounded border-gray-300 w-4 h-4"
+                            />
+                            Ocultar concluídas
+                        </label>
+
                         <Button variant="outline" onClick={() => exportTasksToPDF(tasks)} className="gap-2">
                             <BarChart3 className="w-4 h-4" />
                             Exportar PDF
                         </Button>
+
+                        <div className="flex items-center bg-muted/50 p-1 rounded-md border text-sm font-medium mx-2">
+                            <button
+                                onClick={() => setActiveMainTab("minhas")}
+                                className={`px-4 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${activeMainTab === "minhas" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                            >
+                                <List className="w-4 h-4" />
+                                Minhas
+                            </button>
+                            <button
+                                onClick={() => setActiveMainTab("time")}
+                                className={`px-4 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${activeMainTab === "time" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                            >
+                                <Users className="w-4 h-4" />
+                                Time
+                            </button>
+                            <button
+                                onClick={() => setActiveMainTab("usuario")}
+                                className={`px-4 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${activeMainTab === "usuario" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                            >
+                                <Grid2X2 className="w-4 h-4" />
+                                Por Usuário
+                            </button>
+                        </div>
 
                         <Button variant="outline" onClick={() => setIsBulkCreateOpen(true)} className="gap-2">
                             <Layers className="w-4 h-4" />
                             Criação em Lote
                         </Button>
 
-                        <Button onClick={() => { setCreateDefaultAssignee("unassigned"); setIsCreateOpen(true); }} className="gap-2">
+                        <Button onClick={() => { setCreateDefaultAssignee("unassigned"); setIsCreateOpen(true); }} className="bg-foreground text-background hover:bg-foreground/90 gap-2">
                             <Plus className="w-4 h-4" />
                             Nova Tarefa
                         </Button>
                     </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
-                    <Tabs value={activeView} onValueChange={setActiveView} className="w-full lg:w-auto overflow-x-auto pb-1">
-                        <TabsList className="bg-muted">
-                            <TabsTrigger value="list" className="gap-2 h-8 px-3">
-                                <List className="w-4 h-4" />
-                                <span className="hidden sm:inline">Lista</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="kanban" className="gap-2 h-8 px-3">
-                                <Kanban className="w-4 h-4" />
-                                <span className="hidden sm:inline">Quadro</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="person" className="gap-2 h-8 px-3">
-                                <Users className="w-4 h-4" />
-                                <span className="hidden sm:inline">Por Pessoa</span>
-                            </TabsTrigger>
-                            {isAdmin && (
-                                <TabsTrigger value="admin" className="gap-2 h-8 px-3">
-                                    <BarChart3 className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Admin</span>
-                                </TabsTrigger>
-                            )}
-                        </TabsList>
-                    </Tabs>
+                <div className="flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center mb-6">
+                    <div className="flex flex-wrap items-center gap-3 w-full lg:flex-1">
+                        <div className="relative w-full sm:w-80">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Buscar tarefas..."
+                                value={filters.search}
+                                onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
+                                className="pl-9 h-10 w-full"
+                            />
+                        </div>
 
-                    {activeView !== "admin" && (
-                        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                            <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Buscar tarefas..."
-                                    value={filters.search}
-                                    onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
-                                    className="pl-9 h-9"
-                                />
-                            </div>
+                        <Select value={filters.priority} onValueChange={(v) => setFilters(f => ({ ...f, priority: v }))}>
+                            <SelectTrigger className="w-[140px] h-10">
+                                <Flag className="w-4 h-4 mr-2 text-muted-foreground" />
+                                <SelectValue placeholder="Prioridade" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todas</SelectItem>
+                                <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
+                                <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
+                                <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
+                            </SelectContent>
+                        </Select>
 
-                            <Select value={filters.priority} onValueChange={(v) => setFilters(f => ({ ...f, priority: v }))}>
-                                <SelectTrigger className="w-full sm:w-[130px] h-9">
-                                    <SelectValue placeholder="Prioridade" />
+                        <Select value={filters.status} onValueChange={(v) => setFilters(f => ({ ...f, status: v }))}>
+                            <SelectTrigger className="w-[140px] h-10">
+                                <List className="w-4 h-4 mr-2 text-muted-foreground" />
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todas</SelectItem>
+                                <SelectItem value="pendentes">Pendentes</SelectItem>
+                                <SelectItem value="concluidas">Concluídas</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        {activeMainTab !== "minhas" && (
+                            <Select value={filters.assignee} onValueChange={(v) => setFilters(f => ({ ...f, assignee: v }))}>
+                                <SelectTrigger className="w-[140px] h-10">
+                                    <Users className="w-4 h-4 mr-2 text-muted-foreground" />
+                                    <SelectValue placeholder="Responsável" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Todas as prior.</SelectItem>
-                                    <SelectItem value="alta">Alta</SelectItem>
-                                    <SelectItem value="media">Média</SelectItem>
-                                    <SelectItem value="baixa">Baixa</SelectItem>
+                                    <SelectItem value="all">Todos</SelectItem>
                                 </SelectContent>
                             </Select>
+                        )}
+
+                        <Select value={filters.recurrence} onValueChange={(v) => setFilters(f => ({ ...f, recurrence: v }))}>
+                            <SelectTrigger className="w-[140px] h-10">
+                                <Layers className="w-4 h-4 mr-2 text-muted-foreground" />
+                                <SelectValue placeholder="Recorrência" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todas</SelectItem>
+                                <SelectItem value="none">Sem repetição</SelectItem>
+                                <SelectItem value="diario">Diária</SelectItem>
+                                <SelectItem value="semanal">Semanal</SelectItem>
+                                <SelectItem value="mensal">Mensal</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <Select value={filters.date} onValueChange={(v) => setFilters(f => ({ ...f, date: v }))}>
+                            <SelectTrigger className="w-[180px] h-10">
+                                <CalendarIcon className="w-4 h-4 mr-2 text-muted-foreground" />
+                                <SelectValue placeholder="Datas" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todas as datas</SelectItem>
+                                <SelectItem value="hoje">Hoje</SelectItem>
+                                <SelectItem value="semana">Esta semana</SelectItem>
+                                <SelectItem value="mes">Este mês</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
+                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                            <span className="w-2 h-2 rounded-full border border-current opacity-50"></span>
+                            <span className="text-sm font-medium">Pendentes</span>
                         </div>
-                    )}
+                        <span className="text-4xl font-bold">{pendingCount}</span>
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
+                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                            <CheckCircle2 className="w-4 h-4 text-muted-foreground opacity-50" />
+                            <span className="text-sm font-medium">Concluídas</span>
+                        </div>
+                        <span className="text-4xl font-bold">{completedCount}</span>
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden border-rose-100 dark:border-rose-900 bg-rose-50/30 dark:bg-rose-950/20">
+                        <div className="flex items-center gap-2 text-destructive mb-1">
+                            <AlertCircle className="w-4 h-4" />
+                            <span className="text-sm font-medium">Atrasadas</span>
+                        </div>
+                        <span className="text-4xl font-bold text-foreground">{overdueCount}</span>
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
+                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                            <Flag className="w-4 h-4 text-rose-500 opacity-60" />
+                            <span className="text-sm font-medium">Alta prioridade</span>
+                        </div>
+                        <span className="text-4xl font-bold">{highPriorityCount}</span>
+                    </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-hidden bg-slate-50/30 dark:bg-background pt-4 px-6">
+            <div className="flex-1 bg-slate-50/30 dark:bg-background pt-4 px-6">
                 {renderContent()}
             </div>
 
@@ -197,6 +335,6 @@ export default function Tarefas() {
                 onOpenChange={setIsCreateOpen}
                 defaultAssignee={createDefaultAssignee}
             />
-        </div>
+        </div >
     );
 }

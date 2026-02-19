@@ -56,7 +56,7 @@ export function TaskDetailDialog({ taskId, open, onOpenChange }: TaskDetailDialo
                         <div className="p-6 pb-2 border-b flex flex-col gap-4">
                             <div className="flex items-start justify-between gap-4">
                                 <DialogHeader className="flex-1">
-                                    <DialogTitle className={`text-2xl font-semibold flex items-center gap-3 ${task.completed ? "line-through text-muted-foreground" : ""}`}>
+                                    <DialogTitle className={`text-2xl font-semibold flex items-center gap-3 ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                                         {task.title}
                                         {task.completed && <Badge variant="secondary">Concluída</Badge>}
                                     </DialogTitle>

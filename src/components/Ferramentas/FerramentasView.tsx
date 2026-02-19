@@ -12,6 +12,7 @@ import { AcessosLoginsView } from "./AcessosLoginsView";
 import { MensagensSemanaisView } from "./MensagensSemanaisView";
 import { LinksView } from "./LinksView";
 import { CreativeDownloaderView } from "./CreativeDownloaderView";
+import { DocumentosView } from "./DocumentosView";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -156,6 +157,14 @@ export const FerramentasView = () => {
       icon: NotebookPen,
       component: <BlocoNotasView />,
       color: "text-green-600"
+    },
+    {
+      id: "documentos",
+      title: "Documentos",
+      description: "Editor estilo Notion com pastas, favoritos e compartilhamento público",
+      icon: FileText,
+      component: <DocumentosView />,
+      color: "text-sky-600"
     },
     {
       id: "orcamentos-funil",

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Task } from "@/types/tasks";
+import { Task, PRIORITY_LABELS } from "@/types/tasks";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { isOverdue } from "@/lib/dateUtils";
@@ -19,9 +19,9 @@ export function AdminTasksPanel({ tasks }: AdminTasksPanelProps) {
             }
         });
         return [
-            { name: "Alta", value: counts.alta, color: "#ef4444" },
-            { name: "Média", value: counts.media, color: "#f59e0b" },
-            { name: "Baixa", value: counts.baixa, color: "#3b82f6" },
+            { name: PRIORITY_LABELS.alta, value: counts.alta, color: "#ef4444" },
+            { name: PRIORITY_LABELS.media, value: counts.media, color: "#f59e0b" },
+            { name: PRIORITY_LABELS.baixa, value: counts.baixa, color: "#3b82f6" },
         ].filter(d => d.value > 0);
     }, [tasks]);
 
