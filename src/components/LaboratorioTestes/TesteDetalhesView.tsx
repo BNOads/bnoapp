@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit, Copy, Archive, FlaskConical, Calendar, Target, Lightbulb, BarChart3, ExternalLink, FileText, MessageCircle, Play, CheckCircle2, RotateCcw, ThumbsUp, ThumbsDown, HelpCircle, Beaker } from 'lucide-react';
+import { ArrowLeft, Edit, Copy, Archive, FlaskConical, Calendar, Target, Lightbulb, ExternalLink, FileText, Play, CheckCircle2, RotateCcw, ThumbsUp, ThumbsDown, HelpCircle, Beaker, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,11 +13,10 @@ import { useTestePermissions } from '@/hooks/useTestePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { TesteEvidencias } from './TesteEvidencias';
 import { TesteComentarios } from './TesteComentarios';
-import { TesteHistorico } from './TesteHistorico';
 import { EditarTesteModal } from './EditarTesteModal';
 import { ConcluirTesteModal, type ConcluirTesteData } from './ConcluirTesteModal';
 import type { TesteLaboratorio, TesteFormData, ValidacaoTesteLab } from '@/types/laboratorio-testes';
-import { STATUS_LABELS, STATUS_COLORS, VALIDACAO_LABELS, VALIDACAO_COLORS, TIPO_LABELS, CANAL_LABELS, METRICA_LABELS } from '@/types/laboratorio-testes';
+import { STATUS_LABELS, STATUS_COLORS, TIPO_LABELS, CANAL_LABELS, METRICA_LABELS } from '@/types/laboratorio-testes';
 import { format } from 'date-fns';
 
 export const TesteDetalhesView = () => {
@@ -191,7 +190,6 @@ export const TesteDetalhesView = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Toggle: if clicking the same, reset to em_teste
     const finalValidacao = teste.validacao === newValidacao ? 'em_teste' : newValidacao;
 
     const { error } = await supabase.from('testes_laboratorio').update({
@@ -266,45 +264,40 @@ export const TesteDetalhesView = () => {
   if (!teste) return null;
 
   const hasLinks = teste.link_anuncio || teste.link_campanha || teste.link_experimento;
-  const resultPercent = teste.meta_metrica && teste.resultado_observado
-    ? Math.min(Math.round((teste.resultado_observado / teste.meta_metrica) * 100), 100)
-    : null;
-  const resultIsGood = teste.meta_metrica && teste.resultado_observado
-    ? teste.resultado_observado >= teste.meta_metrica
-    : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* Back button */}
-      <Button variant="ghost" size="sm" onClick={() => navigate('/laboratorio-testes')} className="gap-2">
+      <Button variant="ghost" size="sm" onClick={() => navigate('/laboratorio-testes')} className="gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
         <ArrowLeft className="h-4 w-4" />
         Voltar ao Laboratório
       </Button>
 
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-              <div className="flex-1 space-y-3">
+        <Card className="overflow-hidden border-border/60 shadow-md relative bg-background/50 backdrop-blur-[2px]">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-emerald-500" />
+          <CardContent className="pt-8 pb-6">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+              <div className="flex-1 space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-violet-100">
-                    <FlaskConical className="h-6 w-6 text-violet-600" />
+                  <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 shadow-sm">
+                    <FlaskConical className="h-6 w-6 text-violet-600 dark:text-violet-400" />
                   </div>
-                  <h1 className="text-2xl font-bold">{teste.nome}</h1>
+                  <h1 className="text-3xl font-bold tracking-tight text-foreground/90">{teste.nome}</h1>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className={STATUS_COLORS[teste.status]}>
+                  <Badge variant="outline" className={`${STATUS_COLORS[teste.status]} shadow-sm`}>
                     {STATUS_LABELS[teste.status]}
                   </Badge>
-                  <Separator orientation="vertical" className="h-5" />
-                  <div className="flex items-center gap-1.5">
+                  <Separator orientation="vertical" className="h-5 bg-border/60" />
+                  <div className="flex flex-wrap items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/50">
                     {([
-                      { value: 'em_teste' as ValidacaoTesteLab, label: 'Em Teste', icon: Beaker, color: 'text-blue-600', bg: 'bg-blue-100 border-blue-300', activeBg: 'bg-blue-500 text-white border-blue-500' },
-                      { value: 'deu_bom' as ValidacaoTesteLab, label: 'Deu Bom', icon: ThumbsUp, color: 'text-emerald-600', bg: 'bg-emerald-100 border-emerald-300', activeBg: 'bg-emerald-500 text-white border-emerald-500' },
-                      { value: 'deu_ruim' as ValidacaoTesteLab, label: 'Deu Ruim', icon: ThumbsDown, color: 'text-red-600', bg: 'bg-red-100 border-red-300', activeBg: 'bg-red-500 text-white border-red-500' },
-                      { value: 'inconclusivo' as ValidacaoTesteLab, label: 'Inconclusivo', icon: HelpCircle, color: 'text-orange-600', bg: 'bg-orange-100 border-orange-300', activeBg: 'bg-orange-500 text-white border-orange-500' },
+                      { value: 'em_teste' as ValidacaoTesteLab, label: 'Em Teste', icon: Beaker, color: 'text-blue-600', bg: 'bg-blue-100/50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 border-transparent hover:border-blue-300', activeBg: 'bg-blue-500 text-white border-blue-600 shadow-sm' },
+                      { value: 'deu_bom' as ValidacaoTesteLab, label: 'Deu Bom', icon: ThumbsUp, color: 'text-emerald-600', bg: 'bg-emerald-100/50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 border-transparent hover:border-emerald-300', activeBg: 'bg-emerald-500 text-white border-emerald-600 shadow-sm' },
+                      { value: 'deu_ruim' as ValidacaoTesteLab, label: 'Deu Ruim', icon: ThumbsDown, color: 'text-red-600', bg: 'bg-red-100/50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 border-transparent hover:border-red-300', activeBg: 'bg-red-500 text-white border-red-600 shadow-sm' },
+                      { value: 'inconclusivo' as ValidacaoTesteLab, label: 'Inconclusivo', icon: HelpCircle, color: 'text-orange-600', bg: 'bg-orange-100/50 hover:bg-orange-100 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 border-transparent hover:border-orange-300', activeBg: 'bg-orange-500 text-white border-orange-600 shadow-sm' },
                     ]).map(({ value, label, icon: Icon, color, bg, activeBg }) => {
                       const isActive = teste.validacao === value;
                       return (
@@ -314,13 +307,12 @@ export const TesteDetalhesView = () => {
                           onClick={() => canEdit && handleValidacaoChange(value)}
                           disabled={!canEdit}
                           title={canEdit ? (isActive ? `Desmarcar ${label}` : `Marcar como ${label}`) : label}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border-2 transition-all ${
-                            isActive
-                              ? activeBg
-                              : `${bg} ${color} opacity-50 hover:opacity-100`
-                          } ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg border transition-all duration-200 ${isActive
+                            ? activeBg
+                            : `${bg} ${color} dark:text-foreground opacity-70 hover:opacity-100`
+                            } ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}
                         >
-                          <Icon className="h-4 w-4" />
+                          <Icon className="h-3.5 w-3.5" />
                           {label}
                         </button>
                       );
@@ -328,61 +320,69 @@ export const TesteDetalhesView = () => {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground/80 font-medium">
                   {teste.cliente?.nome && (
-                    <span>Cliente: <strong className="text-foreground">{teste.cliente.nome}</strong></span>
+                    <span className="flex items-center gap-1.5">
+                      <Avatar className="h-5 w-5 rounded bg-muted">
+                        <AvatarFallback className="text-[9px] rounded font-bold uppercase">{getInitials(teste.cliente.nome)}</AvatarFallback>
+                      </Avatar>
+                      <strong className="text-foreground tracking-tight">{teste.cliente.nome}</strong>
+                    </span>
                   )}
                   {teste.funil && (
-                    <span>Funil: <strong className="text-foreground">{teste.funil}</strong></span>
+                    <span className="flex items-center gap-1.5">
+                      <Tag className="h-3.5 w-3.5" />
+                      Funil: <strong className="text-foreground tracking-tight">{teste.funil}</strong>
+                    </span>
                   )}
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1.5">
                     <Avatar className="h-5 w-5">
-                      <AvatarFallback className="text-[10px] bg-violet-100 text-violet-700">
+                      <AvatarFallback className="text-[9px] bg-violet-100 text-violet-700 font-bold uppercase">
                         {getInitials(teste.gestor?.nome)}
                       </AvatarFallback>
                     </Avatar>
-                    {teste.gestor?.nome || 'Sem gestor'}
+                    <span className="text-foreground tracking-tight">{teste.gestor?.nome || 'Sem gestor'}</span>
                   </span>
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" />
                     {format(new Date(teste.created_at), 'dd/MM/yyyy')}
                   </span>
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {canEdit && teste.status === 'planejado' && (
-                  <Button onClick={handleStartTeste} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <Button onClick={handleStartTeste} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
                     <Play className="h-4.5 w-4.5" />
                     Iniciar Teste
                   </Button>
                 )}
                 {canEdit && teste.status === 'rodando' && (
-                  <Button onClick={handleConcludeTeste} className="gap-2 bg-violet-600 hover:bg-violet-700 text-white">
+                  <Button onClick={handleConcludeTeste} className="gap-2 bg-violet-600 hover:bg-violet-700 text-white shadow-sm">
                     <CheckCircle2 className="h-4.5 w-4.5" />
                     Concluir Teste
                   </Button>
                 )}
                 {canEdit && (teste.status === 'concluido' || teste.status === 'cancelado') && (
-                  <Button variant="outline" onClick={handleRedoTeste} className="gap-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50">
-                    <RotateCcw className="h-4.5 w-4.5" />
+                  <Button variant="outline" onClick={handleRedoTeste} className="gap-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20 border-amber-200">
+                    <RotateCcw className="h-4 w-4" />
                     Refazer Teste
                   </Button>
                 )}
                 {canEdit && (
-                  <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)} className="gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)} className="gap-1.5 border-border shadow-sm">
                     <Edit className="h-3.5 w-3.5" />
                     Editar
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={handleDuplicate} className="gap-1.5">
+                <Button variant="outline" size="sm" onClick={handleDuplicate} className="gap-1.5 border-border shadow-sm">
                   <Copy className="h-3.5 w-3.5" />
                   Duplicar
                 </Button>
                 {canArchive && !teste.arquivado && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
+                      <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/5 border-destructive/20 shadow-sm">
                         <Archive className="h-3.5 w-3.5" />
                         Arquivar
                       </Button>
@@ -409,216 +409,175 @@ export const TesteDetalhesView = () => {
         </Card>
       </motion.div>
 
-      {/* Hipótese */}
-      {(teste.hipotese || teste.o_que_foi_alterado) && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Lightbulb className="h-5 w-5 text-amber-500" />
-                Hipótese
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {teste.hipotese && (
-                <p className="text-sm leading-relaxed">{teste.hipotese}</p>
-              )}
-              {teste.o_que_foi_alterado && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase mb-1">O que foi alterado</p>
-                  <p className="text-sm leading-relaxed">{teste.o_que_foi_alterado}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column (Main content) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Hipótese */}
+          {(teste.hipotese || teste.o_que_foi_alterado) && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <Card className="border-border/50 shadow-sm overflow-hidden">
+                <CardHeader className="bg-amber-500/5 border-b border-amber-100/50 pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg text-amber-700 dark:text-amber-500">
+                    <Lightbulb className="h-5 w-5" />
+                    Hipótese
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6">
+                  {teste.hipotese && (
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <p className="text-[15px] leading-relaxed text-foreground/90">{teste.hipotese}</p>
+                    </div>
+                  )}
+                  {teste.o_que_foi_alterado && (
+                    <div className="bg-amber-50/50 dark:bg-amber-950/20 p-5 rounded-xl border border-amber-100 dark:border-amber-900/30">
+                      <p className="text-xs font-bold tracking-[0.1em] text-amber-800/60 dark:text-amber-400/60 uppercase mb-3">O que foi alterado</p>
+                      <p className="text-sm leading-relaxed text-foreground/80">{teste.o_que_foi_alterado}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
 
-      {/* Configuração */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Target className="h-5 w-5 text-violet-500" />
-              Configuração
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase">Tipo de Teste</p>
-                <p className="text-sm font-medium">{TIPO_LABELS[teste.tipo_teste]}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase">Canal</p>
-                <p className="text-sm font-medium">{CANAL_LABELS[teste.canal]}</p>
-              </div>
-              {teste.metrica_principal && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase">Métrica Principal</p>
-                  <p className="text-sm font-medium">{METRICA_LABELS[teste.metrica_principal]}</p>
-                </div>
-              )}
-              {teste.meta_metrica != null && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase">Meta</p>
-                  <p className="text-sm font-medium">{teste.meta_metrica}</p>
-                </div>
-              )}
-              {teste.data_inicio && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase">Data Início</p>
-                  <p className="text-sm font-medium">{format(new Date(teste.data_inicio), 'dd/MM/yyyy')}</p>
-                </div>
-              )}
-              {teste.data_fim && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase">Data Fim</p>
-                  <p className="text-sm font-medium">{format(new Date(teste.data_fim), 'dd/MM/yyyy')}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+          {/* Evidências */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <TesteEvidencias testeId={id!} />
+          </motion.div>
 
-      {/* Resultados */}
-      {(teste.resultado_observado != null || teste.meta_metrica != null) && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <BarChart3 className="h-5 w-5 text-blue-500" />
-                Resultados
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-end gap-6">
-                {teste.resultado_observado != null && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Resultado Observado</p>
-                    <p className={`text-2xl font-bold ${resultIsGood === true ? 'text-emerald-600' : resultIsGood === false ? 'text-red-600' : ''}`}>
-                      {teste.resultado_observado}
-                      {teste.metrica_principal && <span className="text-sm ml-1 font-normal text-muted-foreground">{METRICA_LABELS[teste.metrica_principal]}</span>}
-                    </p>
+          {/* Aprendizados */}
+          {(teste.aprendizados || teste.proximos_testes_sugeridos || teste.observacao_equipe || teste.anotacoes) && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <Card className="border-border/50 shadow-sm overflow-hidden">
+                <CardHeader className="bg-emerald-500/5 border-b border-emerald-100/50 pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg text-emerald-700 dark:text-emerald-500">
+                    <FileText className="h-5 w-5" />
+                    Aprendizados & Notas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6">
+                  {teste.aprendizados && (
+                    <div className="bg-emerald-50/50 dark:bg-emerald-950/20 p-5 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                      <p className="text-xs font-bold tracking-[0.1em] text-emerald-800/60 dark:text-emerald-400/60 uppercase mb-3">Aprendizados</p>
+                      <p className="text-[15px] leading-relaxed text-foreground/90 whitespace-pre-wrap">{teste.aprendizados}</p>
+                    </div>
+                  )}
+                  {teste.proximos_testes_sugeridos && (
+                    <div className="bg-blue-50/50 dark:bg-blue-950/20 p-5 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                      <p className="text-xs font-bold tracking-[0.1em] text-blue-800/60 dark:text-blue-400/60 uppercase mb-3">Próximos Testes Sugeridos</p>
+                      <p className="text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap">{teste.proximos_testes_sugeridos}</p>
+                    </div>
+                  )}
+                  {teste.observacao_equipe && (
+                    <div>
+                      <p className="text-xs font-bold tracking-[0.1em] text-muted-foreground uppercase mb-2">Observação da Equipe</p>
+                      <p className="text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap pl-3 border-l-2 border-border/60">{teste.observacao_equipe}</p>
+                    </div>
+                  )}
+                  {teste.anotacoes && (
+                    <div>
+                      <p className="text-xs font-bold tracking-[0.1em] text-muted-foreground uppercase mb-2">Anotações</p>
+                      <p className="text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap pl-3 border-l-2 border-border/60">{teste.anotacoes}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+        </div>
+
+        {/* Right Column (Sidebar) */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Comentários */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+            <TesteComentarios testeId={id!} />
+          </motion.div>
+
+          {/* Configuração */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <Card className="border-border/50 shadow-sm overflow-hidden bg-muted/10">
+              <CardHeader className="pb-4 bg-muted/30 border-b border-border/50">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                  <Target className="h-4 w-4 text-violet-500" />
+                  Configuração
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 pb-2 px-5">
+                <div className="flex flex-col">
+                  <div className="flex justify-between items-center py-3 border-b border-border/60 last:border-0">
+                    <span className="text-xs font-medium text-muted-foreground">Tipo de Teste</span>
+                    <span className="text-sm font-semibold">{TIPO_LABELS[teste.tipo_teste]}</span>
                   </div>
-                )}
-                {teste.meta_metrica != null && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Meta</p>
-                    <p className="text-2xl font-bold text-muted-foreground">{teste.meta_metrica}</p>
+                  <div className="flex justify-between items-center py-3 border-b border-border/60 last:border-0">
+                    <span className="text-xs font-medium text-muted-foreground">Canal</span>
+                    <span className="text-sm font-semibold">{CANAL_LABELS[teste.canal]}</span>
                   </div>
-                )}
-              </div>
-              {resultPercent !== null && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Progresso</span>
-                    <span>{resultPercent}%</span>
+                  {teste.metrica_principal && (
+                    <div className="flex justify-between items-center py-3 border-b border-border/60 last:border-0">
+                      <span className="text-xs font-medium text-muted-foreground">Métrica Principal</span>
+                      <span className="text-sm font-semibold">{METRICA_LABELS[teste.metrica_principal]}</span>
+                    </div>
+                  )}
+                  {teste.meta_metrica != null && (
+                    <div className="flex justify-between items-center py-3 border-b border-border/60 last:border-0">
+                      <span className="text-xs font-medium text-muted-foreground">Meta</span>
+                      <span className="text-sm font-semibold">{teste.meta_metrica}</span>
+                    </div>
+                  )}
+                  {teste.data_inicio && (
+                    <div className="flex justify-between items-center py-3 border-b border-border/60 last:border-0">
+                      <span className="text-xs font-medium text-muted-foreground">Data Início</span>
+                      <span className="text-sm font-semibold text-foreground/90">{format(new Date(teste.data_inicio), 'dd/MM/yyyy')}</span>
+                    </div>
+                  )}
+                  {teste.data_fim && (
+                    <div className="flex justify-between items-center py-3 border-b border-border/60 last:border-0">
+                      <span className="text-xs font-medium text-muted-foreground">Data Fim</span>
+                      <span className="text-sm font-semibold text-foreground/90">{format(new Date(teste.data_fim), 'dd/MM/yyyy')}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Links */}
+          {hasLinks && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <Card className="border-border/50 shadow-sm overflow-hidden">
+                <CardHeader className="pb-4 bg-muted/20 border-b border-border/50">
+                  <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                    <ExternalLink className="h-4 w-4 text-blue-500" />
+                    Links Externos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="flex flex-col gap-3">
+                    {teste.link_anuncio && (
+                      <a href={teste.link_anuncio} target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between p-3 rounded-lg border border-border/50 bg-background hover:bg-muted/50 hover:border-blue-200 transition-all">
+                        <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">Anúncio</span>
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-500" />
+                      </a>
+                    )}
+                    {teste.link_campanha && (
+                      <a href={teste.link_campanha} target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between p-3 rounded-lg border border-border/50 bg-background hover:bg-muted/50 hover:border-blue-200 transition-all">
+                        <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">Campanha</span>
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-500" />
+                      </a>
+                    )}
+                    {teste.link_experimento && (
+                      <a href={teste.link_experimento} target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between p-3 rounded-lg border border-border/50 bg-background hover:bg-muted/50 hover:border-blue-200 transition-all">
+                        <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">Experimento</span>
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-500" />
+                      </a>
+                    )}
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${resultIsGood ? 'bg-emerald-500' : 'bg-red-500'}`}
-                      style={{ width: `${resultPercent}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Evidências */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <TesteEvidencias testeId={id!} />
-      </motion.div>
-
-      {/* Aprendizados */}
-      {(teste.aprendizados || teste.proximos_testes_sugeridos || teste.observacao_equipe || teste.anotacoes) && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="h-5 w-5 text-emerald-500" />
-                Aprendizados & Notas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {teste.aprendizados && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Aprendizados</p>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{teste.aprendizados}</p>
-                </div>
-              )}
-              {teste.proximos_testes_sugeridos && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Próximos Testes Sugeridos</p>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{teste.proximos_testes_sugeridos}</p>
-                </div>
-              )}
-              {teste.observacao_equipe && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Observação da Equipe</p>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{teste.observacao_equipe}</p>
-                </div>
-              )}
-              {teste.anotacoes && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Anotações</p>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{teste.anotacoes}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Links */}
-      {hasLinks && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ExternalLink className="h-5 w-5 text-blue-500" />
-                Links
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {teste.link_anuncio && (
-                  <a href={teste.link_anuncio} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Link do Anúncio
-                  </a>
-                )}
-                {teste.link_campanha && (
-                  <a href={teste.link_campanha} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Link da Campanha
-                  </a>
-                )}
-                {teste.link_experimento && (
-                  <a href={teste.link_experimento} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Link do Experimento
-                  </a>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Comentários */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-        <TesteComentarios testeId={id!} />
-      </motion.div>
-
-      {/* Histórico */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-        <TesteHistorico testeId={id!} />
-      </motion.div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </div>
+      </div>
 
       {/* Edit Modal */}
       {teste && (
