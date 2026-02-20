@@ -43,6 +43,7 @@ export default function Tarefas() {
     // Modals state
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [createDefaultAssignee, setCreateDefaultAssignee] = useState<string>("unassigned");
+    const [createDefaultListId, setCreateDefaultListId] = useState<string>("none");
     const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
 
@@ -104,7 +105,21 @@ export default function Tarefas() {
         );
 
         if (activeMainTab === "listas") {
-            return <TasksByListView tasks={tasks} onTaskClick={handleTaskClick} isAdmin={isAdmin} />;
+            return (
+                <TasksByListView
+                    tasks={tasks}
+                    onTaskClick={handleTaskClick}
+                    isAdmin={isAdmin}
+                    onCreateTaskForList={(listId) => {
+                        setCreateDefaultAssignee("unassigned");
+                        // We need a way to pass list_id to CreateTaskModal
+                        // Added `defaultListId` to CreateTaskModal in previous step
+                        // I will add another state to Tarefas to hold it
+                        setCreateDefaultListId(listId);
+                        setIsCreateOpen(true);
+                    }}
+                />
+            );
         }
 
         if (activeMainTab === "time") {
@@ -112,13 +127,27 @@ export default function Tarefas() {
                 <div className="space-y-6 w-full max-w-[1400px] mx-auto xl:px-4">
                     {timeViewType === "kanban" && isAdmin && <AdminTasksPanel tasks={tasks} />}
                     <div className={timeViewType === "kanban" ? "mt-8" : "mt-4"}>
-                        {timeViewType === "kanban" && (
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-bold flex items-center gap-2">
-                                    <Users className="w-5 h-5" /> Tarefas por Responsável
-                                </h2>
+                        <div className="flex items-center gap-4 mb-4">
+                            <h2 className="text-xl font-bold flex items-center gap-2">
+                                <Users className="w-5 h-5" /> Tarefas por Responsável
+                            </h2>
+                            <div className="flex items-center bg-muted/50 p-1 rounded-md border text-sm font-medium">
+                                <button
+                                    onClick={() => setTimeViewType("tabela")}
+                                    className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${timeViewType === "tabela" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                >
+                                    <List className="w-4 h-4" />
+                                    Tabela
+                                </button>
+                                <button
+                                    onClick={() => setTimeViewType("kanban")}
+                                    className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${timeViewType === "kanban" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                >
+                                    <Grid2X2 className="w-4 h-4" />
+                                    Agrupado
+                                </button>
                             </div>
-                        )}
+                        </div>
                         <TasksByPersonView
                             tasks={tasks}
                             onTaskClick={handleTaskClick}
@@ -206,15 +235,6 @@ export default function Tarefas() {
                             />
                         </div>
 
-                        <label className="text-sm font-medium flex items-center justify-center gap-2 cursor-pointer select-none text-muted-foreground bg-card hover:bg-muted/50 transition-colors h-10 px-4 rounded-md border shrink-0">
-                            <input
-                                type="checkbox"
-                                checked={hideCompleted}
-                                onChange={(e) => setHideCompleted(e.target.checked)}
-                                className="rounded border-gray-300 w-4 h-4"
-                            />
-                            Ocultar concluídas
-                        </label>
 
                         <Select value={filters.priority} onValueChange={(v) => setFilters(f => ({ ...f, priority: v }))}>
                             <SelectTrigger className="w-[140px] h-10">
@@ -280,24 +300,16 @@ export default function Tarefas() {
                             </SelectContent>
                         </Select>
 
-                        {activeMainTab === "time" && (
-                            <div className="flex items-center bg-muted/50 p-1 rounded-md border text-sm font-medium mx-2 lg:ml-auto">
-                                <button
-                                    onClick={() => setTimeViewType("tabela")}
-                                    className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${timeViewType === "tabela" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
-                                >
-                                    <List className="w-4 h-4" />
-                                    Tabela
-                                </button>
-                                <button
-                                    onClick={() => setTimeViewType("kanban")}
-                                    className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${timeViewType === "kanban" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
-                                >
-                                    <Grid2X2 className="w-4 h-4" />
-                                    Kanban
-                                </button>
-                            </div>
-                        )}
+                        <button
+                            onClick={() => setHideCompleted(!hideCompleted)}
+                            className={`text-sm font-medium flex items-center justify-center gap-2 transition-colors h-10 px-4 rounded-md shrink-0 lg:ml-auto ${hideCompleted
+                                ? "bg-muted text-muted-foreground hover:bg-muted/80 border"
+                                : "bg-green-500 hover:bg-green-600 text-white shadow-sm"
+                                }`}
+                        >
+                            <CheckCircle2 className="w-4 h-4" />
+                            Ocultar concluídas
+                        </button>
                     </div>
                 </div>
 
@@ -362,6 +374,7 @@ export default function Tarefas() {
                 open={isCreateOpen}
                 onOpenChange={setIsCreateOpen}
                 defaultAssignee={createDefaultAssignee}
+                defaultListId={createDefaultListId}
             />
         </div >
     );

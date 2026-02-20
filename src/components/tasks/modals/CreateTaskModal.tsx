@@ -20,15 +20,16 @@ interface CreateTaskModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     defaultAssignee?: string;
+    defaultListId?: string;
 }
 
-export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateTaskModalProps) {
+export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultListId }: CreateTaskModalProps) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [assignee, setAssignee] = useState<string>(defaultAssignee || "unassigned");
     const [priority, setPriority] = useState<TaskPriority>("media");
     const [recurrence, setRecurrence] = useState<RecurrenceType>("none");
-    const [listId, setListId] = useState<string>("none");
+    const [listId, setListId] = useState<string>(defaultListId || "none");
     const [dueDate, setDueDate] = useState<string>("");
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
@@ -58,10 +59,10 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
             setAssignee(getAssignedTo());
             setPriority("media");
             setRecurrence("none");
-            setListId("none");
+            setListId(defaultListId || "none");
             setDueDate("");
         }
-    }, [open, defaultAssignee]);
+    }, [open, defaultAssignee, defaultListId]);
 
     const handleSave = () => {
         if (!title.trim()) return;
