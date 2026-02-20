@@ -118,19 +118,31 @@ export const LaboratorioTestesView = () => {
     });
   }, []);
 
-  // Load funnels from orcamentos_funil when client filter changes
+  // Load funnels from orcamentos_funil and lancamentos when client filter changes
   useEffect(() => {
     if (filters.cliente_id) {
-      supabase
-        .from('orcamentos_funil')
-        .select('nome_funil')
-        .eq('cliente_id', filters.cliente_id)
-        .eq('ativo', true)
-        .order('nome_funil')
-        .then(({ data }) => {
-          const uniqueFunis = [...new Set((data || []).map((d: any) => d.nome_funil).filter(Boolean))];
-          setFunis(uniqueFunis);
-        });
+      const fetchFunnels = async () => {
+        const { data: funnels } = await supabase
+          .from('orcamentos_funil')
+          .select('nome_funil')
+          .eq('cliente_id', filters.cliente_id)
+          .eq('ativo', true);
+
+        const { data: lancamentos } = await supabase
+          .from('lancamentos')
+          .select('nome_lancamento')
+          .eq('cliente_id', filters.cliente_id)
+          .eq('ativo', true)
+          .in('status_lancamento', ['em_captacao', 'cpl', 'remarketing', 'pausado']);
+
+        const combined = [
+          ...(funnels || []).map(d => d.nome_funil),
+          ...(lancamentos || []).map(d => d.nome_lancamento)
+        ].filter(Boolean);
+
+        setFunis([...new Set(combined)].sort());
+      };
+      fetchFunnels();
     } else {
       setFunis([]);
     }

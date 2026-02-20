@@ -5,6 +5,7 @@ export interface BuyerMetric {
     buyers: number;
     total: number;
     conversion_rate: number;
+    revenue: number;
 }
 
 export interface QuestionAnalysis {
@@ -46,15 +47,37 @@ const getFieldValue = (row: Record<string, unknown>, keysToTry: string[]): strin
     return '';
 };
 
+const extractNumberFromStr = (val: string): number => {
+    if (!val) return 0;
+    let str = val.replace(/R\$\s?/gi, '').trim();
+    const hasComma = str.includes(',');
+    const hasDot = str.includes('.');
+    if (hasComma && hasDot) {
+        const lastCommaIndex = str.lastIndexOf(',');
+        const lastDotIndex = str.lastIndexOf('.');
+        if (lastCommaIndex > lastDotIndex) {
+            str = str.replace(/\./g, '').replace(',', '.');
+        } else {
+            str = str.replace(/,/g, '');
+        }
+    } else if (hasComma) {
+        str = str.replace(',', '.');
+    }
+    const num = Number(str);
+    return isNaN(num) ? 0 : num;
+};
+
 const extractPerson = (row: Record<string, unknown>) => {
     const email = getFieldValue(row, ['mapped_email', 'email', 'mail']);
     const phone = getFieldValue(row, ['mapped_telefone', 'telefone', 'celular', 'whatsapp', 'phone']);
     const name = getFieldValue(row, ['mapped_nome', 'nome', 'name', 'comprador']);
+    const value = getFieldValue(row, ['mapped_valor', 'valor', 'price', 'preço', 'preco', 'faturamento']);
 
     return {
         email: normalizeEmail(email),
         phone: normalizePhone(phone),
         name,
+        value: extractNumberFromStr(value),
         raw: row
     };
 };
@@ -89,12 +112,13 @@ export const buildCompradoresAnalysis = (
         const p = extractPerson(row);
         let utm_campaign = getFieldValue(row, ['utm_campaign', 'campaign', 'campanha']);
         let utm_source = getFieldValue(row, ['utm_source', 'source', 'origem']);
-        let utm_term = getFieldValue(row, ['utm_term', 'term', 'termo']);
+        // O usuário pediu que o ranking de públicos use "utm_medium"
+        let utm_term = getFieldValue(row, ['utm_medium', 'medium', 'mídia', 'midia']);
         let utm_content = getFieldValue(row, ['utm_content', 'content', 'conteudo', 'cont']);
 
         utm_campaign = utm_campaign || '(sem campanha)';
         utm_source = utm_source || '(sem origem)';
-        utm_term = utm_term || '(sem termo)';
+        utm_term = utm_term || '(sem público)'; // Trocando o texto padrão também
         utm_content = utm_content || '(sem conteúdo)';
 
         const leadObj = { ...p, utm_campaign, utm_source, utm_term, utm_content, answers: {} as Record<string, string> };
@@ -152,11 +176,11 @@ export const buildCompradoresAnalysis = (
 
     // Now, cross with Buyers
     let matchedBuyers = 0;
-    const buyersByCampaign = new Map<string, number>();
-    const buyersBySource = new Map<string, number>();
-    const buyersByTerm = new Map<string, number>();
-    const buyersByContent = new Map<string, number>();
-    const buyersByAnswer = new Map<string, Map<string, number>>(); // q -> answer -> count
+    const buyersByCampaign = new Map<string, { count: number; revenue: number }>();
+    const buyersBySource = new Map<string, { count: number; revenue: number }>();
+    const buyersByTerm = new Map<string, { count: number; revenue: number }>();
+    const buyersByContent = new Map<string, { count: number; revenue: number }>();
+    const buyersByAnswer = new Map<string, Map<string, { count: number; revenue: number }>>(); // q -> answer -> { count, revenue }
 
     (compradoresRows as Record<string, unknown>[]).forEach(row => {
         if (!row) return;
@@ -172,31 +196,39 @@ export const buildCompradoresAnalysis = (
             const s = foundLead.utm_source;
             const t = foundLead.utm_term;
             const cont = foundLead.utm_content;
+            const rev = p.value || 0;
 
-            buyersByCampaign.set(c, (buyersByCampaign.get(c) || 0) + 1);
-            buyersBySource.set(s, (buyersBySource.get(s) || 0) + 1);
-            buyersByTerm.set(t, (buyersByTerm.get(t) || 0) + 1);
-            buyersByContent.set(cont, (buyersByContent.get(cont) || 0) + 1);
+            const updateMap = (map: Map<string, { count: number; revenue: number }>, key: string) => {
+                const current = map.get(key) || { count: 0, revenue: 0 };
+                map.set(key, { count: current.count + 1, revenue: current.revenue + rev });
+            };
+
+            updateMap(buyersByCampaign, c);
+            updateMap(buyersBySource, s);
+            updateMap(buyersByTerm, t);
+            updateMap(buyersByContent, cont);
 
             Object.entries(foundLead.answers).forEach(([q, answer]) => {
                 const ansStr = String(answer);
                 if (!buyersByAnswer.has(q)) buyersByAnswer.set(q, new Map());
                 const am = buyersByAnswer.get(q)!;
-                am.set(ansStr, (am.get(ansStr) || 0) + 1);
+                const current = am.get(ansStr) || { count: 0, revenue: 0 };
+                am.set(ansStr, { count: current.count + 1, revenue: current.revenue + rev });
             });
         }
     });
 
     // Calculate metrics
-    const buildMetrics = (buyerMap: Map<string, number>, totalMap: Map<string, number>): BuyerMetric[] => {
+    const buildMetrics = (buyerMap: Map<string, { count: number; revenue: number }>, totalMap: Map<string, number>): BuyerMetric[] => {
         const arr: BuyerMetric[] = [];
-        buyerMap.forEach((buyers, name) => {
-            const total = totalMap.get(name) || buyers; // If not in leads, total is at least buyers
+        buyerMap.forEach((data, name) => {
+            const total = totalMap.get(name) || data.count; // If not in leads, total is at least buyers
             arr.push({
                 name,
-                buyers,
+                buyers: data.count,
                 total,
-                conversion_rate: (buyers / total) * 100
+                conversion_rate: (data.count / total) * 100,
+                revenue: data.revenue
             });
         });
         return arr.sort((a, b) => b.buyers - a.buyers); // Sort by most sales
@@ -213,12 +245,14 @@ export const buildCompradoresAnalysis = (
         const totMap = answersTotalCount.get(qName);
 
         answersMap.forEach((buyers, ansName) => {
-            const total = totMap?.get(ansName) || buyers;
+            const buyersCount = buyers.count;
+            const total = totMap?.get(ansName) || buyersCount;
             options.push({
                 name: ansName,
-                buyers,
+                buyers: buyersCount,
                 total,
-                conversion_rate: (buyers / total) * 100
+                conversion_rate: (buyersCount / total) * 100,
+                revenue: buyers.revenue
             });
         });
 

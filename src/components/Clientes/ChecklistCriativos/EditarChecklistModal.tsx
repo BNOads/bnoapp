@@ -31,17 +31,29 @@ export const EditarChecklistModal = ({ open, onOpenChange, checklist, onSuccess 
 
   const loadFunis = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: funnels, error: funnelsError } = await supabase
         .from('orcamentos_funil')
         .select('nome_funil')
         .eq('cliente_id', checklist.cliente_id)
-        .eq('active', true)
-        .order('nome_funil');
+        .eq('active', true);
 
-      if (error) throw error;
-      
-      // Extrair nomes únicos dos funis
-      const nomesUnicos = Array.from(new Set((data || []).map(item => item.nome_funil)));
+      if (funnelsError) throw funnelsError;
+
+      const { data: lancamentos, error: lancsError } = await supabase
+        .from('lancamentos')
+        .select('nome_lancamento')
+        .eq('cliente_id', checklist.cliente_id)
+        .eq('ativo', true)
+        .in('status_lancamento', ['em_captacao', 'cpl', 'remarketing', 'pausado']);
+
+      if (lancsError) throw lancsError;
+
+      const combined = [
+        ...(funnels || []).map(f => f.nome_funil),
+        ...(lancamentos || []).map(l => l.nome_lancamento)
+      ].filter(Boolean);
+
+      const nomesUnicos = Array.from(new Set(combined)).sort();
       setFunis(nomesUnicos);
     } catch (error) {
       console.error('Erro ao carregar funis:', error);
@@ -74,7 +86,7 @@ export const EditarChecklistModal = ({ open, onOpenChange, checklist, onSuccess 
         title: "Sucesso",
         description: "Checklist atualizado com sucesso"
       });
-      
+
       onSuccess();
     } catch (error) {
       console.error('Erro ao atualizar checklist:', error);

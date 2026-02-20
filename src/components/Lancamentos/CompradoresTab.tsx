@@ -65,6 +65,10 @@ export const CompradoresTab = ({ lancamento }: CompradoresTabProps) => {
     const [lastSync, setLastSync] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+    const [creativesSearch, setCreativesSearch] = useState('');
+    const [creativesSort, setCreativesSort] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: 'buyers', direction: 'desc' });
+    const [audiencesSearch, setAudiencesSearch] = useState('');
+    const [audiencesSort, setAudiencesSort] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: 'buyers', direction: 'desc' });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [mappingModalOpen, setMappingModalOpen] = useState(false);
@@ -368,6 +372,56 @@ export const CompradoresTab = ({ lancamento }: CompradoresTabProps) => {
         return sortConfig.direction === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
     });
 
+    const filteredCreatives = useMemo(() => {
+        if (!analysis?.topContents) return [];
+        let items = analysis.topContents.filter(c => c.name.toLowerCase().includes(creativesSearch.toLowerCase()));
+        if (creativesSort.key) {
+            items.sort((a, b) => {
+                const valA = a[creativesSort.key as keyof typeof a];
+                const valB = b[creativesSort.key as keyof typeof b];
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return creativesSort.direction === 'asc' ? valA - valB : valB - valA;
+                }
+                const strA = String(valA).toLowerCase();
+                const strB = String(valB).toLowerCase();
+                return creativesSort.direction === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+            });
+        }
+        return items;
+    }, [analysis?.topContents, creativesSearch, creativesSort]);
+
+    const filteredAudiences = useMemo(() => {
+        if (!analysis?.topTerms) return [];
+        let items = analysis.topTerms.filter(c => c.name.toLowerCase().includes(audiencesSearch.toLowerCase()));
+        if (audiencesSort.key) {
+            items.sort((a, b) => {
+                const valA = a[audiencesSort.key as keyof typeof a];
+                const valB = b[audiencesSort.key as keyof typeof b];
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return audiencesSort.direction === 'asc' ? valA - valB : valB - valA;
+                }
+                const strA = String(valA).toLowerCase();
+                const strB = String(valB).toLowerCase();
+                return audiencesSort.direction === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+            });
+        }
+        return items;
+    }, [analysis?.topTerms, audiencesSearch, audiencesSort]);
+
+    const handleCreativesSort = (key: string) => {
+        setCreativesSort(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const handleAudiencesSort = (key: string) => {
+        setAudiencesSort(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
     if (loading) {
         return (
             <Card>
@@ -628,8 +682,21 @@ export const CompradoresTab = ({ lancamento }: CompradoresTabProps) => {
                                     </div>
 
                                     {/* Ranking de Criativos */}
-                                    <h3 className="text-lg font-medium pt-4">Ranking de Criativos</h3>
-                                    <p className="text-sm text-muted-foreground">Desempenho dos criativos que mais trouxeram compradores.</p>
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-4 pb-2 gap-4">
+                                        <div>
+                                            <h3 className="text-lg font-medium">Ranking de Criativos</h3>
+                                            <p className="text-sm text-muted-foreground">Desempenho dos criativos que mais trouxeram compradores.</p>
+                                        </div>
+                                        <div className="relative w-full sm:w-64">
+                                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="Buscar criativo..."
+                                                value={creativesSearch}
+                                                onChange={(e) => setCreativesSearch(e.target.value)}
+                                                className="pl-9 h-9"
+                                            />
+                                        </div>
+                                    </div>
                                     <Card>
                                         <CardContent className="pt-6">
                                             <div className="border rounded-md overflow-hidden">
@@ -637,21 +704,32 @@ export const CompradoresTab = ({ lancamento }: CompradoresTabProps) => {
                                                     <TableHeader className="bg-muted/50">
                                                         <TableRow>
                                                             <TableHead className="w-[80px]">Criativo</TableHead>
-                                                            <TableHead>Nome</TableHead>
-                                                            <TableHead className="text-right">Compradores</TableHead>
-                                                            <TableHead className="text-right">Leads</TableHead>
-                                                            <TableHead className="text-right">Conversão</TableHead>
+                                                            <TableHead className="cursor-pointer hover:bg-muted/80" onClick={() => handleCreativesSort('name')}>
+                                                                <div className="flex items-center gap-1">Nome {creativesSort.key === 'name' ? (creativesSort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                                                            </TableHead>
+                                                            <TableHead className="text-right cursor-pointer hover:bg-muted/80" onClick={() => handleCreativesSort('buyers')}>
+                                                                <div className="flex items-center justify-end gap-1">Compradores {creativesSort.key === 'buyers' ? (creativesSort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                                                            </TableHead>
+                                                            <TableHead className="text-right cursor-pointer hover:bg-muted/80" onClick={() => handleCreativesSort('total')}>
+                                                                <div className="flex items-center justify-end gap-1">Leads {creativesSort.key === 'total' ? (creativesSort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                                                            </TableHead>
+                                                            <TableHead className="text-right cursor-pointer hover:bg-muted/80" onClick={() => handleCreativesSort('conversion_rate')}>
+                                                                <div className="flex items-center justify-end gap-1">Conversão {creativesSort.key === 'conversion_rate' ? (creativesSort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                                                            </TableHead>
+                                                            <TableHead className="text-right cursor-pointer hover:bg-muted/80" onClick={() => handleCreativesSort('revenue')}>
+                                                                <div className="flex items-center justify-end gap-1">Faturamento {creativesSort.key === 'revenue' ? (creativesSort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                                                            </TableHead>
                                                         </TableRow>
                                                     </TableHeader>
                                                     <TableBody>
-                                                        {(!analysis.topContents || analysis.topContents.length === 0) && (
+                                                        {(!filteredCreatives || filteredCreatives.length === 0) && (
                                                             <TableRow>
-                                                                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                                                                    Nenhum dado de termo disponível
+                                                                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                                                                    Nenhum criativo encontrado.
                                                                 </TableCell>
                                                             </TableRow>
                                                         )}
-                                                        {(analysis.topContents || []).map((content, i) => {
+                                                        {(filteredCreatives || []).map((content, i) => {
                                                             const creative = creativesMap[normalizeText(content.name)];
                                                             return (
                                                                 <TableRow key={i}>
@@ -671,13 +749,76 @@ export const CompradoresTab = ({ lancamento }: CompradoresTabProps) => {
                                                                             </div>
                                                                         )}
                                                                     </TableCell>
-                                                                    <TableCell className="font-medium text-sm max-w-[200px] truncate" title={content.name}>{content.name}</TableCell>
+                                                                    <TableCell className="font-medium text-sm max-w-[200px]" title={content.name}>{content.name || '(sem conteúdo)'}</TableCell>
                                                                     <TableCell className="text-right font-medium">{content.buyers}</TableCell>
                                                                     <TableCell className="text-right">{content.total || 0}</TableCell>
                                                                     <TableCell className="text-right">{content.conversion_rate.toFixed(1)}%</TableCell>
+                                                                    <TableCell className="text-right text-green-600 font-medium">{formatCurrency(content.revenue || 0)}</TableCell>
                                                                 </TableRow>
                                                             );
                                                         })}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Ranking de Públicos */}
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-4 pb-2 gap-4">
+                                        <div>
+                                            <h3 className="text-lg font-medium">Ranking de Públicos</h3>
+                                            <p className="text-sm text-muted-foreground">Desempenho dos públicos que mais trouxeram compradores.</p>
+                                        </div>
+                                        <div className="relative w-full sm:w-64">
+                                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="Buscar público..."
+                                                value={audiencesSearch}
+                                                onChange={(e) => setAudiencesSearch(e.target.value)}
+                                                className="pl-9 h-9"
+                                            />
+                                        </div>
+                                    </div>
+                                    <Card>
+                                        <CardContent className="pt-6">
+                                            <div className="border rounded-md overflow-hidden">
+                                                <Table>
+                                                    <TableHeader className="bg-muted/50">
+                                                        <TableRow>
+                                                            <TableHead className="cursor-pointer hover:bg-muted/80" onClick={() => handleAudiencesSort('name')}>
+                                                                <div className="flex items-center gap-1">Público {audiencesSort.key === 'name' ? (audiencesSort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                                                            </TableHead>
+                                                            <TableHead className="text-right cursor-pointer hover:bg-muted/80" onClick={() => handleAudiencesSort('buyers')}>
+                                                                <div className="flex items-center justify-end gap-1">Compradores {audiencesSort.key === 'buyers' ? (audiencesSort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                                                            </TableHead>
+                                                            <TableHead className="text-right cursor-pointer hover:bg-muted/80" onClick={() => handleAudiencesSort('total')}>
+                                                                <div className="flex items-center justify-end gap-1">Leads {audiencesSort.key === 'total' ? (audiencesSort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                                                            </TableHead>
+                                                            <TableHead className="text-right cursor-pointer hover:bg-muted/80" onClick={() => handleAudiencesSort('conversion_rate')}>
+                                                                <div className="flex items-center justify-end gap-1">Conversão {audiencesSort.key === 'conversion_rate' ? (audiencesSort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                                                            </TableHead>
+                                                            <TableHead className="text-right cursor-pointer hover:bg-muted/80" onClick={() => handleAudiencesSort('revenue')}>
+                                                                <div className="flex items-center justify-end gap-1">Faturamento {audiencesSort.key === 'revenue' ? (audiencesSort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                                                            </TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {(!filteredAudiences || filteredAudiences.length === 0) && (
+                                                            <TableRow>
+                                                                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                                                                    Nenhum público encontrado.
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                        {(filteredAudiences || []).map((term, i) => (
+                                                            <TableRow key={i}>
+                                                                <TableCell className="font-medium text-sm max-w-[200px]" title={term.name}>{term.name || '(sem termo)'}</TableCell>
+                                                                <TableCell className="text-right font-medium">{term.buyers}</TableCell>
+                                                                <TableCell className="text-right">{term.total || 0}</TableCell>
+                                                                <TableCell className="text-right">{term.conversion_rate.toFixed(1)}%</TableCell>
+                                                                <TableCell className="text-right text-green-600 font-medium">{formatCurrency(term.revenue || 0)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
                                                     </TableBody>
                                                 </Table>
                                             </div>

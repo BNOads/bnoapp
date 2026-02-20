@@ -203,38 +203,56 @@ serve(async (req) => {
                 continue
             }
 
-            // --- Determine Date Range for this Account ---
             let effectiveStart = date_start;
             let effectiveEnd = date_stop;
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
 
             if (!effectiveStart || !effectiveEnd) {
-                // Automatic mode: Smart Sync
-                const today = new Date();
-                const todayStr = today.toISOString().split('T')[0];
+                if (triggerSource === 'automatic_daily') {
+                    // Fetch latest date from DB
+                    const { data: latest } = await supabase
+                        .from('meta_campaign_insights')
+                        .select('date_start')
+                        .eq('ad_account_id', account.id)
+                        .order('date_start', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
 
-                // Fetch latest date from DB
-                const { data: latest } = await supabase
-                    .from('meta_campaign_insights')
-                    .select('date_start')
-                    .eq('ad_account_id', account.id)
-                    .order('date_start', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                if (latest?.date_start) {
-                    // Incremental: Start from the last synced date (to update it)
-                    effectiveStart = latest.date_start;
-                    console.log(`[Smart Sync] Account ${account.account_name}: Found existing data. Syncing from ${effectiveStart} to ${todayStr}`);
+                    if (latest?.date_start) {
+                        const lastSyncDate = new Date(latest.date_start);
+                        lastSyncDate.setDate(lastSyncDate.getDate() - 8);
+                        effectiveStart = lastSyncDate.toISOString().split('T')[0];
+                        console.log(`[Smart Sync] Incremental: ${effectiveStart} to ${todayStr}`);
+                    } else {
+                        const last30 = new Date();
+                        last30.setDate(today.getDate() - 29);
+                        effectiveStart = last30.toISOString().split('T')[0];
+                        console.log(`[Smart Sync] Initial: ${effectiveStart} to ${todayStr}`);
+                    }
                 } else {
-                    // Initial Sync: Last 30 days
+                    // Manual sem datas fallback -> Puxa ultimos 30 dias pra evitar buracos
                     const last30 = new Date();
                     last30.setDate(today.getDate() - 29);
                     effectiveStart = last30.toISOString().split('T')[0];
-                    console.log(`[Smart Sync] Account ${account.account_name}: No data found. Syncing last 30 days (${effectiveStart} to ${todayStr})`);
+                    console.log(`[Manual Sync Global] No dates: ${effectiveStart} to ${todayStr}`);
                 }
                 effectiveEnd = todayStr;
             } else {
-                console.log(`[Manual Sync] Account ${account.account_name}: Using provided range ${effectiveStart} to ${effectiveEnd}`);
+                console.log(`[Manual Sync] Using provided range ${effectiveStart} to ${effectiveEnd}`);
+            }
+
+            // SAFETY CHECK: Meta API throws (#100) if time_range > 37 days with time_increment=1
+            // So we forcefully clamp effectiveStart so the distance is <= 35 days from effectiveEnd.
+            const dStart = new Date(effectiveStart);
+            const dEnd = new Date(effectiveEnd);
+            const diffDays = Math.ceil((dEnd.getTime() - dStart.getTime()) / (1000 * 3600 * 24));
+
+            if (diffDays > 35) {
+                console.log(`[Warning] clamping date range from ${diffDays} to 35 days due to Meta limitations`);
+                const clampedStart = new Date(dEnd);
+                clampedStart.setDate(clampedStart.getDate() - 35);
+                effectiveStart = clampedStart.toISOString().split('T')[0];
             }
 
             accountSummary.date_start = effectiveStart;

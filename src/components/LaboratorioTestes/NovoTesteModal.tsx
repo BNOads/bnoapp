@@ -62,16 +62,29 @@ export const NovoTesteModal = ({
 
   useEffect(() => {
     if (formData.cliente_id) {
-      supabase
-        .from('orcamentos_funil')
-        .select('nome_funil')
-        .eq('cliente_id', formData.cliente_id)
-        .eq('ativo', true)
-        .order('nome_funil')
-        .then(({ data }) => {
-          const uniqueFunis = [...new Set((data || []).map(d => d.nome_funil).filter(Boolean))];
-          setFunis(uniqueFunis);
-        });
+      const fetchFunnels = async () => {
+        const { data: funnels } = await supabase
+          .from('orcamentos_funil')
+          .select('nome_funil')
+          .eq('cliente_id', formData.cliente_id)
+          .eq('ativo', true);
+
+        const { data: lancamentos } = await supabase
+          .from('lancamentos')
+          .select('nome_lancamento')
+          .eq('cliente_id', formData.cliente_id)
+          .eq('ativo', true)
+          .in('status_lancamento', ['em_captacao', 'cpl', 'remarketing', 'pausado']);
+
+        const combined = [
+          ...(funnels || []).map(d => d.nome_funil),
+          ...(lancamentos || []).map(d => d.nome_lancamento)
+        ].filter(Boolean);
+
+        setFunis([...new Set(combined)].sort());
+      };
+
+      fetchFunnels();
     } else {
       setFunis([]);
       setFormData(prev => ({ ...prev, funil: '' }));

@@ -59,6 +59,10 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
     const [metricsConfigOpen, setMetricsConfigOpen] = useState(false);
     const [togglingAds, setTogglingAds] = useState<Record<string, boolean>>({});
 
+    // Ads Table Filters
+    const [adCampaignSearch, setAdCampaignSearch] = useState("");
+    const [adFunnelFilter, setAdFunnelFilter] = useState("all");
+
     // Features State
     const [lastSync, setLastSync] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
@@ -166,14 +170,26 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
 
             if (error) throw error;
 
-            // 5. Fetch Funnels for Association
+            // 5. Fetch Funnels and Lancamentos for Association
             const { data: fetchedFunnels } = await supabase
                 .from('orcamentos_funil')
                 .select('id, nome_funil')
                 .eq('cliente_id', clientId)
                 .eq('ativo', true);
 
-            setFunnels(fetchedFunnels || []);
+            const { data: fetchedLancamentos } = await supabase
+                .from('lancamentos')
+                .select('id, nome_lancamento')
+                .eq('cliente_id', clientId)
+                .eq('ativo', true)
+                .in('status_lancamento', ['em_captacao', 'cpl', 'remarketing', 'pausado']);
+
+            const combinedFunnels = [
+                ...(fetchedFunnels || []).map(f => ({ id: f.id, nome_funil: f.nome_funil })),
+                ...(fetchedLancamentos || []).map(l => ({ id: `lanc-${l.id}`, nome_funil: l.nome_lancamento }))
+            ];
+
+            setFunnels(combinedFunnels);
 
             // --- Aggregate Totals ---
             const totals = {
@@ -416,6 +432,8 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                     clicks: 0,
                     reach: 0, // Added reach
                     conversions: 0, // Added conversions
+                    leads: 0, // Added leads
+                    campaigns: new Set(),
                     roas: 0,
                     ctr: 0,
                     cpc: 0,
@@ -438,6 +456,8 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
 
             const currentAd = adsMap[key];
             const itemSpend = Number(item.spend) || 0;
+
+            if (item.campaign_name) currentAd.campaigns.add(item.campaign_name);
 
             // Update creative metadata if current item has higher spend AND valid data
             // Or if current ad has no data yet
@@ -472,6 +492,18 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
             currentAd.clicks += Number(item.clicks) || 0;
             currentAd.reach += Number(item.reach) || 0; // Sum reach
             currentAd.conversions += getConversionsFromActions(item.actions); // Sum conversions
+
+            const getLeads = (actions: any[] | null | undefined) => {
+                if (!Array.isArray(actions)) return 0;
+                const leadTypes = ['lead', 'submit_application', 'complete_registration'];
+                return actions.reduce((total, act) => {
+                    const actionType = act?.action_type;
+                    if (typeof actionType !== 'string') return total;
+                    if (!leadTypes.some(t => actionType === t || actionType.includes(t))) return total;
+                    return total + (Number(act?.value) || 0);
+                }, 0);
+            };
+            currentAd.leads += getLeads(item.actions);
 
             // Frequency (weighted average or sum? usually standard average per ad set, but here maybe sum of impressions / reach? simple average for now)
             currentAd.frequency += Number(item.frequency) || 0;
@@ -541,9 +573,36 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
 
                 // Hook Rate: 3-sec video views / Impressions
                 const hookRate = ad.impressions > 0 ? (ad.video_3sec / ad.impressions) * 100 : 0;
+                const cpl = ad.leads > 0 ? ad.spend / ad.leads : 0;
+
+                // Determine best funnel based on campaigns
+                let bestFunnel = null;
+                let bestScore = 0;
+                const campaignsArr = Array.from(ad.campaigns) as string[];
+
+                if (funnels.length > 0 && campaignsArr.length > 0) {
+                    funnels.forEach((f: any) => {
+                        const words = f.nome_funil.toLowerCase().split(' ').filter((w: string) => w.length > 1);
+                        const combinedCampaignNames = campaignsArr.join(' ').toLowerCase();
+
+                        let score = 0;
+                        words.forEach((word: string) => {
+                            if (combinedCampaignNames.includes(word)) {
+                                score += word.length;
+                            }
+                        });
+
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestFunnel = f;
+                        }
+                    });
+                }
 
                 return {
                     ...ad,
+                    campaignNames: campaignsArr.join(', '), // For display/search
+                    funnelName: bestFunnel ? (bestFunnel as any).nome_funil : null,
                     roas,
                     cpa,
                     cpc,
@@ -551,13 +610,14 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                     ctr,
                     cr,
                     frequency,
-                    hookRate
+                    hookRate,
+                    cpl
                 };
             });
 
         setAdsList(finalAds);
 
-    }, [rawAdInsights, groupByCreativeName]);
+    }, [rawAdInsights, groupByCreativeName, funnels]);
 
 
     const handleSync = async () => {
@@ -753,7 +813,12 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
 
     // --- Ads List Logic (Filter, Sort, Pagination) ---
     const filteredAds = adsList
-        .filter(ad => ad.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        .filter(ad => {
+            const matchesSearch = ad.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesCampaign = adCampaignSearch ? (ad.campaignNames || '').toLowerCase().includes(adCampaignSearch.toLowerCase()) : true;
+            const matchesFunnel = adFunnelFilter === 'all' ? true : adFunnelFilter === 'none' ? !ad.funnelName : ad.funnelName === adFunnelFilter;
+            return matchesSearch && matchesCampaign && matchesFunnel;
+        })
         .sort((a, b) => {
             if (stringSortFields.has(sortMetric)) {
                 const aText = (a[sortMetric] || '').toString();
@@ -1208,10 +1273,39 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                     <Input
                                                         placeholder="Buscar anúncios..."
                                                         value={searchTerm}
-                                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                                        onChange={(e) => {
+                                                            setSearchTerm(e.target.value);
+                                                            setCurrentPage(1);
+                                                        }}
                                                         className="pl-8"
                                                     />
                                                 </div>
+                                                <div className="relative w-full sm:w-48">
+                                                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        placeholder="Buscar campanha..."
+                                                        value={adCampaignSearch}
+                                                        onChange={(e) => {
+                                                            setAdCampaignSearch(e.target.value);
+                                                            setCurrentPage(1);
+                                                        }}
+                                                        className="pl-8"
+                                                    />
+                                                </div>
+                                                {funnels.length > 0 && (
+                                                    <Select value={adFunnelFilter} onValueChange={(v) => { setAdFunnelFilter(v); setCurrentPage(1); }}>
+                                                        <SelectTrigger className="w-[140px]">
+                                                            <SelectValue placeholder="Funil" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="all">Todos</SelectItem>
+                                                            <SelectItem value="none">Sem Funil</SelectItem>
+                                                            {funnels.map(f => (
+                                                                <SelectItem key={f.id} value={f.nome_funil}>{f.nome_funil}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
                                                 <Select value={sortMetric} onValueChange={handleSortMetricChange}>
                                                     <SelectTrigger className="w-[160px]">
                                                         <SelectValue placeholder="Ordenar por" />
@@ -1220,6 +1314,8 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                         <SelectItem value="spend">Mais Gasto</SelectItem>
                                                         <SelectItem value="clicks">Mais Cliques</SelectItem>
                                                         <SelectItem value="conversions">Mais Conversões</SelectItem>
+                                                        <SelectItem value="leads">Mais Leads</SelectItem>
+                                                        <SelectItem value="cpl">Custo por Lead</SelectItem>
                                                         <SelectItem value="reach">Maior Alcance</SelectItem>
                                                         <SelectItem value="impressions">Mais Impressões</SelectItem>
                                                         <SelectItem value="hookRate">Maior Hook Rate</SelectItem>
@@ -1307,12 +1403,16 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                                     <span className="text-muted-foreground">Investimento</span>
                                                                     <span className="font-bold text-blue-600">{currency(ad.spend)}</span>
                                                                 </div>
-                                                                <div className="grid grid-cols-3 gap-2 text-xs pt-1">
+                                                                <div className="grid grid-cols-4 gap-2 text-xs pt-1">
                                                                     <div className="text-center">
                                                                         <span className="block text-muted-foreground text-[10px] uppercase">Cliques</span>
                                                                         <span className="font-semibold">{number(ad.clicks)}</span>
                                                                     </div>
                                                                     <div className="text-center border-l border-r">
+                                                                        <span className="block text-muted-foreground text-[10px] uppercase">CPL</span>
+                                                                        <span className="font-semibold">{currency(ad.cpl)}</span>
+                                                                    </div>
+                                                                    <div className="text-center border-r">
                                                                         <span className="block text-muted-foreground text-[10px] uppercase">CTR</span>
                                                                         <span className={`${ad.ctr > 1 ? 'text-green-600' : 'text-foreground'} font-semibold`}>
                                                                             {percent(ad.ctr)}
@@ -1370,6 +1470,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                             <SortableAdHead field="spend" label="Invest." className="text-right" align="right" />
                                                             <SortableAdHead field="clicks" label="Cliques" className="text-right" align="right" />
                                                             <SortableAdHead field="conversions" label="Conversões" className="text-right" align="right" />
+                                                            <SortableAdHead field="cpl" label="CPL" className="text-right" align="right" />
                                                             <SortableAdHead field="ctr" label="CTR" className="text-right" align="right" />
                                                             <SortableAdHead field="reach" label="Alcance" className="text-right" align="right" />
                                                             <SortableAdHead field="hookRate" label="Hook Rate" className="text-right" align="right" />
@@ -1433,6 +1534,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                                                                 <TableCell className="text-right">{currency(ad.spend)}</TableCell>
                                                                 <TableCell className="text-right">{number(ad.clicks)}</TableCell>
                                                                 <TableCell className="text-right">{number(ad.conversions || 0)}</TableCell>
+                                                                <TableCell className="text-right font-medium text-blue-600">{currency(ad.cpl)}</TableCell>
                                                                 <TableCell className="text-right font-medium">{percent(ad.ctr)}</TableCell>
                                                                 <TableCell className="text-right">{number(ad.reach)}</TableCell>
                                                                 <TableCell className="text-right text-purple-600 font-medium">{percent(ad.hookRate)}</TableCell>
