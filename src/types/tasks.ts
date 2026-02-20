@@ -14,6 +14,10 @@ export type TaskCommentInsert = Database['public']['Tables']['task_comments']['I
 export type TaskHistoryRow = Database['public']['Tables']['task_history']['Row'];
 export type TaskHistoryInsert = Database['public']['Tables']['task_history']['Insert'];
 
+export type TaskListRow = Database['public']['Tables']['task_lists']['Row'];
+export type TaskListInsert = Database['public']['Tables']['task_lists']['Insert'];
+export type TaskListUpdate = Database['public']['Tables']['task_lists']['Update'];
+
 export type TaskPriority = "alta" | "media" | "baixa";
 
 export const PRIORITY_LABELS: Record<TaskPriority, string> = {

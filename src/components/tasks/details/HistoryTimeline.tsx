@@ -3,12 +3,14 @@ import { TaskHistory } from "@/types/tasks";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CheckCircle2, Clock, Edit, FilePlus, RefreshCcw, Trash2 } from "lucide-react";
+import { useTaskLists } from "@/hooks/useTasks";
 
 interface HistoryTimelineProps {
     history: TaskHistory[];
 }
 
 export function HistoryTimeline({ history }: HistoryTimelineProps) {
+    const { data: taskLists } = useTaskLists();
     const getActionIcon = (action: string) => {
         switch (action) {
             case "created":
@@ -42,10 +44,18 @@ export function HistoryTimeline({ history }: HistoryTimelineProps) {
                         due_date: "data de entrega",
                         assignee: "responsável",
                         category: "categoria",
+                        list_id: "lista",
                         recurrence: "recorrência"
                     };
                     const fieldName = fieldMap[item.field_changed] || item.field_changed;
-                    return `alterou a ${fieldName}${item.new_value ? ` para "${item.new_value}"` : ""}`;
+
+                    let displayValue = item.new_value;
+                    if (item.field_changed === "list_id" && displayValue && taskLists) {
+                        const listMatch = taskLists.find(l => l.id === displayValue);
+                        if (listMatch) displayValue = listMatch.name;
+                    }
+
+                    return `alterou a ${fieldName}${displayValue ? ` para "${displayValue}"` : ""}`;
                 }
                 return "atualizou a tarefa";
             default: return `realizou a ação: ${item.action}`;

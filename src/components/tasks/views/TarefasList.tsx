@@ -3,10 +3,11 @@ import { Task, PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS 
 import { isOverdue, isToday } from "@/lib/dateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, CalendarIcon, AlertCircle, User, RepeatIcon, Clock } from "lucide-react";
+import { ChevronDown, ChevronRight, CalendarIcon, AlertCircle, User, RepeatIcon, Clock, CircleUserIcon, ChevronDownIcon, MessageSquare, CheckCircleIcon, List } from "lucide-react";
 import { useToggleTaskComplete, useUpdateTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useTaskLists } from "@/hooks/useTasks";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
         completed: true,
     });
 
+    const { data: taskLists } = useTaskLists();
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
 
     useEffect(() => {
@@ -203,9 +205,10 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                                         </SelectContent>
                                                     </Select>
 
-                                                    {task.category && (
-                                                        <span className="truncate max-w-[100px] border px-2 py-1 rounded-md bg-muted/50 text-sm text-muted-foreground ml-2">
-                                                            {task.category}
+                                                    {task.list_id && (
+                                                        <span className="flex items-center gap-1.5 truncate max-w-[150px] border px-2 py-1 rounded-md bg-muted/50 text-sm text-muted-foreground ml-2">
+                                                            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: taskLists?.find(l => l.id === task.list_id)?.color || '#ccc' }} />
+                                                            <span className="truncate">{taskLists?.find(l => l.id === task.list_id)?.name || 'Lista'}</span>
                                                         </span>
                                                     )}
 

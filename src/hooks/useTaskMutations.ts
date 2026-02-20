@@ -76,7 +76,7 @@ export function useUpdateTask() {
 
             if (error) throw error;
 
-            const validFields = ["title", "description", "priority", "status", "due_date", "assignee", "category", "recurrence"];
+            const validFields = ["title", "description", "priority", "status", "due_date", "assignee", "list_id", "category", "recurrence"];
             const historyInserts = Object.keys(updates)
                 .filter(key => validFields.includes(key))
                 .map((key) => ({

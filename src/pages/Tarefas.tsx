@@ -11,8 +11,8 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { TarefasList } from "@/components/tasks/views/TarefasList";
 import { TaskKanban } from "@/components/tasks/views/TaskKanban";
 import { TasksByPersonView } from "@/components/tasks/views/TasksByPersonView";
+import { TasksByListView } from "@/components/tasks/views/TasksByListView";
 import { AdminTasksPanel } from "@/components/tasks/views/AdminTasksPanel";
-import { exportTasksToPDF } from "@/lib/exportTasksPdf";
 import { PRIORITY_LABELS } from "@/types/tasks";
 
 import { BulkTaskModal } from "@/components/tasks/modals/BulkTaskModal";
@@ -33,7 +33,7 @@ export default function Tarefas() {
         status: "all",
         date: "all"
     });
-    const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "usuario">("minhas");
+    const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "usuario" | "listas">("minhas");
     const [hideCompleted, setHideCompleted] = useState(false);
 
     // Selection for ByPerson view mainly, but could be global
@@ -102,6 +102,10 @@ export default function Tarefas() {
             />
         );
 
+        if (activeMainTab === "listas") {
+            return <TasksByListView tasks={tasks} onTaskClick={handleTaskClick} isAdmin={isAdmin} />;
+        }
+
         if (activeMainTab === "time") {
             return ByPersonBase;
         }
@@ -144,22 +148,7 @@ export default function Tarefas() {
                             </Button>
                         )}
 
-                        <label className="text-sm font-medium flex items-center gap-2 mr-2 cursor-pointer select-none text-muted-foreground bg-muted p-1.5 px-3 rounded-md border">
-                            <input
-                                type="checkbox"
-                                checked={hideCompleted}
-                                onChange={(e) => setHideCompleted(e.target.checked)}
-                                className="rounded border-gray-300 w-4 h-4"
-                            />
-                            Ocultar concluídas
-                        </label>
-
-                        <Button variant="outline" onClick={() => exportTasksToPDF(tasks)} className="gap-2">
-                            <BarChart3 className="w-4 h-4" />
-                            Exportar PDF
-                        </Button>
-
-                        <div className="flex items-center bg-muted/50 p-1 rounded-md border text-sm font-medium mx-2">
+                        <div className="flex flex-wrap items-center bg-muted/50 p-1 rounded-md border text-sm font-medium mx-2 gap-1">
                             <button
                                 onClick={() => setActiveMainTab("minhas")}
                                 className={`px-4 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${activeMainTab === "minhas" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
@@ -180,6 +169,13 @@ export default function Tarefas() {
                             >
                                 <Grid2X2 className="w-4 h-4" />
                                 Por Usuário
+                            </button>
+                            <button
+                                onClick={() => setActiveMainTab("listas")}
+                                className={`px-4 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${activeMainTab === "listas" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                            >
+                                <Kanban className="w-4 h-4" />
+                                Listas
                             </button>
                         </div>
 
@@ -206,6 +202,16 @@ export default function Tarefas() {
                                 className="pl-9 h-10 w-full"
                             />
                         </div>
+
+                        <label className="text-sm font-medium flex items-center justify-center gap-2 cursor-pointer select-none text-muted-foreground bg-card hover:bg-muted/50 transition-colors h-10 px-4 rounded-md border shrink-0">
+                            <input
+                                type="checkbox"
+                                checked={hideCompleted}
+                                onChange={(e) => setHideCompleted(e.target.checked)}
+                                className="rounded border-gray-300 w-4 h-4"
+                            />
+                            Ocultar concluídas
+                        </label>
 
                         <Select value={filters.priority} onValueChange={(v) => setFilters(f => ({ ...f, priority: v }))}>
                             <SelectTrigger className="w-[140px] h-10">

@@ -11,12 +11,14 @@ export const taskKeys = {
     details: () => [...taskKeys.all, "detail"] as const,
     detail: (id: string) => [...taskKeys.details(), id] as const,
     today: () => [...taskKeys.all, "today"] as const,
+    taskLists: () => [...taskKeys.all, "taskLists"] as const,
 };
 
 export interface TaskFilters {
     search?: string;
     priority?: string;
     category?: string;
+    list_id?: string;
     assignee?: string;
     recurrence?: string;
     // Others as needed
@@ -28,7 +30,7 @@ export function useTasks(filters?: TaskFilters) {
         queryFn: async () => {
             let query = supabase
                 .from("tasks")
-                .select("*, subtasks(id, completed)")
+                .select("*, subtasks(id, completed), task_lists(*)")
                 .order("completed", { ascending: true })
                 .order("completed_at", { ascending: false, nullsFirst: true })
                 .order("due_date", { ascending: true })
@@ -42,6 +44,9 @@ export function useTasks(filters?: TaskFilters) {
             }
             if (filters?.category && filters.category !== "all") {
                 query = query.eq("category", filters.category);
+            }
+            if (filters?.list_id && filters.list_id !== "all") {
+                query = query.eq("list_id", filters.list_id);
             }
             if (filters?.assignee && filters.assignee !== "all") {
                 // Here we search by assignee name for simplicity, but it's better to search by ID or handle it carefully
@@ -73,7 +78,7 @@ export function useUserTasks(userFullName: string | null) {
 
             const { data, error } = await supabase
                 .from("tasks")
-                .select("*, subtasks(id, completed)")
+                .select("*, subtasks(id, completed), task_lists(*)")
                 .eq("assignee", userFullName)
                 .order("completed", { ascending: true })
                 .order("due_date", { ascending: true })
@@ -97,7 +102,8 @@ export function useTask(id: string) {
           *,
           subtasks(*),
           task_comments(*),
-          task_history(*)
+          task_history(*),
+          task_lists(*)
         `)
                 .eq("id", id)
                 .single();
@@ -129,3 +135,20 @@ export function useTask(id: string) {
 }
 
 // ... more hooks will follow
+
+export function useTaskLists() {
+    return useQuery({
+        queryKey: taskKeys.taskLists(),
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from("task_lists")
+                .select("*")
+                .order("position", { ascending: true })
+                .order("created_at", { ascending: true });
+
+            if (error) throw error;
+            return data;
+        },
+        staleTime: 10 * 60 * 1000,
+    });
+}

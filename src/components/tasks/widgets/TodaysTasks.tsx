@@ -68,7 +68,7 @@ export function TodaysTasks() {
         createTask({
             title: inlineTaskTitle.trim(),
             priority: 'media',
-            category: 'geral',
+            list_id: null,
             due_date: todayStr,
             assignee: userName
         });
@@ -86,7 +86,7 @@ export function TodaysTasks() {
     const progress = totalTasks > 0 ? Math.round((completedTasksNum / totalTasks) * 100) : 0;
 
     const overdueTasks = rawTasks.filter(t => !t.completed && t.due_date && isOverdue(t.due_date, false));
-    const todayCompletedTasks = rawTasks.filter(t => t.completed && t.completed_at && isToday(t.completed_at.split('T')[0]));
+    const todayCompletedTasks = rawTasks.filter(t => t.completed && t.completed_at && isToday(t.completed_at));
     const upcomingTasks = rawTasks.filter(t => !t.completed && t.due_date && isToday(t.due_date));
     const futureTasks = rawTasks.filter(t => !t.completed && (!t.due_date || t.due_date > format(new Date(), 'yyyy-MM-dd')));
 

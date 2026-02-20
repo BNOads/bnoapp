@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import {
   DndContext,
   DragCancelEvent,
@@ -12,8 +19,9 @@ import {
 import {
   SortableContext,
   arrayMove,
-  useSortable,
+  rectSortingStrategy,
   verticalListSortingStrategy,
+  useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,14 +44,14 @@ import { formatarNivelAcesso } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
-import { GripVertical, Link2, Plus, Trash2, X } from "lucide-react";
+import { GripVertical, Plus, Trash2 } from "lucide-react";
 
 type NivelAcesso = Database["public"]["Enums"]["nivel_acesso"];
 type ColaboradorRow = Database["public"]["Tables"]["colaboradores"]["Row"];
 type OrganogramaCardRow = Database["public"]["Tables"]["organograma_cards"]["Row"];
 type OrganogramaCardInsert = Database["public"]["Tables"]["organograma_cards"]["Insert"];
-type OrganogramaConexaoRow = Database["public"]["Tables"]["organograma_conexoes"]["Row"];
 type OrganogramaArea = "diretoria" | "administracao" | "gestao" | "comunicacao" | "servicos";
+const MAX_CUSTOM_CARD_AVATAR_SIZE = 5 * 1024 * 1024;
 
 const AREA_ORDER: OrganogramaArea[] = [
   "diretoria",
@@ -218,10 +226,9 @@ interface SortableCardProps {
   onOpenDetail: (colaborador: ColaboradorRow) => void;
   onRoleChange: (card: OrganogramaCardRow, nivel: NivelAcesso) => void;
   onCustomAreaChange: (card: OrganogramaCardRow, area: OrganogramaArea) => void;
-  onConnectClick: (cardId: string) => void;
-  connectingFromId: string | null;
-  connectedNames: string[];
   onDeleteCustomCard: (card: OrganogramaCardRow) => void;
+  onCustomAvatarUpload: (card: OrganogramaCardRow, file: File) => void;
+  isCustomAvatarUploading: boolean;
 }
 
 const SortableCard = ({
@@ -233,10 +240,9 @@ const SortableCard = ({
   onOpenDetail,
   onRoleChange,
   onCustomAreaChange,
-  onConnectClick,
-  connectingFromId,
-  connectedNames,
   onDeleteCustomCard,
+  onCustomAvatarUpload,
+  isCustomAvatarUploading,
 }: SortableCardProps) => {
   const canManage = isAdmin && !isSearchMode && schemaReady;
 
@@ -267,7 +273,7 @@ const SortableCard = ({
     <Card
       ref={setNodeRef}
       style={style}
-      className={cn("border-2 shadow-sm", meta.border, meta.bg, connectingFromId === card.id && "ring-2 ring-primary")}
+      className={cn("border-2 shadow-sm", meta.border, meta.bg)}
     >
       <div className="space-y-3 p-3">
         <div className="flex items-start justify-between gap-2">
@@ -352,6 +358,25 @@ const SortableCard = ({
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-muted-foreground">Foto</Label>
+              <Input
+                type="file"
+                accept="image/*"
+                className="h-8 text-[11px]"
+                disabled={isCustomAvatarUploading}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) {
+                    onCustomAvatarUpload(card, file);
+                  }
+                }}
+              />
+              {isCustomAvatarUploading && (
+                <p className="text-[10px] text-muted-foreground">Enviando foto...</p>
+              )}
+            </div>
             <Button
               type="button"
               variant="ghost"
@@ -365,26 +390,6 @@ const SortableCard = ({
           </div>
         )}
 
-        <div className="space-y-2 border-t border-border/50 pt-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-medium text-muted-foreground">Conexoes: {connectedNames.length}</p>
-            {canManage && (
-              <Button
-                type="button"
-                variant={connectingFromId === card.id ? "default" : "outline"}
-                size="sm"
-                className="h-7 px-2 text-[11px]"
-                onClick={() => onConnectClick(card.id)}
-              >
-                {connectingFromId === card.id ? <X className="mr-1 h-3.5 w-3.5" /> : <Link2 className="mr-1 h-3.5 w-3.5" />}
-                {connectingFromId === card.id ? "Cancelar" : "Conectar"}
-              </Button>
-            )}
-          </div>
-          {connectedNames.length > 0 && (
-            <p className="line-clamp-2 text-[11px] text-muted-foreground">{connectedNames.join(", ")}</p>
-          )}
-        </div>
       </div>
     </Card>
   );
@@ -399,20 +404,38 @@ export const OrganizerView = ({
 }: OrganizerViewProps) => {
   const { toast } = useToast();
   const [cards, setCards] = useState<OrganogramaCardRow[]>([]);
-  const [conexoes, setConexoes] = useState<OrganogramaConexaoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [schemaReady, setSchemaReady] = useState(true);
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
-  const [connectingFromId, setConnectingFromId] = useState<string | null>(null);
   const [newCardModalOpen, setNewCardModalOpen] = useState(false);
   const [creatingCard, setCreatingCard] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [newCardAvatarFile, setNewCardAvatarFile] = useState<File | null>(null);
+  const [newCardAvatarPreview, setNewCardAvatarPreview] = useState<string | null>(null);
+  const [uploadingAvatarByCard, setUploadingAvatarByCard] = useState<Record<string, boolean>>({});
   const [newCardForm, setNewCardForm] = useState({
     nome: "",
     cargo_display: "",
     email: "",
     area: "servicos" as OrganogramaArea,
   });
+  const newCardInitials = useMemo(() => {
+    const value = newCardForm.nome.trim();
+    if (!value) return "NC";
+
+    return value
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  }, [newCardForm.nome]);
+
+  const resetNewCardForm = useCallback(() => {
+    setNewCardForm({ nome: "", cargo_display: "", email: "", area: "servicos" });
+    setNewCardAvatarFile(null);
+    setNewCardAvatarPreview(null);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -440,24 +463,6 @@ export const OrganizerView = ({
   }, [cards, normalizedSearch]);
 
   const cardsByArea = useMemo(() => groupCardsByArea(visibleCards), [visibleCards]);
-
-  const connectedIdsByCard = useMemo(() => {
-    const map = new Map<string, string[]>();
-
-    for (const conexao of conexoes) {
-      const currentA = map.get(conexao.card_a_id) || [];
-      currentA.push(conexao.card_b_id);
-      map.set(conexao.card_a_id, currentA);
-
-      const currentB = map.get(conexao.card_b_id) || [];
-      currentB.push(conexao.card_a_id);
-      map.set(conexao.card_b_id, currentB);
-    }
-
-    return map;
-  }, [conexoes]);
-
-  const cardNameById = useMemo(() => new Map(cards.map((card) => [card.id, card.nome])), [cards]);
 
   const syncCardsWithColaboradores = useCallback(
     async (baseCards: OrganogramaCardRow[]) => {
@@ -570,22 +575,16 @@ export const OrganizerView = ({
     setLoading(true);
 
     try {
-      const [{ data: cardsData, error: cardsError }, { data: conexoesData, error: conexoesError }] = await Promise.all([
-        supabase.from("organograma_cards").select("*").eq("ativo", true),
-        supabase.from("organograma_conexoes").select("*"),
-      ]);
+      const { data: cardsData, error: cardsError } = await supabase.from("organograma_cards").select("*").eq("ativo", true);
 
       if (cardsError) {
         if (cardsError.code === "42P01") {
           setSchemaReady(false);
           setCards(buildFallbackCards(colaboradores));
-          setConexoes([]);
           return;
         }
         throw cardsError;
       }
-
-      if (conexoesError) throw conexoesError;
 
       setSchemaReady(true);
 
@@ -594,11 +593,9 @@ export const OrganizerView = ({
       nextCards = await syncCardsWithColaboradores(nextCards);
 
       setCards(sortCards(nextCards));
-      setConexoes(conexoesData || []);
     } catch (error: any) {
       setSchemaReady(false);
       setCards(buildFallbackCards(colaboradores));
-      setConexoes([]);
       toast({
         title: "Erro ao carregar organograma",
         description: error.message,
@@ -770,7 +767,6 @@ export const OrganizerView = ({
         .map((item) => item.id);
 
       setCards(nextCards);
-      setConexoes((prev) => prev.filter((conn) => conn.card_a_id !== card.id && conn.card_b_id !== card.id));
 
       try {
         const { error } = await supabase.from("organograma_cards").delete().eq("id", card.id);
@@ -789,52 +785,105 @@ export const OrganizerView = ({
     [cards, loadOrganograma, persistChangedCards, toast]
   );
 
-  const handleConnectClick = useCallback(
-    async (cardId: string) => {
-      if (!isAdmin || !schemaReady) return;
+  const uploadCustomAvatar = useCallback(
+    async (file: File) => {
+      if (!currentUserId) {
+        throw new Error("Usuario nao autenticado.");
+      }
 
-      if (!connectingFromId) {
-        setConnectingFromId(cardId);
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Selecione um arquivo de imagem.");
+      }
+
+      if (file.size > MAX_CUSTOM_CARD_AVATAR_SIZE) {
+        throw new Error("A imagem deve ter no maximo 5MB.");
+      }
+
+      const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const fileName = `${currentUserId}/organograma-custom/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
+
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, file, {
+        upsert: false,
+      });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
+      return data.publicUrl;
+    },
+    [currentUserId]
+  );
+
+  const handleNewCardAvatarChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+
+      if (!file) return;
+
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Arquivo invalido",
+          description: "Selecione um arquivo de imagem.",
+          variant: "destructive",
+        });
         return;
       }
 
-      if (connectingFromId === cardId) {
-        setConnectingFromId(null);
+      if (file.size > MAX_CUSTOM_CARD_AVATAR_SIZE) {
+        toast({
+          title: "Imagem muito grande",
+          description: "A imagem deve ter no maximo 5MB.",
+          variant: "destructive",
+        });
         return;
       }
 
-      const [cardA, cardB] = [connectingFromId, cardId].sort();
-      const existing = conexoes.find((conn) => conn.card_a_id === cardA && conn.card_b_id === cardB);
+      setNewCardAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewCardAvatarPreview(typeof reader.result === "string" ? reader.result : null);
+      };
+      reader.readAsDataURL(file);
+    },
+    [toast]
+  );
+
+  const handleCustomCardAvatarUpload = useCallback(
+    async (card: OrganogramaCardRow, file: File) => {
+      if (!card.is_custom || card.id.startsWith("fallback-")) return;
+
+      setUploadingAvatarByCard((prev) => ({ ...prev, [card.id]: true }));
 
       try {
-        if (existing) {
-          const { error } = await supabase.from("organograma_conexoes").delete().eq("id", existing.id);
-          if (error) throw error;
+        const avatarUrl = await uploadCustomAvatar(file);
+        const { data, error } = await supabase
+          .from("organograma_cards")
+          .update({ avatar_url: avatarUrl, updated_by: currentUserId })
+          .eq("id", card.id)
+          .select("*")
+          .single();
 
-          setConexoes((prev) => prev.filter((conn) => conn.id !== existing.id));
-        } else {
-          const { data, error } = await supabase
-            .from("organograma_conexoes")
-            .insert({ card_a_id: cardA, card_b_id: cardB, created_by: currentUserId })
-            .select("*")
-            .single();
+        if (error) throw error;
 
-          if (error) throw error;
-          if (data) {
-            setConexoes((prev) => [...prev, data]);
-          }
-        }
+        setCards((prev) => sortCards(prev.map((item) => (item.id === card.id ? data || { ...item, avatar_url: avatarUrl } : item))));
       } catch (error: any) {
         toast({
-          title: "Erro ao atualizar conexao",
+          title: "Erro ao enviar foto",
           description: error.message,
           variant: "destructive",
         });
       } finally {
-        setConnectingFromId(null);
+        setUploadingAvatarByCard((prev) => {
+          const next = { ...prev };
+          delete next[card.id];
+          return next;
+        });
       }
     },
-    [connectingFromId, conexoes, currentUserId, isAdmin, schemaReady, toast]
+    [currentUserId, toast, uploadCustomAvatar]
   );
 
   const handleCreateCustomCard = useCallback(async () => {
@@ -861,11 +910,13 @@ export const OrganizerView = ({
 
     try {
       const ordem = cards.filter((card) => card.area === newCardForm.area).length;
+      const avatarUrl = newCardAvatarFile ? await uploadCustomAvatar(newCardAvatarFile) : null;
 
       const payload: OrganogramaCardInsert = {
         nome,
         cargo_display: newCardForm.cargo_display.trim() || null,
         email: newCardForm.email.trim() || null,
+        avatar_url: avatarUrl,
         area: newCardForm.area,
         ordem,
         is_custom: true,
@@ -882,7 +933,7 @@ export const OrganizerView = ({
         setCards((prev) => sortCards([...prev, data]));
       }
 
-      setNewCardForm({ nome: "", cargo_display: "", email: "", area: "servicos" });
+      resetNewCardForm();
       setNewCardModalOpen(false);
     } catch (error: any) {
       toast({
@@ -893,7 +944,7 @@ export const OrganizerView = ({
     } finally {
       setCreatingCard(false);
     }
-  }, [cards, currentUserId, newCardForm, schemaReady, toast]);
+  }, [cards, currentUserId, newCardAvatarFile, newCardForm, resetNewCardForm, schemaReady, toast, uploadCustomAvatar]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setDraggingCardId(String(event.active.id));
@@ -985,6 +1036,67 @@ export const OrganizerView = ({
     [cards, colaboradoresById, isAdmin, isSearchMode, loadOrganograma, onRefresh, persistChangedCards, schemaReady, toast, updateColaboradorAreaRole]
   );
 
+  const renderAreaSection = useCallback(
+    (area: OrganogramaArea, options?: { verticalCards?: boolean }) => {
+      const verticalCards = options?.verticalCards ?? false;
+
+      return (
+        <section key={area} className="relative z-10 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className={cn("h-2.5 w-2.5 rounded-full", AREA_META[area].dot)} />
+            <h3 className="text-sm font-semibold">{AREA_META[area].label}</h3>
+            <Badge variant="secondary" className="text-[10px]">
+              {cardsByArea[area].length}
+            </Badge>
+          </div>
+
+          <AreaDropZone area={area} disabled={!isAdmin || isSearchMode || !schemaReady}>
+            <SortableContext
+              items={cardsByArea[area].map((card) => card.id)}
+              strategy={verticalCards ? verticalListSortingStrategy : rectSortingStrategy}
+            >
+              <div className={verticalCards ? "space-y-3" : "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}>
+                {cardsByArea[area].map((card) => {
+                  const colaborador = card.colaborador_id ? colaboradoresById.get(card.colaborador_id) : undefined;
+
+                  return (
+                    <SortableCard
+                      key={card.id}
+                      card={card}
+                      colaborador={colaborador}
+                      isAdmin={isAdmin}
+                      schemaReady={schemaReady}
+                      isSearchMode={isSearchMode}
+                      onOpenDetail={onOpenDetail}
+                      onRoleChange={handleRoleChange}
+                      onCustomAreaChange={handleCustomAreaChange}
+                      onDeleteCustomCard={handleDeleteCustomCard}
+                      onCustomAvatarUpload={handleCustomCardAvatarUpload}
+                      isCustomAvatarUploading={Boolean(uploadingAvatarByCard[card.id])}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </AreaDropZone>
+        </section>
+      );
+    },
+    [
+      cardsByArea,
+      colaboradoresById,
+      isAdmin,
+      isSearchMode,
+      schemaReady,
+      onOpenDetail,
+      handleRoleChange,
+      handleCustomAreaChange,
+      handleDeleteCustomCard,
+      handleCustomCardAvatarUpload,
+      uploadingAvatarByCard,
+    ]
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -1006,7 +1118,7 @@ export const OrganizerView = ({
 
       {!schemaReady && (
         <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
-          A migracao do organograma ainda nao foi aplicada. Cards personalizados, conexoes e ordenacao nao serao salvos.
+          A migracao do organograma ainda nao foi aplicada. Cards personalizados e ordenacao nao serao salvos.
         </div>
       )}
 
@@ -1023,94 +1135,12 @@ export const OrganizerView = ({
         onDragEnd={handleDragEnd}
       >
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {(["diretoria", "administracao"] as OrganogramaArea[]).map((area) => (
-              <section key={area} className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className={cn("h-2.5 w-2.5 rounded-full", AREA_META[area].dot)} />
-                  <h3 className="text-sm font-semibold">{AREA_META[area].label}</h3>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {cardsByArea[area].length}
-                  </Badge>
-                </div>
-
-                <AreaDropZone area={area} disabled={!isAdmin || isSearchMode || !schemaReady}>
-                  <SortableContext items={cardsByArea[area].map((card) => card.id)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-3">
-                      {cardsByArea[area].map((card) => {
-                        const colaborador = card.colaborador_id ? colaboradoresById.get(card.colaborador_id) : undefined;
-                        const connectedNames = (connectedIdsByCard.get(card.id) || [])
-                          .map((id) => cardNameById.get(id))
-                          .filter(Boolean) as string[];
-
-                        return (
-                          <SortableCard
-                            key={card.id}
-                            card={card}
-                            colaborador={colaborador}
-                            isAdmin={isAdmin}
-                            schemaReady={schemaReady}
-                            isSearchMode={isSearchMode}
-                            onOpenDetail={onOpenDetail}
-                            onRoleChange={handleRoleChange}
-                            onCustomAreaChange={handleCustomAreaChange}
-                            onConnectClick={handleConnectClick}
-                            connectingFromId={connectingFromId}
-                            connectedNames={connectedNames}
-                            onDeleteCustomCard={handleDeleteCustomCard}
-                          />
-                        );
-                      })}
-                    </div>
-                  </SortableContext>
-                </AreaDropZone>
-              </section>
-            ))}
-          </div>
+          {(["diretoria", "administracao"] as OrganogramaArea[]).map((area) => renderAreaSection(area))}
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {(["gestao", "comunicacao", "servicos"] as OrganogramaArea[]).map((area) => (
-              <section key={area} className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className={cn("h-2.5 w-2.5 rounded-full", AREA_META[area].dot)} />
-                  <h3 className="text-sm font-semibold">{AREA_META[area].label}</h3>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {cardsByArea[area].length}
-                  </Badge>
-                </div>
-
-                <AreaDropZone area={area} disabled={!isAdmin || isSearchMode || !schemaReady}>
-                  <SortableContext items={cardsByArea[area].map((card) => card.id)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-3">
-                      {cardsByArea[area].map((card) => {
-                        const colaborador = card.colaborador_id ? colaboradoresById.get(card.colaborador_id) : undefined;
-                        const connectedNames = (connectedIdsByCard.get(card.id) || [])
-                          .map((id) => cardNameById.get(id))
-                          .filter(Boolean) as string[];
-
-                        return (
-                          <SortableCard
-                            key={card.id}
-                            card={card}
-                            colaborador={colaborador}
-                            isAdmin={isAdmin}
-                            schemaReady={schemaReady}
-                            isSearchMode={isSearchMode}
-                            onOpenDetail={onOpenDetail}
-                            onRoleChange={handleRoleChange}
-                            onCustomAreaChange={handleCustomAreaChange}
-                            onConnectClick={handleConnectClick}
-                            connectingFromId={connectingFromId}
-                            connectedNames={connectedNames}
-                            onDeleteCustomCard={handleDeleteCustomCard}
-                          />
-                        );
-                      })}
-                    </div>
-                  </SortableContext>
-                </AreaDropZone>
-              </section>
-            ))}
+            {(["gestao", "comunicacao", "servicos"] as OrganogramaArea[]).map((area) =>
+              renderAreaSection(area, { verticalCards: true })
+            )}
           </div>
         </div>
       </DndContext>
@@ -1121,7 +1151,15 @@ export const OrganizerView = ({
         </div>
       )}
 
-      <Dialog open={newCardModalOpen} onOpenChange={setNewCardModalOpen}>
+      <Dialog
+        open={newCardModalOpen}
+        onOpenChange={(open) => {
+          setNewCardModalOpen(open);
+          if (!open) {
+            resetNewCardForm();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
             <DialogTitle>Novo card personalizado</DialogTitle>
@@ -1162,6 +1200,24 @@ export const OrganizerView = ({
             </div>
 
             <div className="space-y-1">
+              <Label htmlFor="novo-card-foto">Foto (opcional)</Label>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12">
+                  {newCardAvatarPreview && <AvatarImage src={newCardAvatarPreview} alt={newCardForm.nome || "Novo card"} />}
+                  <AvatarFallback className="text-xs font-bold">{newCardInitials}</AvatarFallback>
+                </Avatar>
+                <Input
+                  id="novo-card-foto"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleNewCardAvatarChange}
+                  disabled={creatingCard}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">Formatos de imagem. Tamanho maximo: 5MB.</p>
+            </div>
+
+            <div className="space-y-1">
               <Label>Area inicial</Label>
               <Select
                 value={newCardForm.area}
@@ -1182,7 +1238,14 @@ export const OrganizerView = ({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewCardModalOpen(false)} disabled={creatingCard}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                resetNewCardForm();
+                setNewCardModalOpen(false);
+              }}
+              disabled={creatingCard}
+            >
               Cancelar
             </Button>
             <Button onClick={handleCreateCustomCard} disabled={creatingCard}>

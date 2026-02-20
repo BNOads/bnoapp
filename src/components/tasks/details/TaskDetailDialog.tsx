@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useTask } from "@/hooks/useTasks";
+import { useTask, useTaskLists } from "@/hooks/useTasks";
 import { useUpdateTask, useToggleTaskComplete } from "@/hooks/useTaskMutations";
 import { SubtaskList } from "./SubtaskList";
 import { CommentSection } from "./CommentSection";
@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Textarea } from "@/components/ui/textarea";
 import {
     Check, Clock, CalendarIcon, AlertCircle, Share2, MoreHorizontal,
-    Maximize2, Link as LinkIcon, User, Tag, Flag, Search, Bell, Pin, Play, Square, Users, RefreshCw, RepeatIcon
+    Maximize2, Link as LinkIcon, User, Tag, Flag, Search, Bell, Pin, Play, Square, Users, RefreshCw, RepeatIcon, List
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,6 +35,7 @@ interface TaskDetailDialogProps {
 
 export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = false }: TaskDetailDialogProps) {
     const { data: task, isLoading: isTaskLoading, error } = useTask(taskId || "");
+    const { data: taskLists } = useTaskLists();
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: updateTask } = useUpdateTask();
 
@@ -181,10 +182,33 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                     {/* Top Header */}
                     <div className="flex items-center justify-between px-4 py-2 border-b bg-background z-10 sticky top-0 shrink-0">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1 hidden sm:flex">
-                                <span className="opacity-70">OPERACIONAL</span> /
-                                <span className="opacity-70">Operação</span> /
-                                <span className="font-medium text-foreground">Tarefas pontuais</span>
+                            <span className="flex items-center hidden sm:flex">
+                                <Select
+                                    value={task.list_id || "none"}
+                                    onValueChange={(val) => handleUpdateField("list_id", val === "none" ? null : val)}
+                                >
+                                    <SelectTrigger className="h-7 w-auto px-2 bg-transparent border-0 hover:bg-muted shadow-none font-medium text-foreground gap-2">
+                                        {task.list_id && taskLists?.find(l => l.id === task.list_id) ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: taskLists.find(l => l.id === task.list_id)?.color }} />
+                                                {taskLists.find(l => l.id === task.list_id)?.name}
+                                            </div>
+                                        ) : (
+                                            <span className="text-muted-foreground font-normal">Sem lista</span>
+                                        )}
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Sem lista</SelectItem>
+                                        {taskLists?.map((list) => (
+                                            <SelectItem key={list.id} value={list.id}>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: list.color }} />
+                                                    {list.name}
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </span>
                         </div>
                         <div className="flex items-center gap-1 sm:gap-3">
@@ -230,7 +254,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                 {/* Properties Grid */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-y-4 gap-x-8 py-2">
                                     {/* Status */}
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
                                         <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
                                             <div className="h-3 w-3 rounded-full border-2 border-slate-300"></div>
                                             Status
@@ -247,7 +271,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                     </div>
 
                                     {/* Responsáveis */}
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
                                         <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
                                             <User className="h-3.5 w-3.5" />
                                             Responsáveis
@@ -300,7 +324,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                     </div>
 
                                     {/* Datas */}
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
                                         <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
                                             <CalendarIcon className="h-3.5 w-3.5" />
                                             Datas
@@ -323,7 +347,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                     </div>
 
                                     {/* Prioridade */}
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
                                         <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
                                             <Flag className="h-3.5 w-3.5" />
                                             Prioridade
@@ -357,12 +381,12 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                     </div>
 
                                     {/* Tempo rastreado */}
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
+                                    <div className="flex items-start sm:items-center gap-3 min-w-0">
+                                        <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0 mt-1 sm:mt-0">
                                             <Clock className="h-3.5 w-3.5" />
                                             Tempo
                                         </div>
-                                        <div className="flex items-center gap-2 -ml-2">
+                                        <div className="flex flex-wrap items-center gap-2 -ml-2 min-w-0">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -391,37 +415,41 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                         </div>
                                     </div>
 
-                                    {/* Etiquetas */}
-                                    <div className="flex items-center gap-3">
+                                    {/* Lista */}
+                                    <div className="flex items-center gap-3 min-w-0">
                                         <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
-                                            <Tag className="h-3.5 w-3.5" />
-                                            Etiquetas
+                                            <List className="h-3.5 w-3.5" />
+                                            Lista
                                         </div>
                                         <Select
-                                            value={task.category || "none"}
-                                            onValueChange={(val) => handleUpdateField("category", val === "none" ? null : val)}
+                                            value={task.list_id || "none"}
+                                            onValueChange={(val) => handleUpdateField("list_id", val === "none" ? null : val)}
                                         >
-                                            <SelectTrigger className="w-auto h-7 px-2 border-0 hover:bg-muted shadow-none bg-transparent -ml-2">
-                                                {task.category ? (
-                                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 truncate max-w-[120px]">
-                                                        {task.category}
-                                                    </span>
+                                            <SelectTrigger className="w-auto h-7 px-2 border-0 hover:bg-muted shadow-none bg-transparent -ml-2 min-w-0 flex-1">
+                                                {task.list_id && taskLists?.find(l => l.id === task.list_id) ? (
+                                                    <Badge variant="secondary" className="font-medium truncate max-w-full tracking-tight hover:opacity-90 transition-opacity gap-1.5" style={{ backgroundColor: taskLists.find(l => l.id === task.list_id)?.color, color: 'white', border: 'none' }}>
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-white/70" />
+                                                        {taskLists.find(l => l.id === task.list_id)?.name}
+                                                    </Badge>
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">-</span>
                                                 )}
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="none">Sem categoria</SelectItem>
-                                                <SelectItem value="Lancamento">Lançamento</SelectItem>
-                                                <SelectItem value="Marketing">Marketing</SelectItem>
-                                                <SelectItem value="Vendas">Vendas</SelectItem>
-                                                <SelectItem value="Suporte">Suporte</SelectItem>
-                                                <SelectItem value="Administrativo">Administrativo</SelectItem>
+                                                <SelectItem value="none">Sem lista</SelectItem>
+                                                {taskLists?.map((list) => (
+                                                    <SelectItem key={list.id} value={list.id}>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: list.color }} />
+                                                            {list.name}
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
                                     {/* Recorrência */}
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
                                         <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
                                             <RefreshCw className="h-3.5 w-3.5" />
                                             Recorrência
@@ -430,7 +458,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                             value={task.recurrence || "none"}
                                             onValueChange={(val) => handleUpdateField("recurrence", val === "none" ? null : val)}
                                         >
-                                            <SelectTrigger className="w-auto h-7 px-2 border-0 hover:bg-muted shadow-none bg-transparent -ml-2">
+                                            <SelectTrigger className="w-auto h-7 px-2 border-0 hover:bg-muted shadow-none bg-transparent -ml-2 min-w-0 flex-1">
                                                 {task.recurrence && task.recurrence !== "none" ? (
                                                     <span className="text-xs font-medium text-foreground">
                                                         {RECURRENCE_LABELS[task.recurrence as RecurrenceType]}
@@ -544,18 +572,6 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                             {/* Sidebar Header */}
                             <div className="flex items-center justify-between px-4 py-3 border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10 shrink-0">
                                 <h3 className="font-semibold text-base">Atividade</h3>
-                                <div className="flex items-center gap-1 text-muted-foreground">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7">
-                                        <Search className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-indigo-600 dark:text-indigo-400 relative">
-                                        <Bell className="h-4 w-4" />
-                                        <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 bg-red-500 rounded-full"></span>
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7">
-                                        <svg className="h-4 w-4" fill="none" height="24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><line x1="21" x2="14" y1="4" y2="4" /><line x1="10" x2="3" y1="4" y2="4" /><line x1="21" x2="12" y1="12" y2="12" /><line x1="8" x2="3" y1="12" y2="12" /><line x1="21" x2="16" y1="20" y2="20" /><line x1="12" x2="3" y1="20" y2="20" /><line x1="14" x2="14" y1="2" y2="6" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="16" x2="16" y1="18" y2="22" /></svg>
-                                    </Button>
-                                </div>
                             </div>
 
                             {/* Activity Scroll Area */}

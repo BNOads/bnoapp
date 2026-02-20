@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateTask } from "@/hooks/useTaskMutations";
+import { useTaskLists } from "@/hooks/useTasks";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskPriority, RecurrenceType, RECURRENCE_LABELS, PRIORITY_LABELS } from "@/types/tasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { CalendarIcon, Flag, RefreshCw, Sparkles, Tag, Users } from "lucide-react";
+import { CalendarIcon, Flag, RefreshCw, Sparkles, Tag, Users, List } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -27,12 +28,13 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
     const [assignee, setAssignee] = useState<string>(defaultAssignee || "unassigned");
     const [priority, setPriority] = useState<TaskPriority>("media");
     const [recurrence, setRecurrence] = useState<RecurrenceType>("none");
-    const [category, setCategory] = useState<string>("none");
+    const [listId, setListId] = useState<string>("none");
     const [dueDate, setDueDate] = useState<string>("");
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
     const { userData: currentUser } = useCurrentUser();
     const { mutate: createTask, isPending } = useCreateTask();
+    const { data: taskLists } = useTaskLists();
 
     const getAssignedTo = () => {
         if (defaultAssignee) return defaultAssignee;
@@ -56,7 +58,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
             setAssignee(getAssignedTo());
             setPriority("media");
             setRecurrence("none");
-            setCategory("none");
+            setListId("none");
             setDueDate("");
         }
     }, [open, defaultAssignee]);
@@ -70,7 +72,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
                 description,
                 assignee: assignee !== "unassigned" ? assignee : null,
                 priority,
-                category: category !== "none" ? category : null,
+                list_id: listId !== "none" ? listId : null,
                 recurrence: recurrence !== "none" ? recurrence : null,
                 due_date: dueDate || null,
             },
@@ -117,21 +119,33 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
                         {/* Pills Row */}
                         <div className="flex flex-wrap items-center gap-2 pt-4">
 
-                            {/* Categoria/Status Pill */}
-                            <Select value={category} onValueChange={setCategory}>
+                            {/* Lista Pill */}
+                            <Select value={listId} onValueChange={setListId}>
                                 <SelectTrigger className="w-auto h-8 px-3 rounded-full bg-muted/40 border text-xs font-medium hover:bg-muted/60 transition-colors shadow-none">
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-2 h-2 rounded-full bg-slate-500" />
-                                        <SelectValue placeholder="Categoria" />
+                                    <div className="flex items-center gap-2">
+                                        {listId !== "none" && taskLists?.find(l => l.id === listId) ? (
+                                            <>
+                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: taskLists.find(l => l.id === listId)?.color }} />
+                                                <span className="truncate max-w-[100px] text-foreground">{taskLists.find(l => l.id === listId)?.name}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <List className="w-3.5 h-3.5 text-muted-foreground/70" />
+                                                <span className="text-muted-foreground">Lista</span>
+                                            </>
+                                        )}
                                     </div>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">Sem categoria</SelectItem>
-                                    <SelectItem value="Lancamento">Lançamento</SelectItem>
-                                    <SelectItem value="Marketing">Marketing</SelectItem>
-                                    <SelectItem value="Vendas">Vendas</SelectItem>
-                                    <SelectItem value="Suporte">Suporte</SelectItem>
-                                    <SelectItem value="Administrativo">Administrativo</SelectItem>
+                                    <SelectItem value="none">Sem lista</SelectItem>
+                                    {taskLists?.map(l => (
+                                        <SelectItem key={l.id} value={l.id}>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: l.color }} />
+                                                {l.name}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
 

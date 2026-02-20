@@ -4652,104 +4652,6 @@ export type Database = {
         }
         Relationships: []
       }
-      organograma_cards: {
-        Row: {
-          area: string
-          ativo: boolean
-          avatar_url: string | null
-          cargo_display: string | null
-          colaborador_id: string | null
-          created_at: string
-          created_by: string | null
-          email: string | null
-          id: string
-          is_custom: boolean
-          nome: string
-          ordem: number
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          area?: string
-          ativo?: boolean
-          avatar_url?: string | null
-          cargo_display?: string | null
-          colaborador_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          email?: string | null
-          id?: string
-          is_custom?: boolean
-          nome: string
-          ordem?: number
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          area?: string
-          ativo?: boolean
-          avatar_url?: string | null
-          cargo_display?: string | null
-          colaborador_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          email?: string | null
-          id?: string
-          is_custom?: boolean
-          nome?: string
-          ordem?: number
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "organograma_cards_colaborador_id_fkey"
-            columns: ["colaborador_id"]
-            isOneToOne: true
-            referencedRelation: "colaboradores"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      organograma_conexoes: {
-        Row: {
-          card_a_id: string
-          card_b_id: string
-          created_at: string
-          created_by: string | null
-          id: string
-        }
-        Insert: {
-          card_a_id: string
-          card_b_id: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-        }
-        Update: {
-          card_a_id?: string
-          card_b_id?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "organograma_conexoes_card_a_id_fkey"
-            columns: ["card_a_id"]
-            isOneToOne: false
-            referencedRelation: "organograma_cards"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "organograma_conexoes_card_b_id_fkey"
-            columns: ["card_b_id"]
-            isOneToOne: false
-            referencedRelation: "organograma_cards"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       orcamento_criativos: {
         Row: {
           created_at: string | null
@@ -4887,6 +4789,104 @@ export type Database = {
             columns: ["orcamento_id"]
             isOneToOne: false
             referencedRelation: "orcamentos_funil"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organograma_cards: {
+        Row: {
+          area: string
+          ativo: boolean
+          avatar_url: string | null
+          cargo_display: string | null
+          colaborador_id: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          is_custom: boolean
+          nome: string
+          ordem: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          area?: string
+          ativo?: boolean
+          avatar_url?: string | null
+          cargo_display?: string | null
+          colaborador_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_custom?: boolean
+          nome: string
+          ordem?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          area?: string
+          ativo?: boolean
+          avatar_url?: string | null
+          cargo_display?: string | null
+          colaborador_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_custom?: boolean
+          nome?: string
+          ordem?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organograma_cards_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: true
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organograma_conexoes: {
+        Row: {
+          card_a_id: string
+          card_b_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+        }
+        Insert: {
+          card_a_id: string
+          card_b_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+        }
+        Update: {
+          card_a_id?: string
+          card_b_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organograma_conexoes_card_a_id_fkey"
+            columns: ["card_a_id"]
+            isOneToOne: false
+            referencedRelation: "organograma_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organograma_conexoes_card_b_id_fkey"
+            columns: ["card_b_id"]
+            isOneToOne: false
+            referencedRelation: "organograma_cards"
             referencedColumns: ["id"]
           },
         ]
@@ -6176,6 +6176,36 @@ export type Database = {
           },
         ]
       }
+      task_lists: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by_id: string | null
+          id: string
+          name: string
+          position: number | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by_id?: string | null
+          id?: string
+          name: string
+          position?: number | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by_id?: string | null
+          id?: string
+          name?: string
+          position?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_to_id: string | null
@@ -6191,11 +6221,14 @@ export type Database = {
           due_time: string | null
           id: string
           is_recurring_instance: boolean | null
+          list_id: string | null
           parent_task_id: string | null
           position: number | null
           priority: string
           recurrence: string | null
           recurrence_end_date: string | null
+          time_tracked: number | null
+          timer_started_at: string | null
           title: string
           updated_at: string
         }
@@ -6213,11 +6246,14 @@ export type Database = {
           due_time?: string | null
           id?: string
           is_recurring_instance?: boolean | null
+          list_id?: string | null
           parent_task_id?: string | null
           position?: number | null
           priority?: string
           recurrence?: string | null
           recurrence_end_date?: string | null
+          time_tracked?: number | null
+          timer_started_at?: string | null
           title: string
           updated_at?: string
         }
@@ -6235,15 +6271,25 @@ export type Database = {
           due_time?: string | null
           id?: string
           is_recurring_instance?: boolean | null
+          list_id?: string | null
           parent_task_id?: string | null
           position?: number | null
           priority?: string
           recurrence?: string | null
           recurrence_end_date?: string | null
+          time_tracked?: number | null
+          timer_started_at?: string | null
           title?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tasks_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "task_lists"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tasks_parent_task_id_fkey"
             columns: ["parent_task_id"]
@@ -7405,3 +7451,4 @@ export const Constants = {
     },
   },
 } as const
+

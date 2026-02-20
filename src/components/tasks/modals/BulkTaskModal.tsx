@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateBulkTasks } from "@/hooks/useTaskMutations";
+import { useTaskLists } from "@/hooks/useTasks";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskPriority, RecurrenceType, RECURRENCE_LABELS, PRIORITY_LABELS } from "@/types/tasks";
 import { useToast } from "@/hooks/use-toast";
@@ -24,12 +25,13 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
     const [assignee, setAssignee] = useState<string>(defaultAssignee || "unassigned");
     const [priority, setPriority] = useState<TaskPriority>("media");
     const [recurrence, setRecurrence] = useState<RecurrenceType>("none");
-    const [category, setCategory] = useState<string>("none");
+    const [listId, setListId] = useState<string>("none");
     const [dueDate, setDueDate] = useState<string>("");
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string }[]>([]);
 
     const { mutate: createBulkTasks, isPending } = useCreateBulkTasks();
+    const { data: taskLists } = useTaskLists();
     const { toast } = useToast();
 
     useEffect(() => {
@@ -42,7 +44,7 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
             setAssignee(defaultAssignee || "unassigned");
             setPriority("media");
             setRecurrence("none");
-            setCategory("none");
+            setListId("none");
             setDueDate("");
         }
     }, [open, defaultAssignee]);
@@ -59,7 +61,7 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
             title,
             assignee: assignee !== "unassigned" ? assignee : null,
             priority,
-            category: category !== "none" ? category : null,
+            list_id: listId !== "none" ? listId : null,
             recurrence: recurrence !== "none" ? recurrence : null,
             due_date: dueDate || null,
         }));
@@ -123,18 +125,28 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Categoria</label>
-                            <Select value={category} onValueChange={setCategory}>
+                            <label className="text-sm font-medium">Lista</label>
+                            <Select value={listId} onValueChange={setListId}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Sem categoria" />
+                                    <SelectValue placeholder="Sem lista">
+                                        {listId !== "none" && taskLists?.find(l => l.id === listId) ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: taskLists.find(l => l.id === listId)?.color }} />
+                                                {taskLists.find(l => l.id === listId)?.name}
+                                            </div>
+                                        ) : "Sem lista"}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">Sem categoria</SelectItem>
-                                    <SelectItem value="Lancamento">Lançamento</SelectItem>
-                                    <SelectItem value="Marketing">Marketing</SelectItem>
-                                    <SelectItem value="Vendas">Vendas</SelectItem>
-                                    <SelectItem value="Suporte">Suporte</SelectItem>
-                                    <SelectItem value="Administrativo">Administrativo</SelectItem>
+                                    <SelectItem value="none">Sem lista</SelectItem>
+                                    {taskLists?.map(l => (
+                                        <SelectItem key={l.id} value={l.id}>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: l.color }} />
+                                                {l.name}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
