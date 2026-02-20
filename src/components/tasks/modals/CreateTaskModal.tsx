@@ -21,9 +21,11 @@ interface CreateTaskModalProps {
     onOpenChange: (open: boolean) => void;
     defaultAssignee?: string;
     defaultListId?: string;
+    defaultTitle?: string;
+    defaultDescription?: string;
 }
 
-export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultListId }: CreateTaskModalProps) {
+export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultListId, defaultTitle, defaultDescription }: CreateTaskModalProps) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [assignee, setAssignee] = useState<string>(defaultAssignee || "unassigned");
@@ -54,15 +56,15 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                 if (data) setColaboradores(data);
             });
             // Reset values when opened
-            setTitle("");
-            setDescription("");
+            setTitle(defaultTitle || "");
+            setDescription(defaultDescription || "");
             setAssignee(getAssignedTo());
             setPriority("media");
             setRecurrence("none");
             setListId(defaultListId || "none");
             setDueDate("");
         }
-    }, [open, defaultAssignee, defaultListId]);
+    }, [open, defaultAssignee, defaultListId, defaultTitle, defaultDescription]);
 
     const handleSave = () => {
         if (!title.trim()) return;

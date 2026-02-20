@@ -16,6 +16,7 @@ import { uploadImage, getImageFromClipboard } from '@/lib/imageUpload';
 import { convertLexicalToTipTap, isLexicalContent } from '@/lib/migrateArquivoToYjs';
 import { supabase } from '@/integrations/supabase/client';
 import { LinkInsertModal } from './LinkInsertModal';
+import { CreateTaskModal } from '@/components/tasks/modals/CreateTaskModal';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import {
@@ -88,6 +89,9 @@ export function ArquivoReuniaoTipTapEditor({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const migrationDoneRef = useRef(false);
   const contentChangeTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [taskSelectedText, setTaskSelectedText] = useState('');
 
   // Criar editor UMA vez (sem deps) - mesmo padrão do YjsCollaborativeEditor
   const editor = useEditor({
@@ -316,6 +320,16 @@ export function ArquivoReuniaoTipTapEditor({
     setColorPopoverOpen(false);
   }, [editor]);
 
+  const handleCreateTaskFromText = useCallback(() => {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    const text = editor.state.doc.textBetween(from, to, ' ').trim();
+    if (!text) return;
+
+    setTaskSelectedText(text);
+    setTaskModalOpen(true);
+  }, [editor]);
+
   if (!editor) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -455,6 +469,34 @@ export function ArquivoReuniaoTipTapEditor({
             tooltip="Fixar como titulo no indice"
           />
         )}
+
+        <div className="w-px h-6 bg-border mx-1" />
+
+        {/* Criar Tarefa */}
+        <button
+          type="button"
+          onClick={handleCreateTaskFromText}
+          className="p-2 rounded-md transition-all duration-200 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-500"
+          aria-label="Criar Tarefa"
+          title="Criar Tarefa"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 10.5V12a9 9 0 1 1-5.04-8.06" />
+            <path d="m9 12 2.25 2.5L21 4" />
+            <path d="M19 19v4" />
+            <path d="M17 21h4" />
+          </svg>
+        </button>
       </BubbleMenu>
 
       {/* Editor */}
@@ -466,6 +508,13 @@ export function ArquivoReuniaoTipTapEditor({
         onClose={() => setLinkModalOpen(false)}
         onInsert={handleInsertLink}
         selectedText={selectedText}
+      />
+
+      {/* Task Modal */}
+      <CreateTaskModal
+        open={taskModalOpen}
+        onOpenChange={setTaskModalOpen}
+        defaultTitle={taskSelectedText}
       />
     </div>
   );

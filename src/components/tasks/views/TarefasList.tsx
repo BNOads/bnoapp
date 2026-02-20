@@ -109,11 +109,11 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                             return (
                                 <div
                                     key={task.id}
-                                    className={`group flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer mb-3 ${task.completed ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" : task.priority === "alta" ? "border-red-500 bg-red-50/10 dark:bg-red-950/20 hover:border-red-500/80 hover:shadow-sm" : "bg-card hover:border-primary/50 hover:shadow-sm"}`}
+                                    className={`group flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-0 p-5 rounded-xl border transition-all cursor-pointer mb-3 ${task.completed ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" : task.priority === "alta" ? "border-red-500 bg-red-50/10 dark:bg-red-950/20 hover:border-red-500/80 hover:shadow-sm" : "bg-card hover:border-primary/50 hover:shadow-sm"}`}
                                     onClick={(e) => handleTaskClick(task.id, e)}
                                 >
-                                    <div className="flex items-center gap-4 overflow-hidden flex-1">
-                                        <div onClick={(e) => e.stopPropagation()} className="mt-0">
+                                    <div className="flex items-start md:items-center gap-4 overflow-hidden w-full lg:flex-1">
+                                        <div onClick={(e) => e.stopPropagation()} className="mt-1 md:mt-0 shrink-0">
                                             <Checkbox
                                                 checked={task.completed}
                                                 onCheckedChange={(c) => toggleComplete({ id: task.id, completed: c as boolean })}
@@ -127,7 +127,7 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                             </span>
 
                                             {!task.completed && (
-                                                <div className="flex flex-wrap items-center gap-4 mt-2" onClick={e => e.stopPropagation()}>
+                                                <div className="flex flex-wrap items-center gap-2 mt-2" onClick={e => e.stopPropagation()}>
                                                     {/* Assignee interactable */}
                                                     <Select
                                                         value={task.assignee || "unassigned"}
@@ -223,7 +223,7 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-4 shrink-0" onClick={e => e.stopPropagation()}>
+                                    <div className="flex items-center gap-3 shrink-0 self-start md:self-end lg:self-center w-full md:w-auto justify-start md:justify-end mt-2 lg:mt-0" onClick={e => e.stopPropagation()}>
                                         {(task.time_tracked || 0) > 0 && !task.completed && (
                                             <div className="flex items-center gap-2 text-base text-muted-foreground bg-muted/50 px-4 py-2 rounded-md border border-transparent">
                                                 <Clock className="w-5 h-5" />

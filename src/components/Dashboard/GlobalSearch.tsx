@@ -14,13 +14,14 @@ import {
     Users,
     Rocket,
     Trophy,
-    FlaskConical,
     Briefcase,
     FileText,
     Loader2,
     ChevronRight,
     CheckSquare,
-    Wrench
+    Wrench,
+    GraduationCap,
+    Play
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -34,7 +35,7 @@ interface SearchResult {
     id: string;
     title: string;
     subtitle?: string;
-    type: 'cliente' | 'colaborador' | 'lancamento' | 'desafio' | 'teste' | 'tarefa' | 'documento' | 'ferramenta';
+    type: 'cliente' | 'colaborador' | 'lancamento' | 'desafio' | 'teste' | 'tarefa' | 'documento' | 'ferramenta' | 'treinamento' | 'aula';
     url: string;
     colaboradorData?: any;
 }
@@ -160,7 +161,9 @@ export function GlobalSearch() {
                     desafios,
                     testes,
                     tarefas,
-                    documentos
+                    documentos,
+                    treinamentos,
+                    aulas
                 ] = await Promise.all([
                     // Clientes
                     supabase
@@ -213,6 +216,20 @@ export function GlobalSearch() {
                         .from('workspace_documents')
                         .select('id, title, emoji, is_public')
                         .or(`title.ilike.${searchTerm},content_html.ilike.${searchTerm}`)
+                        .limit(5),
+
+                    // Treinamentos (Cursos)
+                    supabase
+                        .from('treinamentos')
+                        .select('id, titulo, descricao')
+                        .ilike('titulo', searchTerm)
+                        .limit(5),
+
+                    // Aulas
+                    supabase
+                        .from('aulas')
+                        .select('id, titulo, treinamento_id')
+                        .ilike('titulo', searchTerm)
                         .limit(5),
                 ]);
 
@@ -281,6 +298,22 @@ export function GlobalSearch() {
                     url: `/ferramentas/documentos?doc=${d.id}`
                 }));
 
+                treinamentos.data?.forEach(t => newResults.push({
+                    id: t.id,
+                    title: t.titulo,
+                    subtitle: t.descricao || 'Curso',
+                    type: 'treinamento',
+                    url: `/curso/${t.id}`
+                }));
+
+                aulas.data?.forEach(a => newResults.push({
+                    id: a.id,
+                    title: a.titulo,
+                    subtitle: 'Aula',
+                    type: 'aula',
+                    url: `/curso/${a.treinamento_id}/aula/${a.id}`
+                }));
+
                 const matchedTools = STATIC_TOOLS.filter(t =>
                     t.title.toLowerCase().includes(searchLower) ||
                     t.subtitle.toLowerCase().includes(searchLower)
@@ -336,6 +369,8 @@ export function GlobalSearch() {
             case 'tarefa': return { icon: CheckSquare, text: 'text-blue-400', bg: 'bg-blue-400/10' };
             case 'documento': return { icon: FileText, text: 'text-indigo-500', bg: 'bg-indigo-500/10' };
             case 'ferramenta': return { icon: Wrench, text: 'text-zinc-500', bg: 'bg-zinc-500/10' };
+            case 'treinamento': return { icon: GraduationCap, text: 'text-cyan-500', bg: 'bg-cyan-500/10' };
+            case 'aula': return { icon: Play, text: 'text-rose-500', bg: 'bg-rose-500/10' };
             default: return { icon: Search, text: 'text-gray-500', bg: 'bg-gray-500/10' };
         }
     };

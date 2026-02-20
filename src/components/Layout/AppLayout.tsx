@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { FloatingNoteButton } from "@/components/ui/FloatingNoteButton";
+import { FloatingTaskButton } from "@/components/ui/FloatingTaskButton";
 import { Header } from "@/components/Layout/Header";
 import { PublicLogo } from "@/components/Layout/PublicLogo";
 import { useRecentTabs } from "@/hooks/useRecentTabs";
@@ -70,6 +71,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <main className={`${shouldShowHeader || user ? "container mx-auto px-6 py-8" : ""} mb-20 md:mb-0`}>
         {children}
       </main>
+      {shouldShowFAB && <FloatingTaskButton />}
       {shouldShowFAB && <FloatingNoteButton />}
       <NotificationPopup />
       {shouldShowHeader && <MobileBottomNav />}

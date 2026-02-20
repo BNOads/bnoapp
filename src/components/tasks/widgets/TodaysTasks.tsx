@@ -99,10 +99,10 @@ export function TodaysTasks() {
                 className={`group flex flex-col justify-center py-5 px-6 rounded-xl border transition-all cursor-pointer mb-3 ${task.completed ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" : task.priority === "alta" ? "border-red-500 bg-red-50/10 dark:bg-red-950/20 hover:border-red-500/80 hover:shadow-sm shadow-sm" : "border-border/50 bg-card hover:border-primary/50 hover:shadow-sm"}`}
                 onClick={(e) => handleTaskClick(task.id, e)}
             >
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-col gap-3 min-w-0 flex-1">
-                        <div className="flex items-center gap-4 w-full">
-                            <div onClick={(e) => e.stopPropagation()}>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0">
+                    <div className="flex flex-col gap-3 min-w-0 md:flex-1">
+                        <div className="flex items-start md:items-center gap-4 w-full">
+                            <div onClick={(e) => e.stopPropagation()} className="mt-1 md:mt-0 shrink-0">
                                 <Checkbox
                                     checked={task.completed}
                                     onCheckedChange={(c) => toggleComplete({ id: task.id, completed: c as boolean })}
@@ -115,7 +115,7 @@ export function TodaysTasks() {
                         </div>
 
                         {!task.completed && (
-                            <div className="flex flex-wrap items-center gap-4 mt-2 ml-10" onClick={e => e.stopPropagation()}>
+                            <div className="flex flex-wrap items-center gap-2 mt-2 ml-0 sm:ml-10" onClick={e => e.stopPropagation()}>
 
                                 {/* Editable Assignee */}
                                 <Select
@@ -198,7 +198,7 @@ export function TodaysTasks() {
                         )}
                     </div>
 
-                    <div className="flex items-center shrink-0" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-3 shrink-0 self-start md:self-end md:self-center w-full md:w-auto justify-start md:justify-end mt-2 md:mt-0" onClick={e => e.stopPropagation()}>
                         {(task.time_tracked || 0) > 0 && !task.completed && (
                             <div className="flex items-center gap-2 text-base text-muted-foreground bg-muted/50 px-4 py-2 rounded border border-transparent mr-3">
                                 <Clock className="w-5 h-5" />
