@@ -411,17 +411,6 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
-            <Textarea
-              id="descricao"
-              value={formData.descricao}
-              onChange={(e) => handleInputChange('descricao', e.target.value)}
-              placeholder="Descrição do lançamento..."
-              rows={3}
-            />
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="data_inicio_captacao">Data de Início da Captação *</Label>
@@ -445,7 +434,7 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <Label htmlFor="investimento_total">Investimento Total *</Label>
               <Input
@@ -456,42 +445,6 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
                 onChange={(e) => handleInputChange('investimento_total', e.target.value)}
                 placeholder="0.00"
                 required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="meta_investimento">Meta de Investimento</Label>
-              <Input
-                id="meta_investimento"
-                type="number"
-                step="0.01"
-                value={formData.meta_investimento}
-                onChange={(e) => handleInputChange('meta_investimento', e.target.value)}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="link_dashboard">Link do Dashboard</Label>
-              <Input
-                id="link_dashboard"
-                type="url"
-                value={formData.link_dashboard}
-                onChange={(e) => handleInputChange('link_dashboard', e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="link_briefing">Link do Briefing</Label>
-              <Input
-                id="link_briefing"
-                type="url"
-                value={formData.link_briefing}
-                onChange={(e) => handleInputChange('link_briefing', e.target.value)}
-                placeholder="https://..."
               />
             </div>
           </div>

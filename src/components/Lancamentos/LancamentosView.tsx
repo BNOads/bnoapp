@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, BarChart3, FileText, Filter, Search, X, Edit, Trash2, TrendingUp, Target, Lightbulb } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import NovoLancamentoModal from './NovoLancamentoModal';
-import { PainelIAResumo } from './PainelIAResumo';
+
 import GeradorPromessasModal from './GeradorPromessasModal';
 
 import LancamentosTable from './LancamentosTable';
@@ -77,7 +77,7 @@ export const LancamentosView: React.FC = () => {
   });
   const [clienteGestorMap, setClienteGestorMap] = useState<Record<string, string | null>>({});
   const [gestorInfoMap, setGestorInfoMap] = useState<Record<string, { nome: string; avatar_url?: string }>>({});
-  
+
   const { toast } = useToast();
 
   const statusColors = {
@@ -189,8 +189,8 @@ export const LancamentosView: React.FC = () => {
         .in('user_id', gestorUserIds.length > 0 ? gestorUserIds : ['00000000-0000-0000-0000-000000000000']);
 
       const gestorMap: Record<string, { nome: string; avatar_url?: string }> = {};
-      colaboradoresData?.forEach((col) => { 
-        gestorMap[col.user_id] = { nome: col.nome, avatar_url: col.avatar_url || undefined }; 
+      colaboradoresData?.forEach((col) => {
+        gestorMap[col.user_id] = { nome: col.nome, avatar_url: col.avatar_url || undefined };
       });
       setGestorInfoMap(gestorMap);
 
@@ -254,7 +254,7 @@ export const LancamentosView: React.FC = () => {
     lancamentosFiltrados = [...lancamentosFiltrados].sort((a, b) => {
       const aValue = getNestedValue(a, sortConfig.key);
       const bValue = getNestedValue(b, sortConfig.key);
-      
+
       if (aValue < bValue) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
@@ -267,23 +267,23 @@ export const LancamentosView: React.FC = () => {
 
   // Agrupamento por gestor - cálculo derivado sem hooks para evitar ordem variável de hooks
   const gestoresAggregados = (() => {
-    const acc: Record<string, { 
-      totalInvestimento: number; 
-      lancamentos: Array<{ nome: string; cliente_nome: string; investimento: number }> 
+    const acc: Record<string, {
+      totalInvestimento: number;
+      lancamentos: Array<{ nome: string; cliente_nome: string; investimento: number }>
     }> = {};
 
     for (const l of lancamentosFiltrados) {
       const gestorUserId = l.cliente_id ? clienteGestorMap[l.cliente_id] : null;
       if (!gestorUserId) continue;
-      
+
       if (!acc[gestorUserId]) {
         acc[gestorUserId] = { totalInvestimento: 0, lancamentos: [] };
       }
       acc[gestorUserId].totalInvestimento += Number(l.investimento_total) || 0;
-      acc[gestorUserId].lancamentos.push({ 
-        nome: l.nome_lancamento, 
-        cliente_nome: l.clientes?.nome || '', 
-        investimento: Number(l.investimento_total) || 0 
+      acc[gestorUserId].lancamentos.push({
+        nome: l.nome_lancamento,
+        cliente_nome: l.clientes?.nome || '',
+        investimento: Number(l.investimento_total) || 0
       });
     }
 
@@ -304,12 +304,14 @@ export const LancamentosView: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Gestão de Lançamentos</h1>
-            <p className="text-muted-foreground">
-              Gerencie todos os lançamentos e campanhas da sua equipe
-            </p>
-          </div>
+          {!window.location.pathname.includes('/ferramentas') && (
+            <div>
+              <h1 className="text-3xl font-bold">Gestão de Lançamentos</h1>
+              <p className="text-muted-foreground">
+                Gerencie todos os lançamentos e campanhas da sua equipe
+              </p>
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
@@ -352,126 +354,122 @@ export const LancamentosView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Gestão de Lançamentos</h1>
-          <p className="text-muted-foreground">
-            Gerencie todos os lançamentos e campanhas da sua equipe
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <div className="relative">
+      <div className="flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-center">
+        {!window.location.pathname.includes('/ferramentas') && (
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Gestão de Lançamentos</h1>
+            <p className="text-muted-foreground mt-1">
+              Gerencie todos os lançamentos e campanhas da sua equipe
+            </p>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+          <div className="relative flex-1 xl:flex-none xl:w-72">
             <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Pesquisar lançamentos..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
             />
             {searchTerm && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSearchTerm('')}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-transparent"
               >
-                <X className="h-3 w-3" />
+                <X className="h-3 w-3 text-muted-foreground" />
               </Button>
             )}
           </div>
-          {selectedIds.length > 0 && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => setShowEdicaoMassaModal(true)}
-                className="gap-2"
-              >
-                <Edit className="h-4 w-4" />
-                Editar Selecionados ({selectedIds.length})
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setShowExclusaoMassaModal(true)}
-                className="gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Excluir Selecionados ({selectedIds.length})
-              </Button>
-            </>
-          )}
-          <Button
-            variant={showFilters ? "default" : "outline"}
-            onClick={() => setShowFilters(!showFilters)}
-            className="gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filtros
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={() => setShowGeradorPromessas(true)}
-            className="gap-2"
-          >
-            <Lightbulb className="h-4 w-4" />
-            Gerador de Promessas
-          </Button>
-          
-          <Button
-            onClick={() => setShowNovoModal(true)}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Novo Lançamento
-          </Button>
+
+          <div className="flex items-center gap-2">
+            {selectedIds.length > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEdicaoMassaModal(true)}
+                  className="gap-2 h-10 border-border/50 bg-background/50 hover:bg-background"
+                >
+                  <Edit className="h-4 w-4" />
+                  <span className="hidden sm:inline">Editar ({selectedIds.length})</span>
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowExclusaoMassaModal(true)}
+                  className="gap-2 h-10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Excluir ({selectedIds.length})</span>
+                </Button>
+              </>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={() => setShowGeradorPromessas(true)}
+              className="gap-2 h-10 border-border/50 bg-background/50 hover:bg-background"
+            >
+              <Lightbulb className="h-4 w-4 text-amber-500" />
+              <span className="hidden sm:inline">Gerador de Promessas</span>
+            </Button>
+
+            <Button
+              onClick={() => setShowNovoModal(true)}
+              className="gap-2 h-10 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              Novo Lançamento
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">Total de Lançamentos</span>
+      {/* Cards de Estatísticas Redesignados */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-border/50 shadow-sm bg-background/50">
+          <CardContent className="p-5 flex flex-col justify-between h-full">
+            <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+              <FileText className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Total de Lançamentos</span>
             </div>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-3xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-blue-500" />
-              <span className="text-sm font-medium text-muted-foreground">Lançamentos Ativos</span>
+        <Card className="border-border/50 shadow-sm bg-background/50">
+          <CardContent className="p-5 flex flex-col justify-between h-full">
+            <div className="flex items-center gap-2 mb-2 text-blue-500/80">
+              <BarChart3 className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Lançamentos Ativos</span>
             </div>
-            <div className="text-2xl font-bold text-blue-600">{stats.ativos}</div>
+            <div className="text-3xl font-bold text-blue-600 dark:text-blue-500">{stats.ativos}</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Investimento Total</span>
+        <Card className="border-border/50 shadow-sm bg-background/50">
+          <CardContent className="p-5 flex flex-col justify-between h-full">
+            <div className="flex items-center gap-2 mb-2 text-emerald-500/80">
+              <TrendingUp className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Investimento Total</span>
             </div>
-            <div className="text-2xl font-bold text-green-600">
-              R$ {stats.investimentoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-500">
+              R$ {stats.investimentoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Finalizados</span>
+        <Card className="border-border/50 shadow-sm bg-background/50">
+          <CardContent className="p-5 flex flex-col justify-between h-full">
+            <div className="flex items-center gap-2 mb-2 text-green-500/80">
+              <Target className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Finalizados</span>
             </div>
-            <div className="text-2xl font-bold text-green-600">{stats.finalizados}</div>
+            <div className="text-3xl font-bold text-green-600 dark:text-green-500">{stats.finalizados}</div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Painel IA Resumo Geral */}
-      <PainelIAResumo />
 
       {/* Seção de Lançamentos por Gestor */}
       {gestoresAggregados.length > 0 && (
@@ -543,31 +541,31 @@ export const LancamentosView: React.FC = () => {
 
             <TabsContent value="lista" className="space-y-4">
               <LancamentosTable
-            lancamentos={lancamentosFiltrados}
-            onRefresh={fetchLancamentos}
-            statusColors={statusColors}
-            statusLabels={statusLabels}
-            tipoLabels={tipoLabels}
-            showFilters={showFilters}
-            filtros={filtros}
-            onFiltrosChange={setFiltros}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            onSort={handleSort}
-            sortConfig={sortConfig}
-          />
-        </TabsContent>
+                lancamentos={lancamentosFiltrados}
+                onRefresh={fetchLancamentos}
+                statusColors={statusColors}
+                statusLabels={statusLabels}
+                tipoLabels={tipoLabels}
+                showFilters={showFilters}
+                filtros={filtros}
+                onFiltrosChange={setFiltros}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+                onSort={handleSort}
+                sortConfig={sortConfig}
+              />
+            </TabsContent>
 
-        <TabsContent value="gantt" className="space-y-4">
-          <GanttChart 
-            lancamentos={lancamentosFiltrados}
-            statusColors={statusColors}
-            statusLabels={statusLabels}
-          />
-        </TabsContent>
+            <TabsContent value="gantt" className="space-y-4">
+              <GanttChart
+                lancamentos={lancamentosFiltrados}
+                statusColors={statusColors}
+                statusLabels={statusLabels}
+              />
+            </TabsContent>
 
             <TabsContent value="dashboard" className="space-y-4">
-              <DashboardLancamentos 
+              <DashboardLancamentos
                 lancamentos={lancamentosFiltrados}
                 statusLabels={statusLabels}
                 tipoLabels={tipoLabels}

@@ -158,7 +158,7 @@ export function MensagensSemanaisView() {
     if (!filtroWeekStart) {
       return;
     }
-    
+
     setLoading(true);
     try {
       let query = supabase.from("mensagens_semanais").select(`
@@ -180,12 +180,12 @@ export function MensagensSemanaisView() {
       const weekStartDate = parse(filtroWeekStart, "yyyy-MM-dd", new Date());
       const weekEndDate = endOfWeek(weekStartDate, { weekStartsOn: 1 });
       const weekEnd = format(weekEndDate, "yyyy-MM-dd");
-      
+
       // Filtrar mensagens que estejam dentro do intervalo da semana
       query = query
         .gte("semana_referencia", filtroWeekStart)
         .lte("semana_referencia", weekEnd);
-      
+
       if (filtroGestor && filtroGestor !== "all") {
         query = query.eq("gestor_id", filtroGestor);
       }
@@ -345,7 +345,7 @@ export function MensagensSemanaisView() {
       });
       return;
     }
-    
+
     // Calcular a semana de referência baseada na data atual
     const currentWeekStart = getCurrentWeekStart();
     const weekStart = format(currentWeekStart, "yyyy-MM-dd");
@@ -564,34 +564,28 @@ ${mensagem.mensagem}`;
     return texto.substring(0, 600);
   };
   return <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Mensagens Semanais</h1>
-          <p className="text-muted-foreground">
-            Gerencie e acompanhe as mensagens semanais dos clientes
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="default" onClick={() => setModalNovaMensagem(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Nova Mensagem
-          </Button>
-        </div>
+    <div className="flex items-center justify-end">
+      <div className="flex items-center gap-2">
+        <Button variant="default" onClick={() => setModalNovaMensagem(true)} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Nova Mensagem
+        </Button>
       </div>
+    </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="filtro-semana">Semana</Label>
-              <WeekPicker value={filtroWeekStart} onChange={(weekStart, weekYear, weekNumber) => {
+    {/* Filtros */}
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Filter className="h-5 w-5" />
+          Filtros
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <Label htmlFor="filtro-semana">Semana</Label>
+            <WeekPicker value={filtroWeekStart} onChange={(weekStart, weekYear, weekNumber) => {
               setFiltroWeekStart(weekStart);
               setFiltroWeekYear(weekYear);
               setFiltroWeekNumber(weekNumber);
@@ -610,514 +604,514 @@ ${mensagem.mensagem}`;
               url.searchParams.delete('week_start');
               window.history.replaceState({}, '', url.toString());
             }} />
-            </div>
-
-            <div>
-              <Label htmlFor="filtro-gestor">Gestor</Label>
-              <Select value={filtroGestor} onValueChange={setFiltroGestor}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os gestores" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os gestores</SelectItem>
-                  {colaboradores
-                    .filter(colaborador => colaborador.id && colaborador.id.trim() !== '')
-                    .map(colaborador => <SelectItem key={colaborador.id} value={colaborador.id}>
-                      {colaborador.nome}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="filtro-cliente">Cliente</Label>
-              <Select value={filtroCliente} onValueChange={setFiltroCliente}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os clientes" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os clientes</SelectItem>
-                  {clientes
-                    .filter(cliente => cliente.id && cliente.id.trim() !== '')
-                    .map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nome}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-
-            <div>
-              <Label htmlFor="filtro-enviado">Status de Envio</Label>
-              <Select value={filtroEnviado} onValueChange={setFiltroEnviado}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="true">Enviado</SelectItem>
-                  <SelectItem value="false">Pendente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Tabela de Mensagens */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Mensagens ({mensagens.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? <div className="text-center py-8">Carregando mensagens...</div> : mensagens.length === 0 ? <div className="text-center py-8 text-muted-foreground">
-              Nenhuma mensagem encontrada para os filtros selecionados
-            </div> : <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("cliente_nome")}>
-                      <div className="flex items-center gap-2">
-                        Cliente
-                        <IconeOrdenacao coluna="cliente_nome" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("gestor_nome")}>
-                      <div className="flex items-center gap-2">
-                        Gestor
-                        <IconeOrdenacao coluna="gestor_nome" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("semana_referencia")}>
-                      <div className="flex items-center gap-2">
-                        Semana
-                        <IconeOrdenacao coluna="semana_referencia" />
-                      </div>
-                    </TableHead>
-                    <TableHead>Mensagem</TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("created_at")}>
-                      <div className="flex items-center gap-2">
-                        Histórico
-                        <IconeOrdenacao coluna="created_at" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("enviado")}>
-                      <div className="flex items-center gap-2">
-                        Status
-                        <IconeOrdenacao coluna="enviado" />
-                      </div>
-                    </TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mensagens.map(mensagem => <TableRow key={mensagem.id}>
-                      <TableCell className="font-medium">
-                        {mensagem.cliente_nome}
-                      </TableCell>
-                      <TableCell>{mensagem.gestor_nome}</TableCell>
-                      <TableCell>
-                        {format(new Date(mensagem.semana_referencia), "dd/MM/yyyy", {
+          <div>
+            <Label htmlFor="filtro-gestor">Gestor</Label>
+            <Select value={filtroGestor} onValueChange={setFiltroGestor}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos os gestores" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os gestores</SelectItem>
+                {colaboradores
+                  .filter(colaborador => colaborador.id && colaborador.id.trim() !== '')
+                  .map(colaborador => <SelectItem key={colaborador.id} value={colaborador.id}>
+                    {colaborador.nome}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="filtro-cliente">Cliente</Label>
+            <Select value={filtroCliente} onValueChange={setFiltroCliente}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos os clientes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os clientes</SelectItem>
+                {clientes
+                  .filter(cliente => cliente.id && cliente.id.trim() !== '')
+                  .map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
+                    {cliente.nome}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+
+          <div>
+            <Label htmlFor="filtro-enviado">Status de Envio</Label>
+            <Select value={filtroEnviado} onValueChange={setFiltroEnviado}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos os status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="true">Enviado</SelectItem>
+                <SelectItem value="false">Pendente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
+    {/* Tabela de Mensagens */}
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MessageSquare className="h-5 w-5" />
+          Mensagens ({mensagens.length})
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? <div className="text-center py-8">Carregando mensagens...</div> : mensagens.length === 0 ? <div className="text-center py-8 text-muted-foreground">
+          Nenhuma mensagem encontrada para os filtros selecionados
+        </div> : <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("cliente_nome")}>
+                  <div className="flex items-center gap-2">
+                    Cliente
+                    <IconeOrdenacao coluna="cliente_nome" />
+                  </div>
+                </TableHead>
+                <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("gestor_nome")}>
+                  <div className="flex items-center gap-2">
+                    Gestor
+                    <IconeOrdenacao coluna="gestor_nome" />
+                  </div>
+                </TableHead>
+                <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("semana_referencia")}>
+                  <div className="flex items-center gap-2">
+                    Semana
+                    <IconeOrdenacao coluna="semana_referencia" />
+                  </div>
+                </TableHead>
+                <TableHead>Mensagem</TableHead>
+                <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("created_at")}>
+                  <div className="flex items-center gap-2">
+                    Histórico
+                    <IconeOrdenacao coluna="created_at" />
+                  </div>
+                </TableHead>
+                <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("enviado")}>
+                  <div className="flex items-center gap-2">
+                    Status
+                    <IconeOrdenacao coluna="enviado" />
+                  </div>
+                </TableHead>
+                <TableHead>Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {mensagens.map(mensagem => <TableRow key={mensagem.id}>
+                <TableCell className="font-medium">
+                  {mensagem.cliente_nome}
+                </TableCell>
+                <TableCell>{mensagem.gestor_nome}</TableCell>
+                <TableCell>
+                  {format(new Date(mensagem.semana_referencia), "dd/MM/yyyy", {
                     locale: ptBR
                   })}
-                      </TableCell>
-                      <TableCell className="max-w-md">
-                        <div className="truncate">
-                          {previewMensagem(mensagem.mensagem)}
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <div className="text-xs text-muted-foreground">
-                          {mensagem.enviado_gestor_em && <div>✅ Gestor: {format(new Date(mensagem.enviado_gestor_em), "dd/MM HH:mm", {
-                        locale: ptBR
-                      })}</div>}
-                          {mensagem.enviado_cs_em && <div>📤 CS: {format(new Date(mensagem.enviado_cs_em), "dd/MM HH:mm", {
-                        locale: ptBR
-                      })}</div>}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={mensagem.enviado ? "default" : "destructive"} className={mensagem.enviado ? "bg-green-100 text-green-800" : ""}>
-                          {mensagem.enviado ? "✅ Enviado" : "❌ Pendente"}
-                        </Badge>
-                      </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setMensagemSelecionada(mensagem)} title="Visualizar mensagem">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            
-                            {/* Desktop: Botões lado a lado */}
-                            <div className="hidden md:flex items-center gap-2">
-                              {podeEditar(mensagem) && <>
-                                  
-                                  
-                                  
-                                </>}
-                              {!podeEditar(mensagem)}
-                            </div>
-
-                            {/* Mobile: Menu dropdown */}
-                            <div className="md:hidden">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="outline" size="sm" title="Mais ações">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  {podeEditar(mensagem) && <>
-                                      <DropdownMenuItem onClick={() => iniciarEdicao(mensagem)}>
-                                        <Pencil className="h-4 w-4 mr-2" />
-                                        Editar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => copiarMensagem(mensagem)}>
-                                        <Copy className="h-4 w-4 mr-2" />
-                                        Copiar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => setMensagemExcluindo(mensagem)} className="text-red-600">
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Excluir
-                                      </DropdownMenuItem>
-                                    </>}
-                                  {!podeEditar(mensagem) && <DropdownMenuItem onClick={() => copiarMensagem(mensagem)}>
-                                      <Copy className="h-4 w-4 mr-2" />
-                                      Copiar
-                                    </DropdownMenuItem>}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            
-                            {(isCS || isAdmin) && <div className="flex items-center gap-1">
-                                <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagem.id, true)} disabled={mensagem.enviado} className="text-green-600 hover:text-green-700" title="Marcar como enviado">
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagem.id, false)} disabled={!mensagem.enviado} className="text-red-600 hover:text-red-700" title="Marcar como pendente">
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>}
-                          </div>
-                        </TableCell>
-                    </TableRow>)}
-                </TableBody>
-              </Table>
-            </div>}
-        </CardContent>
-      </Card>
-
-      {/* Modal de Visualização */}
-      <Dialog open={!!mensagemSelecionada} onOpenChange={() => {
-      setMensagemSelecionada(null);
-      setMensagemExpandida(false);
-    }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center justify-between">
-              <DialogTitle>Mensagem Semanal - {mensagemSelecionada?.cliente_nome}</DialogTitle>
-              
-              {mensagemSelecionada && <div className="flex items-center gap-2">
-                  {/* Desktop: Botões lado a lado */}
-                  <div className="hidden md:flex items-center gap-2">
-                    {podeEditar(mensagemSelecionada) && <>
-                        <Button variant="outline" size="sm" onClick={() => {
-                    iniciarEdicao(mensagemSelecionada);
-                    setMensagemSelecionada(null);
-                  }} title="Editar mensagem" className="text-blue-600 hover:text-blue-700">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => copiarMensagem(mensagemSelecionada)} title="Copiar mensagem" className="text-gray-600 hover:text-gray-700">
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => {
-                    setMensagemExcluindo(mensagemSelecionada);
-                    setMensagemSelecionada(null);
-                  }} title="Excluir mensagem" className="text-red-600 hover:text-red-700">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>}
-                    {!podeEditar(mensagemSelecionada) && <Button variant="outline" size="sm" onClick={() => copiarMensagem(mensagemSelecionada)} title="Copiar mensagem" className="text-gray-600 hover:text-gray-700">
-                        <Copy className="h-4 w-4" />
-                      </Button>}
+                </TableCell>
+                <TableCell className="max-w-md">
+                  <div className="truncate">
+                    {previewMensagem(mensagem.mensagem)}
                   </div>
+                </TableCell>
 
-                  {/* Mobile: Menu dropdown */}
-                  <div className="md:hidden">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" title="Mais ações">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {podeEditar(mensagemSelecionada) && <>
-                            <DropdownMenuItem onClick={() => {
-                        iniciarEdicao(mensagemSelecionada);
-                        setMensagemSelecionada(null);
-                      }}>
+                <TableCell>
+                  <div className="text-xs text-muted-foreground">
+                    {mensagem.enviado_gestor_em && <div>✅ Gestor: {format(new Date(mensagem.enviado_gestor_em), "dd/MM HH:mm", {
+                      locale: ptBR
+                    })}</div>}
+                    {mensagem.enviado_cs_em && <div>📤 CS: {format(new Date(mensagem.enviado_cs_em), "dd/MM HH:mm", {
+                      locale: ptBR
+                    })}</div>}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={mensagem.enviado ? "default" : "destructive"} className={mensagem.enviado ? "bg-green-100 text-green-800" : ""}>
+                    {mensagem.enviado ? "✅ Enviado" : "❌ Pendente"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setMensagemSelecionada(mensagem)} title="Visualizar mensagem">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+
+                    {/* Desktop: Botões lado a lado */}
+                    <div className="hidden md:flex items-center gap-2">
+                      {podeEditar(mensagem) && <>
+
+
+
+                      </>}
+                      {!podeEditar(mensagem)}
+                    </div>
+
+                    {/* Mobile: Menu dropdown */}
+                    <div className="md:hidden">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" title="Mais ações">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {podeEditar(mensagem) && <>
+                            <DropdownMenuItem onClick={() => iniciarEdicao(mensagem)}>
                               <Pencil className="h-4 w-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => copiarMensagem(mensagemSelecionada)}>
+                            <DropdownMenuItem onClick={() => copiarMensagem(mensagem)}>
                               <Copy className="h-4 w-4 mr-2" />
                               Copiar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                        setMensagemExcluindo(mensagemSelecionada);
-                        setMensagemSelecionada(null);
-                      }} className="text-red-600">
+                            <DropdownMenuItem onClick={() => setMensagemExcluindo(mensagem)} className="text-red-600">
                               <Trash2 className="h-4 w-4 mr-2" />
                               Excluir
                             </DropdownMenuItem>
                           </>}
-                        {!podeEditar(mensagemSelecionada) && <DropdownMenuItem onClick={() => copiarMensagem(mensagemSelecionada)}>
+                          {!podeEditar(mensagem) && <DropdownMenuItem onClick={() => copiarMensagem(mensagem)}>
                             <Copy className="h-4 w-4 mr-2" />
                             Copiar
                           </DropdownMenuItem>}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {(isCS || isAdmin) && <div className="flex items-center gap-1">
+                      <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagem.id, true)} disabled={mensagem.enviado} className="text-green-600 hover:text-green-700" title="Marcar como enviado">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagem.id, false)} disabled={!mensagem.enviado} className="text-red-600 hover:text-red-700" title="Marcar como pendente">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>}
                   </div>
-                </div>}
+                </TableCell>
+              </TableRow>)}
+            </TableBody>
+          </Table>
+        </div>}
+      </CardContent>
+    </Card>
+
+    {/* Modal de Visualização */}
+    <Dialog open={!!mensagemSelecionada} onOpenChange={() => {
+      setMensagemSelecionada(null);
+      setMensagemExpandida(false);
+    }}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Mensagem Semanal - {mensagemSelecionada?.cliente_nome}</DialogTitle>
+
+            {mensagemSelecionada && <div className="flex items-center gap-2">
+              {/* Desktop: Botões lado a lado */}
+              <div className="hidden md:flex items-center gap-2">
+                {podeEditar(mensagemSelecionada) && <>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    iniciarEdicao(mensagemSelecionada);
+                    setMensagemSelecionada(null);
+                  }} title="Editar mensagem" className="text-blue-600 hover:text-blue-700">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => copiarMensagem(mensagemSelecionada)} title="Copiar mensagem" className="text-gray-600 hover:text-gray-700">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setMensagemExcluindo(mensagemSelecionada);
+                    setMensagemSelecionada(null);
+                  }} title="Excluir mensagem" className="text-red-600 hover:text-red-700">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>}
+                {!podeEditar(mensagemSelecionada) && <Button variant="outline" size="sm" onClick={() => copiarMensagem(mensagemSelecionada)} title="Copiar mensagem" className="text-gray-600 hover:text-gray-700">
+                  <Copy className="h-4 w-4" />
+                </Button>}
+              </div>
+
+              {/* Mobile: Menu dropdown */}
+              <div className="md:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" title="Mais ações">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {podeEditar(mensagemSelecionada) && <>
+                      <DropdownMenuItem onClick={() => {
+                        iniciarEdicao(mensagemSelecionada);
+                        setMensagemSelecionada(null);
+                      }}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => copiarMensagem(mensagemSelecionada)}>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copiar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setMensagemExcluindo(mensagemSelecionada);
+                        setMensagemSelecionada(null);
+                      }} className="text-red-600">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </>}
+                    {!podeEditar(mensagemSelecionada) && <DropdownMenuItem onClick={() => copiarMensagem(mensagemSelecionada)}>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copiar
+                    </DropdownMenuItem>}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>}
+          </div>
+        </DialogHeader>
+
+        {mensagemSelecionada && <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="font-medium">Gestor:</span> {mensagemSelecionada.gestor_nome}
             </div>
-          </DialogHeader>
-          
-          {mensagemSelecionada && <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Gestor:</span> {mensagemSelecionada.gestor_nome}
-                </div>
-                <div>
-                  <span className="font-medium">Semana:</span> {format(new Date(mensagemSelecionada.semana_referencia), "dd/MM/yyyy", {
+            <div>
+              <span className="font-medium">Semana:</span> {format(new Date(mensagemSelecionada.semana_referencia), "dd/MM/yyyy", {
                 locale: ptBR
               })}
-                </div>
-                <div>
-                  <span className="font-medium">Status:</span>
-                  <Badge variant={mensagemSelecionada.enviado ? "default" : "destructive"} className={`ml-2 ${mensagemSelecionada.enviado ? "bg-green-100 text-green-800" : ""}`}>
-                    {mensagemSelecionada.enviado ? "✅ Enviado" : "❌ Pendente"}
-                  </Badge>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="font-medium mb-2">Mensagem:</h4>
-                <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap break-words overflow-wrap-anywhere" style={{
+            </div>
+            <div>
+              <span className="font-medium">Status:</span>
+              <Badge variant={mensagemSelecionada.enviado ? "default" : "destructive"} className={`ml-2 ${mensagemSelecionada.enviado ? "bg-green-100 text-green-800" : ""}`}>
+                {mensagemSelecionada.enviado ? "✅ Enviado" : "❌ Pendente"}
+              </Badge>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-medium mb-2">Mensagem:</h4>
+            <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap break-words overflow-wrap-anywhere" style={{
               wordBreak: 'break-word',
               overflowWrap: 'anywhere'
             }}>
-                  {precisaCompactar(mensagemSelecionada.mensagem) ? <>
-                      {mensagemExpandida ? <>
-                          {mensagemSelecionada.mensagem}
-                          <div className="mt-3">
-                            <Button variant="link" size="sm" onClick={() => setMensagemExpandida(false)} className="p-0 h-auto text-primary">
-                              Ler menos
-                            </Button>
-                          </div>
-                        </> : <>
-                          {obterTextoCompactado(mensagemSelecionada.mensagem)}...
-                          <div className="mt-3">
-                            <Button variant="link" size="sm" onClick={() => setMensagemExpandida(true)} className="p-0 h-auto text-primary">
-                              Ler mais
-                            </Button>
-                          </div>
-                        </>}
-                    </> : mensagemSelecionada.mensagem}
-                </div>
-              </div>
-
-              {/* Histórico de Envios */}
-              <div>
-                <h4 className="font-medium mb-2">Histórico de Envios:</h4>
-                <div className="space-y-2">
-                  {mensagemSelecionada.enviado_gestor_em && <div className="text-sm bg-blue-50 p-2 rounded border-l-4 border-blue-500">
-                      <div className="font-medium text-blue-800">✅ Salva pelo Gestor</div>
-                      <div className="text-blue-600">
-                        {format(new Date(mensagemSelecionada.enviado_gestor_em), "dd/MM/yyyy 'às' HH:mm", {
-                    locale: ptBR
-                  })}
-                      </div>
-                    </div>}
-                  {mensagemSelecionada.enviado_cs_em && <div className="text-sm bg-green-50 p-2 rounded border-l-4 border-green-500">
-                      <div className="font-medium text-green-800">📤 Enviada pela CS</div>
-                      <div className="text-green-600">
-                        {format(new Date(mensagemSelecionada.enviado_cs_em), "dd/MM/yyyy 'às' HH:mm", {
-                    locale: ptBR
-                  })}
-                      </div>
-                    </div>}
-                  {Array.isArray(mensagemSelecionada.historico_envios) && mensagemSelecionada.historico_envios.length > 0 && <div className="mt-3">
-                      <h5 className="text-xs font-medium text-muted-foreground mb-1">Histórico Completo:</h5>
-                      {mensagemSelecionada.historico_envios.map((evento, index) => <div key={index} className="text-xs text-muted-foreground p-1 bg-muted rounded mb-1">
-                          <div className="font-medium">{evento.detalhes || 'Ação registrada'}</div>
-                          <div>{evento.data ? format(new Date(evento.data), "dd/MM/yyyy 'às' HH:mm", {
-                      locale: ptBR
-                    }) : 'Data não disponível'}</div>
-                        </div>)}
-                    </div>}
-                </div>
-              </div>
-            </div>}
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal Nova Mensagem */}
-      <Dialog open={modalNovaMensagem} onOpenChange={setModalNovaMensagem}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Nova Mensagem Semanal</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="novo-cliente">Cliente</Label>
-              <Select value={novoClienteId} onValueChange={setNovoClienteId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes
-                    .filter(cliente => cliente.id && cliente.id.trim() !== '')
-                    .map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nome}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="novo-texto">Mensagem</Label>
-              <Textarea id="novo-texto" placeholder="Digite a mensagem semanal para o cliente..." value={novoTexto} onChange={e => setNovoTexto(e.target.value)} rows={6} className="mt-1" />
-            </div>
-
-            {novoClienteId && <div className="text-sm text-muted-foreground bg-muted p-3 rounded">
-                <strong>Cliente selecionado:</strong> {clientes.find(c => c.id === novoClienteId)?.nome}
-                <br />
-                <strong>CS:</strong> {colaboradores.find(c => c.id === clientes.find(cl => cl.id === novoClienteId)?.cs_id)?.nome || "CS não definido"}
-              </div>}
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setModalNovaMensagem(false)} disabled={salvandoNova}>
-                Cancelar
-              </Button>
-              <Button onClick={criarNovaMensagem} disabled={salvandoNova}>
-                {salvandoNova ? "Salvando..." : "Criar Mensagem"}
-              </Button>
+              {precisaCompactar(mensagemSelecionada.mensagem) ? <>
+                {mensagemExpandida ? <>
+                  {mensagemSelecionada.mensagem}
+                  <div className="mt-3">
+                    <Button variant="link" size="sm" onClick={() => setMensagemExpandida(false)} className="p-0 h-auto text-primary">
+                      Ler menos
+                    </Button>
+                  </div>
+                </> : <>
+                  {obterTextoCompactado(mensagemSelecionada.mensagem)}...
+                  <div className="mt-3">
+                    <Button variant="link" size="sm" onClick={() => setMensagemExpandida(true)} className="p-0 h-auto text-primary">
+                      Ler mais
+                    </Button>
+                  </div>
+                </>}
+              </> : mensagemSelecionada.mensagem}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Modal de Edição */}
-      <Dialog open={modalEditarMensagem} onOpenChange={setModalEditarMensagem}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Editar Mensagem Semanal</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="editar-cliente">Cliente</Label>
-              <Select value={editarClienteId} onValueChange={setEditarClienteId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes
-                    .filter(cliente => cliente.id && cliente.id.trim() !== '')
-                    .map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nome}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
+          {/* Histórico de Envios */}
+          <div>
+            <h4 className="font-medium mb-2">Histórico de Envios:</h4>
+            <div className="space-y-2">
+              {mensagemSelecionada.enviado_gestor_em && <div className="text-sm bg-blue-50 p-2 rounded border-l-4 border-blue-500">
+                <div className="font-medium text-blue-800">✅ Salva pelo Gestor</div>
+                <div className="text-blue-600">
+                  {format(new Date(mensagemSelecionada.enviado_gestor_em), "dd/MM/yyyy 'às' HH:mm", {
+                    locale: ptBR
+                  })}
+                </div>
+              </div>}
+              {mensagemSelecionada.enviado_cs_em && <div className="text-sm bg-green-50 p-2 rounded border-l-4 border-green-500">
+                <div className="font-medium text-green-800">📤 Enviada pela CS</div>
+                <div className="text-green-600">
+                  {format(new Date(mensagemSelecionada.enviado_cs_em), "dd/MM/yyyy 'às' HH:mm", {
+                    locale: ptBR
+                  })}
+                </div>
+              </div>}
+              {Array.isArray(mensagemSelecionada.historico_envios) && mensagemSelecionada.historico_envios.length > 0 && <div className="mt-3">
+                <h5 className="text-xs font-medium text-muted-foreground mb-1">Histórico Completo:</h5>
+                {mensagemSelecionada.historico_envios.map((evento, index) => <div key={index} className="text-xs text-muted-foreground p-1 bg-muted rounded mb-1">
+                  <div className="font-medium">{evento.detalhes || 'Ação registrada'}</div>
+                  <div>{evento.data ? format(new Date(evento.data), "dd/MM/yyyy 'às' HH:mm", {
+                    locale: ptBR
+                  }) : 'Data não disponível'}</div>
+                </div>)}
+              </div>}
             </div>
+          </div>
+        </div>}
+      </DialogContent>
+    </Dialog>
 
-            <div>
-              <Label htmlFor="editar-semana">Semana de Referência</Label>
-              <WeekPicker value={editarWeekStart} onChange={weekStart => {
+    {/* Modal Nova Mensagem */}
+    <Dialog open={modalNovaMensagem} onOpenChange={setModalNovaMensagem}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Nova Mensagem Semanal</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="novo-cliente">Cliente</Label>
+            <Select value={novoClienteId} onValueChange={setNovoClienteId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                {clientes
+                  .filter(cliente => cliente.id && cliente.id.trim() !== '')
+                  .map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
+                    {cliente.nome}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="novo-texto">Mensagem</Label>
+            <Textarea id="novo-texto" placeholder="Digite a mensagem semanal para o cliente..." value={novoTexto} onChange={e => setNovoTexto(e.target.value)} rows={6} className="mt-1" />
+          </div>
+
+          {novoClienteId && <div className="text-sm text-muted-foreground bg-muted p-3 rounded">
+            <strong>Cliente selecionado:</strong> {clientes.find(c => c.id === novoClienteId)?.nome}
+            <br />
+            <strong>CS:</strong> {colaboradores.find(c => c.id === clientes.find(cl => cl.id === novoClienteId)?.cs_id)?.nome || "CS não definido"}
+          </div>}
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setModalNovaMensagem(false)} disabled={salvandoNova}>
+              Cancelar
+            </Button>
+            <Button onClick={criarNovaMensagem} disabled={salvandoNova}>
+              {salvandoNova ? "Salvando..." : "Criar Mensagem"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Modal de Edição */}
+    <Dialog open={modalEditarMensagem} onOpenChange={setModalEditarMensagem}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Editar Mensagem Semanal</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="editar-cliente">Cliente</Label>
+            <Select value={editarClienteId} onValueChange={setEditarClienteId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                {clientes
+                  .filter(cliente => cliente.id && cliente.id.trim() !== '')
+                  .map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
+                    {cliente.nome}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="editar-semana">Semana de Referência</Label>
+            <WeekPicker value={editarWeekStart} onChange={weekStart => {
               setEditarWeekStart(weekStart);
             }} placeholder="Selecionar semana" />
-            </div>
+          </div>
 
-            <div>
-              <Label htmlFor="editar-texto">Mensagem</Label>
-              <Textarea id="editar-texto" placeholder="Digite a mensagem semanal..." value={editarTexto} onChange={e => setEditarTexto(e.target.value)} rows={6} />
-            </div>
+          <div>
+            <Label htmlFor="editar-texto">Mensagem</Label>
+            <Textarea id="editar-texto" placeholder="Digite a mensagem semanal..." value={editarTexto} onChange={e => setEditarTexto(e.target.value)} rows={6} />
+          </div>
 
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => {
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => {
               setModalEditarMensagem(false);
               setMensagemEditando(null);
               setEditarClienteId("");
               setEditarWeekStart("");
               setEditarTexto("");
             }}>
-                Cancelar
-              </Button>
-              <Button onClick={editarMensagem} disabled={salvandoEdicao}>
-                {salvandoEdicao ? "Salvando..." : "Salvar Alterações"}
-              </Button>
-            </div>
+              Cancelar
+            </Button>
+            <Button onClick={editarMensagem} disabled={salvandoEdicao}>
+              {salvandoEdicao ? "Salvando..." : "Salvar Alterações"}
+            </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </DialogContent>
+    </Dialog>
 
-      {/* Modal de Confirmação de Exclusão */}
-      <AlertDialog open={!!mensagemExcluindo} onOpenChange={() => setMensagemExcluindo(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir esta mensagem semanal para <strong>{mensagemExcluindo?.cliente_nome}</strong>?
-              <br /><br />
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={excluirMensagem} disabled={excluindoMensagem} className="bg-red-600 hover:bg-red-700">
-              {excluindoMensagem ? "Excluindo..." : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+    {/* Modal de Confirmação de Exclusão */}
+    <AlertDialog open={!!mensagemExcluindo} onOpenChange={() => setMensagemExcluindo(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir esta mensagem semanal para <strong>{mensagemExcluindo?.cliente_nome}</strong>?
+            <br /><br />
+            Esta ação não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={excluirMensagem} disabled={excluindoMensagem} className="bg-red-600 hover:bg-red-700">
+            {excluindoMensagem ? "Excluindo..." : "Excluir"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
-      {/* Modal de Texto Completo (Fallback para cópia) */}
-      <Dialog open={modalTextoCompleto.mostrar} onOpenChange={open => setModalTextoCompleto({
+    {/* Modal de Texto Completo (Fallback para cópia) */}
+    <Dialog open={modalTextoCompleto.mostrar} onOpenChange={open => setModalTextoCompleto({
       mostrar: open,
       conteudo: ""
     })}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Copiar Mensagem Completa</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Não foi possível copiar automaticamente. Selecione todo o texto abaixo e copie manualmente:
-            </p>
-            
-            <div id="texto-completo" className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm select-all" style={{
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Copiar Mensagem Completa</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Não foi possível copiar automaticamente. Selecione todo o texto abaixo e copie manualmente:
+          </p>
+
+          <div id="texto-completo" className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm select-all" style={{
             userSelect: 'all'
           }}>
-              {modalTextoCompleto.conteudo}
-            </div>
-            
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setModalTextoCompleto({
+            {modalTextoCompleto.conteudo}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setModalTextoCompleto({
               mostrar: false,
               conteudo: ""
             })}>
-                Fechar
-              </Button>
-              <Button onClick={selecionarTudo}>
-                Selecionar Tudo
-              </Button>
-            </div>
+              Fechar
+            </Button>
+            <Button onClick={selecionarTudo}>
+              Selecionar Tudo
+            </Button>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>;
+        </div>
+      </DialogContent>
+    </Dialog>
+  </div>;
 }

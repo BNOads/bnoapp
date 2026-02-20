@@ -1,18 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  Save, 
-  Clock, 
-  Loader2, 
-  BookOpen, 
-  History, 
+import {
+  Users,
+  Save,
+  Clock,
+  Loader2,
+  BookOpen,
+  History,
   Bookmark,
   Search,
   X,
   ChevronUp,
-  ChevronDown as ChevronDownIcon
+  ChevronDown as ChevronDownIcon,
+  ArrowLeft
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { ArquivoHistoricoVersoes } from './ArquivoHistoricoVersoes';
 import { ArquivoVisualizarVersao } from './ArquivoVisualizarVersao';
 import { Textarea } from '@/components/ui/textarea';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -84,7 +85,7 @@ export function ArquivoReuniaoView() {
   const [showSaveVersionModal, setShowSaveVersionModal] = useState(false);
   const [saveVersionObservation, setSaveVersionObservation] = useState('');
   const [selectedVersion, setSelectedVersion] = useState<any>(null);
-  
+
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const pendingContentRef = useRef<any>(null);
@@ -131,24 +132,24 @@ export function ArquivoReuniaoView() {
       const textContent = editorElement.textContent || '';
       const lowerContent = textContent.toLowerCase();
       let startIndex = 0;
-      
+
       while (startIndex < lowerContent.length) {
         const foundIndex = lowerContent.indexOf(query, startIndex);
         if (foundIndex === -1) break;
-        
+
         // Extrair contexto (50 caracteres antes e depois)
         const contextStart = Math.max(0, foundIndex - 50);
         const contextEnd = Math.min(textContent.length, foundIndex + query.length + 50);
         const context = textContent.substring(contextStart, contextEnd);
         const highlight = textContent.substring(foundIndex, foundIndex + query.length);
-        
+
         results.push({
           text: highlight,
           type: 'content',
           context: `...${context}...`,
           position: foundIndex
         });
-        
+
         startIndex = foundIndex + query.length;
       }
     }
@@ -209,10 +210,10 @@ export function ArquivoReuniaoView() {
   // Navegar pelos resultados
   const navigateToResult = (index: number) => {
     if (searchResults.length === 0) return;
-    
+
     const result = searchResults[index];
     const editorElement = document.querySelector('.prose');
-    
+
     if (result.type === 'index') {
       // Navegar para o título no índice
       const headings = editorElement?.querySelectorAll('h1, h2, h3');
@@ -230,10 +231,10 @@ export function ArquivoReuniaoView() {
           NodeFilter.SHOW_TEXT,
           null
         );
-        
+
         let currentPos = 0;
         let node;
-        
+
         while (node = walker.nextNode()) {
           const text = node.textContent || '';
           if (currentPos + text.length >= result.position) {
@@ -246,7 +247,7 @@ export function ArquivoReuniaoView() {
         }
       }
     }
-    
+
     setCurrentResultIndex(index);
   };
 
@@ -288,7 +289,7 @@ export function ArquivoReuniaoView() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      
+
       // Salvar conteúdo pendente ao desmontar componente
       if (pendingContentRef.current && arquivoId) {
         saveContent(pendingContentRef.current);
@@ -438,7 +439,7 @@ export function ArquivoReuniaoView() {
 
   const saveContent = async (content: any, retryCount = 0): Promise<boolean> => {
     if (!arquivoId || !content) return false;
-    
+
     if (isSavingRef.current) {
       return false;
     }
@@ -446,7 +447,7 @@ export function ArquivoReuniaoView() {
     try {
       isSavingRef.current = true;
       setSaveStatus('saving');
-      
+
       const { data: user } = await supabase.auth.getUser();
 
       const { error } = await supabase
@@ -464,18 +465,18 @@ export function ArquivoReuniaoView() {
       setLastSaved(now);
       setSaveStatus('saved');
       pendingContentRef.current = null;
-      
+
       // Manter status "saved" por 3 segundos
       setTimeout(() => {
         if (pendingContentRef.current === null) {
           setSaveStatus('idle');
         }
       }, 3000);
-      
+
       return true;
     } catch (error: any) {
       console.error('❌ Erro ao salvar:', error);
-      
+
       if (retryCount < 2) {
         const delay = Math.pow(2, retryCount) * 1000;
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -497,7 +498,7 @@ export function ArquivoReuniaoView() {
   const handleManualSave = async () => {
     const content = pendingContentRef.current || conteudo;
     const success = await saveContent(content);
-    
+
     if (success) {
       toast({
         title: "✅ Salvo",
@@ -531,10 +532,10 @@ export function ArquivoReuniaoView() {
     try {
       setConteudo(version.conteudo);
       await saveContent(version.conteudo);
-      
+
       setShowHistoryModal(false);
       setShowViewModal(false);
-      
+
       toast({
         title: "✅ Versão restaurada",
         description: `Versão ${version.versao} foi restaurada`,
@@ -613,10 +614,22 @@ export function ArquivoReuniaoView() {
     <div className="flex h-screen bg-background">
       <div className="flex-1 flex flex-col">
         <div className="border-b border-border bg-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
+          <div className="flex flex-col gap-4 mb-3">
+            <Button
+              variant="ghost"
+              className="w-fit text-muted-foreground hover:text-foreground p-0 h-auto font-medium"
+              onClick={() => {
+                // If there's an onClose prop passed from the wrapper we would use that,
+                // but usually the tools views dispatch a custom event or check history
+                window.history.back();
+              }}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar às Ferramentas
+            </Button>
+
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">Arquivo de Reunião {anoSelecionado}</h1>
                 <div className="flex items-center gap-2">
                   {[2025, anoAtual].filter((v, i, a) => a.indexOf(v) === i).map((ano) => (
                     <Button
@@ -634,35 +647,27 @@ export function ArquivoReuniaoView() {
                 </div>
               </div>
               <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
-                  saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
+                <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
                   saveStatus === 'saved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
-                  saveStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
-                  'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-400'
-                }`}>
-                  {saveStatus === 'saving' && (
-                    <>
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>Salvando...</span>
-                    </>
-                  )}
-                  {saveStatus === 'saved' && (
-                    <>
-                      <span className="inline-block w-1.5 h-1.5 bg-green-600 rounded-full"></span>
-                      <span>Salvo</span>
-                    </>
-                  )}
-                  {saveStatus === 'error' && <span>Erro ao salvar</span>}
-                  {saveStatus === 'idle' && lastSaved && (
-                    <>
-                      <Clock className="w-3 h-3" />
-                      <span>{lastSaved.toLocaleTimeString()}</span>
-                    </>
-                  )}
+                    saveStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
+                      'bg-muted text-muted-foreground'
+                  }`}>
+                  {saveStatus === 'saving' && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {saveStatus === 'saved' && <Save className="w-3 h-3" />}
+                  {saveStatus === 'error' && <AlertCircle className="w-3 h-3 text-red-500" />}
+                  {saveStatus === 'idle' && <Save className="w-3 h-3" />}
+
+                  {saveStatus === 'saving' && 'Salvando...'}
+                  {saveStatus === 'saved' && 'Salvo'}
+                  {saveStatus === 'error' && 'Erro ao salvar'}
+                  {saveStatus === 'idle' && 'Alterações locais'}
                 </div>
+                {lastSaved && (
+                  <span className="hidden sm:inline">Última alteração hoje às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                )}
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               {onlineUsers.length > 0 && (
                 <div className="flex items-center gap-2">
@@ -717,8 +722,8 @@ export function ArquivoReuniaoView() {
                 Salvar Versão
               </Button>
 
-              <Button 
-                onClick={handleManualSave} 
+              <Button
+                onClick={handleManualSave}
                 disabled={saveStatus === 'saving'}
                 variant={saveStatus === 'error' ? 'destructive' : 'default'}
                 size="sm"
@@ -773,9 +778,8 @@ export function ArquivoReuniaoView() {
                   <button
                     key={index}
                     onClick={() => navigateToResult(index)}
-                    className={`w-full text-left px-4 py-2 hover:bg-accent transition-colors border-b border-border last:border-b-0 ${
-                      index === currentResultIndex ? 'bg-accent' : ''
-                    }`}
+                    className={`w-full text-left px-4 py-2 hover:bg-accent transition-colors border-b border-border last:border-b-0 ${index === currentResultIndex ? 'bg-accent' : ''
+                      }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant={result.type === 'index' ? 'default' : 'secondary'} className="text-xs">
@@ -822,11 +826,10 @@ export function ArquivoReuniaoView() {
               {indicesTitulos.map((heading, index) => (
                 <button
                   key={`${heading.id}-${index}`}
-                  className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors ${
-                    heading.tag === 'h1' ? 'font-semibold' :
+                  className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors ${heading.tag === 'h1' ? 'font-semibold' :
                     heading.tag === 'h2' ? 'ml-3 font-medium' :
-                    'ml-6 text-muted-foreground'
-                  }`}
+                      'ml-6 text-muted-foreground'
+                    }`}
                   onClick={() => {
                     const editorElement = document.querySelector('.prose');
                     if (editorElement) {

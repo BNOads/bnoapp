@@ -31,6 +31,7 @@ interface Tool {
   borderLight: string;
   component: React.ReactNode;
   comingSoon?: boolean;
+  hideHeader?: boolean;
 }
 
 // Componente de card draggable
@@ -207,7 +208,8 @@ export const FerramentasView = () => {
       component: <OrcamentosView />,
       color: "text-emerald-600 dark:text-emerald-400",
       bgLight: "bg-emerald-50 dark:bg-emerald-950/30",
-      borderLight: "border-emerald-200 dark:border-emerald-900/50"
+      borderLight: "border-emerald-200 dark:border-emerald-900/50",
+      hideHeader: true
     },
     {
       id: "lancamentos",
@@ -495,20 +497,22 @@ export const FerramentasView = () => {
           </Button>
         </div>
 
-        <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-6 mb-8 relative overflow-hidden">
-          <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-${selectedToolData.color.split('-')[1]}-500/10 to-transparent rounded-full blur-3xl`} />
-          <div className="flex items-start gap-4 relative z-10">
-            <div className={`p-4 rounded-2xl ${selectedToolData.bgLight} ${selectedToolData.color}`}>
-              <selectedToolData.icon className="h-8 w-8" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground/90">{selectedToolData.title}</h1>
-              <p className="text-muted-foreground text-lg mt-1 max-w-2xl">
-                {selectedToolData.description}
-              </p>
+        {!selectedToolData.hideHeader && (
+          <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-6 mb-8 relative overflow-hidden">
+            <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-${selectedToolData.color.split('-')[1]}-500/10 to-transparent rounded-full blur-3xl`} />
+            <div className="flex items-start gap-4 relative z-10">
+              <div className={`p-4 rounded-2xl ${selectedToolData.bgLight} ${selectedToolData.color}`}>
+                <selectedToolData.icon className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground/90">{selectedToolData.title}</h1>
+                <p className="text-muted-foreground text-lg mt-1 max-w-2xl">
+                  {selectedToolData.description}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {selectedToolData.component}
       </div>

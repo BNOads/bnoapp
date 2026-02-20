@@ -146,12 +146,6 @@ export const CreativeDownloaderView = () => {
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Voltar às Ferramentas
                 </Button>
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Downloader de Criativos</h1>
-                    <p className="text-muted-foreground mt-1 text-lg">
-                        Baixe vídeos de YouTube, Instagram e Meta Ad Library em MP4
-                    </p>
-                </div>
             </div>
 
             {/* Main Card */}

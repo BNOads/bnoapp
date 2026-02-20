@@ -97,17 +97,7 @@ export const CriadorCriativosView = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <div className="p-3 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500">
-          <Sparkles className="h-8 w-8 text-white" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold">Criador de Criativos</h1>
-          <p className="text-muted-foreground">
-            Gere variações de criativos automaticamente com IA
-          </p>
-        </div>
-      </div>
+
 
       {/* Progress Bar */}
       <div className="space-y-2">
@@ -117,22 +107,20 @@ export const CriadorCriativosView = () => {
             const Icon = step.icon;
             const isActive = step.id === currentStep;
             const isCompleted = step.id < currentStep;
-            
+
             return (
               <div
                 key={step.id}
-                className={`flex flex-col items-center gap-1 ${
-                  isActive ? "text-primary" : isCompleted ? "text-green-600" : ""
-                }`}
+                className={`flex flex-col items-center gap-1 ${isActive ? "text-primary" : isCompleted ? "text-green-600" : ""
+                  }`}
               >
                 <div
-                  className={`p-2 rounded-full ${
-                    isActive
+                  className={`p-2 rounded-full ${isActive
                       ? "bg-primary text-primary-foreground"
                       : isCompleted
-                      ? "bg-green-600 text-white"
-                      : "bg-muted"
-                  }`}
+                        ? "bg-green-600 text-white"
+                        : "bg-muted"
+                    }`}
                 >
                   <Icon className="h-4 w-4" />
                 </div>
@@ -153,7 +141,7 @@ export const CriadorCriativosView = () => {
               onNext={handleNext}
             />
           )}
-          
+
           {currentStep === 2 && (
             <TextsStep
               headline={config.headline}
@@ -165,7 +153,7 @@ export const CriadorCriativosView = () => {
               onBack={handleBack}
             />
           )}
-          
+
           {currentStep === 3 && (
             <ConfigStep
               formats={config.formats}
@@ -177,7 +165,7 @@ export const CriadorCriativosView = () => {
               onBack={handleBack}
             />
           )}
-          
+
           {currentStep === 4 && (
             <GenerationStep
               config={config}
@@ -188,7 +176,7 @@ export const CriadorCriativosView = () => {
               onBack={handleBack}
             />
           )}
-          
+
           {currentStep === 5 && (
             <ResultsStep
               creatives={generatedCreatives}

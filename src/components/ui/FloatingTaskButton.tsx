@@ -31,7 +31,7 @@ export function FloatingTaskButton() {
         <>
             <Button
                 onClick={() => setModalOpen(true)}
-                className="fixed bottom-[92px] right-6 z-50 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 bg-amber-500 hover:bg-amber-600 p-0 text-white"
+                className="fixed bottom-[80px] right-6 z-50 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 bg-amber-500 hover:bg-amber-600 p-0 text-white"
                 title="Nova Tarefa"
             >
                 <TaskPlusIcon className="h-6 w-6" />

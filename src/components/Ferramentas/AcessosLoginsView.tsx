@@ -7,13 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  EyeOff, 
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Eye,
+  EyeOff,
   ExternalLink,
   Lock,
   User,
@@ -88,7 +88,7 @@ export const AcessosLoginsView = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { isAdmin } = useUserPermissions();
-  
+
   const [acessos, setAcessos] = useState<AcessoLogin[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -99,7 +99,7 @@ export const AcessosLoginsView = () => {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<AcessoFormData[]>([]);
   const [importing, setImporting] = useState(false);
-  
+
   const [formData, setFormData] = useState<AcessoFormData>({
     nome_acesso: '',
     categoria: 'outros',
@@ -110,7 +110,7 @@ export const AcessosLoginsView = () => {
   });
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  
+
   const { searchTerm, setSearchTerm, filteredItems } = useSearch(
     acessos.filter(acesso => selectedCategory === 'all' || acesso.categoria === selectedCategory),
     ['nome_acesso', 'login_usuario', 'notas_adicionais']
@@ -172,7 +172,7 @@ export const AcessosLoginsView = () => {
           .eq('id', editingAcesso.id);
 
         if (error) throw error;
-        
+
         toast({
           title: "Sucesso",
           description: "Acesso atualizado com sucesso"
@@ -183,7 +183,7 @@ export const AcessosLoginsView = () => {
           .insert(dataToSave);
 
         if (error) throw error;
-        
+
         toast({
           title: "Sucesso",
           description: "Acesso criado com sucesso"
@@ -225,12 +225,12 @@ export const AcessosLoginsView = () => {
         .eq('id', id);
 
       if (error) throw error;
-      
+
       toast({
         title: "Sucesso",
         description: "Acesso excluído com sucesso"
       });
-      
+
       loadAcessos();
     } catch (error) {
       console.error('Error deleting acesso:', error);
@@ -411,7 +411,7 @@ export const AcessosLoginsView = () => {
             const valid = Object.keys(CATEGORIAS);
             if (valid.includes(v)) return v;
             if (!v) return 'outros';
-            
+
             // Mapeamento específico para categorias do arquivo
             const categoryMap: Record<string, string> = {
               'cursos': 'plataforma_cursos',
@@ -425,9 +425,9 @@ export const AcessosLoginsView = () => {
               'wordpress': 'outros',
               'hospedagem': 'outros'
             };
-            
+
             if (categoryMap[v]) return categoryMap[v];
-            
+
             // Fallback para detecção automática
             if (v.includes('rede') && v.includes('soc')) return 'redes_sociais';
             if (v.includes('ads') || v.includes('anúncio') || v.includes('anuncio') || v.includes('tráfego') || v.includes('trafego') || v.includes('google') || v.includes('meta')) return 'ferramentas_ads';
@@ -461,7 +461,7 @@ export const AcessosLoginsView = () => {
 
       console.log('Dados convertidos:', converted);
       setImportPreview(converted);
-      
+
       toast({
         title: "Arquivo processado",
         description: `${converted.length} itens encontrados no arquivo`
@@ -498,16 +498,16 @@ export const AcessosLoginsView = () => {
 
     try {
       setImporting(true);
-      
+
       let successCount = 0;
       let errorCount = 0;
-      
+
       for (const item of importPreview) {
         if (!item.nome_acesso.trim()) {
           console.log('Pulando item sem nome:', item);
           continue; // Skip empty names
         }
-        
+
         try {
           const dataToSave = {
             nome_acesso: item.nome_acesso,
@@ -574,7 +574,7 @@ export const AcessosLoginsView = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     toast({
       title: "Template baixado",
       description: "Use o arquivo template_acessos.csv como exemplo"
@@ -592,13 +592,7 @@ export const AcessosLoginsView = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Acessos & Logins</h1>
-          <p className="text-muted-foreground">
-            Gerencie credenciais e acessos da equipe
-          </p>
-        </div>
+      <div className="flex items-center justify-end">
         {isAdmin && (
           <div className="flex gap-2">
             <Button onClick={() => setShowModal(true)}>
@@ -694,7 +688,7 @@ export const AcessosLoginsView = () => {
                     {acesso.senha_criptografada ? (
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-sm">
-                          {visiblePasswords.has(acesso.id) 
+                          {visiblePasswords.has(acesso.id)
                             ? decryptPassword(acesso.senha_criptografada)
                             : '••••••••'
                           }
@@ -762,7 +756,7 @@ export const AcessosLoginsView = () => {
               ))}
             </TableBody>
           </Table>
-          
+
           {filteredItems.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               Nenhum acesso encontrado
@@ -782,7 +776,7 @@ export const AcessosLoginsView = () => {
               Preencha os dados do acesso/login
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium">Nome do acesso *</label>
@@ -793,7 +787,7 @@ export const AcessosLoginsView = () => {
                 className="mt-1"
               />
             </div>
-            
+
             <div>
               <label className="text-sm font-medium">Categoria</label>
               <Select value={formData.categoria} onValueChange={(value) => setFormData(prev => ({ ...prev, categoria: value }))}>
@@ -809,7 +803,7 @@ export const AcessosLoginsView = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium">Login/Usuário</label>
               <Input
@@ -819,7 +813,7 @@ export const AcessosLoginsView = () => {
                 className="mt-1"
               />
             </div>
-            
+
             <div>
               <label className="text-sm font-medium">Senha</label>
               <div className="relative mt-1">
@@ -831,7 +825,7 @@ export const AcessosLoginsView = () => {
                 />
               </div>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium">Link de acesso</label>
               <Input
@@ -841,7 +835,7 @@ export const AcessosLoginsView = () => {
                 className="mt-1"
               />
             </div>
-            
+
             <div>
               <label className="text-sm font-medium">Notas adicionais</label>
               <Textarea
@@ -853,10 +847,10 @@ export const AcessosLoginsView = () => {
               />
             </div>
           </div>
-          
+
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setShowModal(false);
                 setEditingAcesso(null);
@@ -882,13 +876,13 @@ export const AcessosLoginsView = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowDeleteConfirm(null)}
             >
               Cancelar
             </Button>
-            <Button 
+            <Button
               variant="destructive"
               onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}
             >
@@ -907,7 +901,7 @@ export const AcessosLoginsView = () => {
               Importe vários acessos de uma vez usando um arquivo CSV ou JSON
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {!importFile ? (
               <div className="space-y-4">
@@ -937,7 +931,7 @@ export const AcessosLoginsView = () => {
                     </Button>
                   </label>
                 </div>
-                
+
                 <div className="flex items-center justify-center gap-2">
                   <Button variant="ghost" onClick={downloadTemplate}>
                     <Download className="h-4 w-4 mr-2" />
@@ -948,7 +942,7 @@ export const AcessosLoginsView = () => {
                     Usar arquivo copiado
                   </Button>
                 </div>
-                
+
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">Formato esperado:</h4>
                   <p className="text-sm text-muted-foreground mb-2">
@@ -981,7 +975,7 @@ export const AcessosLoginsView = () => {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                
+
                 {importPreview.length > 0 && (
                   <div className="max-h-64 overflow-auto border rounded-lg">
                     <Table>
@@ -1018,10 +1012,10 @@ export const AcessosLoginsView = () => {
               </div>
             )}
           </div>
-          
+
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setShowImportModal(false);
                 setImportFile(null);

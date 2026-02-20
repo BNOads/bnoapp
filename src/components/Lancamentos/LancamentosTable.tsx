@@ -330,16 +330,17 @@ export const LancamentosTable = ({
         </Card>
       )}
 
-      <Card>
+      <Card className="border-border/50 shadow-sm overflow-hidden bg-background/50">
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
+            <TableHeader className="bg-muted/30">
+              <TableRow className="hover:bg-transparent border-b-border/50">
+                <TableHead className="w-12 px-4 py-3">
                   <Checkbox
                     checked={isAllSelected || isSomeSelected}
                     onCheckedChange={handleSelectAll}
                     aria-label="Selecionar todos"
+                    className="border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                   />
                 </TableHead>
                 <SortableHeader sortKey="nome_lancamento">Lançamento</SortableHeader>
@@ -347,38 +348,37 @@ export const LancamentosTable = ({
                 <SortableHeader sortKey="status_lancamento">Status</SortableHeader>
                 <SortableHeader sortKey="tipo_lancamento">Tipo</SortableHeader>
                 <SortableHeader sortKey="investimento_total">Investimento</SortableHeader>
-                <SortableHeader sortKey="data_inicio_captacao">Data Início</SortableHeader>
-                <SortableHeader sortKey="data_inicio_cpl">Início CPL</SortableHeader>
-                <TableHead>Dashboard</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <SortableHeader sortKey="data_inicio_captacao">Captação</SortableHeader>
+                <SortableHeader sortKey="data_inicio_cpl">CPL</SortableHeader>
+                <TableHead className="py-3 font-medium text-muted-foreground">Estatísticas</TableHead>
+                <TableHead className="w-12 py-3"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {lancamentos.map((lancamento) => (
-                <TableRow key={lancamento.id}>
-                  <TableCell>
+                <TableRow key={lancamento.id} className="group hover:bg-muted/30 transition-colors">
+                  <TableCell className="py-3">
                     <Checkbox
                       checked={selectedIds.includes(lancamento.id)}
                       onCheckedChange={(checked) => handleSelectItem(lancamento.id, checked as boolean)}
                       aria-label={`Selecionar ${lancamento.nome_lancamento}`}
+                      className="border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                     />
                   </TableCell>
-                  <TableCell className="font-medium">
-                    <div>
-                      <div className="font-semibold">
-                        <Link to={`/lancamentos/${lancamento.id}`} className="text-primary hover:underline">
-                          {lancamento.nome_lancamento}
-                        </Link>
-                      </div>
+                  <TableCell className="py-3 font-medium">
+                    <div className="flex flex-col gap-0.5">
+                      <Link to={`/lancamentos/${lancamento.id}`} className="text-[15px] font-semibold text-foreground hover:text-primary transition-colors line-clamp-1">
+                        {lancamento.nome_lancamento}
+                      </Link>
                       {lancamento.descricao && (
-                        <div className="text-sm text-muted-foreground truncate max-w-xs">
+                        <span className="text-[13px] text-muted-foreground line-clamp-1 max-w-[250px]" title={lancamento.descricao}>
                           {lancamento.descricao}
-                        </div>
+                        </span>
                       )}
                     </div>
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="py-3">
                     <Select
                       value={lancamento.cliente_id ?? 'none'}
                       onValueChange={(value) => {
@@ -400,11 +400,19 @@ export const LancamentosTable = ({
                     </Select>
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="py-3">
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className={`${statusColors[lancamento.status_lancamento]} text-white`}>
+                      <div className={`px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 w-fit
+                        ${lancamento.status_lancamento === 'em_captacao' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : ''}
+                        ${lancamento.status_lancamento === 'cpl' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : ''}
+                        ${lancamento.status_lancamento === 'remarketing' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' : ''}
+                        ${lancamento.status_lancamento === 'finalizado' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : ''}
+                        ${lancamento.status_lancamento === 'pausado' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' : ''}
+                        ${lancamento.status_lancamento === 'cancelado' ? 'bg-red-500/10 text-red-600 dark:text-red-400' : ''}
+                      `}>
+                        <div className={`h-1.5 w-1.5 rounded-full ${statusColors[lancamento.status_lancamento]}`} />
                         {statusLabels[lancamento.status_lancamento]}
-                      </Badge>
+                      </div>
 
                       {(() => {
                         const alerts = [];
@@ -424,9 +432,9 @@ export const LancamentosTable = ({
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger>
-                                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                  <AlertTriangle className="h-4 w-4 text-amber-500" />
                                 </TooltipTrigger>
-                                <TooltipContent>
+                                <TooltipContent className="bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/50 dark:border-amber-900/50 dark:text-amber-200">
                                   <div className="flex flex-col gap-1">
                                     <span className="font-semibold text-xs">Pontos de Atenção:</span>
                                     {alerts.map((alert, i) => (
@@ -443,21 +451,19 @@ export const LancamentosTable = ({
                     </div>
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="py-3">
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger>
-                          <Badge
-                            className={`
-                              ${lancamento.tipo_lancamento === 'tradicional' ? 'bg-[#2563EB] text-white hover:bg-[#2563EB]/90' : ''}
-                              ${lancamento.tipo_lancamento === 'captacao_simples' ? 'bg-[#F59E0B] text-white hover:bg-[#F59E0B]/90' : ''}
-                              ${lancamento.tipo_lancamento === 'semente' ? 'bg-[#7C3AED] text-white hover:bg-[#7C3AED]/90' : ''}
-                              ${lancamento.tipo_lancamento === 'perpetuo' ? 'bg-[#16A34A] text-white hover:bg-[#16A34A]/90' : ''}
-                              ${!['tradicional', 'captacao_simples', 'semente', 'perpetuo'].includes(lancamento.tipo_lancamento) ? 'bg-[#9CA3AF] text-white hover:bg-[#9CA3AF]/90' : ''}
-                            `}
-                          >
+                        <TooltipTrigger asChild>
+                          <div className={`px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider w-fit border cursor-help
+                            ${lancamento.tipo_lancamento === 'tradicional' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' : ''}
+                            ${lancamento.tipo_lancamento === 'captacao_simples' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800' : ''}
+                            ${lancamento.tipo_lancamento === 'semente' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' : ''}
+                            ${lancamento.tipo_lancamento === 'perpetuo' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800' : ''}
+                            ${!['tradicional', 'captacao_simples', 'semente', 'perpetuo'].includes(lancamento.tipo_lancamento) ? 'bg-muted text-muted-foreground border-border' : ''}
+                          `}>
                             {tipoLabels[lancamento.tipo_lancamento]}
-                          </Badge>
+                          </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Tipo do Lançamento: {tipoLabels[lancamento.tipo_lancamento]}</p>
@@ -466,101 +472,103 @@ export const LancamentosTable = ({
                     </TooltipProvider>
                   </TableCell>
 
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <DollarSign className="h-4 w-4 text-green-600" />
-                      <span className="font-semibold text-green-600">
-                        R$ {Number(lancamento.investimento_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  <TableCell className="py-3">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-6 w-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                        <DollarSign className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <span className="font-semibold text-[14px] text-emerald-600 dark:text-emerald-400">
+                        {Number(lancamento.investimento_total).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   </TableCell>
 
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
+                  <TableCell className="py-3">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span className="text-[13px] font-medium">
                         {new Date(lancamento.data_inicio_captacao).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="py-3">
                     {lancamento.data_inicio_cpl ? (
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span className="text-[13px] font-medium">
                           {new Date(lancamento.data_inicio_cpl).toLocaleDateString('pt-BR')}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
+                      <span className="text-muted-foreground/50 text-sm">-</span>
                     )}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="py-3">
                     {lancamento.link_dashboard ? (
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-8"
+                        variant="ghost"
+                        className="h-8 px-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                         asChild
                       >
                         <a href={lancamento.link_dashboard.startsWith('http') ? lancamento.link_dashboard : `https://${lancamento.link_dashboard}`} target="_blank" rel="noopener noreferrer">
-                          <BarChart3 className="h-4 w-4 mr-1" />
-                          Abrir
+                          <BarChart3 className="h-4 w-4 mr-1.5" />
+                          <span className="text-[13px]">Dash</span>
                         </a>
                       </Button>
                     ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
+                      <span className="text-muted-foreground/50 text-sm pl-2">-</span>
                     )}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="py-3 pr-4">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditLancamento(lancamento)}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Editar
+                      <DropdownMenuContent align="end" className="w-[200px]">
+                        <DropdownMenuItem onClick={() => handleEditLancamento(lancamento)} className="cursor-pointer">
+                          <Edit className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Editar Lançamento
                         </DropdownMenuItem>
 
-                        <DropdownMenuItem onClick={() => handleTogglePublicLink(lancamento)}>
+                        <DropdownMenuItem onClick={() => handleTogglePublicLink(lancamento)} className="cursor-pointer">
                           {lancamento.link_publico_ativo ? (
                             <>
-                              <EyeOff className="h-4 w-4 mr-2" />
+                              <EyeOff className="h-4 w-4 mr-2 text-muted-foreground" />
                               Desativar Link Público
                             </>
                           ) : (
                             <>
-                              <Share2 className="h-4 w-4 mr-2" />
+                              <Share2 className="h-4 w-4 mr-2 text-muted-foreground" />
                               Ativar Link Público
                             </>
                           )}
                         </DropdownMenuItem>
 
                         {lancamento.link_publico_ativo && lancamento.link_publico && (
-                          <DropdownMenuItem onClick={() => handleCopyPublicLink(lancamento)}>
-                            <Copy className="h-4 w-4 mr-2" />
+                          <DropdownMenuItem onClick={() => handleCopyPublicLink(lancamento)} className="cursor-pointer">
+                            <Copy className="h-4 w-4 mr-2 text-muted-foreground" />
                             Copiar Link Público
                           </DropdownMenuItem>
                         )}
 
                         {lancamento.link_dashboard && (
-                          <DropdownMenuItem asChild>
+                          <DropdownMenuItem asChild className="cursor-pointer">
                             <a href={lancamento.link_dashboard} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4 mr-2" />
+                              <ExternalLink className="h-4 w-4 mr-2 text-muted-foreground" />
                               Ver Dashboard
                             </a>
                           </DropdownMenuItem>
                         )}
                         {lancamento.link_briefing && (
-                          <DropdownMenuItem asChild>
+                          <DropdownMenuItem asChild className="cursor-pointer">
                             <a href={lancamento.link_briefing} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4 mr-2" />
+                              <ExternalLink className="h-4 w-4 mr-2 text-muted-foreground" />
                               Ver Briefing
                             </a>
                           </DropdownMenuItem>
@@ -571,8 +579,8 @@ export const LancamentosTable = ({
                             if (window.confirm('Tem certeza que deseja finalizar este lançamento?')) {
                               handleFinalizarLancamento(lancamento.id);
                             }
-                          }} className="text-green-600 focus:text-green-700 focus:bg-green-50">
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                          }} className="text-green-600 focus:text-green-700 focus:bg-green-50/50 cursor-pointer mt-1 border-t border-border/50 pt-2">
+                            <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" />
                             Finalizar Lançamento
                           </DropdownMenuItem>
                         )}
