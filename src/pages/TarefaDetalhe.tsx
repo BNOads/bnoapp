@@ -7,14 +7,11 @@ export default function TarefaDetalhe() {
     const navigate = useNavigate();
 
     return (
-        <TaskDetailDialog
-            taskId={id || null}
-            open={true}
-            onOpenChange={(open) => {
-                if (!open) {
-                    navigate("/tarefas");
-                }
-            }}
-        />
+        <div className="h-full bg-background mt-4 sm:p-6 overflow-hidden">
+            <TaskDetailDialog
+                taskId={id || null}
+                asPage={true}
+            />
+        </div>
     );
 }

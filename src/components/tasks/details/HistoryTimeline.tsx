@@ -26,14 +26,29 @@ export function HistoryTimeline({ history }: HistoryTimelineProps) {
         }
     };
 
-    const getActionText = (action: string) => {
-        switch (action) {
+    const getActionText = (item: TaskHistory) => {
+        switch (item.action) {
             case "created": return "criou a tarefa";
-            case "updated": return "atualizou a tarefa";
             case "completed": return "concluiu a tarefa";
             case "reopened": return "reabriu a tarefa";
             case "deleted": return "excluiu a tarefa";
-            default: return `realizou a ação: ${action}`;
+            case "updated":
+                if (item.field_changed) {
+                    const fieldMap: Record<string, string> = {
+                        title: "título",
+                        description: "descrição",
+                        priority: "prioridade",
+                        status: "status",
+                        due_date: "data de entrega",
+                        assignee: "responsável",
+                        category: "categoria",
+                        recurrence: "recorrência"
+                    };
+                    const fieldName = fieldMap[item.field_changed] || item.field_changed;
+                    return `alterou a ${fieldName}${item.new_value ? ` para "${item.new_value}"` : ""}`;
+                }
+                return "atualizou a tarefa";
+            default: return `realizou a ação: ${item.action}`;
         }
     };
 
@@ -57,7 +72,7 @@ export function HistoryTimeline({ history }: HistoryTimelineProps) {
                         <div className="flex flex-col gap-0.5 mt-0.5">
                             <span className="text-sm text-foreground">
                                 <span className="font-medium">{item.changed_by}</span>{" "}
-                                <span className="text-muted-foreground">{getActionText(item.action)}</span>
+                                <span className="text-muted-foreground">{getActionText(item)}</span>
                             </span>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                                 {format(new Date(item.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}

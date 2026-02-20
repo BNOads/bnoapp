@@ -1,391 +1,1198 @@
-import { useState, useRef, useCallback } from "react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Card } from "@/components/ui/card";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  DndContext,
+  DragCancelEvent,
+  DragEndEvent,
+  DragStartEvent,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Edit, Cake, GripVertical } from "lucide-react";
-import { formatarNivelAcesso, calcularDiasParaAniversario } from "@/lib/dateUtils";
+import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { formatarNivelAcesso } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
-import { useDraggable, useDroppable, DndContext, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { GripVertical, Link2, Plus, Trash2, X } from "lucide-react";
 
-// Hierarquia de níveis de acesso para o organograma
-const HIERARQUIA: Record<string, number> = {
-  dono: 0,
-  admin: 1,
-  gestor_trafego: 2,
-  gestor_projetos: 2,
-  cs: 3,
-  midia_buyer: 3,
-  copywriter: 3,
-  designer: 3,
-  webdesigner: 3,
-  editor_video: 3,
+type NivelAcesso = Database["public"]["Enums"]["nivel_acesso"];
+type ColaboradorRow = Database["public"]["Tables"]["colaboradores"]["Row"];
+type OrganogramaCardRow = Database["public"]["Tables"]["organograma_cards"]["Row"];
+type OrganogramaCardInsert = Database["public"]["Tables"]["organograma_cards"]["Insert"];
+type OrganogramaConexaoRow = Database["public"]["Tables"]["organograma_conexoes"]["Row"];
+type OrganogramaArea = "diretoria" | "administracao" | "gestao" | "comunicacao" | "servicos";
+
+const AREA_ORDER: OrganogramaArea[] = [
+  "diretoria",
+  "administracao",
+  "gestao",
+  "comunicacao",
+  "servicos",
+];
+
+const AREA_META: Record<OrganogramaArea, { label: string; dot: string; border: string; bg: string }> = {
+  diretoria: {
+    label: "Diretoria",
+    dot: "bg-amber-500",
+    border: "border-amber-300 dark:border-amber-900/40",
+    bg: "bg-amber-50/70 dark:bg-amber-950/10",
+  },
+  administracao: {
+    label: "Administracao",
+    dot: "bg-blue-500",
+    border: "border-blue-300 dark:border-blue-900/40",
+    bg: "bg-blue-50/70 dark:bg-blue-950/10",
+  },
+  gestao: {
+    label: "Gestao",
+    dot: "bg-emerald-500",
+    border: "border-emerald-300 dark:border-emerald-900/40",
+    bg: "bg-emerald-50/70 dark:bg-emerald-950/10",
+  },
+  comunicacao: {
+    label: "Comunicacao",
+    dot: "bg-fuchsia-500",
+    border: "border-fuchsia-300 dark:border-fuchsia-900/40",
+    bg: "bg-fuchsia-50/70 dark:bg-fuchsia-950/10",
+  },
+  servicos: {
+    label: "Servicos",
+    dot: "bg-pink-500",
+    border: "border-pink-300 dark:border-pink-900/40",
+    bg: "bg-pink-50/70 dark:bg-pink-950/10",
+  },
 };
 
-const NIVEL_LABELS: Record<number, string> = {
-  0: "Diretoria",
-  1: "Administração",
-  2: "Gestão de Tráfego",
-  3: "Equipe",
+const NIVEL_OPTIONS: { value: NivelAcesso; label: string; area: OrganogramaArea }[] = [
+  { value: "dono", label: "Dono", area: "diretoria" },
+  { value: "admin", label: "Administrador", area: "administracao" },
+  { value: "gestor_trafego", label: "Gestor de Trafego", area: "gestao" },
+  { value: "gestor_projetos", label: "Gestor de Projetos", area: "gestao" },
+  { value: "cs", label: "Customer Success", area: "comunicacao" },
+  { value: "designer", label: "Designer", area: "comunicacao" },
+  { value: "editor_video", label: "Editor de Video", area: "comunicacao" },
+  { value: "webdesigner", label: "Webdesigner", area: "servicos" },
+];
+
+const AREA_BY_NIVEL = NIVEL_OPTIONS.reduce<Record<NivelAcesso, OrganogramaArea>>(
+  (acc, item) => {
+    acc[item.value] = item.area;
+    return acc;
+  },
+  {} as Record<NivelAcesso, OrganogramaArea>
+);
+
+const DEFAULT_NIVEL_BY_AREA: Record<OrganogramaArea, NivelAcesso> = {
+  diretoria: "dono",
+  administracao: "admin",
+  gestao: "gestor_trafego",
+  comunicacao: "cs",
+  servicos: "webdesigner",
 };
 
-// Subdivisão da equipe (níveis 3) em departamentos
-const DEPARTAMENTOS: Record<string, string> = {
-  cs: "Comunicação",
-  copywriter: "Comunicação",
-  designer: "Comunicação",
-  editor_video: "Comunicação",
-  midia_buyer: "Serviços",
-  webdesigner: "Serviços",
+const getAreaByNivel = (nivel: NivelAcesso): OrganogramaArea => AREA_BY_NIVEL[nivel] ?? "servicos";
+
+const sortCards = (cards: OrganogramaCardRow[]) =>
+  [...cards].sort((a, b) => {
+    const areaDiff = AREA_ORDER.indexOf(a.area as OrganogramaArea) - AREA_ORDER.indexOf(b.area as OrganogramaArea);
+    if (areaDiff !== 0) return areaDiff;
+    if (a.ordem !== b.ordem) return a.ordem - b.ordem;
+    return a.nome.localeCompare(b.nome, "pt-BR");
+  });
+
+const groupCardsByArea = (cards: OrganogramaCardRow[]) => {
+  const grouped: Record<OrganogramaArea, OrganogramaCardRow[]> = {
+    diretoria: [],
+    administracao: [],
+    gestao: [],
+    comunicacao: [],
+    servicos: [],
+  };
+
+  for (const card of sortCards(cards)) {
+    const area = (card.area as OrganogramaArea) || "servicos";
+    grouped[area].push(card);
+  }
+
+  return grouped;
+};
+
+const reindexGroupedCards = (grouped: Record<OrganogramaArea, OrganogramaCardRow[]>) =>
+  AREA_ORDER.flatMap((area) => grouped[area].map((card, index) => ({ ...card, area, ordem: index })));
+
+const buildFallbackCards = (colaboradores: ColaboradorRow[]): OrganogramaCardRow[] => {
+  const groupedCounter: Record<OrganogramaArea, number> = {
+    diretoria: 0,
+    administracao: 0,
+    gestao: 0,
+    comunicacao: 0,
+    servicos: 0,
+  };
+
+  return colaboradores
+    .filter((col) => col.ativo)
+    .map((col) => {
+      const area = getAreaByNivel(col.nivel_acesso);
+      const ordem = groupedCounter[area];
+      groupedCounter[area] += 1;
+      const now = new Date().toISOString();
+
+      return {
+        id: `fallback-${col.id}`,
+        colaborador_id: col.id,
+        nome: col.nome,
+        cargo_display: col.cargo_display,
+        email: col.email,
+        avatar_url: col.avatar_url,
+        area,
+        ordem,
+        is_custom: false,
+        ativo: true,
+        created_at: now,
+        updated_at: now,
+        created_by: null,
+        updated_by: null,
+      } satisfies OrganogramaCardRow;
+    });
 };
 
 interface OrganizerViewProps {
-  colaboradores: any[];
+  colaboradores: ColaboradorRow[];
   isAdmin: boolean;
-  onOpenDetail: (colaborador: any) => void;
+  onOpenDetail: (colaborador: ColaboradorRow) => void;
   onRefresh: () => void;
+  searchTerm?: string;
 }
 
-// Componente de nó individual do mapa mental
-const OrganizerNode = ({ 
-  colaborador, 
-  isAdmin, 
-  onOpenDetail, 
-  onPositionChange,
-  isDragging,
-  onDepartmentChange
-}: any) => {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
-    id: colaborador.id,
-    disabled: !isAdmin,
-  });
-  const { setNodeRef: setDropRef, isOver: isOverDrop } = useDroppable({
-    id: `drop-${colaborador.id}`,
-  });
+interface AreaDropZoneProps {
+  area: OrganogramaArea;
+  children: ReactNode;
+  disabled?: boolean;
+}
 
-  const initials = colaborador.nome
-    .split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .substring(0, 2);
-  const cargoDisplay = colaborador.cargo_display || formatarNivelAcesso(colaborador.nivel_acesso);
-  const diasAniversario = calcularDiasParaAniversario(colaborador.data_nascimento);
-  const isAniversarioProximo = diasAniversario !== null && diasAniversario >= 0 && diasAniversario <= 7;
-  const nivel = HIERARQUIA[colaborador.nivel_acesso] ?? 3;
-  const departamento = DEPARTAMENTOS[colaborador.nivel_acesso] || "Serviços";
-
-  const borderColor = 
-    nivel === 0 ? "border-amber-500" :
-    nivel === 1 ? "border-blue-500" :
-    nivel === 2 ? "border-emerald-500" :
-    departamento === "Comunicação" ? "border-purple-500" :
-    "border-pink-500";
-
-  const bgColor = 
-    nivel === 0 ? "bg-amber-50 dark:bg-amber-950/20" :
-    nivel === 1 ? "bg-blue-50 dark:bg-blue-950/20" :
-    nivel === 2 ? "bg-emerald-50 dark:bg-emerald-950/20" :
-    departamento === "Comunicação" ? "bg-purple-50 dark:bg-purple-950/20" :
-    "bg-pink-50 dark:bg-pink-950/20";
-
-  const style: React.CSSProperties = {
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-    cursor: isAdmin ? "grab" : "pointer",
-    opacity: isDragging ? 0.5 : 1,
-  };
+const AreaDropZone = ({ area, children, disabled = false }: AreaDropZoneProps) => {
+  const { setNodeRef, isOver } = useDroppable({ id: `area-${area}`, disabled });
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className="group relative"
-      {...(isAdmin ? { ...attributes, ...listeners } : {})}
+      className={cn(
+        "min-h-[120px] rounded-xl border border-dashed p-3 transition-colors",
+        isOver && !disabled ? "border-primary bg-primary/5" : "border-border/60"
+      )}
     >
-      <Card className={`w-48 border-2 ${borderColor} ${bgColor} shadow-lg hover:shadow-xl transition-shadow cursor-pointer relative`}>
-        <div className="p-4" onClick={() => !isDragging && onOpenDetail(colaborador)}>
-          {/* Header com nível/departamento */}
-          <div className="flex items-start justify-between mb-3">
-            <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${
-              nivel === 0 ? "bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100" :
-              nivel === 1 ? "bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100" :
-              nivel === 2 ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100" :
-              departamento === "Comunicação" ? "bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100" :
-              "bg-pink-200 dark:bg-pink-800 text-pink-900 dark:text-pink-100"
-            }`}>
-              {nivel === 3 ? departamento : NIVEL_LABELS[nivel]}
-            </span>
-            {isAdmin && (
-              <GripVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0" />
-            )}
-          </div>
-
-          {/* Avatar */}
-          <div className="flex justify-center mb-3 relative">
-            <Avatar className="h-16 w-16 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-950 ring-current">
-              {colaborador.avatar_url && (
-                <AvatarImage src={colaborador.avatar_url} alt={colaborador.nome} />
-              )}
-              <AvatarFallback className="bg-gradient-primary text-primary-foreground font-bold text-lg">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            {isAniversarioProximo && (
-              <div className="absolute -top-1 -right-1 bg-yellow-400 rounded-full p-1">
-                <Cake className="h-3 w-3 text-yellow-900" />
-              </div>
-            )}
-          </div>
-
-          {/* Info */}
-          <div className="text-center space-y-1">
-            <h3 className="font-semibold text-sm text-foreground line-clamp-2">
-              {colaborador.nome}
-            </h3>
-            <p className="text-xs text-muted-foreground line-clamp-2">
-              {cargoDisplay}
-            </p>
-            {colaborador.email && (
-              <p className="text-[10px] text-muted-foreground/70 truncate">
-                {colaborador.email}
-              </p>
-            )}
-            {colaborador.data_nascimento && (
-              <p className="text-[10px] text-muted-foreground/70">
-                {new Date(colaborador.data_nascimento).toLocaleDateString("pt-BR", { month: "short", day: "numeric" })}
-              </p>
-            )}
-
-            {/* Departamento selector - só para nível 3 (equipe) */}
-            {isAdmin && nivel === 3 && (
-              <div className="mt-2 pt-2 border-t border-current/10">
-                <select
-                  value={departamento}
-                  onChange={(e) => onDepartmentChange(colaborador.id, e.target.value)}
-                  className="w-full text-[10px] px-2 py-1 rounded bg-white/50 dark:bg-white/10 border border-current/20 cursor-pointer hover:bg-white/70 dark:hover:bg-white/20 transition-colors"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <option value="Comunicação">📢 Comunicação</option>
-                  <option value="Serviços">⚙️ Serviços</option>
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
+      {children}
     </div>
   );
 };
 
-export const OrganizerView = ({ colaboradores, isAdmin, onOpenDetail, onRefresh }: OrganizerViewProps) => {
+interface SortableCardProps {
+  card: OrganogramaCardRow;
+  colaborador?: ColaboradorRow;
+  isAdmin: boolean;
+  schemaReady: boolean;
+  isSearchMode: boolean;
+  onOpenDetail: (colaborador: ColaboradorRow) => void;
+  onRoleChange: (card: OrganogramaCardRow, nivel: NivelAcesso) => void;
+  onCustomAreaChange: (card: OrganogramaCardRow, area: OrganogramaArea) => void;
+  onConnectClick: (cardId: string) => void;
+  connectingFromId: string | null;
+  connectedNames: string[];
+  onDeleteCustomCard: (card: OrganogramaCardRow) => void;
+}
+
+const SortableCard = ({
+  card,
+  colaborador,
+  isAdmin,
+  schemaReady,
+  isSearchMode,
+  onOpenDetail,
+  onRoleChange,
+  onCustomAreaChange,
+  onConnectClick,
+  connectingFromId,
+  connectedNames,
+  onDeleteCustomCard,
+}: SortableCardProps) => {
+  const canManage = isAdmin && !isSearchMode && schemaReady;
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: card.id,
+    disabled: !canManage,
+  });
+
+  const meta = AREA_META[(card.area as OrganogramaArea) || "servicos"];
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const initials = card.nome
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const displayCargo =
+    card.cargo_display ||
+    (colaborador?.nivel_acesso ? formatarNivelAcesso(colaborador.nivel_acesso) : "Sem funcao definida");
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={cn("border-2 shadow-sm", meta.border, meta.bg, connectingFromId === card.id && "ring-2 ring-primary")}
+    >
+      <div className="space-y-3 p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className={cn("h-2 w-2 rounded-full", meta.dot)} />
+              <p className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {meta.label}
+              </p>
+            </div>
+            <h3
+              className={cn("line-clamp-2 mt-1 text-sm font-semibold", colaborador ? "cursor-pointer hover:underline" : "")}
+              onClick={() => colaborador && onOpenDetail(colaborador)}
+            >
+              {card.nome}
+            </h3>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {card.is_custom && (
+              <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                Extra
+              </Badge>
+            )}
+            {canManage && (
+              <button
+                type="button"
+                className="rounded p-1 text-muted-foreground hover:bg-background/70"
+                aria-label="Arrastar card"
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Avatar className="h-10 w-10">
+            {card.avatar_url && <AvatarImage src={card.avatar_url} alt={card.nome} />}
+            <AvatarFallback className="text-xs font-bold">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs text-muted-foreground">{displayCargo}</p>
+            {card.email && <p className="truncate text-[11px] text-muted-foreground/80">{card.email}</p>}
+          </div>
+        </div>
+
+        {canManage && colaborador && (
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase text-muted-foreground">Funcao no organograma</Label>
+            <Select value={colaborador.nivel_acesso} onValueChange={(value) => onRoleChange(card, value as NivelAcesso)}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {NIVEL_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {canManage && card.is_custom && (
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-muted-foreground">Area</Label>
+              <Select value={card.area as OrganogramaArea} onValueChange={(value) => onCustomAreaChange(card, value as OrganogramaArea)}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AREA_ORDER.map((area) => (
+                    <SelectItem key={area} value={area}>
+                      {AREA_META[area].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+              onClick={() => onDeleteCustomCard(card)}
+            >
+              <Trash2 className="mr-1 h-3.5 w-3.5" />
+              Remover card
+            </Button>
+          </div>
+        )}
+
+        <div className="space-y-2 border-t border-border/50 pt-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-medium text-muted-foreground">Conexoes: {connectedNames.length}</p>
+            {canManage && (
+              <Button
+                type="button"
+                variant={connectingFromId === card.id ? "default" : "outline"}
+                size="sm"
+                className="h-7 px-2 text-[11px]"
+                onClick={() => onConnectClick(card.id)}
+              >
+                {connectingFromId === card.id ? <X className="mr-1 h-3.5 w-3.5" /> : <Link2 className="mr-1 h-3.5 w-3.5" />}
+                {connectingFromId === card.id ? "Cancelar" : "Conectar"}
+              </Button>
+            )}
+          </div>
+          {connectedNames.length > 0 && (
+            <p className="line-clamp-2 text-[11px] text-muted-foreground">{connectedNames.join(", ")}</p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+};
+
+export const OrganizerView = ({
+  colaboradores,
+  isAdmin,
+  onOpenDetail,
+  onRefresh,
+  searchTerm = "",
+}: OrganizerViewProps) => {
   const { toast } = useToast();
+  const [cards, setCards] = useState<OrganogramaCardRow[]>([]);
+  const [conexoes, setConexoes] = useState<OrganogramaConexaoRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [schemaReady, setSchemaReady] = useState(true);
+  const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
+  const [connectingFromId, setConnectingFromId] = useState<string | null>(null);
+  const [newCardModalOpen, setNewCardModalOpen] = useState(false);
+  const [creatingCard, setCreatingCard] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [newCardForm, setNewCardForm] = useState({
+    nome: "",
+    cargo_display: "",
+    email: "",
+    area: "servicos" as OrganogramaArea,
+  });
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
     })
   );
-  const [draggedItem, setDraggedItem] = useState<string | null>(null);
 
-  // Agrupar por nível hierárquico
-  const grupos = colaboradores.reduce<Record<number, any[]>>((acc, colab) => {
-    const nivel = HIERARQUIA[colab.nivel_acesso] ?? 3;
-    if (!acc[nivel]) acc[nivel] = [];
-    acc[nivel].push(colab);
-    return acc;
-  }, {});
+  const isSearchMode = searchTerm.trim().length > 0;
 
-  const niveisOrdenados = Object.keys(grupos)
-    .map(Number)
-    .sort((a, b) => a - b);
+  const colaboradoresById = useMemo(
+    () => new Map(colaboradores.map((colaborador) => [colaborador.id, colaborador])),
+    [colaboradores]
+  );
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    setDraggedItem(null);
-  };
+  const normalizedSearch = searchTerm.trim().toLowerCase();
 
-  const handleDepartmentChange = async (colaboradorId: string, novoDepartamento: string) => {
-    // Encontrar o tipo de cargo baseado no departamento
-    const colaborador = colaboradores.find(c => c.id === colaboradorId);
-    if (!colaborador) return;
+  const visibleCards = useMemo(() => {
+    if (!normalizedSearch) return cards.filter((card) => card.ativo);
 
-    const cargosPorDepartamento: Record<string, string[]> = {
-      "Comunicação": ["cs", "copywriter", "designer", "editor_video"],
-      "Serviços": ["midia_buyer", "webdesigner"],
-    };
+    return cards.filter((card) => {
+      if (!card.ativo) return false;
+      const haystack = `${card.nome} ${card.cargo_display ?? ""} ${card.email ?? ""}`.toLowerCase();
+      return haystack.includes(normalizedSearch);
+    });
+  }, [cards, normalizedSearch]);
 
-    // Se já está em um cargo do departamento correto, não fazer nada
-    const cargoAtual = colaborador.nivel_acesso;
-    if (cargosPorDepartamento[novoDepartamento]?.includes(cargoAtual)) {
-      return;
+  const cardsByArea = useMemo(() => groupCardsByArea(visibleCards), [visibleCards]);
+
+  const connectedIdsByCard = useMemo(() => {
+    const map = new Map<string, string[]>();
+
+    for (const conexao of conexoes) {
+      const currentA = map.get(conexao.card_a_id) || [];
+      currentA.push(conexao.card_b_id);
+      map.set(conexao.card_a_id, currentA);
+
+      const currentB = map.get(conexao.card_b_id) || [];
+      currentB.push(conexao.card_a_id);
+      map.set(conexao.card_b_id, currentB);
     }
 
-    // Tentar manter o cargo, ou pegar o primeiro cargo disponível do novo departamento
-    let nevoCargoAtribuído = cargosPorDepartamento[novoDepartamento]?.[0] || cargoAtual;
+    return map;
+  }, [conexoes]);
+
+  const cardNameById = useMemo(() => new Map(cards.map((card) => [card.id, card.nome])), [cards]);
+
+  const syncCardsWithColaboradores = useCallback(
+    async (baseCards: OrganogramaCardRow[]) => {
+      if (!isAdmin || !schemaReady) return baseCards;
+
+      const updates = baseCards
+        .filter((card) => card.colaborador_id)
+        .map((card) => {
+          const colaborador = card.colaborador_id ? colaboradoresById.get(card.colaborador_id) : null;
+          if (!colaborador) return null;
+
+          const desiredArea = getAreaByNivel(colaborador.nivel_acesso);
+          const patch: Partial<OrganogramaCardRow> = {};
+
+          if (card.nome !== colaborador.nome) patch.nome = colaborador.nome;
+          if (card.cargo_display !== colaborador.cargo_display) patch.cargo_display = colaborador.cargo_display;
+          if (card.email !== colaborador.email) patch.email = colaborador.email;
+          if (card.avatar_url !== colaborador.avatar_url) patch.avatar_url = colaborador.avatar_url;
+          if (card.area !== desiredArea) patch.area = desiredArea;
+
+          if (Object.keys(patch).length === 0) return null;
+
+          return {
+            id: card.id,
+            patch,
+          };
+        })
+        .filter(Boolean) as Array<{ id: string; patch: Partial<OrganogramaCardRow> }>;
+
+      if (updates.length === 0) return baseCards;
+
+      const nextCards = [...baseCards];
+
+      for (const update of updates) {
+        const { data, error } = await supabase
+          .from("organograma_cards")
+          .update({ ...update.patch, updated_by: currentUserId })
+          .eq("id", update.id)
+          .select("*")
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        const idx = nextCards.findIndex((card) => card.id === update.id);
+        if (idx >= 0 && data) {
+          nextCards[idx] = data;
+        }
+      }
+
+      return nextCards;
+    },
+    [colaboradoresById, currentUserId, isAdmin, schemaReady]
+  );
+
+  const ensureMissingColaboradorCards = useCallback(
+    async (baseCards: OrganogramaCardRow[]) => {
+      const existingByColaborador = new Map(
+        baseCards.filter((card) => card.colaborador_id).map((card) => [card.colaborador_id!, card])
+      );
+
+      const grouped = groupCardsByArea(baseCards);
+      const nextOrderByArea: Record<OrganogramaArea, number> = {
+        diretoria: grouped.diretoria.length,
+        administracao: grouped.administracao.length,
+        gestao: grouped.gestao.length,
+        comunicacao: grouped.comunicacao.length,
+        servicos: grouped.servicos.length,
+      };
+
+      const missingPayload: OrganogramaCardInsert[] = [];
+
+      for (const colaborador of colaboradores.filter((col) => col.ativo)) {
+        if (existingByColaborador.has(colaborador.id)) continue;
+
+        const area = getAreaByNivel(colaborador.nivel_acesso);
+        missingPayload.push({
+          colaborador_id: colaborador.id,
+          nome: colaborador.nome,
+          cargo_display: colaborador.cargo_display,
+          email: colaborador.email,
+          avatar_url: colaborador.avatar_url,
+          area,
+          ordem: nextOrderByArea[area],
+          is_custom: false,
+          ativo: true,
+          created_by: currentUserId,
+          updated_by: currentUserId,
+        });
+
+        nextOrderByArea[area] += 1;
+      }
+
+      if (missingPayload.length === 0) return baseCards;
+
+      const { data, error } = await supabase.from("organograma_cards").insert(missingPayload).select("*");
+
+      if (error) {
+        // Se o usuário não tiver permissão de escrita, mantém fallback local sem bloquear visualização.
+        return [...baseCards, ...buildFallbackCards(colaboradores).filter((card) => !existingByColaborador.has(card.colaborador_id!))];
+      }
+
+      return [...baseCards, ...(data || [])];
+    },
+    [colaboradores, currentUserId]
+  );
+
+  const loadOrganograma = useCallback(async () => {
+    setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from("colaboradores")
-        .update({ nivel_acesso: nevoCargoAtribuído as any })
-        .eq("id", colaboradorId);
+      const [{ data: cardsData, error: cardsError }, { data: conexoesData, error: conexoesError }] = await Promise.all([
+        supabase.from("organograma_cards").select("*").eq("ativo", true),
+        supabase.from("organograma_conexoes").select("*"),
+      ]);
 
-      if (error) throw error;
+      if (cardsError) {
+        if (cardsError.code === "42P01") {
+          setSchemaReady(false);
+          setCards(buildFallbackCards(colaboradores));
+          setConexoes([]);
+          return;
+        }
+        throw cardsError;
+      }
 
-      toast({ 
-        title: "Departamento atualizado!", 
-        description: `${colaborador.nome} movido para ${novoDepartamento}` 
-      });
-      onRefresh();
+      if (conexoesError) throw conexoesError;
+
+      setSchemaReady(true);
+
+      let nextCards = cardsData || [];
+      nextCards = await ensureMissingColaboradorCards(nextCards);
+      nextCards = await syncCardsWithColaboradores(nextCards);
+
+      setCards(sortCards(nextCards));
+      setConexoes(conexoesData || []);
     } catch (error: any) {
+      setSchemaReady(false);
+      setCards(buildFallbackCards(colaboradores));
+      setConexoes([]);
       toast({
-        title: "Erro ao atualizar",
+        title: "Erro ao carregar organograma",
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
+  }, [colaboradores, ensureMissingColaboradorCards, syncCardsWithColaboradores, toast]);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id ?? null);
+    });
+  }, []);
+
+  useEffect(() => {
+    loadOrganograma();
+  }, [loadOrganograma]);
+
+  const persistChangedCards = useCallback(
+    async (nextCards: OrganogramaCardRow[], changedIds: string[]) => {
+      if (!schemaReady || changedIds.length === 0) return;
+
+      const cardsById = new Map(nextCards.map((card) => [card.id, card]));
+
+      for (const cardId of changedIds) {
+        if (cardId.startsWith("fallback-")) continue;
+
+        const card = cardsById.get(cardId);
+        if (!card) continue;
+
+        const { error } = await supabase
+          .from("organograma_cards")
+          .update({ area: card.area, ordem: card.ordem, updated_by: currentUserId })
+          .eq("id", card.id);
+
+        if (error) throw error;
+      }
+    },
+    [currentUserId, schemaReady]
+  );
+
+  const moveCardToArea = useCallback(
+    (baseCards: OrganogramaCardRow[], cardId: string, targetArea: OrganogramaArea) => {
+      const grouped = groupCardsByArea(baseCards);
+
+      let sourceArea: OrganogramaArea | null = null;
+      let movedCard: OrganogramaCardRow | null = null;
+
+      for (const area of AREA_ORDER) {
+        const index = grouped[area].findIndex((card) => card.id === cardId);
+        if (index >= 0) {
+          sourceArea = area;
+          [movedCard] = grouped[area].splice(index, 1);
+          break;
+        }
+      }
+
+      if (!movedCard || !sourceArea) {
+        return {
+          nextCards: baseCards,
+          changedIds: [] as string[],
+          movedArea: null as OrganogramaArea | null,
+        };
+      }
+
+      grouped[targetArea].push({ ...movedCard, area: targetArea });
+      const nextCards = reindexGroupedCards(grouped);
+
+      const prevById = new Map(baseCards.map((card) => [card.id, card]));
+      const changedIds = nextCards
+        .filter((card) => {
+          const prev = prevById.get(card.id);
+          return !prev || prev.area !== card.area || prev.ordem !== card.ordem;
+        })
+        .map((card) => card.id);
+
+      return {
+        nextCards,
+        changedIds,
+        movedArea: sourceArea === targetArea ? null : targetArea,
+      };
+    },
+    []
+  );
+
+  const updateColaboradorAreaRole = useCallback(async (colaborador: ColaboradorRow, area: OrganogramaArea) => {
+    const nextNivel = AREA_BY_NIVEL[colaborador.nivel_acesso] === area ? colaborador.nivel_acesso : DEFAULT_NIVEL_BY_AREA[area];
+
+    const { error } = await supabase.from("colaboradores").update({ nivel_acesso: nextNivel }).eq("id", colaborador.id);
+
+    if (error) throw error;
+  }, []);
+
+  const handleRoleChange = useCallback(
+    async (card: OrganogramaCardRow, nivel: NivelAcesso) => {
+      if (!card.colaborador_id) return;
+
+      const colaborador = colaboradoresById.get(card.colaborador_id);
+      if (!colaborador) return;
+
+      const nextArea = getAreaByNivel(nivel);
+      const baseCards = cards;
+
+      try {
+        const { error } = await supabase.from("colaboradores").update({ nivel_acesso: nivel }).eq("id", colaborador.id);
+        if (error) throw error;
+
+        if ((card.area as OrganogramaArea) !== nextArea) {
+          const { nextCards, changedIds } = moveCardToArea(baseCards, card.id, nextArea);
+          setCards(nextCards);
+          await persistChangedCards(nextCards, changedIds);
+        }
+
+        onRefresh();
+
+        toast({
+          title: "Funcao atualizada",
+          description: `${card.nome} foi movido para ${AREA_META[nextArea].label}.`,
+        });
+      } catch (error: any) {
+        toast({
+          title: "Erro ao atualizar funcao",
+          description: error.message,
+          variant: "destructive",
+        });
+        loadOrganograma();
+      }
+    },
+    [cards, colaboradoresById, loadOrganograma, moveCardToArea, onRefresh, persistChangedCards, toast]
+  );
+
+  const handleCustomAreaChange = useCallback(
+    async (card: OrganogramaCardRow, area: OrganogramaArea) => {
+      const baseCards = cards;
+      const { nextCards, changedIds } = moveCardToArea(baseCards, card.id, area);
+
+      setCards(nextCards);
+
+      try {
+        await persistChangedCards(nextCards, changedIds);
+      } catch (error: any) {
+        toast({
+          title: "Erro ao mover card",
+          description: error.message,
+          variant: "destructive",
+        });
+        loadOrganograma();
+      }
+    },
+    [cards, loadOrganograma, moveCardToArea, persistChangedCards, toast]
+  );
+
+  const handleDeleteCustomCard = useCallback(
+    async (card: OrganogramaCardRow) => {
+      if (!card.is_custom || card.id.startsWith("fallback-")) return;
+
+      const baseCards = cards;
+      const filtered = baseCards.filter((item) => item.id !== card.id);
+      const nextCards = reindexGroupedCards(groupCardsByArea(filtered));
+
+      const prevById = new Map(baseCards.map((item) => [item.id, item]));
+      const changedIds = nextCards
+        .filter((item) => {
+          const prev = prevById.get(item.id);
+          return !prev || prev.area !== item.area || prev.ordem !== item.ordem;
+        })
+        .map((item) => item.id);
+
+      setCards(nextCards);
+      setConexoes((prev) => prev.filter((conn) => conn.card_a_id !== card.id && conn.card_b_id !== card.id));
+
+      try {
+        const { error } = await supabase.from("organograma_cards").delete().eq("id", card.id);
+        if (error) throw error;
+
+        await persistChangedCards(nextCards, changedIds);
+      } catch (error: any) {
+        toast({
+          title: "Erro ao remover card",
+          description: error.message,
+          variant: "destructive",
+        });
+        loadOrganograma();
+      }
+    },
+    [cards, loadOrganograma, persistChangedCards, toast]
+  );
+
+  const handleConnectClick = useCallback(
+    async (cardId: string) => {
+      if (!isAdmin || !schemaReady) return;
+
+      if (!connectingFromId) {
+        setConnectingFromId(cardId);
+        return;
+      }
+
+      if (connectingFromId === cardId) {
+        setConnectingFromId(null);
+        return;
+      }
+
+      const [cardA, cardB] = [connectingFromId, cardId].sort();
+      const existing = conexoes.find((conn) => conn.card_a_id === cardA && conn.card_b_id === cardB);
+
+      try {
+        if (existing) {
+          const { error } = await supabase.from("organograma_conexoes").delete().eq("id", existing.id);
+          if (error) throw error;
+
+          setConexoes((prev) => prev.filter((conn) => conn.id !== existing.id));
+        } else {
+          const { data, error } = await supabase
+            .from("organograma_conexoes")
+            .insert({ card_a_id: cardA, card_b_id: cardB, created_by: currentUserId })
+            .select("*")
+            .single();
+
+          if (error) throw error;
+          if (data) {
+            setConexoes((prev) => [...prev, data]);
+          }
+        }
+      } catch (error: any) {
+        toast({
+          title: "Erro ao atualizar conexao",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        setConnectingFromId(null);
+      }
+    },
+    [connectingFromId, conexoes, currentUserId, isAdmin, schemaReady, toast]
+  );
+
+  const handleCreateCustomCard = useCallback(async () => {
+    if (!schemaReady) {
+      toast({
+        title: "Migracao pendente",
+        description: "Aplique a migracao do organograma para salvar cards personalizados.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const nome = newCardForm.nome.trim();
+    if (!nome) {
+      toast({
+        title: "Nome obrigatorio",
+        description: "Preencha o nome do card personalizado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingCard(true);
+
+    try {
+      const ordem = cards.filter((card) => card.area === newCardForm.area).length;
+
+      const payload: OrganogramaCardInsert = {
+        nome,
+        cargo_display: newCardForm.cargo_display.trim() || null,
+        email: newCardForm.email.trim() || null,
+        area: newCardForm.area,
+        ordem,
+        is_custom: true,
+        ativo: true,
+        created_by: currentUserId,
+        updated_by: currentUserId,
+      };
+
+      const { data, error } = await supabase.from("organograma_cards").insert(payload).select("*").single();
+
+      if (error) throw error;
+
+      if (data) {
+        setCards((prev) => sortCards([...prev, data]));
+      }
+
+      setNewCardForm({ nome: "", cargo_display: "", email: "", area: "servicos" });
+      setNewCardModalOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao criar card",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingCard(false);
+    }
+  }, [cards, currentUserId, newCardForm, schemaReady, toast]);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setDraggingCardId(String(event.active.id));
   };
 
-  const renderNivel = (nivel: number, membros: any[]) => {
-    const label = NIVEL_LABELS[nivel] || `Nível ${nivel}`;
-    const borderColor = 
-      nivel === 0 ? "from-amber-500" :
-      nivel === 1 ? "from-blue-500" :
-      nivel === 2 ? "from-emerald-500" :
-      "from-purple-500";
+  const handleDragCancel = (_event: DragCancelEvent) => {
+    setDraggingCardId(null);
+  };
 
-    // Se é nível 3 (equipe), retornar null para processar depois junto
-    if (nivel === 3) return null;
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      setDraggingCardId(null);
 
+      if (!isAdmin || isSearchMode || !schemaReady) return;
+
+      const { active, over } = event;
+      if (!over) return;
+
+      const activeId = String(active.id);
+      const overId = String(over.id);
+
+      if (activeId === overId) return;
+
+      const activeCard = cards.find((card) => card.id === activeId);
+      if (!activeCard) return;
+
+      const sourceArea = activeCard.area as OrganogramaArea;
+      const targetArea = overId.startsWith("area-")
+        ? (overId.replace("area-", "") as OrganogramaArea)
+        : ((cards.find((card) => card.id === overId)?.area as OrganogramaArea) || sourceArea);
+
+      const grouped = groupCardsByArea(cards);
+      const sourceList = [...grouped[sourceArea]];
+      const sourceIndex = sourceList.findIndex((card) => card.id === activeId);
+      if (sourceIndex < 0) return;
+
+      if (sourceArea === targetArea) {
+        const targetIndex = overId.startsWith("area-")
+          ? sourceList.length - 1
+          : sourceList.findIndex((card) => card.id === overId);
+
+        if (targetIndex < 0 || sourceIndex === targetIndex) return;
+
+        grouped[sourceArea] = arrayMove(sourceList, sourceIndex, targetIndex);
+      } else {
+        const [movedCard] = sourceList.splice(sourceIndex, 1);
+        grouped[sourceArea] = sourceList;
+
+        const targetList = [...grouped[targetArea]];
+        const targetIndex = overId.startsWith("area-")
+          ? targetList.length
+          : targetList.findIndex((card) => card.id === overId);
+
+        const insertAt = targetIndex < 0 ? targetList.length : targetIndex;
+        targetList.splice(insertAt, 0, { ...movedCard, area: targetArea });
+        grouped[targetArea] = targetList;
+      }
+
+      const nextCards = reindexGroupedCards(grouped);
+      const prevById = new Map(cards.map((card) => [card.id, card]));
+      const changedIds = nextCards
+        .filter((card) => {
+          const prev = prevById.get(card.id);
+          return !prev || prev.area !== card.area || prev.ordem !== card.ordem;
+        })
+        .map((card) => card.id);
+
+      setCards(nextCards);
+
+      try {
+        if (sourceArea !== targetArea && activeCard.colaborador_id) {
+          const colaborador = colaboradoresById.get(activeCard.colaborador_id);
+          if (colaborador) {
+            await updateColaboradorAreaRole(colaborador, targetArea);
+            onRefresh();
+          }
+        }
+
+        await persistChangedCards(nextCards, changedIds);
+      } catch (error: any) {
+        toast({
+          title: "Erro ao mover card",
+          description: error.message,
+          variant: "destructive",
+        });
+        loadOrganograma();
+      }
+    },
+    [cards, colaboradoresById, isAdmin, isSearchMode, loadOrganograma, onRefresh, persistChangedCards, schemaReady, toast, updateColaboradorAreaRole]
+  );
+
+  if (loading) {
     return (
-      <div key={nivel} className="space-y-4">
-        {/* Nível header com linha visual */}
-        <div className="flex items-center gap-3">
-          <div className={`h-1 flex-1 bg-gradient-to-r ${borderColor} to-transparent rounded-full`} />
-          <h2 className="font-bold text-lg text-foreground whitespace-nowrap">
-            {label}
-          </h2>
-          <span className="text-xs font-semibold text-muted-foreground bg-muted px-3 py-1 rounded-full">
-            {membros.length} {membros.length === 1 ? "pessoa" : "pessoas"}
-          </span>
-        </div>
-
-        {/* Membros em grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {membros.map((colab: any) => (
-            <OrganizerNode
-              key={colab.id}
-              colaborador={colab}
-              isAdmin={isAdmin}
-              onOpenDetail={onOpenDetail}
-              onPositionChange={() => {}}
-              isDragging={draggedItem === colab.id}
-              onDepartmentChange={handleDepartmentChange}
-            />
-          ))}
-        </div>
+      <div className="flex items-center justify-center py-16">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
       </div>
     );
-  };
+  }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="space-y-8">
-        {/* Diretoria e Administração */}
-        {niveisOrdenados.filter(n => n <= 1).map(nivel => renderNivel(nivel, grupos[nivel]))}
+    <div className="space-y-6">
+      {isAdmin && (
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="hero" size="sm" onClick={() => setNewCardModalOpen(true)} disabled={!schemaReady}>
+            <Plus className="mr-1 h-4 w-4" />
+            Novo Card Personalizado
+          </Button>
+        </div>
+      )}
 
-        {/* Gestão na mesma linha que Comunicação e Serviços */}
-        {grupos[2] && (
-          <div className="space-y-8">
-            {/* Linha com Gestão, Comunicação, Serviços lado a lado */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Gestão */}
-              <div className="space-y-4">
+      {!schemaReady && (
+        <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+          A migracao do organograma ainda nao foi aplicada. Cards personalizados, conexoes e ordenacao nao serao salvos.
+        </div>
+      )}
+
+      {isSearchMode && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+          Busca ativa: arrastar cards fica desabilitado para evitar reordenacao parcial.
+        </div>
+      )}
+
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragCancel={handleDragCancel}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {(["diretoria", "administracao"] as OrganogramaArea[]).map((area) => (
+              <section key={area} className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <h3 className="font-bold text-lg text-foreground">Gestão de Tráfego</h3>
-                  <span className="text-xs font-semibold text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                    {grupos[2].length}
-                  </span>
+                  <div className={cn("h-2.5 w-2.5 rounded-full", AREA_META[area].dot)} />
+                  <h3 className="text-sm font-semibold">{AREA_META[area].label}</h3>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {cardsByArea[area].length}
+                  </Badge>
                 </div>
-                <div className="space-y-3">
-                  {grupos[2].map((colab: any) => (
-                    <OrganizerNode
-                      key={colab.id}
-                      colaborador={colab}
-                      isAdmin={isAdmin}
-                      onOpenDetail={onOpenDetail}
-                      onPositionChange={() => {}}
-                      isDragging={draggedItem === colab.id}
-                      onDepartmentChange={handleDepartmentChange}
-                    />
+
+                <AreaDropZone area={area} disabled={!isAdmin || isSearchMode || !schemaReady}>
+                  <SortableContext items={cardsByArea[area].map((card) => card.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-3">
+                      {cardsByArea[area].map((card) => {
+                        const colaborador = card.colaborador_id ? colaboradoresById.get(card.colaborador_id) : undefined;
+                        const connectedNames = (connectedIdsByCard.get(card.id) || [])
+                          .map((id) => cardNameById.get(id))
+                          .filter(Boolean) as string[];
+
+                        return (
+                          <SortableCard
+                            key={card.id}
+                            card={card}
+                            colaborador={colaborador}
+                            isAdmin={isAdmin}
+                            schemaReady={schemaReady}
+                            isSearchMode={isSearchMode}
+                            onOpenDetail={onOpenDetail}
+                            onRoleChange={handleRoleChange}
+                            onCustomAreaChange={handleCustomAreaChange}
+                            onConnectClick={handleConnectClick}
+                            connectingFromId={connectingFromId}
+                            connectedNames={connectedNames}
+                            onDeleteCustomCard={handleDeleteCustomCard}
+                          />
+                        );
+                      })}
+                    </div>
+                  </SortableContext>
+                </AreaDropZone>
+              </section>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {(["gestao", "comunicacao", "servicos"] as OrganogramaArea[]).map((area) => (
+              <section key={area} className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className={cn("h-2.5 w-2.5 rounded-full", AREA_META[area].dot)} />
+                  <h3 className="text-sm font-semibold">{AREA_META[area].label}</h3>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {cardsByArea[area].length}
+                  </Badge>
+                </div>
+
+                <AreaDropZone area={area} disabled={!isAdmin || isSearchMode || !schemaReady}>
+                  <SortableContext items={cardsByArea[area].map((card) => card.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-3">
+                      {cardsByArea[area].map((card) => {
+                        const colaborador = card.colaborador_id ? colaboradoresById.get(card.colaborador_id) : undefined;
+                        const connectedNames = (connectedIdsByCard.get(card.id) || [])
+                          .map((id) => cardNameById.get(id))
+                          .filter(Boolean) as string[];
+
+                        return (
+                          <SortableCard
+                            key={card.id}
+                            card={card}
+                            colaborador={colaborador}
+                            isAdmin={isAdmin}
+                            schemaReady={schemaReady}
+                            isSearchMode={isSearchMode}
+                            onOpenDetail={onOpenDetail}
+                            onRoleChange={handleRoleChange}
+                            onCustomAreaChange={handleCustomAreaChange}
+                            onConnectClick={handleConnectClick}
+                            connectingFromId={connectingFromId}
+                            connectedNames={connectedNames}
+                            onDeleteCustomCard={handleDeleteCustomCard}
+                          />
+                        );
+                      })}
+                    </div>
+                  </SortableContext>
+                </AreaDropZone>
+              </section>
+            ))}
+          </div>
+        </div>
+      </DndContext>
+
+      {!loading && visibleCards.length === 0 && (
+        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+          Nenhum card encontrado para o filtro atual.
+        </div>
+      )}
+
+      <Dialog open={newCardModalOpen} onOpenChange={setNewCardModalOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Novo card personalizado</DialogTitle>
+            <DialogDescription>
+              Crie um card para pessoas que nao fazem parte dos usuarios cadastrados na plataforma.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-1">
+            <div className="space-y-1">
+              <Label htmlFor="novo-card-nome">Nome</Label>
+              <Input
+                id="novo-card-nome"
+                value={newCardForm.nome}
+                onChange={(e) => setNewCardForm((prev) => ({ ...prev, nome: e.target.value }))}
+                placeholder="Ex: Parceiro Freelancer"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="novo-card-cargo">Cargo / papel</Label>
+              <Input
+                id="novo-card-cargo"
+                value={newCardForm.cargo_display}
+                onChange={(e) => setNewCardForm((prev) => ({ ...prev, cargo_display: e.target.value }))}
+                placeholder="Ex: Consultor Externo"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="novo-card-email">Email (opcional)</Label>
+              <Input
+                id="novo-card-email"
+                value={newCardForm.email}
+                onChange={(e) => setNewCardForm((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="contato@exemplo.com"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Area inicial</Label>
+              <Select
+                value={newCardForm.area}
+                onValueChange={(value) => setNewCardForm((prev) => ({ ...prev, area: value as OrganogramaArea }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AREA_ORDER.map((area) => (
+                    <SelectItem key={area} value={area}>
+                      {AREA_META[area].label}
+                    </SelectItem>
                   ))}
-                </div>
-              </div>
-
-              {/* Comunicação e Serviços */}
-              {grupos[3] && (
-                <>
-                  {/* Comunicação */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-purple-500" />
-                      <h3 className="font-bold text-lg text-foreground">📢 Comunicação</h3>
-                      <span className="text-xs font-semibold text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                        {grupos[3].filter(c => DEPARTAMENTOS[c.nivel_acesso] === "Comunicação").length}
-                      </span>
-                    </div>
-                    <div className="space-y-3">
-                      {grupos[3]
-                        .filter(c => DEPARTAMENTOS[c.nivel_acesso] === "Comunicação")
-                        .map((colab: any) => (
-                          <OrganizerNode
-                            key={colab.id}
-                            colaborador={colab}
-                            isAdmin={isAdmin}
-                            onOpenDetail={onOpenDetail}
-                            onPositionChange={() => {}}
-                            isDragging={draggedItem === colab.id}
-                            onDepartmentChange={handleDepartmentChange}
-                          />
-                        ))}
-                    </div>
-                  </div>
-
-                  {/* Serviços */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-pink-500" />
-                      <h3 className="font-bold text-lg text-foreground">⚙️ Serviços</h3>
-                      <span className="text-xs font-semibold text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                        {grupos[3].filter(c => DEPARTAMENTOS[c.nivel_acesso] === "Serviços").length}
-                      </span>
-                    </div>
-                    <div className="space-y-3">
-                      {grupos[3]
-                        .filter(c => DEPARTAMENTOS[c.nivel_acesso] === "Serviços")
-                        .map((colab: any) => (
-                          <OrganizerNode
-                            key={colab.id}
-                            colaborador={colab}
-                            isAdmin={isAdmin}
-                            onOpenDetail={onOpenDetail}
-                            onPositionChange={() => {}}
-                            isDragging={draggedItem === colab.id}
-                            onDepartmentChange={handleDepartmentChange}
-                          />
-                        ))}
-                    </div>
-                  </div>
-                </>
-              )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        )}
 
-        {colaboradores.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-lg text-muted-foreground">Nenhum membro cadastrado ainda.</p>
-          </div>
-        )}
-      </div>
-    </DndContext>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewCardModalOpen(false)} disabled={creatingCard}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateCustomCard} disabled={creatingCard}>
+              {creatingCard ? "Salvando..." : "Criar card"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {draggingCardId && <p className="text-center text-xs text-muted-foreground">Movendo card...</p>}
+    </div>
   );
 };

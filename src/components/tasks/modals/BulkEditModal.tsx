@@ -6,7 +6,11 @@ import { useBulkUpdateTasks, useBulkDeleteTasks } from "@/hooks/useTaskMutations
 import { supabase } from "@/integrations/supabase/client";
 import { TaskPriority, TaskUpdate, PRIORITY_LABELS } from "@/types/tasks";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, Trash2 } from "lucide-react";
+import { AlertCircle, Trash2, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface BulkEditModalProps {
     open: boolean;
@@ -165,12 +169,22 @@ export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSele
                                 </button>
                             )}
                         </label>
-                        <input
-                            type="date"
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            value={dueDate}
-                            onChange={(e) => setDueDate(e.target.value)}
-                        />
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className={`w-full justify-start text-left font-normal ${!dueDate && 'text-muted-foreground'}`}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dueDate ? format(new Date(`${dueDate}T00:00:00`), "dd MMM, yyyy", { locale: ptBR }) : <span>Selecione uma data para alterar</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={dueDate ? new Date(`${dueDate}T12:00:00`) : undefined}
+                                    onSelect={(date) => setDueDate(date ? format(date, "yyyy-MM-dd") : "")}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
                         {!dueDate && <p className="text-xs text-muted-foreground mt-1">Deixe vazio para não alterar</p>}
                     </div>
 

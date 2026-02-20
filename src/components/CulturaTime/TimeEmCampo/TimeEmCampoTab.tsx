@@ -327,10 +327,11 @@ export const TimeEmCampoTab = () => {
 
       {viewMode === "organograma" && (
         <OrganizerView
-          colaboradores={filteredItems}
+          colaboradores={colaboradores}
           isAdmin={isAdmin}
           onOpenDetail={handleOpenDetail}
           onRefresh={carregarColaboradores}
+          searchTerm={searchTerm}
         />
       )}
 

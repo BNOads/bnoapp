@@ -76,11 +76,26 @@ export function useUpdateTask() {
 
             if (error) throw error;
 
-            await supabase.from("task_history").insert({
-                task_id: id,
-                action: "updated",
-                changed_by: user?.email || "Sistema",
-            });
+            const validFields = ["title", "description", "priority", "status", "due_date", "assignee", "category", "recurrence"];
+            const historyInserts = Object.keys(updates)
+                .filter(key => validFields.includes(key))
+                .map((key) => ({
+                    task_id: id,
+                    action: "updated",
+                    field_changed: key,
+                    new_value: updates[key as keyof TaskUpdate] ? String(updates[key as keyof TaskUpdate]) : null,
+                    changed_by: user?.email || "Sistema",
+                }));
+
+            if (historyInserts.length > 0) {
+                await supabase.from("task_history").insert(historyInserts);
+            } else {
+                await supabase.from("task_history").insert({
+                    task_id: id,
+                    action: "updated",
+                    changed_by: user?.email || "Sistema",
+                });
+            }
 
             return data;
         },

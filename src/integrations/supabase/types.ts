@@ -4652,6 +4652,104 @@ export type Database = {
         }
         Relationships: []
       }
+      organograma_cards: {
+        Row: {
+          area: string
+          ativo: boolean
+          avatar_url: string | null
+          cargo_display: string | null
+          colaborador_id: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          is_custom: boolean
+          nome: string
+          ordem: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          area?: string
+          ativo?: boolean
+          avatar_url?: string | null
+          cargo_display?: string | null
+          colaborador_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_custom?: boolean
+          nome: string
+          ordem?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          area?: string
+          ativo?: boolean
+          avatar_url?: string | null
+          cargo_display?: string | null
+          colaborador_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_custom?: boolean
+          nome?: string
+          ordem?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organograma_cards_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: true
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organograma_conexoes: {
+        Row: {
+          card_a_id: string
+          card_b_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+        }
+        Insert: {
+          card_a_id: string
+          card_b_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+        }
+        Update: {
+          card_a_id?: string
+          card_b_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organograma_conexoes_card_a_id_fkey"
+            columns: ["card_a_id"]
+            isOneToOne: false
+            referencedRelation: "organograma_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organograma_conexoes_card_b_id_fkey"
+            columns: ["card_b_id"]
+            isOneToOne: false
+            referencedRelation: "organograma_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orcamento_criativos: {
         Row: {
           created_at: string | null
