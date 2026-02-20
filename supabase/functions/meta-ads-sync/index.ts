@@ -82,7 +82,7 @@ serve(async (req) => {
             throw new Error('META_ACCESS_TOKEN is not set')
         }
 
-        let { ad_account_id, client_id, date_start, date_stop, trigger_source } = await req.json().catch(() => ({}))
+        let { ad_account_id, client_id, date_start, date_stop, trigger_source, campaign_ids } = await req.json().catch(() => ({}))
 
         triggerSource = VALID_TRIGGER_SOURCES.has(trigger_source) ? trigger_source : 'manual';
         syncScope = getSyncScope(ad_account_id, client_id);
@@ -399,6 +399,11 @@ serve(async (req) => {
             urlCampaign.searchParams.append('time_increment', '1')
             urlCampaign.searchParams.append('limit', '200')
             urlCampaign.searchParams.append('time_range', JSON.stringify({ since: effectiveStart, until: effectiveEnd }))
+            if (campaign_ids && Array.isArray(campaign_ids) && campaign_ids.length > 0) {
+                // Determine valid filtering for campaigns. 
+                // Meta API allows filtering by campaign.id.
+                urlCampaign.searchParams.append('filtering', JSON.stringify([{ field: 'campaign.id', operator: 'IN', value: campaign_ids }]))
+            }
 
             let totalCampaignsSynced = 0;
 
@@ -469,6 +474,9 @@ serve(async (req) => {
             urlAd.searchParams.append('time_increment', '1')
             urlAd.searchParams.append('limit', '200')
             urlAd.searchParams.append('time_range', JSON.stringify({ since: effectiveStart, until: effectiveEnd }))
+            if (campaign_ids && Array.isArray(campaign_ids) && campaign_ids.length > 0) {
+                urlAd.searchParams.append('filtering', JSON.stringify([{ field: 'campaign.id', operator: 'IN', value: campaign_ids }]))
+            }
 
             let totalAdsSynced = 0;
             let adDebugInfo: any = null;

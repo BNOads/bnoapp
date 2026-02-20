@@ -13,6 +13,8 @@ import { ptBR } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
+import { RecurrenceSelect } from "../details/RecurrenceSelect";
+import { getRecurrenceLabel } from "@/types/tasks";
 
 interface BulkTaskModalProps {
     open: boolean;
@@ -173,16 +175,11 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
 
                         <div className="space-y-2 col-span-2">
                             <label className="text-sm font-medium">Recorrência</label>
-                            <Select value={recurrence} onValueChange={(v) => setRecurrence(v as RecurrenceType)}>
+                            <RecurrenceSelect value={recurrence} onValueChange={(v) => setRecurrence(v as RecurrenceType)}>
                                 <SelectTrigger>
-                                    <SelectValue />
+                                    <span>{recurrence === 'none' ? 'Recorrência' : getRecurrenceLabel(recurrence)}</span>
                                 </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(RECURRENCE_LABELS).map(([val, label]) => (
-                                        <SelectItem key={val} value={val}>{label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            </RecurrenceSelect>
                         </div>
                     </div>
                 </div>

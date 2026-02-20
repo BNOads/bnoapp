@@ -19,6 +19,7 @@ import { RefreshCw, Search, Pencil, Check, Plus, ArrowUpDown, ArrowUp, ArrowDown
 import { toast } from 'sonner';
 import { SheetAnalysis } from './SheetAnalysis';
 import { CruzamentoDadosTab } from './CruzamentoDadosTab';
+import { CompradoresTab } from './CompradoresTab';
 import { MetaDatePicker } from '@/components/ui/date-picker-meta';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
@@ -136,10 +137,19 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             setSyncing(true);
             toast.info("Iniciando sincronização com Meta Ads...");
 
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 90);
+            const endDate = new Date();
+
+            const currentCampaignIds = manualCampaignIds.length > 0 ? manualCampaignIds : autoLinkedIds;
+
             const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
                 body: {
                     client_id: lancamento.cliente_id,
-                    trigger_source: 'manual_launch_tab'
+                    trigger_source: 'manual_launch_tab',
+                    date_start: format(startDate, 'yyyy-MM-dd'),
+                    date_stop: format(endDate, 'yyyy-MM-dd'),
+                    campaign_ids: currentCampaignIds.length > 0 ? currentCampaignIds : undefined
                 }
             });
 
@@ -176,7 +186,8 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 .from('meta_campaign_insights')
                 .select('campaign_id, campaign_name, date_start')
                 .in('ad_account_id', accountIds)
-                .order('date_start', { ascending: false });
+                .order('date_start', { ascending: false })
+                .limit(10000);
 
             if (error) throw error;
 
@@ -289,7 +300,8 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 .from('meta_campaign_insights')
                 .select('*')
                 .in('ad_account_id', accountIds)
-                .order('date_start', { ascending: true });
+                .order('date_start', { ascending: true })
+                .limit(10000);
 
             // Removing strict date filter to ensure we catch campaigns that might have started slightly earlier
             // or if the launch start date is set to a future date but ads are already running.
@@ -481,7 +493,8 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 .from('meta_ad_insights')
                 .select('*')
                 .in('campaign_id', campaignsIdArray)
-                .order('spend', { ascending: false });
+                .order('spend', { ascending: false })
+                .limit(20000);
 
             // if (lancamento.data_inicio_captacao) {
             //    adQuery = adQuery.gte('date_start', lancamento.data_inicio_captacao);
@@ -706,6 +719,9 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                     <TabsTrigger value="leads">Leads</TabsTrigger>
                     <TabsTrigger value="pesquisa">Pesquisa</TabsTrigger>
                     <TabsTrigger value="cruzamento">Cruzamento de dados</TabsTrigger>
+                    {lancamento?.status_lancamento === 'finalizado' && (
+                        <TabsTrigger value="compradores">Compradores</TabsTrigger>
+                    )}
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-6">
@@ -1339,6 +1355,12 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 <TabsContent value="cruzamento" className="space-y-6">
                     <CruzamentoDadosTab lancamentoId={lancamento.id} />
                 </TabsContent>
+
+                {lancamento?.status_lancamento === 'finalizado' && (
+                    <TabsContent value="compradores" className="space-y-6">
+                        <CompradoresTab lancamento={lancamento} />
+                    </TabsContent>
+                )}
             </Tabs>
         </div>
     );

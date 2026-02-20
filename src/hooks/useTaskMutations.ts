@@ -3,6 +3,112 @@ import { supabase } from "@/integrations/supabase/client";
 import { TaskInsert, TaskUpdate } from "@/types/tasks";
 import { taskKeys } from "./useTasks";
 import { useToast } from "@/hooks/use-toast";
+import { addDays, addWeeks, addMonths, addYears, parseISO, format } from "date-fns";
+
+// Helper to calculate next due date based on recurrence type
+export const calculateNextDueDate = (currentDueDate: string | null, recurrence: string | null): string | null => {
+    if (!currentDueDate || !recurrence || recurrence === "none") return null;
+
+    const date = parseISO(currentDueDate);
+    let nextDate = date;
+
+    switch (recurrence) {
+        case "daily":
+            nextDate = addDays(date, 1);
+            break;
+        case "weekly":
+            nextDate = addWeeks(date, 1);
+            break;
+        case "biweekly":
+            nextDate = addWeeks(date, 2);
+            break;
+        case "monthly":
+            nextDate = addMonths(date, 1);
+            break;
+        case "semiannual":
+            nextDate = addMonths(date, 6);
+            break;
+        case "yearly":
+            nextDate = addYears(date, 1);
+            break;
+        default:
+            if (recurrence.startsWith("custom_weekly_")) {
+                const daysStr = recurrence.replace("custom_weekly_", "");
+                const targetDays = daysStr.split(",").map(Number); // 0 = Sun, 1 = Mon, etc.
+
+                let found = false;
+                for (let i = 1; i <= 7; i++) {
+                    const candidateDate = addDays(date, i);
+                    if (targetDays.includes(candidateDate.getDay())) {
+                        nextDate = candidateDate;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return null;
+            } else {
+                return null;
+            }
+    }
+
+    return format(nextDate, 'yyyy-MM-dd');
+};
+
+// Helper to create the next instance if missing
+export const handleRecurringTaskCreation = async (taskId: string) => {
+    const { data: task } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("id", taskId)
+        .single();
+
+    if (!task || !task.recurrence || task.recurrence === "none" || !task.due_date) return;
+
+    const nextDueDate = calculateNextDueDate(task.due_date, task.recurrence);
+    if (!nextDueDate) return;
+
+    if (task.recurrence_end_date && nextDueDate > task.recurrence_end_date) {
+        return; // Recurrence ended
+    }
+
+    // Check if instance already exists to prevent duplication spam
+    let duplicateQuery = supabase
+        .from("tasks")
+        .select("id")
+        .eq("title", task.title)
+        .eq("due_date", nextDueDate);
+
+    if (task.list_id) {
+        duplicateQuery = duplicateQuery.eq("list_id", task.list_id);
+    } else {
+        duplicateQuery = duplicateQuery.is("list_id", null);
+    }
+
+    const { data: existingData } = await duplicateQuery.limit(1);
+
+    if (!existingData || existingData.length === 0) {
+        // Create duplicate for next period
+        const { id: _oldId, created_at, updated_at, completed_at, doing_since, timer_started_at, time_tracked, ...taskInfo } = task;
+
+        const newTaskData = {
+            ...taskInfo,
+            completed: false,
+            due_date: nextDueDate,
+            is_recurring_instance: true,
+        };
+
+        const { data: newInst } = await supabase.from("tasks").insert(newTaskData).select("id").single();
+
+        if (newInst) {
+            const user = (await supabase.auth.getUser()).data.user;
+            await supabase.from("task_history").insert({
+                task_id: newInst.id,
+                action: "created",
+                changed_by: user?.email || "Sistema",
+            });
+        }
+    }
+};
 
 export function useCreateTask() {
     const queryClient = useQueryClient();
@@ -97,6 +203,10 @@ export function useUpdateTask() {
                 });
             }
 
+            if (updates.completed === true) {
+                await handleRecurringTaskCreation(id);
+            }
+
             return data;
         },
         onSuccess: (data) => {
@@ -140,6 +250,10 @@ export function useToggleTaskComplete() {
                 action: completed ? "completed" : "reopened",
                 changed_by: user?.email || "Sistema",
             });
+
+            if (completed) {
+                await handleRecurringTaskCreation(id);
+            }
 
             return data;
         },

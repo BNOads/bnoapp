@@ -15,6 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
+import { RecurrenceSelect } from "../details/RecurrenceSelect";
+import { getRecurrenceLabel } from "@/types/tasks";
 
 interface CreateTaskModalProps {
     open: boolean;
@@ -237,19 +239,14 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                             </Select>
 
                             {/* Recurrence Pill */}
-                            <Select value={recurrence} onValueChange={(v) => setRecurrence(v as RecurrenceType)}>
+                            <RecurrenceSelect value={recurrence} onValueChange={(v) => setRecurrence(v as RecurrenceType)}>
                                 <SelectTrigger className="w-auto h-8 px-3 rounded-full border text-xs font-medium hover:bg-muted/50 transition-colors shadow-none bg-transparent">
                                     <div className="flex items-center gap-1.5">
                                         <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
-                                        <span className="capitalize">{recurrence === 'none' ? 'Recorrência' : RECURRENCE_LABELS[recurrence]}</span>
+                                        <span className="capitalize">{recurrence === 'none' ? 'Recorrência' : getRecurrenceLabel(recurrence)}</span>
                                     </div>
                                 </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(RECURRENCE_LABELS).map(([val, label]) => (
-                                        <SelectItem key={val} value={val}>{label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            </RecurrenceSelect>
 
                             <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border shadow-none bg-transparent text-muted-foreground hover:bg-muted/50">
                                 <Tag className="w-3.5 h-3.5" />

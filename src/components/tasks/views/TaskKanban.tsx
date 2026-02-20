@@ -100,13 +100,13 @@ export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
                             {task.task_comments.length}
                         </span>
                     )}
-                    {(task.time_tracked || 0) > 0 && !task.completed && (
+                    {(task.time_tracked || 0) > 0 && (
                         <span className="flex items-center gap-1 text-muted-foreground">
                             <Clock className="w-3.5 h-3.5" />
                             <span className="font-mono">{Math.floor((task.time_tracked || 0) / 3600)}:{Math.floor(((task.time_tracked || 0) % 3600) / 60).toString().padStart(2, '0')}:{(task.time_tracked || 0) % 60 < 10 ? '0' : ''}{(task.time_tracked || 0) % 60}</span>
                         </span>
                     )}
-                    {task.due_date && !task.completed && (
+                    {task.due_date && (
                         <span className={`flex items-center gap-1 ${isOverdue(task.due_date, false) ? "text-destructive font-medium" : ""}`}>
                             <CalendarIcon className="w-3.5 h-3.5" />
                             {format(new Date(`${task.due_date}T00:00:00`), "dd/MMM", { locale: ptBR })}

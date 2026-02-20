@@ -34,33 +34,57 @@ Deno.serve(async (req: Request) => {
             const dueDateTimestamp = new Date(`${task.due_date}T00:00:00`);
             let nextDate = new Date(dueDateTimestamp);
 
-            switch (task.recurrence) {
-                case "daily":
-                    nextDate.setDate(nextDate.getDate() + 1);
-                    break;
-                case "weekly":
-                    nextDate.setDate(nextDate.getDate() + 7);
-                    break;
-                case "biweekly":
-                    nextDate.setDate(nextDate.getDate() + 14);
-                    break;
-                case "monthly":
-                    nextDate.setMonth(nextDate.getMonth() + 1);
-                    break;
-                case "semiannual":
-                    nextDate.setMonth(nextDate.getMonth() + 6);
-                    break;
-                case "yearly":
-                    nextDate.setFullYear(nextDate.getFullYear() + 1);
-                    break;
-            }
+            if (task.recurrence.startsWith("custom_weekly_")) {
+                const daysStr = task.recurrence.replace("custom_weekly_", "");
+                const targetDays = daysStr.split(",").map(Number);
+                if (targetDays.length > 0) {
+                    const currentDayOfWeek = nextDate.getDay(); // 0 = Dom, 6 = Sáb
+                    targetDays.sort((a, b) => a - b);
 
-            // Aplica lógica de pular finais de semana (sábado -> segunda, domingo -> segunda)
-            const dayOfWeek = nextDate.getDay();
-            if (dayOfWeek === 6) { // Sábado
-                nextDate.setDate(nextDate.getDate() + 2);
-            } else if (dayOfWeek === 0) { // Domingo
-                nextDate.setDate(nextDate.getDate() + 1);
+                    let daysToAdd = -1;
+                    for (const d of targetDays) {
+                        if (d > currentDayOfWeek) {
+                            daysToAdd = d - currentDayOfWeek;
+                            break;
+                        }
+                    }
+
+                    if (daysToAdd === -1) {
+                        // Vai para o primeiro dia selecionado na próxima semana
+                        daysToAdd = (7 - currentDayOfWeek) + targetDays[0];
+                    }
+
+                    nextDate.setDate(nextDate.getDate() + daysToAdd);
+                }
+            } else {
+                switch (task.recurrence) {
+                    case "daily":
+                        nextDate.setDate(nextDate.getDate() + 1);
+                        break;
+                    case "weekly":
+                        nextDate.setDate(nextDate.getDate() + 7);
+                        break;
+                    case "biweekly":
+                        nextDate.setDate(nextDate.getDate() + 14);
+                        break;
+                    case "monthly":
+                        nextDate.setMonth(nextDate.getMonth() + 1);
+                        break;
+                    case "semiannual":
+                        nextDate.setMonth(nextDate.getMonth() + 6);
+                        break;
+                    case "yearly":
+                        nextDate.setFullYear(nextDate.getFullYear() + 1);
+                        break;
+                }
+
+                // Aplica lógica de pular finais de semana APENAS para recorrências padrão
+                const dayOfWeek = nextDate.getDay();
+                if (dayOfWeek === 6) { // Sábado -> Segunda
+                    nextDate.setDate(nextDate.getDate() + 2);
+                } else if (dayOfWeek === 0) { // Domingo -> Segunda
+                    nextDate.setDate(nextDate.getDate() + 1);
+                }
             }
 
             const nextDateString = nextDate.toISOString().split("T")[0];

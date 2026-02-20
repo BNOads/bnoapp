@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Task, PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS } from "@/types/tasks";
+import { Task, PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS, getRecurrenceLabel } from "@/types/tasks";
 import { isOverdue, isToday } from "@/lib/dateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { RecurrenceSelect } from "../details/RecurrenceSelect";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -126,111 +127,113 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                                 {task.title}
                                             </span>
 
-                                            {!task.completed && (
-                                                <div className="flex flex-wrap items-center gap-2 mt-2" onClick={e => e.stopPropagation()}>
-                                                    {/* Assignee interactable */}
-                                                    <Select
-                                                        value={task.assignee || "unassigned"}
-                                                        onValueChange={(val) => {
-                                                            const newAssignee = val === "unassigned" ? null : val;
-                                                            const colab = colaboradores.find(c => c.nome === val);
-                                                            handleUpdateField(task.id, "assignee", newAssignee);
-                                                            if (colab) handleUpdateField(task.id, "assigned_to_id", colab.user_id);
-                                                            else handleUpdateField(task.id, "assigned_to_id", null);
-                                                        }}
-                                                    >
-                                                        <SelectTrigger className="h-10 px-4 text-base border-none bg-muted/50 hover:bg-muted shadow-none w-fit gap-2.5 text-muted-foreground p-0 focus:ring-0 rounded-md cursor-pointer">
-                                                            {task.assignee ? (
-                                                                <div className="flex items-center gap-2.5 text-foreground">
+                                            <div className={`flex flex-wrap items-center gap-2 mt-2 ${task.completed ? "opacity-70 pointer-events-none" : ""}`} onClick={e => e.stopPropagation()}>
+                                                {/* Assignee interactable */}
+                                                <Select
+                                                    value={task.assignee || "unassigned"}
+                                                    onValueChange={(val) => {
+                                                        const newAssignee = val === "unassigned" ? null : val;
+                                                        const colab = colaboradores.find(c => c.nome === val);
+                                                        updateTask({
+                                                            id: task.id,
+                                                            updates: {
+                                                                assignee: newAssignee,
+                                                                assigned_to_id: colab ? colab.user_id : null
+                                                            }
+                                                        });
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="h-10 px-4 text-base border-none bg-muted/50 hover:bg-muted shadow-none w-fit gap-2.5 text-muted-foreground p-0 focus:ring-0 rounded-md cursor-pointer">
+                                                        {task.assignee ? (
+                                                            <div className="flex items-center gap-2.5 text-foreground">
+                                                                <Avatar className="h-8 w-8">
+                                                                    <AvatarImage src={assigneeColab?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${task.assignee}`} />
+                                                                    <AvatarFallback className="text-xs">{task.assignee.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                                </Avatar>
+                                                                <span className="truncate max-w-[140px] font-medium">{task.assignee}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2">
+                                                                <User className="w-5 h-5" />
+                                                                <span>Sem resp.</span>
+                                                            </div>
+                                                        )}
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="unassigned" className="text-base py-2">Sem responsável</SelectItem>
+                                                        {colaboradores.map(c => (
+                                                            <SelectItem key={c.user_id || c.nome} value={c.nome} className="text-base py-2">
+                                                                <div className="flex items-center gap-2.5">
                                                                     <Avatar className="h-8 w-8">
-                                                                        <AvatarImage src={assigneeColab?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${task.assignee}`} />
-                                                                        <AvatarFallback className="text-xs">{task.assignee.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                                        <AvatarImage src={c.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.nome}`} />
+                                                                        <AvatarFallback className="text-xs">{c.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
                                                                     </Avatar>
-                                                                    <span className="truncate max-w-[140px] font-medium">{task.assignee}</span>
+                                                                    {c.nome}
                                                                 </div>
-                                                            ) : (
-                                                                <div className="flex items-center gap-2">
-                                                                    <User className="w-5 h-5" />
-                                                                    <span>Sem resp.</span>
-                                                                </div>
-                                                            )}
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="unassigned" className="text-base py-2">Sem responsável</SelectItem>
-                                                            {colaboradores.map(c => (
-                                                                <SelectItem key={c.user_id || c.nome} value={c.nome} className="text-base py-2">
-                                                                    <div className="flex items-center gap-2.5">
-                                                                        <Avatar className="h-8 w-8">
-                                                                            <AvatarImage src={c.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.nome}`} />
-                                                                            <AvatarFallback className="text-xs">{c.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                                                        </Avatar>
-                                                                        {c.nome}
-                                                                    </div>
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
 
-                                                    {/* Due date interactable */}
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <Button variant="ghost" size="sm" className="h-10 px-4 text-base bg-muted/50 hover:bg-muted text-foreground font-normal gap-2.5 p-0 rounded-md">
-                                                                <CalendarIcon className="w-5 h-5 text-muted-foreground" />
-                                                                {task.due_date ? format(new Date(`${task.due_date}T00:00:00`), "dd MMM", { locale: ptBR }) : <span className="text-muted-foreground">Sem data</span>}
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                            <Calendar
-                                                                mode="single"
-                                                                selected={task.due_date ? new Date(task.due_date + 'T12:00:00') : undefined}
-                                                                onSelect={(date) => handleUpdateField(task.id, "due_date", date ? format(date, "yyyy-MM-dd") : null)}
-                                                                initialFocus
-                                                            />
-                                                        </PopoverContent>
-                                                    </Popover>
+                                                {/* Due date interactable */}
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="ghost" size="sm" className="h-10 px-4 text-base bg-muted/50 hover:bg-muted text-foreground font-normal gap-2.5 p-0 rounded-md">
+                                                            <CalendarIcon className="w-5 h-5 text-muted-foreground" />
+                                                            {task.due_date ? format(new Date(`${task.due_date}T00:00:00`), "dd MMM", { locale: ptBR }) : <span className="text-muted-foreground">Sem data</span>}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="start">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={task.due_date ? new Date(task.due_date + 'T12:00:00') : undefined}
+                                                            onSelect={(date) => handleUpdateField(task.id, "due_date", date ? format(date, "yyyy-MM-dd") : null)}
+                                                            initialFocus
+                                                        />
+                                                    </PopoverContent>
+                                                </Popover>
 
-                                                    {/* Recurrence interactable */}
-                                                    <Select
-                                                        value={task.recurrence || "none"}
-                                                        onValueChange={(val) => handleUpdateField(task.id, "recurrence", val === "none" ? null : val)}
-                                                    >
-                                                        <SelectTrigger className="h-10 px-4 text-base border-none bg-muted/50 hover:bg-muted shadow-none w-fit gap-2.5 text-foreground p-0 focus:ring-0 rounded-md cursor-pointer">
-                                                            <RepeatIcon className="w-5 h-5 text-muted-foreground" />
-                                                            {task.recurrence && task.recurrence !== 'none' ? RECURRENCE_LABELS[task.recurrence as RecurrenceType] : <span className="text-muted-foreground">Sem rec.</span>}
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {Object.entries(RECURRENCE_LABELS).map(([val, label]) => (
-                                                                <SelectItem key={val} value={val} className="text-base py-2">{label}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                {/* Recurrence interactable */}
+                                                <RecurrenceSelect
+                                                    value={task.recurrence || "none"}
+                                                    onValueChange={(val) => handleUpdateField(task.id, "recurrence", val === "none" ? null : val)}
+                                                >
+                                                    <SelectTrigger className="h-10 px-4 text-base border-none bg-muted/50 hover:bg-muted shadow-none w-fit gap-2.5 text-foreground p-0 focus:ring-0 rounded-md cursor-pointer">
+                                                        <RepeatIcon className="w-5 h-5 text-muted-foreground" />
+                                                        {task.recurrence && task.recurrence !== 'none' ? getRecurrenceLabel(task.recurrence) : <span className="text-muted-foreground">Sem rec.</span>}
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {Object.entries(RECURRENCE_LABELS).map(([val, label]) => (
+                                                            <SelectItem key={val} value={val} className="text-base py-2">{label}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </RecurrenceSelect>
 
-                                                    {task.list_id && (
-                                                        <span className="flex items-center gap-1.5 truncate max-w-[150px] border px-2 py-1 rounded-md bg-muted/50 text-sm text-muted-foreground ml-2">
-                                                            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: taskLists?.find(l => l.id === task.list_id)?.color || '#ccc' }} />
-                                                            <span className="truncate">{taskLists?.find(l => l.id === task.list_id)?.name || 'Lista'}</span>
-                                                        </span>
-                                                    )}
+                                                {task.list_id && (
+                                                    <span className="flex items-center gap-1.5 truncate max-w-[150px] border px-2 py-1 rounded-md bg-muted/50 text-sm text-muted-foreground ml-2">
+                                                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: taskLists?.find(l => l.id === task.list_id)?.color || '#ccc' }} />
+                                                        <span className="truncate">{taskLists?.find(l => l.id === task.list_id)?.name || 'Lista'}</span>
+                                                    </span>
+                                                )}
 
-                                                    {task.subtasks && task.subtasks.length > 0 && (
-                                                        <span className="flex items-center gap-1.5 text-sm text-muted-foreground ml-2">
-                                                            <CheckCircleIcon className="w-4 h-4" />
-                                                            {task.subtasks.filter((s: any) => s.completed).length}/{task.subtasks.length}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
+                                                {task.subtasks && task.subtasks.length > 0 && (
+                                                    <span className="flex items-center gap-1.5 text-sm text-muted-foreground ml-2">
+                                                        <CheckCircleIcon className="w-4 h-4" />
+                                                        {task.subtasks.filter((s: any) => s.completed).length}/{task.subtasks.length}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div className="flex items-center gap-3 shrink-0 self-start md:self-end lg:self-center w-full md:w-auto justify-start md:justify-end mt-2 lg:mt-0" onClick={e => e.stopPropagation()}>
-                                        {(task.time_tracked || 0) > 0 && !task.completed && (
+                                        {(task.time_tracked || 0) > 0 && (
                                             <div className="flex items-center gap-2 text-base text-muted-foreground bg-muted/50 px-4 py-2 rounded-md border border-transparent">
                                                 <Clock className="w-5 h-5" />
                                                 <span className="font-mono">{Math.floor((task.time_tracked || 0) / 3600)}:{Math.floor(((task.time_tracked || 0) % 3600) / 60).toString().padStart(2, '0')}:{(task.time_tracked || 0) % 60 < 10 ? '0' : ''}{(task.time_tracked || 0) % 60}</span>
                                             </div>
                                         )}
-                                        {!task.completed && (
+                                        <div className={task.completed ? "opacity-70 pointer-events-none" : ""}>
                                             <Select
                                                 value={task.priority || "none"}
                                                 onValueChange={(val) => handleUpdateField(task.id, "priority", val === "none" ? null : val as TaskPriority)}
@@ -253,7 +256,7 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                                     <SelectItem value="alta" className="text-base py-2 text-red-500 font-medium">{PRIORITY_LABELS.alta}</SelectItem>
                                                 </SelectContent>
                                             </Select>
-                                        )}
+                                        </div>
                                     </div>
                                 </div>
                             );

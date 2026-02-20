@@ -28,7 +28,7 @@ export const PRIORITY_LABELS: Record<TaskPriority, string> = {
 
 export type RecurrenceType = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "semiannual" | "yearly";
 
-export const RECURRENCE_LABELS: Record<RecurrenceType, string> = {
+export const RECURRENCE_LABELS: Record<string, string> = {
     none: "Sem recorrência",
     daily: "Diário",
     weekly: "Semanal",
@@ -37,6 +37,18 @@ export const RECURRENCE_LABELS: Record<RecurrenceType, string> = {
     semiannual: "Semestral",
     yearly: "Anual",
 };
+
+export function getRecurrenceLabel(recurrence: string | null | undefined): string {
+    if (!recurrence || recurrence === "none") return "Sem recorrência";
+    if (RECURRENCE_LABELS[recurrence]) return RECURRENCE_LABELS[recurrence];
+    if (recurrence.startsWith("custom_weekly_")) {
+        const days = recurrence.replace("custom_weekly_", "").split(",");
+        const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+        const namedDays = days.map(d => dayNames[parseInt(d, 10)]).filter(Boolean);
+        return `Semanalmente (${namedDays.join(", ")})`;
+    }
+    return "Personalizado";
+}
 
 export type TaskStatus = "overdue" | "today" | "upcoming" | "no-date";
 

@@ -6,6 +6,7 @@ import { useUpdateTask, useToggleTaskComplete } from "@/hooks/useTaskMutations";
 import { SubtaskList } from "./SubtaskList";
 import { CommentSection } from "./CommentSection";
 import { HistoryTimeline } from "./HistoryTimeline";
+import { RecurrenceSelect } from "./RecurrenceSelect";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,7 +21,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { TaskPriority, PRIORITY_LABELS, RecurrenceType, RECURRENCE_LABELS } from "@/types/tasks";
+import { TaskPriority, PRIORITY_LABELS, RecurrenceType, RECURRENCE_LABELS, getRecurrenceLabel } from "@/types/tasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCreateComment } from "@/hooks/useTaskComments";
 import { supabase } from "@/integrations/supabase/client";
@@ -281,9 +282,13 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                             onValueChange={(val) => {
                                                 const newAssignee = val === "unassigned" ? null : val;
                                                 const colab = colaboradores.find(c => c.nome === val);
-                                                handleUpdateField("assignee", newAssignee);
-                                                if (colab) handleUpdateField("assigned_to_id", colab.user_id);
-                                                else handleUpdateField("assigned_to_id", null);
+                                                updateTask({
+                                                    id: task.id,
+                                                    updates: {
+                                                        assignee: newAssignee,
+                                                        assigned_to_id: colab ? colab.user_id : null
+                                                    }
+                                                });
                                             }}
                                         >
                                             <SelectTrigger className="w-auto h-7 px-2 py-0 border-0 hover:bg-muted shadow-none bg-transparent">
@@ -454,27 +459,20 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                             <RefreshCw className="h-3.5 w-3.5" />
                                             Recorrência
                                         </div>
-                                        <Select
+                                        <RecurrenceSelect
                                             value={task.recurrence || "none"}
                                             onValueChange={(val) => handleUpdateField("recurrence", val === "none" ? null : val)}
                                         >
                                             <SelectTrigger className="w-auto h-7 px-2 border-0 hover:bg-muted shadow-none bg-transparent -ml-2 min-w-0 flex-1">
                                                 {task.recurrence && task.recurrence !== "none" ? (
                                                     <span className="text-xs font-medium text-foreground">
-                                                        {RECURRENCE_LABELS[task.recurrence as RecurrenceType]}
+                                                        {getRecurrenceLabel(task.recurrence)}
                                                     </span>
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">-</span>
                                                 )}
                                             </SelectTrigger>
-                                            <SelectContent>
-                                                {Object.entries(RECURRENCE_LABELS).map(([val, label]) => (
-                                                    <SelectItem key={val} value={val}>
-                                                        {label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        </RecurrenceSelect>
                                     </div>
                                 </div>
 
@@ -513,12 +511,6 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                         <TabsTrigger value="subtasks" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 border-primary rounded-none px-1 font-medium pb-2 text-sm whitespace-nowrap">
                                             Subtarefas <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 rounded-full">{task.subtasks?.length || 0}</span>
                                         </TabsTrigger>
-                                        <TabsTrigger value="action_items" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 border-primary rounded-none px-1 font-medium pb-2 text-sm whitespace-nowrap">
-                                            Itens de ação
-                                        </TabsTrigger>
-                                        <TabsTrigger value="details" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 border-primary rounded-none px-1 font-medium pb-2 text-sm whitespace-nowrap">
-                                            Detalhes
-                                        </TabsTrigger>
                                         {/* Mobile only tab for Activity */}
                                         <TabsTrigger value="activity" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 border-primary rounded-none px-1 font-medium pb-2 text-sm whitespace-nowrap lg:hidden">
                                             Atividade <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 rounded-full">{task.task_comments?.length || 0}</span>
@@ -528,34 +520,6 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                     <div className="pt-6 pb-12">
                                         <TabsContent value="subtasks" className="m-0 bg-transparent">
                                             <SubtaskList taskId={task.id} subtasks={task.subtasksTree || []} />
-                                        </TabsContent>
-                                        <TabsContent value="action_items" className="m-0 bg-transparent">
-                                            <p className="text-sm text-muted-foreground">Nenhum item de ação adicionado.</p>
-                                        </TabsContent>
-                                        <TabsContent value="details" className="m-0 bg-transparent">
-                                            <div className="space-y-4">
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                                                    <div className="space-y-1">
-                                                        <span className="text-xs text-muted-foreground block">Recorrência</span>
-                                                        <Select
-                                                            value={task.recurrence || "none"}
-                                                            onValueChange={(val) => handleUpdateField("recurrence", val === "none" ? null : val)}
-                                                        >
-                                                            <SelectTrigger className="w-fit h-7 px-2 border hover:bg-muted shadow-none bg-transparent">
-                                                                <div className="flex items-center gap-1.5 text-sm">
-                                                                    <RefreshCw className="h-3 w-3" />
-                                                                    {task.recurrence && task.recurrence !== 'none' ? RECURRENCE_LABELS[task.recurrence as RecurrenceType] : "Sem Recorrência"}
-                                                                </div>
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {Object.entries(RECURRENCE_LABELS).map(([val, label]) => (
-                                                                    <SelectItem key={val} value={val}>{label}</SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                </div>
-                                            </div>
                                         </TabsContent>
                                         {/* Mobile Activity Tab */}
                                         <TabsContent value="activity" className="m-0 bg-transparent lg:hidden space-y-6">
