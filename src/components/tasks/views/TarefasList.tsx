@@ -1,16 +1,17 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Task, PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS, getRecurrenceLabel } from "@/types/tasks";
-import { isOverdue, isToday } from "@/lib/dateUtils";
+import { isOverdue, isToday, isRecurringDate } from "@/lib/dateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, CalendarIcon, AlertCircle, User, RepeatIcon, Clock, CircleUserIcon, ChevronDownIcon, MessageSquare, CheckCircleIcon, List } from "lucide-react";
-import { useToggleTaskComplete, useUpdateTask } from "@/hooks/useTaskMutations";
+import { ChevronDown, ChevronRight, CalendarIcon, AlertCircle, User, RepeatIcon, Clock, CircleUserIcon, ChevronDownIcon, MessageSquare, CheckCircleIcon, List, Trash2 } from "lucide-react";
+import { useToggleTaskComplete, useUpdateTask, useDeleteTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTaskLists } from "@/hooks/useTasks";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { RecurrenceSelect } from "../details/RecurrenceSelect";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,6 +25,24 @@ interface TarefasListProps {
 export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: updateTask } = useUpdateTask();
+    const { mutate: deleteTask } = useDeleteTask();
+
+    const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+    const [editTitle, setEditTitle] = useState("");
+
+    const startEditing = (task: Task, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (task.completed) return;
+        setEditingTaskId(task.id);
+        setEditTitle(task.title);
+    };
+
+    const commitEdit = (taskId: string) => {
+        if (editTitle.trim()) {
+            updateTask({ id: taskId, updates: { title: editTitle.trim() } });
+        }
+        setEditingTaskId(null);
+    };
 
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
         completed: true,
@@ -123,9 +142,28 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                         </div>
 
                                         <div className="flex flex-col flex-1 min-w-0">
-                                            <span className={`text-lg font-semibold truncate mb-1 ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
-                                                {task.title}
-                                            </span>
+                                            {editingTaskId === task.id ? (
+                                                <Input
+                                                    value={editTitle}
+                                                    onChange={(e) => setEditTitle(e.target.value)}
+                                                    onBlur={() => commitEdit(task.id)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') commitEdit(task.id);
+                                                        if (e.key === 'Escape') setEditingTaskId(null);
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    autoFocus
+                                                    className="h-8 max-w-sm font-semibold text-lg border-primary mb-1 p-1 bg-background"
+                                                />
+                                            ) : (
+                                                <span
+                                                    className={`text-[1.05rem] font-semibold truncate mb-1 border border-transparent rounded px-1 -ml-1 hover:border-border hover:bg-muted/50 transition-colors w-fit max-w-full ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}
+                                                    onClick={(e) => startEditing(task, e)}
+                                                    title="Clique para editar"
+                                                >
+                                                    {task.title}
+                                                </span>
+                                            )}
 
                                             <div className={`flex flex-wrap items-center gap-2 mt-2 ${task.completed ? "opacity-70 pointer-events-none" : ""}`} onClick={e => e.stopPropagation()}>
                                                 {/* Assignee interactable */}
@@ -189,6 +227,12 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                                             selected={task.due_date ? new Date(task.due_date + 'T12:00:00') : undefined}
                                                             onSelect={(date) => handleUpdateField(task.id, "due_date", date ? format(date, "yyyy-MM-dd") : null)}
                                                             initialFocus
+                                                            modifiers={{
+                                                                recurring: (date) => isRecurringDate(date, task.recurrence, task.due_date)
+                                                            }}
+                                                            modifiersClassNames={{
+                                                                recurring: "bg-primary/15 text-primary font-semibold rounded-md"
+                                                            }}
                                                         />
                                                     </PopoverContent>
                                                 </Popover>
@@ -262,8 +306,9 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                             );
                         })}
                     </div>
-                )}
-            </div>
+                )
+                }
+            </div >
         );
     };
 

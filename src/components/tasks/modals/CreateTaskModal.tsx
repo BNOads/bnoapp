@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
+import { isRecurringDate } from "@/lib/dateUtils";
 import { RecurrenceSelect } from "../details/RecurrenceSelect";
 import { getRecurrenceLabel } from "@/types/tasks";
 
@@ -204,6 +205,12 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                                         selected={dueDate ? new Date(dueDate + 'T12:00:00') : undefined}
                                         onSelect={(date) => setDueDate(date ? format(date, "yyyy-MM-dd") : "")}
                                         initialFocus
+                                        modifiers={{
+                                            recurring: (date) => isRecurringDate(date, recurrence, dueDate)
+                                        }}
+                                        modifiersClassNames={{
+                                            recurring: "bg-primary/15 text-primary font-semibold rounded-md"
+                                        }}
                                     />
                                 </PopoverContent>
                             </Popover>

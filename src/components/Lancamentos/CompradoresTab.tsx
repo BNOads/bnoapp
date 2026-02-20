@@ -180,13 +180,17 @@ export const CompradoresTab = ({ lancamento }: CompradoresTabProps) => {
             });
 
             // Save to Supabase
+            const { data: userData } = await supabase.auth.getUser();
+            if (!userData.user) throw new Error('Usuário não autenticado');
+
             const payload = {
                 lancamento_id: lancamento.id,
                 nome: 'Planilha de Compradores',
-                url: null, // No URL for direct CSV upload
+                url: '', // Avoid NOT NULL constraint violation for direct CSV upload
                 cached_data: mappedData,
                 last_sync_at: new Date().toISOString(),
                 ordem: 100, // Just a sorting order if needed
+                criado_por: userData.user.id
             };
 
             let currentId = linkId;

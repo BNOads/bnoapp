@@ -34,9 +34,9 @@ const getFieldValue = (row: Record<string, unknown>, keysToTry: string[]): strin
 };
 
 const extractPerson = (row: Record<string, unknown>) => {
-    const email = getFieldValue(row, ['_mapped_email', 'email', 'mail']);
-    const phone = getFieldValue(row, ['_mapped_telefone', 'telefone', 'celular', 'whatsapp', 'phone']);
-    const name = getFieldValue(row, ['_mapped_nome', 'nome', 'name', 'comprador']);
+    const email = getFieldValue(row, ['mapped_email', 'email', 'mail']);
+    const phone = getFieldValue(row, ['mapped_telefone', 'telefone', 'celular', 'whatsapp', 'phone']);
+    const name = getFieldValue(row, ['mapped_nome', 'nome', 'name', 'comprador']);
 
     return {
         email: normalizeEmail(email),

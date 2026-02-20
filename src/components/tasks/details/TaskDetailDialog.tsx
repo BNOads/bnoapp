@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { isRecurringDate } from "@/lib/dateUtils";
 import { TaskPriority, PRIORITY_LABELS, RecurrenceType, RECURRENCE_LABELS, getRecurrenceLabel } from "@/types/tasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCreateComment } from "@/hooks/useTaskComments";
@@ -346,6 +347,12 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                                     selected={task.due_date ? new Date(task.due_date + 'T12:00:00') : undefined}
                                                     onSelect={(date) => handleUpdateField("due_date", date ? format(date, "yyyy-MM-dd") : null)}
                                                     initialFocus
+                                                    modifiers={{
+                                                        recurring: (date) => isRecurringDate(date, task.recurrence, task.due_date)
+                                                    }}
+                                                    modifiersClassNames={{
+                                                        recurring: "bg-primary/15 text-primary font-semibold rounded-md"
+                                                    }}
                                                 />
                                             </PopoverContent>
                                         </Popover>

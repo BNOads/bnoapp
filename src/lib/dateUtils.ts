@@ -155,3 +155,92 @@ export function formatarNivelAcesso(nivel: string | null | undefined): string {
   };
   return dict[nivel] || nivel.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
+
+export function isRecurringDate(
+  candidateStr: string | Date | null | undefined,
+  recurrence: string | null | undefined,
+  baseDateStr: string | null | undefined
+): boolean {
+  if (!candidateStr || !baseDateStr || !recurrence || recurrence === "none") return false;
+
+  const candidate = candidateStr instanceof Date ? candidateStr : parseToLocalDate(candidateStr);
+  const baseDate = parseToLocalDate(baseDateStr);
+
+  if (!candidate || !baseDate) return false;
+
+  const candidateTimestamp = candidate.getTime();
+  const baseTimestamp = baseDate.getTime();
+
+  // Future dates only
+  if (candidateTimestamp <= baseTimestamp) return false;
+
+  const diffDays = Math.round((candidateTimestamp - baseTimestamp) / (1000 * 3600 * 24));
+
+  if (recurrence === "daily") return true;
+  if (recurrence === "weekly") return diffDays % 7 === 0;
+  if (recurrence === "biweekly") return diffDays % 14 === 0;
+
+  const candidateYear = candidate.getFullYear();
+  const candidateMonth = candidate.getMonth();
+  const candidateD = candidate.getDate();
+
+  const baseYear = baseDate.getFullYear();
+  const baseMonth = baseDate.getMonth();
+  const baseD = baseDate.getDate();
+
+  if (recurrence === "monthly") {
+    return candidateD === baseD;
+  }
+  if (recurrence === "semiannual") {
+    if (candidateD !== baseD) return false;
+    const monthsDiff = (candidateYear - baseYear) * 12 + (candidateMonth - baseMonth);
+    return monthsDiff % 6 === 0;
+  }
+  if (recurrence === "yearly") {
+    return candidateD === baseD && candidateMonth === baseMonth;
+  }
+
+  if (recurrence.startsWith("custom_weekly_")) {
+    const daysStr = recurrence.replace("custom_weekly_", "");
+    const targetDays = daysStr.split(",").map(Number);
+    return targetDays.includes(candidate.getDay());
+  }
+
+  if (recurrence.startsWith("custom_")) {
+    // custom_interval_amount_days?
+    const parts = recurrence.split("_");
+    if (parts.length >= 3) {
+      const interval = parts[1]; // day, week, month, year
+      const amount = parseInt(parts[2] || "1", 10);
+      const days = parts[3] ? parts[3].split(",").map(Number) : null;
+
+      if (interval === "day") {
+        return diffDays % amount === 0;
+      }
+      if (interval === "week") {
+        // Compare week boundaries
+        const baseStart = startOfWeek(baseDate, { weekStartsOn: 1 }).getTime();
+        const candStart = startOfWeek(candidate, { weekStartsOn: 1 }).getTime();
+        const weeksApart = Math.round((candStart - baseStart) / (1000 * 3600 * 24 * 7));
+
+        if (weeksApart % amount !== 0) return false;
+
+        if (days && days.length > 0) {
+          return days.includes(candidate.getDay());
+        }
+        return candidate.getDay() === baseDate.getDay();
+      }
+      if (interval === "month") {
+        if (candidateD !== baseD) return false;
+        const monthsDiff = (candidateYear - baseYear) * 12 + (candidateMonth - baseMonth);
+        return monthsDiff % amount === 0;
+      }
+      if (interval === "year") {
+        if (candidateD !== baseD || candidateMonth !== baseMonth) return false;
+        return (candidateYear - baseYear) % amount === 0;
+      }
+    }
+  }
+
+  return false;
+}

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { TaskInsert, TaskUpdate } from "@/types/tasks";
 import { taskKeys } from "./useTasks";
 import { useToast } from "@/hooks/use-toast";
-import { addDays, addWeeks, addMonths, addYears, parseISO, format } from "date-fns";
+import { addDays, addWeeks, addMonths, addYears, parseISO, format, endOfWeek, startOfWeek } from "date-fns";
 
 // Helper to calculate next due date based on recurrence type
 export const calculateNextDueDate = (currentDueDate: string | null, recurrence: string | null): string | null => {
@@ -46,6 +46,59 @@ export const calculateNextDueDate = (currentDueDate: string | null, recurrence: 
                     }
                 }
                 if (!found) return null;
+            } else if (recurrence.startsWith("custom_")) {
+                const parts = recurrence.split("_");
+                if (parts.length >= 3) {
+                    const interval = parts[1]; // day, week, month, year
+                    const amount = parseInt(parts[2] || "1", 10);
+                    const daysStr = parts[3];
+
+                    if (interval === "day") {
+                        nextDate = addDays(date, amount);
+                    } else if (interval === "month") {
+                        nextDate = addMonths(date, amount);
+                    } else if (interval === "year") {
+                        nextDate = addYears(date, amount);
+                    } else if (interval === "week") {
+                        if (!daysStr) {
+                            nextDate = addWeeks(date, amount);
+                        } else {
+                            const targetDays = daysStr.split(",").map(Number);
+                            const endOfCurrentWeek = endOfWeek(date, { weekStartsOn: 1 });
+                            let foundSameWeek = false;
+
+                            for (let i = 1; i <= 7; i++) {
+                                const candidate = addDays(date, i);
+                                // Set candidate time to 0 to compare correctly with endOfWeek
+                                candidate.setHours(0, 0, 0, 0);
+                                const endWeekComparable = new Date(endOfCurrentWeek);
+                                endWeekComparable.setHours(23, 59, 59, 999);
+
+                                if (candidate > endWeekComparable) break;
+
+                                if (targetDays.includes(candidate.getDay())) {
+                                    nextDate = candidate;
+                                    foundSameWeek = true;
+                                    break;
+                                }
+                            }
+
+                            if (!foundSameWeek) {
+                                // Jump to `amount` weeks later
+                                const nextCycleStart = addWeeks(startOfWeek(date, { weekStartsOn: 1 }), amount);
+                                for (let i = 0; i < 7; i++) {
+                                    const candidate = addDays(nextCycleStart, i);
+                                    if (targetDays.includes(candidate.getDay())) {
+                                        nextDate = candidate;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    return null;
+                }
             } else {
                 return null;
             }

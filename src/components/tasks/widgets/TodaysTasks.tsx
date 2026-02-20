@@ -2,12 +2,12 @@ import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTasks } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { isToday, isOverdue } from "@/lib/dateUtils";
+import { isToday, isOverdue, isRecurringDate } from "@/lib/dateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { useToggleTaskComplete, useUpdateTask, useCreateTask } from "@/hooks/useTaskMutations";
-import { PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS } from "@/types/tasks";
-import { CalendarIcon, Clock, AlertCircle, CheckCircle2, ChevronRight, FileText, Check, Plus, RepeatIcon, SkipForward, User } from "lucide-react";
+import { useToggleTaskComplete, useUpdateTask, useCreateTask, useDeleteTask } from "@/hooks/useTaskMutations";
+import { PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS, getRecurrenceLabel } from "@/types/tasks";
+import { CheckCircleIcon, CalendarIcon, Flag, Clock, User, RepeatIcon, Users, List, Plus, Trash2, AlertCircle, ChevronRight, FileText, Check, SkipForward } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { Calendar } from "@/components/ui/calendar";
+import { RecurrenceSelect } from "../details/RecurrenceSelect";
 
 export function TodaysTasks() {
     const { userData: currentUser } = useCurrentUser();
@@ -31,11 +32,31 @@ export function TodaysTasks() {
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: updateTask } = useUpdateTask();
     const { mutate: createTask } = useCreateTask();
+    const { mutate: deleteTask } = useDeleteTask();
     const navigate = useNavigate();
 
     const [isInlineCreateOpen, setIsInlineCreateOpen] = useState(false);
     const [inlineTaskTitle, setInlineTaskTitle] = useState("");
+
+    // Inline editing states
+    const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+    const [editTitle, setEditTitle] = useState("");
+
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
+
+    const startEditing = (task: any, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (task.completed) return;
+        setEditingTaskId(task.id);
+        setEditTitle(task.title);
+    };
+
+    const commitEdit = (taskId: string) => {
+        if (editTitle.trim()) {
+            handleUpdateField(taskId, "title", editTitle.trim());
+        }
+        setEditingTaskId(null);
+    };
 
     useEffect(() => {
         supabase.from("colaboradores").select("nome, user_id, avatar_url").order("nome").then(({ data }) => {
@@ -109,10 +130,53 @@ export function TodaysTasks() {
                                     className={`w-6 h-6 border-2 transition-all ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : "rounded-md"}`}
                                 />
                             </div>
-                            <span className={`text-lg font-semibold hover:underline truncate inline-block max-w-[80%] ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
-                                {task.title}
-                            </span>
+
+                            {editingTaskId === task.id ? (
+                                <Input
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    onBlur={() => commitEdit(task.id)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') commitEdit(task.id);
+                                        if (e.key === 'Escape') setEditingTaskId(null);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    autoFocus
+                                    className="h-8 w-full max-w-sm font-semibold text-lg border-primary -ml-2 bg-background p-1"
+                                />
+                            ) : (
+                                <span
+                                    className={`text-lg font-semibold hover:border-border border border-transparent hover:bg-muted/50 transition-colors w-fit px-1 -ml-1 rounded truncate inline-block max-w-[80%] ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}
+                                    onClick={(e) => startEditing(task, e)}
+                                    title="Clique para editar"
+                                >
+                                    {task.title}
+                                </span>
+                            )}
                         </div>
+
+                        {task.completed && (
+                            <div className="flex flex-wrap items-center gap-2 mt-2 ml-0 sm:ml-10" onClick={e => e.stopPropagation()}>
+                                {task.due_date && (
+                                    <Badge variant="outline" className="font-normal text-muted-foreground bg-muted/30 border-transparent transition-colors cursor-default text-xs gap-1.5 h-6">
+                                        <CalendarIcon className="w-3 h-3 text-muted-foreground" />
+                                        {format(new Date(`${task.due_date}T00:00:00`), "dd MMM", { locale: ptBR })}
+                                    </Badge>
+                                )}
+                                {task.recurrence && task.recurrence !== 'none' && (
+                                    <Badge variant="outline" className="font-normal text-muted-foreground bg-muted/30 border-transparent transition-colors cursor-default text-xs gap-1.5 h-6">
+                                        <RepeatIcon className="w-3 h-3 text-muted-foreground" />
+                                        {getRecurrenceLabel(task.recurrence)}
+                                    </Badge>
+                                )}
+                                {task.priority && (
+                                    <Badge variant="outline" className={`font-normal text-xs gap-1.5 h-6 opacity-80 ${task.priority === 'media' ? 'text-amber-500 border-amber-500/30 bg-amber-500/10' : task.priority === 'alta' ? 'text-rose-500 border-rose-500/30 bg-rose-500/10' : 'text-slate-500 border-slate-500/30 bg-slate-500/10'}`}>
+                                        <Flag className="w-3 h-3" />
+                                        {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
+                                    </Badge>
+                                )}
+                            </div>
+                        )}
 
                         {!task.completed && (
                             <div className="flex flex-wrap items-center gap-2 mt-2 ml-0 sm:ml-10" onClick={e => e.stopPropagation()}>
@@ -174,25 +238,26 @@ export function TodaysTasks() {
                                             selected={task.due_date ? new Date(task.due_date + 'T12:00:00') : undefined}
                                             onSelect={(date) => handleUpdateField(task.id, "due_date", date ? format(date, "yyyy-MM-dd") : null)}
                                             initialFocus
+                                            modifiers={{
+                                                recurring: (date) => isRecurringDate(date, task.recurrence, task.due_date)
+                                            }}
+                                            modifiersClassNames={{
+                                                recurring: "bg-primary/15 text-primary font-semibold rounded-md"
+                                            }}
                                         />
                                     </PopoverContent>
                                 </Popover>
 
                                 {/* Editable Recurrence */}
-                                <Select
+                                <RecurrenceSelect
                                     value={task.recurrence || "none"}
                                     onValueChange={(val) => handleUpdateField(task.id, "recurrence", val === "none" ? null : val)}
                                 >
                                     <SelectTrigger className="h-10 px-4 text-base border-none bg-transparent hover:bg-muted shadow-none w-fit gap-2.5 p-0 focus:ring-0 text-foreground cursor-pointer">
                                         <RepeatIcon className="w-5 h-5 text-muted-foreground" />
-                                        {task.recurrence && task.recurrence !== 'none' ? RECURRENCE_LABELS[task.recurrence as RecurrenceType] : <span className="text-muted-foreground">Sem rec.</span>}
+                                        {task.recurrence && task.recurrence !== 'none' ? getRecurrenceLabel(task.recurrence) : <span className="text-muted-foreground">Sem rec.</span>}
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        {Object.entries(RECURRENCE_LABELS).map(([val, label]) => (
-                                            <SelectItem key={val} value={val} className="text-base py-2">{label}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                </RecurrenceSelect>
 
                             </div>
                         )}
@@ -360,7 +425,7 @@ export function TodaysTasks() {
 
                     <AccordionItem value="completed" className="border-none">
                         <AccordionTrigger className="hover:no-underline py-2 justify-start gap-2 text-emerald-500">
-                            <CheckCircle2 className="w-4 h-4" />
+                            <CheckCircleIcon className="w-4 h-4" />
                             <span className="font-semibold text-sm">Concluídas hoje ({todayCompletedTasks.length})</span>
                         </AccordionTrigger>
                         <AccordionContent className="pt-2 pb-0">

@@ -41,12 +41,46 @@ export const RECURRENCE_LABELS: Record<string, string> = {
 export function getRecurrenceLabel(recurrence: string | null | undefined): string {
     if (!recurrence || recurrence === "none") return "Sem recorrência";
     if (RECURRENCE_LABELS[recurrence]) return RECURRENCE_LABELS[recurrence];
+
+    // Legacy format
     if (recurrence.startsWith("custom_weekly_")) {
         const days = recurrence.replace("custom_weekly_", "").split(",");
         const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
         const namedDays = days.map(d => dayNames[parseInt(d, 10)]).filter(Boolean);
         return `Semanalmente (${namedDays.join(", ")})`;
     }
+
+    // New format: custom_interval_amount_days?
+    if (recurrence.startsWith("custom_")) {
+        const parts = recurrence.split("_");
+        if (parts.length >= 3) {
+            const interval = parts[1]; // day, week, month, year
+            const amount = parseInt(parts[2] || "1", 10);
+
+            let baseLabel = "";
+            if (interval === "day") {
+                baseLabel = amount === 1 ? "Todo dia" : `A cada ${amount} dias`;
+            } else if (interval === "week") {
+                baseLabel = amount === 1 ? "Toda semana" : `A cada ${amount} semanas`;
+            } else if (interval === "month") {
+                baseLabel = amount === 1 ? "Todo mês" : `A cada ${amount} meses`;
+            } else if (interval === "year") {
+                baseLabel = amount === 1 ? "Todo ano" : `A cada ${amount} anos`;
+            }
+
+            if (interval === "week" && parts[3]) {
+                const days = parts[3].split(",");
+                const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+                const namedDays = days.map(d => dayNames[parseInt(d, 10)]).filter(Boolean);
+                if (namedDays.length > 0) {
+                    baseLabel += ` (${namedDays.join(", ")})`;
+                }
+            }
+
+            return baseLabel;
+        }
+    }
+
     return "Personalizado";
 }
 
