@@ -1,0 +1,417 @@
+import React, { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCreateTaskAutomation, TaskAutomation, useUpdateTaskAutomation } from "@/hooks/useTaskAutomations";
+import { supabase } from "@/integrations/supabase/client";
+import { Zap, ArrowRight, Activity, PlusCircle, CheckCircle, Bell, ArrowLeft, Trash2 } from "lucide-react";
+
+interface AutomationBuilderModalProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    initialData?: TaskAutomation | null;
+    mode?: "create" | "edit" | "duplicate";
+}
+
+interface ActionDef {
+    id: string;
+    type: string;
+    payload: any;
+}
+
+interface ConditionDef {
+    id: string;
+    field: string;
+    operator: string;
+    value: string;
+}
+
+export function AutomationBuilderModal({ open, onOpenChange, initialData, mode = "create" }: AutomationBuilderModalProps) {
+    const createMutation = useCreateTaskAutomation();
+    const updateMutation = useUpdateTaskAutomation();
+
+    const [users, setUsers] = useState<any[]>([]);
+    const [name, setName] = useState("");
+    const [triggerType, setTriggerType] = useState<string>("");
+    const [actions, setActions] = useState<ActionDef[]>([]);
+    const [conditions, setConditions] = useState<ConditionDef[]>([]);
+
+    React.useEffect(() => {
+        supabase.from("colaboradores").select("id, nome, email").order("nome").then(({ data }) => {
+            if (data) setUsers(data);
+        });
+    }, []);
+
+    React.useEffect(() => {
+        if (open) {
+            if (initialData) {
+                setName(mode === "duplicate" ? `${initialData.name} (Cópia)` : initialData.name);
+                setTriggerType(initialData.trigger_type);
+                setActions((initialData.actions || []).map(a => ({
+                    id: crypto.randomUUID(),
+                    type: a.type,
+                    payload: a.payload
+                })));
+                setConditions(Array.isArray(initialData.trigger_conditions) ? initialData.trigger_conditions.map(c => ({
+                    id: crypto.randomUUID(),
+                    field: c.field || "",
+                    operator: c.operator || "==",
+                    value: c.value || ""
+                })) : []);
+            } else {
+                resetForm();
+            }
+        }
+    }, [open, initialData, mode]);
+
+    const TRIGGERS = [
+        { id: "new_client", label: "Novo Cliente Adicionado", icon: <PlusCircle className="w-4 h-4 mr-2 text-rose-500" /> },
+        { id: "new_launch", label: "Novo Lançamento Criado", icon: <Zap className="w-4 h-4 mr-2 text-rose-500" /> },
+        { id: "funnel_changed", label: "Status de Funil Alterado", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
+        { id: "new_budget", label: "Novo Orçamento por Funil", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
+        { id: "new_challenge", label: "Novo Desafio Criado", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
+        { id: "new_traffic_manager", label: "Novo Gestor de Tráfego", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
+        { id: "new_cs", label: "Novo CS Atribuído", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
+    ];
+
+    const ACTIONS_TYPES = [
+        { id: "create_task", label: "Criar Nova Tarefa", icon: <PlusCircle className="w-4 h-4 mr-2 text-blue-500" /> },
+        { id: "change_status", label: "Alterar Status de Tarefa", icon: <CheckCircle className="w-4 h-4 mr-2 text-blue-500" /> },
+        { id: "notify_team", label: "Enviar Aviso à Equipe", icon: <Bell className="w-4 h-4 mr-2 text-blue-500" /> },
+    ];
+
+    const RELATIVE_DATE_VARIABLES = [
+        { id: "today", label: "Data do Gatilho (Hoje)" },
+        { id: "tomorrow", label: "1 dia após Gatilho (Amanhã)" },
+        { id: "3_days", label: "3 dias após" },
+        { id: "7_days", label: "7 dias após (1 semana)" },
+        { id: "15_days", label: "15 dias após" },
+        { id: "30_days", label: "30 dias após (1 mês)" },
+    ];
+
+    const TRIGGER_CONDITION_FIELDS = [
+        { id: "traffic_manager", label: "Gestor de Tráfego" },
+        { id: "cs_manager", label: "Gestor de CS" },
+        { id: "client_manager", label: "Gestor do Cliente" },
+        { id: "funnel_status", label: "Status do Funil" },
+        { id: "budget_value", label: "Valor do Orçamento" },
+    ];
+
+    const addCondition = () => {
+        setConditions([...conditions, { id: crypto.randomUUID(), field: "", operator: "==", value: "" }]);
+    };
+
+    const removeCondition = (id: string) => {
+        setConditions(conditions.filter(c => c.id !== id));
+    };
+
+    const updateCondition = (id: string, updates: Partial<ConditionDef>) => {
+        setConditions(conditions.map(c => c.id === id ? { ...c, ...updates } : c));
+    };
+
+    const addAction = () => {
+        setActions([...actions, { id: crypto.randomUUID(), type: "", payload: {} }]);
+    };
+
+    const removeAction = (id: string) => {
+        setActions(actions.filter(a => a.id !== id));
+    };
+
+    const updateAction = (id: string, updates: Partial<ActionDef>) => {
+        setActions(actions.map(a => a.id === id ? { ...a, ...updates } : a));
+    };
+
+    const handleCreate = async () => {
+        if (!name || !triggerType || actions.length === 0) return;
+
+        const validActions = actions.filter(a => a.type !== "");
+        if (validActions.length === 0) return;
+
+        const actionPayloads = validActions.map(a => ({
+            type: a.type,
+            payload: a.type === "create_task"
+                ? {
+                    title: a.payload.title || "Nova Tarefa Automática",
+                    description: a.payload.description || "",
+                    assignee: a.payload.assignee || "unassigned",
+                    due_date_var: a.payload.due_date_var || null
+                }
+                : a.type === "notify_team"
+                    ? { message: a.payload.message || "Nova notificação da automação." }
+                    : {}
+        }));
+
+        try {
+            const validConditions = conditions.filter(c => c.field && c.value).map(c => ({
+                field: c.field, operator: c.operator, value: c.value
+            }));
+
+            if (mode === "edit" && initialData?.id) {
+                await updateMutation.mutateAsync({
+                    id: initialData.id,
+                    name,
+                    trigger_type: triggerType,
+                    trigger_conditions: validConditions,
+                    actions: actionPayloads,
+                });
+            } else {
+                await createMutation.mutateAsync({
+                    name,
+                    trigger_type: triggerType,
+                    trigger_conditions: validConditions,
+                    actions: actionPayloads,
+                    is_active: true
+                });
+            }
+            onOpenChange(false);
+            resetForm();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const resetForm = () => {
+        setName("");
+        setTriggerType("");
+        setActions([]);
+        setConditions([]);
+    };
+
+    const isFormValid = name.trim().length > 0 && triggerType !== "" && actions.length > 0 && actions.some(a => a.type !== "");
+
+    return (
+        <Dialog open={open} onOpenChange={(val) => {
+            if (!val) resetForm();
+            onOpenChange(val);
+        }}>
+            <DialogContent className="max-w-[1000px] h-[800px] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-[#f5f6f8] gap-0">
+                <DialogHeader className="p-4 bg-white border-b shrink-0 flex flex-row items-center justify-between space-y-0">
+                    <div className="flex items-center gap-3 w-full">
+                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => onOpenChange(false)}>
+                            <ArrowLeft className="w-5 h-5 text-slate-500" />
+                        </Button>
+                        <Input
+                            placeholder="Dê um nome a essa regra de automação..."
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="border-none shadow-none text-xl font-semibold w-full max-w-lg focus-visible:ring-0 px-0 placeholder:text-slate-300"
+                        />
+                    </div>
+                </DialogHeader>
+
+                <div className="flex-1 overflow-auto p-8 relative flex items-start justify-center pattern-dots pattern-slate-200 pattern-bg-white pattern-size-4 pattern-opacity-100">
+                    <div className="flex flex-col md:flex-row items-start gap-8 relative w-full max-w-4xl justify-center z-10 pt-10">
+                        {/* Trigger Column */}
+                        <div className="w-full md:w-[350px] shrink-0">
+                            <div className="bg-white rounded-xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+                                <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 font-semibold text-slate-800">
+                                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center">
+                                        <Zap className="w-4 h-4" />
+                                    </div>
+                                    Acionar
+                                </div>
+                                <div className="p-5">
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Evento</label>
+                                            <Select value={triggerType} onValueChange={setTriggerType}>
+                                                <SelectTrigger className="w-full h-11 border-slate-200 bg-slate-50/50 focus:bg-white transition-colors">
+                                                    <SelectValue placeholder="Selecione um gatilho..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {TRIGGERS.map(t => (
+                                                        <SelectItem key={t.id} value={t.id} className="py-2.5">
+                                                            <div className="flex items-center">
+                                                                {t.icon} {t.label}
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {triggerType && (
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Condições (Se...)</label>
+                                                </div>
+                                                {conditions.map((cond) => (
+                                                    <div key={cond.id} className="flex flex-col gap-2 p-3 bg-slate-50 border border-slate-100 rounded-lg relative group">
+                                                        <Button variant="ghost" size="icon" className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 h-6 w-6 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full" onClick={() => removeCondition(cond.id)}>
+                                                            <Trash2 className="w-3 h-3" />
+                                                        </Button>
+                                                        <Select value={cond.field} onValueChange={(val) => updateCondition(cond.id, { field: val })}>
+                                                            <SelectTrigger className="w-full h-9 bg-white shadow-sm border-slate-200 text-xs">
+                                                                <SelectValue placeholder="Campo..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {TRIGGER_CONDITION_FIELDS.map(f => (
+                                                                    <SelectItem key={f.id} value={f.id} className="text-xs">{f.label}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <div className="flex gap-2">
+                                                            <Select value={cond.operator} onValueChange={(val) => updateCondition(cond.id, { operator: val })}>
+                                                                <SelectTrigger className="w-[85px] h-9 bg-white shadow-sm border-slate-200 text-xs shrink-0">
+                                                                    <SelectValue placeholder="Op..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="==" className="text-xs">For</SelectItem>
+                                                                    <SelectItem value="!=" className="text-xs">Não for</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <Select value={cond.value} onValueChange={(val) => updateCondition(cond.id, { value: val })}>
+                                                                <SelectTrigger className="flex-1 h-9 bg-white shadow-sm border-slate-200 text-xs">
+                                                                    <SelectValue placeholder="Valor..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {users.map((u: any) => (
+                                                                        <SelectItem key={u.id} value={u.nome || u.email} className="text-xs">{u.nome || u.email}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <Button variant="ghost" size="sm" className="w-full border border-dashed border-slate-200 text-slate-500 hover:bg-slate-50 h-9" onClick={addCondition}>
+                                                    <PlusCircle className="w-3 h-3 mr-2" />
+                                                    Adicionar Condição
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Arrow connector */}
+                        <div className="hidden md:flex flex-col items-center justify-center shrink-0 mt-[80px]">
+                            <ArrowRight className="w-6 h-6 text-slate-300" />
+                        </div>
+
+                        {/* Actions Column */}
+                        <div className="w-full md:w-[450px] shrink-0">
+                            <div className="bg-white rounded-xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden min-h-[300px] flex flex-col">
+                                <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 font-semibold text-slate-800 shrink-0">
+                                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">
+                                        <CheckCircle className="w-4 h-4" />
+                                    </div>
+                                    Ações
+                                </div>
+                                <div className="p-5 flex flex-col gap-4 flex-1 bg-slate-50/50">
+                                    {actions.map((act, index) => (
+                                        <div key={act.id} className="border border-slate-200 rounded-xl p-4 bg-white relative group shadow-sm">
+                                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 h-7 w-7 text-slate-400 hover:text-red-500 hover:bg-red-50" onClick={() => removeAction(act.id)}>
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                            <div className="space-y-4 pr-6">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ação {index + 1}</label>
+                                                    <Select value={act.type} onValueChange={(val) => updateAction(act.id, { type: val })}>
+                                                        <SelectTrigger className="w-full h-10 bg-white">
+                                                            <SelectValue placeholder="Selecione uma ação..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {ACTIONS_TYPES.map(a => (
+                                                                <SelectItem key={a.id} value={a.id} className="py-2.5">
+                                                                    <div className="flex items-center">
+                                                                        {a.icon} {a.label}
+                                                                    </div>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                {act.type === "create_task" && (
+                                                    <div className="space-y-3 pt-2 border-t border-slate-100">
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Título da Tarefa Gerada</label>
+                                                            <Input
+                                                                className="bg-white h-10 border-slate-200"
+                                                                placeholder="Ex: Ligar para novo cliente"
+                                                                value={act.payload?.title || ""}
+                                                                onChange={(e) => updateAction(act.id, { payload: { ...act.payload, title: e.target.value } })}
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Responsável</label>
+                                                            <Select value={act.payload?.assignee || "unassigned"} onValueChange={(val) => updateAction(act.id, { payload: { ...act.payload, assignee: val } })}>
+                                                                <SelectTrigger className="w-full h-10 bg-white border-slate-200">
+                                                                    <SelectValue placeholder="Selecione..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="unassigned">Sem responsável automático</SelectItem>
+                                                                    <SelectItem value="{client_manager}">Gestor do Cliente (Dinâmico)</SelectItem>
+                                                                    <SelectItem value="{traffic_manager}">Gestor de Tráfego (Dinâmico)</SelectItem>
+                                                                    <SelectItem value="{cs}">CS (Dinâmico)</SelectItem>
+                                                                    {users.map((u: any) => (
+                                                                        <SelectItem key={u.id} value={u.nome || u.email}>{u.nome || u.email}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Prazo Dinâmico</label>
+                                                            <Select value={act.payload?.due_date_var || "none"} onValueChange={(val) => updateAction(act.id, { payload: { ...act.payload, due_date_var: val === "none" ? null : val } })}>
+                                                                <SelectTrigger className="w-full h-10 bg-white border-slate-200">
+                                                                    <SelectValue placeholder="Prazo Dinâmico..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="none">Sem prazo</SelectItem>
+                                                                    {RELATIVE_DATE_VARIABLES.map((v) => (
+                                                                        <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {act.type === "notify_team" && (
+                                                    <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                                                        <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Mensagem da Notificação</label>
+                                                        <Input
+                                                            className="bg-white h-10 border-slate-200"
+                                                            placeholder="Ex: Pessoal, temos um novo cliente!"
+                                                            value={act.payload?.message || ""}
+                                                            onChange={(e) => updateAction(act.id, { payload: { ...act.payload, message: e.target.value } })}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    <Button variant="outline" className="w-full border-dashed border-2 border-slate-200 bg-white text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/50 py-6" onClick={addAction}>
+                                        <PlusCircle className="w-4 h-4 mr-2" />
+                                        Adicionar ação
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <DialogFooter className="p-4 sm:p-5 bg-white border-t shrink-0 flex items-center w-full relative z-20">
+                    <div className="flex-1 flex items-center">
+                        <div className="flex items-center text-sm text-slate-500 bg-slate-50 border px-3 py-2 rounded-lg font-medium">
+                            Quando <span className="mx-1.5 text-slate-900 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200">{TRIGGERS.find(t => t.id === triggerType)?.label || "..."}</span>
+                            então <span className="mx-1.5 text-slate-900 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200">{actions.filter(a => a.type).length} ação(ões)</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button variant="ghost" className="text-slate-500 hover:text-slate-800 font-medium" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                        <Button
+                            onClick={handleCreate}
+                            disabled={!isFormValid || createMutation.isPending || updateMutation.isPending}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 font-medium h-10"
+                        >
+                            {createMutation.isPending || updateMutation.isPending ? "Salvando..." : mode === "edit" ? "Salvar Alterações" : "Criar Automação"}
+                        </Button>
+                    </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}

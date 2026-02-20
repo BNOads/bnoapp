@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Upload, FileSpreadsheet, AlertCircle, RefreshCw, Loader2, DollarSign, Users, Target, MousePointerClick, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertCircle, RefreshCw, Loader2, DollarSign, Users, Target, MousePointerClick, Search, ArrowUpDown, ArrowUp, ArrowDown, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import Papa from 'papaparse';
 import { format } from 'date-fns';
@@ -31,9 +31,25 @@ const normalizeText = (text: string) => {
 const extractNumber = (val: any) => {
     if (!val) return 0;
     if (typeof val === 'number') return val;
-    // Remove R$, spaces, standardizes . and ,
-    const cleanStr = String(val).replace(/R\$\s?/, '').replace(/\./g, '').replace(',', '.');
-    const num = Number(cleanStr);
+
+    let str = String(val).replace(/R\$\s?/gi, '').trim();
+
+    const hasComma = str.includes(',');
+    const hasDot = str.includes('.');
+
+    if (hasComma && hasDot) {
+        const lastCommaIndex = str.lastIndexOf(',');
+        const lastDotIndex = str.lastIndexOf('.');
+        if (lastCommaIndex > lastDotIndex) {
+            str = str.replace(/\./g, '').replace(',', '.');
+        } else {
+            str = str.replace(/,/g, '');
+        }
+    } else if (hasComma) {
+        str = str.replace(',', '.');
+    }
+
+    const num = Number(str);
     return isNaN(num) ? 0 : num;
 };
 
@@ -60,6 +76,54 @@ export const CompradoresTab = ({ lancamento }: CompradoresTabProps) => {
         telefone: '',
         valor: ''
     });
+    const [creativesMap, setCreativesMap] = useState<Record<string, { thumbnail: string, url: string }>>({});
+
+    useEffect(() => {
+        if (analysis?.topContents && lancamento.cliente_id) {
+            fetchCreativesInfo();
+        }
+    }, [analysis, lancamento.cliente_id]);
+
+    const fetchCreativesInfo = async () => {
+        try {
+            const { data: accounts } = await supabase
+                .from('meta_client_ad_accounts')
+                .select('id, ad_account_id')
+                .eq('cliente_id', lancamento.cliente_id);
+
+            const accountIds = accounts?.map(a => a.id) || [];
+            if (accountIds.length === 0) return;
+
+            const { data, error } = await supabase
+                .from('meta_ad_insights')
+                .select('ad_name, creative_thumbnail_url, creative_url')
+                .in('ad_account_id', accountIds)
+                .order('date_start', { ascending: false })
+                .limit(5000);
+
+            if (error) throw error;
+
+            const map: Record<string, { thumbnail: string, url: string }> = {};
+            if (data && analysis?.topContents) {
+                analysis.topContents.forEach((content: any) => {
+                    const normContent = normalizeText(content.name);
+                    const match = data.find((ad: any) => {
+                        const adName = normalizeText(ad.ad_name);
+                        return adName.includes(normContent) || normContent.includes(adName);
+                    });
+                    if (match && match.creative_thumbnail_url) {
+                        map[normContent] = {
+                            thumbnail: match.creative_thumbnail_url,
+                            url: match.creative_url
+                        };
+                    }
+                });
+            }
+            setCreativesMap(map);
+        } catch (e) {
+            console.error("Error fetching creatives info", e);
+        }
+    };
 
     useEffect(() => {
         fetchCompradoresData();
@@ -417,6 +481,214 @@ export const CompradoresTab = ({ lancamento }: CompradoresTabProps) => {
                         </Card>
                     </div>
 
+                    {/* Gráficos de Análise Cruzada */}
+                    {analysis && leadsData.length === 0 && pesquisaData.length === 0 ? (
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base text-amber-600 flex items-center gap-2">
+                                    <AlertCircle className="h-5 w-5" />
+                                    Planilhas de Leads e Pesquisa não sincronizadas
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">
+                                    Para visualizar o cruzamento de dados com os compradores (origem, UTMs, etc.), você precisa sincronizar a Planilha de Leads ou a Planilha de Pesquisa na aba de <strong>Resultados</strong> ou configurar os links na aba <strong>Links Úteis</strong>.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    ) : analysis && (
+                        <div className="space-y-6">
+                            <div className="flex flex-col sm:flex-row justify-between gap-4">
+                                <h3 className="text-lg font-medium">Cruzamento: Compradores x Leads/Pesquisa</h3>
+                                <Badge variant="outline" className={analysis.matchedBuyers > 0 ? "bg-green-50 text-green-700 border-green-200" : "bg-muted text-muted-foreground"}>
+                                    {analysis.matchedBuyers} compradores identificados ({((analysis.matchedBuyers / (analysis.totalBuyers || 1)) * 100).toFixed(1)}% de match)
+                                </Badge>
+                            </div>
+
+                            {analysis.matchedBuyers === 0 ? (
+                                <Card>
+                                    <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                                        <AlertCircle className="h-10 w-10 text-muted-foreground mb-4 opacity-50" />
+                                        <h3 className="text-lg font-semibold text-muted-foreground">Nenhum cruzamento encontrado</h3>
+                                        <p className="text-sm text-muted-foreground max-w-md mt-2">
+                                            Não foi possível encontrar esses compradores na Planilha de Leads ou Pesquisa. Certifique-se de que os contatos coincidem e que você possui leads sincronizados.
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Top Campanhas</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="h-[300px]">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <BarChart data={analysis.topCampaigns}>
+                                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                            <XAxis dataKey="name" tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + '...' : v} interval={0} angle={-20} textAnchor="end" height={60} />
+                                                            <YAxis />
+                                                            <Tooltip formatter={(value: number, name: string) => [name === 'conversion_rate' ? `${value.toFixed(1)}%` : value, name === 'buyers' ? 'Compradores' : name === 'total' ? 'Leads' : 'Conversão']} />
+                                                            <Legend />
+                                                            <Bar dataKey="buyers" name="Compradores" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                                        </BarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Top Termos/Criativos</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="h-[300px]">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <BarChart data={analysis.topTerms}>
+                                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                            <XAxis dataKey="name" tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + '...' : v} interval={0} angle={-20} textAnchor="end" height={60} />
+                                                            <YAxis />
+                                                            <Tooltip formatter={(value: number, name: string) => [name === 'conversion_rate' ? `${value.toFixed(1)}%` : value, name === 'buyers' ? 'Compradores' : name === 'total' ? 'Leads' : 'Conversão']} />
+                                                            <Legend />
+                                                            <Bar dataKey="buyers" name="Compradores" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                                                        </BarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Top Fontes de Tráfego</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="h-[300px]">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <BarChart data={analysis.topSources}>
+                                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                            <XAxis dataKey="name" tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + '...' : v} interval={0} angle={-20} textAnchor="end" height={60} />
+                                                            <YAxis />
+                                                            <Tooltip formatter={(value: number, name: string) => [name === 'conversion_rate' ? `${value.toFixed(1)}%` : value, name === 'buyers' ? 'Compradores' : name === 'total' ? 'Leads' : 'Conversão']} />
+                                                            <Legend />
+                                                            <Bar dataKey="buyers" name="Compradores" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                                                        </BarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Conversão por Origem (ROAS base leads)</CardTitle>
+                                                <p className="text-xs text-muted-foreground">Taxa de Conversão Leads -{'>'} Compradores</p>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="h-[285px]">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <BarChart data={analysis.topSources} layout="vertical" margin={{ left: 50 }}>
+                                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                                            <XAxis type="number" tickFormatter={(v) => v.toFixed(1) + '%'} />
+                                                            <YAxis type="category" dataKey="name" tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + '...' : v} />
+                                                            <Tooltip formatter={(value: number, name: string) => [value.toFixed(1) + '%', 'Taxa de Conversão']} />
+                                                            <Legend />
+                                                            <Bar dataKey="conversion_rate" name="Taxa de Conversão" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                                                        </BarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+
+                                    <h3 className="text-lg font-medium pt-4">Resultados por Respostas da Pesquisa</h3>
+                                    <p className="text-sm text-muted-foreground">Quais características do seu lead trouxeram a maior taxa de compra? Rankeadas das respostas que mais convertem para as que menos convertem.</p>
+
+                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                        {analysis.questionsAnalysis.slice(0, 4).map((qa, index) => (
+                                            <Card key={index}>
+                                                <CardHeader>
+                                                    <CardTitle className="text-base">{qa.question}</CardTitle>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="h-[280px]">
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <BarChart data={qa.options.slice(0, 10)} layout="vertical" margin={{ left: 30 }}>
+                                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                                                <XAxis type="number" tickFormatter={(v) => v.toFixed(1) + '%'} />
+                                                                <YAxis type="category" dataKey="name" tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + '...' : v} />
+                                                                <Tooltip formatter={(value: number, name: string) => [name === 'conversion_rate' ? value.toFixed(1) + '%' : value, name === 'conversion_rate' ? 'Taxa Conv.' : name === 'buyers' ? 'Compradores' : 'Total Respostas']} />
+                                                                <Legend />
+                                                                <Bar dataKey="conversion_rate" name="Conversão (%)" fill="#ec4899" radius={[0, 4, 4, 0]} />
+                                                            </BarChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+
+                                    {/* Ranking de Criativos */}
+                                    <h3 className="text-lg font-medium pt-4">Ranking de Criativos</h3>
+                                    <p className="text-sm text-muted-foreground">Desempenho dos criativos que mais trouxeram compradores.</p>
+                                    <Card>
+                                        <CardContent className="pt-6">
+                                            <div className="border rounded-md overflow-hidden">
+                                                <Table>
+                                                    <TableHeader className="bg-muted/50">
+                                                        <TableRow>
+                                                            <TableHead className="w-[80px]">Criativo</TableHead>
+                                                            <TableHead>Nome</TableHead>
+                                                            <TableHead className="text-right">Compradores</TableHead>
+                                                            <TableHead className="text-right">Leads</TableHead>
+                                                            <TableHead className="text-right">Conversão</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {(!analysis.topContents || analysis.topContents.length === 0) && (
+                                                            <TableRow>
+                                                                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                                                                    Nenhum dado de termo disponível
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                        {(analysis.topContents || []).map((content, i) => {
+                                                            const creative = creativesMap[normalizeText(content.name)];
+                                                            return (
+                                                                <TableRow key={i}>
+                                                                    <TableCell>
+                                                                        {creative?.thumbnail ? (
+                                                                            <div className="relative w-12 h-12 rounded overflow-hidden border group bg-muted flex items-center justify-center">
+                                                                                <img src={creative.thumbnail} alt={content.name} className="w-full h-full object-cover" />
+                                                                                {creative.url && (
+                                                                                    <a href={creative.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                                                        <Eye className="w-4 h-4 text-white" />
+                                                                                    </a>
+                                                                                )}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center">
+                                                                                <span className="text-xs text-muted-foreground">N/A</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </TableCell>
+                                                                    <TableCell className="font-medium text-sm max-w-[200px] truncate" title={content.name}>{content.name}</TableCell>
+                                                                    <TableCell className="text-right font-medium">{content.buyers}</TableCell>
+                                                                    <TableCell className="text-right">{content.total || 0}</TableCell>
+                                                                    <TableCell className="text-right">{content.conversion_rate.toFixed(1)}%</TableCell>
+                                                                </TableRow>
+                                                            );
+                                                        })}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                </>
+                            )}
+                        </div>
+                    )}
+
                     {/* Tabela de Compradores */}
                     <Card>
                         <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-2 gap-4">
@@ -483,128 +755,7 @@ export const CompradoresTab = ({ lancamento }: CompradoresTabProps) => {
                         </CardContent>
                     </Card>
 
-                    {/* Gráficos de Análise Cruzada */}
-                    {analysis && analysis.matchedBuyers > 0 && (
-                        <div className="space-y-6">
-                            <div className="flex flex-col sm:flex-row justify-between gap-4">
-                                <h3 className="text-lg font-medium">Cruzamento: Compradores x Leads/Pesquisa</h3>
-                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                    {analysis.matchedBuyers} compradores identificados ({((analysis.matchedBuyers / analysis.totalBuyers) * 100).toFixed(1)}% de match)
-                                </Badge>
-                            </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Top Campanhas</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-[300px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={analysis.topCampaigns}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                                    <XAxis dataKey="name" tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + '...' : v} interval={0} angle={-20} textAnchor="end" height={60} />
-                                                    <YAxis />
-                                                    <Tooltip formatter={(value: number, name: string) => [value, name === 'buyers' ? 'Compradores' : name === 'total' ? 'Leads' : 'Conversão %']} />
-                                                    <Legend />
-                                                    <Bar dataKey="buyers" name="Compradores" fill="#10b981" radius={[4, 4, 0, 0]} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Top Termos/Criativos</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-[300px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={analysis.topTerms}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                                    <XAxis dataKey="name" tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + '...' : v} interval={0} angle={-20} textAnchor="end" height={60} />
-                                                    <YAxis />
-                                                    <Tooltip formatter={(value: number, name: string) => [value, name === 'buyers' ? 'Compradores' : name === 'total' ? 'Leads' : 'Conversão %']} />
-                                                    <Legend />
-                                                    <Bar dataKey="buyers" name="Compradores" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Top Fontes de Tráfego</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-[300px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={analysis.topSources}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                                    <XAxis dataKey="name" tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + '...' : v} interval={0} angle={-20} textAnchor="end" height={60} />
-                                                    <YAxis />
-                                                    <Tooltip formatter={(value: number, name: string) => [value, name === 'buyers' ? 'Compradores' : name === 'total' ? 'Leads' : 'Conversão %']} />
-                                                    <Legend />
-                                                    <Bar dataKey="buyers" name="Compradores" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Conversão por Origem (ROAS base leads)</CardTitle>
-                                        <p className="text-xs text-muted-foreground">Taxa de Conversão Leads -{'>'} Compradores</p>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-[285px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={analysis.topSources} layout="vertical" margin={{ left: 50 }}>
-                                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                                    <XAxis type="number" tickFormatter={(v) => v.toFixed(1) + '%'} />
-                                                    <YAxis type="category" dataKey="name" tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + '...' : v} />
-                                                    <Tooltip formatter={(value: number, name: string) => [value.toFixed(2) + '%', 'Taxa de Conversão']} />
-                                                    <Legend />
-                                                    <Bar dataKey="conversion_rate" name="Taxa de Conversão" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-
-                            {/* Análise de Pesquisa */}
-                            <h3 className="text-lg font-medium pt-4">Resultados por Respostas da Pesquisa</h3>
-                            <p className="text-sm text-muted-foreground">Quais características do seu lead trouxeram a maior taxa de compra? Rankeadas das respostas que mais convertem para as que menos convertem.</p>
-
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                {analysis.questionsAnalysis.slice(0, 4).map((qa, index) => (
-                                    <Card key={index}>
-                                        <CardHeader>
-                                            <CardTitle className="text-base">{qa.question}</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="h-[280px]">
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={qa.options.slice(0, 10)} layout="vertical" margin={{ left: 30 }}>
-                                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                                        <XAxis type="number" tickFormatter={(v) => v.toFixed(1) + '%'} />
-                                                        <YAxis type="category" dataKey="name" tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + '...' : v} />
-                                                        <Tooltip formatter={(value: number, name: string) => [name === 'conversion_rate' ? value.toFixed(2) + '%' : value, name === 'conversion_rate' ? 'Taxa Conv.' : name === 'buyers' ? 'Compradores' : 'Total Respostas']} />
-                                                        <Legend />
-                                                        <Bar dataKey="conversion_rate" name="Conversão (%)" fill="#ec4899" radius={[0, 4, 4, 0]} />
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </>
             )}
 

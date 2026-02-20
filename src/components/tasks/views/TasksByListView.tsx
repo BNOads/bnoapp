@@ -20,11 +20,15 @@ import { taskKeys } from "@/hooks/useTasks";
 interface TasksByListViewProps {
     tasks: Task[];
     onTaskClick: (taskId: string) => void;
+    selectedTasks: string[];
+    onToggleSelectTask: (taskId: string) => void;
+    onSelectBatch?: (taskIds: string[], select: boolean) => void;
     isAdmin: boolean;
+    hideCompleted?: boolean;
     onCreateTaskForList?: (listId: string) => void;
 }
 
-export function TasksByListView({ tasks, onTaskClick, isAdmin, onCreateTaskForList }: TasksByListViewProps) {
+export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSelectTask, onSelectBatch, isAdmin, hideCompleted = false, onCreateTaskForList }: TasksByListViewProps) {
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: updateTask } = useUpdateTask(); // adding this back if needed but not strictly necessary to fix unused warning, I'll ignore
     const { mutate: deleteTask } = useDeleteTask();
@@ -48,10 +52,11 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin, onCreateTaskForLi
     }, []);
 
     const getTasksByList = (listId: string | null) => {
-        if (listId === "none" || !listId) {
-            return tasks.filter(t => !t.list_id && !t.completed);
+        let listTasks = tasks.filter(t => (listId === "none" || !listId) ? !t.list_id : t.list_id === listId);
+        if (hideCompleted) {
+            listTasks = listTasks.filter(t => !t.completed);
         }
-        return tasks.filter(t => t.list_id === listId && !t.completed);
+        return listTasks;
     };
 
     const handleCreateList = async () => {
@@ -141,6 +146,18 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin, onCreateTaskForLi
                             >
                                 <div className="flex items-center gap-3">
                                     {isCollapsed ? <ChevronRight className="w-4 h-4 text-muted-foreground/60" /> : <ChevronDown className="w-4 h-4 text-muted-foreground/60" />}
+                                    <div onClick={e => e.stopPropagation()} className="flex items-center mr-1">
+                                        <Checkbox
+                                            checked={colTasks.length > 0 && colTasks.every(t => selectedTasks.includes(t.id))}
+                                            onCheckedChange={(c) => {
+                                                if (onSelectBatch) {
+                                                    onSelectBatch(colTasks.map(t => t.id), !!c);
+                                                }
+                                            }}
+                                            className="w-4 h-4"
+                                            title="Selecionar todas desta lista"
+                                        />
+                                    </div>
                                     <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: col.color }} />
                                     <h3 className="font-semibold text-[15px]">{col.title}</h3>
                                     <button
@@ -177,20 +194,29 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin, onCreateTaskForLi
                                                 {colTasks.map(task => (
                                                     <div
                                                         key={task.id}
-                                                        className={`group grid grid-cols-12 gap-4 p-3 transition-colors items-center cursor-pointer hover:bg-muted/50 border-b border-transparent`}
+                                                        className={`group grid grid-cols-12 gap-4 p-3 transition-colors items-center cursor-pointer ${task.completed ? "bg-emerald-50/50 dark:bg-emerald-950/20 relative before:absolute before:inset-0 before:border-b before:border-emerald-500/20 before:pointer-events-none" : "hover:bg-muted/50 border-b border-transparent"}`}
                                                         onClick={() => onTaskClick(task.id)}
                                                     >
                                                         <div className="col-span-12 sm:col-span-6 flex items-center gap-3 min-w-0">
                                                             <div onClick={e => e.stopPropagation()} className="shrink-0 pl-1 mt-0.5 sm:mt-0">
                                                                 <Checkbox
-                                                                    checked={task.completed}
-                                                                    onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
-                                                                    className="rounded-sm"
+                                                                    checked={selectedTasks.includes(task.id)}
+                                                                    onCheckedChange={() => onToggleSelectTask(task.id)}
+                                                                    className="w-4 h-4 rounded-sm border-muted-foreground/30 data-[state=checked]:border-primary"
+                                                                    title="Selecionar tarefa"
                                                                 />
                                                             </div>
-                                                            <div className="flex flex-col min-w-0 flex-1">
+                                                            <div onClick={e => e.stopPropagation()} className="shrink-0">
+                                                                <Checkbox
+                                                                    checked={task.completed}
+                                                                    onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
+                                                                    className={`w-5 h-5 border-2 transition-all rounded-sm ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : ""}`}
+                                                                    title="Marcar como concluída"
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0 flex-1 ml-1">
                                                                 <div className="flex items-center gap-2">
-                                                                    <p className="text-[13px] font-medium hover:underline truncate">
+                                                                    <p className={`text-[13px] font-medium hover:underline truncate ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                                                                         {task.title}
                                                                     </p>
                                                                 </div>
@@ -214,13 +240,13 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin, onCreateTaskForLi
                                                             </div>
                                                             {/* Mobile elements */}
                                                             <div className="sm:hidden flex flex-col items-end shrink-0 gap-1 text-xs">
-                                                                {task.due_date && <span className={`${isOverdue(task.due_date, false) ? "text-destructive" : "text-muted-foreground"}`}>{format(new Date(`${task.due_date}T00:00:00`), "dd/MM")}</span>}
-                                                                {task.priority && <Badge variant="outline" className="text-[9px] px-1 h-4 scale-90">{PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}</Badge>}
+                                                                {task.due_date && <span className={`${isOverdue(task.due_date, task.completed) ? "text-destructive" : "text-muted-foreground"}`}>{format(new Date(`${task.due_date}T00:00:00`), "dd/MM")}</span>}
+                                                                {task.priority && !task.completed && <Badge variant="outline" className="text-[9px] px-1 h-4 scale-90">{PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}</Badge>}
                                                             </div>
                                                         </div>
 
                                                         <div className="col-span-2 hidden sm:flex justify-center">
-                                                            {task.priority ? (
+                                                            {task.priority && !task.completed ? (
                                                                 <Badge variant={task.priority === "alta" ? "destructive" : task.priority === "media" ? "secondary" : "outline"} className={`text-[10px] px-[10px] h-[22px] rounded-full shadow-sm font-medium ${task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' : task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 border-transparent text-white' : ''}`}>
                                                                     {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
                                                                 </Badge>
@@ -231,7 +257,7 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin, onCreateTaskForLi
 
                                                         <div className="col-span-2 hidden sm:flex justify-center">
                                                             {task.due_date ? (
-                                                                <span className={`text-[13px] ${isOverdue(task.due_date, false) ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                                                                <span className={`text-[13px] ${isOverdue(task.due_date, task.completed) ? "text-destructive font-medium" : "text-muted-foreground"}`}>
                                                                     {format(new Date(`${task.due_date}T00:00:00`), "dd/MM/yyyy")}
                                                                 </span>
                                                             ) : (
@@ -240,8 +266,8 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin, onCreateTaskForLi
                                                         </div>
 
                                                         <div className="col-span-2 hidden sm:flex justify-center items-center gap-3 relative">
-                                                            <Badge variant="outline" className="capitalize text-[10px] w-[76px] justify-center shadow-sm h-[22px] px-0 bg-muted/40 text-muted-foreground">
-                                                                Pendente
+                                                            <Badge variant="outline" className={`capitalize text-[10px] w-[76px] justify-center shadow-sm h-[22px] px-0 ${task.completed ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60" : "bg-muted/40 text-muted-foreground"}`}>
+                                                                {task.completed ? "Concluída" : "Pendente"}
                                                             </Badge>
                                                             <div className="absolute right-[-10px] opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <Button
@@ -301,6 +327,6 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin, onCreateTaskForLi
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 }

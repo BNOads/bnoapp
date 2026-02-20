@@ -118,7 +118,7 @@ export function GlobalSearch() {
                         id: c.id,
                         title: c.nome || c.nicho || 'Sem nome',
                         type: 'cliente',
-                        url: `/clientes/${c.id}`
+                        url: `/painel/${c.id}`
                     }));
 
                     lancamentos.data?.forEach(l => newResults.push({
@@ -239,7 +239,7 @@ export function GlobalSearch() {
                     id: c.id,
                     title: c.nome || c.nicho || 'Sem nome',
                     type: 'cliente',
-                    url: `/clientes/${c.id}`
+                    url: `/painel/${c.id}`
                 }));
 
                 colaboradores.data?.forEach(c => newResults.push({

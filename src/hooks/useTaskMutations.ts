@@ -460,6 +460,26 @@ export function useBulkDeleteTasks() {
             if (error) throw error;
             return taskIds;
         },
+        onMutate: async (taskIds) => {
+            await queryClient.cancelQueries({ queryKey: taskKeys.all });
+            const previousTasks = queryClient.getQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all });
+
+            queryClient.setQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all }, (old) => {
+                if (!Array.isArray(old)) return old;
+                return old.filter(t => !taskIds.includes(t.id));
+            });
+
+            return { previousTasks };
+        },
+        onError: (err, newTodo, context) => {
+            if (context?.previousTasks) {
+                context.previousTasks.forEach(([queryKey, data]) => {
+                    // Type assertion to bypass strict typing for queryKey array
+                    queryClient.setQueryData(queryKey as any, data);
+                });
+            }
+            toast({ title: "Erro ao excluir tarefas", description: err.message, variant: "destructive" });
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: taskKeys.all });
             toast({ title: "Tarefas excluídas", description: "As tarefas foram removidas junto com suas subtarefas." });
@@ -476,6 +496,26 @@ export function useDeleteTask() {
             const { error } = await supabase.from("tasks").delete().eq("id", id);
             if (error) throw error;
             return id;
+        },
+        onMutate: async (deletedId) => {
+            await queryClient.cancelQueries({ queryKey: taskKeys.all });
+            const previousTasks = queryClient.getQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all });
+
+            queryClient.setQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all }, (old) => {
+                if (!Array.isArray(old)) return old;
+                return old.filter(t => t.id !== deletedId);
+            });
+
+            return { previousTasks };
+        },
+        onError: (err, newTodo, context) => {
+            if (context?.previousTasks) {
+                context.previousTasks.forEach(([queryKey, data]) => {
+                    // Type assertion to bypass strict typing for queryKey array
+                    queryClient.setQueryData(queryKey as any, data);
+                });
+            }
+            toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: taskKeys.all });

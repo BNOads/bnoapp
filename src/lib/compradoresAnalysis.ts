@@ -18,14 +18,27 @@ export interface CompradoresAnalysisResult {
     topCampaigns: BuyerMetric[];
     topSources: BuyerMetric[];
     topTerms: BuyerMetric[]; // Often used for creatives/audiences
+    topContents: BuyerMetric[]; // Usually where creatives actually are
     questionsAnalysis: QuestionAnalysis[];
 }
 
 // Function to safely get a value from a row regardless of casing
 const getFieldValue = (row: Record<string, unknown>, keysToTry: string[]): string => {
     const rawKeys = Object.keys(row);
+
+    // 1. Exact match (ignoring underscores/formatting)
     for (const key of keysToTry) {
-        const matchingKey = rawKeys.find(rk => normalizeHeaderKey(rk).includes(key));
+        const target = key.replace(/_/g, '');
+        const exactMatch = rawKeys.find(rk => normalizeHeaderKey(rk).replace(/_/g, '') === target);
+        if (exactMatch && row[exactMatch]) {
+            return String(row[exactMatch]).trim();
+        }
+    }
+
+    // 2. Includes match (ignoring underscores/formatting)
+    for (const key of keysToTry) {
+        const target = key.replace(/_/g, '');
+        const matchingKey = rawKeys.find(rk => normalizeHeaderKey(rk).replace(/_/g, '').includes(target));
         if (matchingKey && row[matchingKey]) {
             return String(row[matchingKey]).trim();
         }
@@ -64,6 +77,7 @@ export const buildCompradoresAnalysis = (
     const leadsCountByCampaign = new Map<string, number>();
     const leadsCountBySource = new Map<string, number>();
     const leadsCountByTerm = new Map<string, number>();
+    const leadsCountByContent = new Map<string, number>();
 
     // Answers pool
     const answersTotalCount = new Map<string, Map<string, number>>();
@@ -73,11 +87,17 @@ export const buildCompradoresAnalysis = (
     (leadsRows as Record<string, unknown>[]).forEach(row => {
         if (!row) return;
         const p = extractPerson(row);
-        const utm_campaign = getFieldValue(row, ['utm_campaign', 'campanha']) || '(sem campanha)';
-        const utm_source = getFieldValue(row, ['utm_source', 'fonte']) || '(sem origem)';
-        const utm_term = getFieldValue(row, ['utm_term', 'termo', 'tema', 'criativo']) || '(sem termo)';
+        let utm_campaign = getFieldValue(row, ['utm_campaign', 'campaign', 'campanha']);
+        let utm_source = getFieldValue(row, ['utm_source', 'source', 'origem']);
+        let utm_term = getFieldValue(row, ['utm_term', 'term', 'termo']);
+        let utm_content = getFieldValue(row, ['utm_content', 'content', 'conteudo', 'cont']);
 
-        const leadObj = { ...p, utm_campaign, utm_source, utm_term, answers: {} as Record<string, string> };
+        utm_campaign = utm_campaign || '(sem campanha)';
+        utm_source = utm_source || '(sem origem)';
+        utm_term = utm_term || '(sem termo)';
+        utm_content = utm_content || '(sem conteúdo)';
+
+        const leadObj = { ...p, utm_campaign, utm_source, utm_term, utm_content, answers: {} as Record<string, string> };
 
         if (p.email) allLeadsMap.set(`email:${p.email}`, leadObj);
         if (p.phone) allLeadsMap.set(`phone:${p.phone}`, leadObj);
@@ -85,6 +105,7 @@ export const buildCompradoresAnalysis = (
         leadsCountByCampaign.set(utm_campaign, (leadsCountByCampaign.get(utm_campaign) || 0) + 1);
         leadsCountBySource.set(utm_source, (leadsCountBySource.get(utm_source) || 0) + 1);
         leadsCountByTerm.set(utm_term, (leadsCountByTerm.get(utm_term) || 0) + 1);
+        leadsCountByContent.set(utm_content, (leadsCountByContent.get(utm_content) || 0) + 1);
     });
 
     // Map all Pesquisa to get their answers and attach to leads
@@ -112,7 +133,7 @@ export const buildCompradoresAnalysis = (
 
         // Let's create a standalone record if not found in leads, because they still answered the survey!
         if (!targetLead) {
-            targetLead = { ...p, utm_campaign: '(sem campanha)', utm_source: '(sem origem)', utm_term: '(sem termo)', answers: {} };
+            targetLead = { ...p, utm_campaign: '(sem campanha)', utm_source: '(sem origem)', utm_term: '(sem termo)', utm_content: '(sem conteúdo)', answers: {} };
             if (keyEmail) allLeadsMap.set(keyEmail, targetLead);
             if (keyPhone) allLeadsMap.set(keyPhone, targetLead);
         }
@@ -134,6 +155,7 @@ export const buildCompradoresAnalysis = (
     const buyersByCampaign = new Map<string, number>();
     const buyersBySource = new Map<string, number>();
     const buyersByTerm = new Map<string, number>();
+    const buyersByContent = new Map<string, number>();
     const buyersByAnswer = new Map<string, Map<string, number>>(); // q -> answer -> count
 
     (compradoresRows as Record<string, unknown>[]).forEach(row => {
@@ -149,10 +171,12 @@ export const buildCompradoresAnalysis = (
             const c = foundLead.utm_campaign;
             const s = foundLead.utm_source;
             const t = foundLead.utm_term;
+            const cont = foundLead.utm_content;
 
             buyersByCampaign.set(c, (buyersByCampaign.get(c) || 0) + 1);
             buyersBySource.set(s, (buyersBySource.get(s) || 0) + 1);
             buyersByTerm.set(t, (buyersByTerm.get(t) || 0) + 1);
+            buyersByContent.set(cont, (buyersByContent.get(cont) || 0) + 1);
 
             Object.entries(foundLead.answers).forEach(([q, answer]) => {
                 const ansStr = String(answer);
@@ -181,6 +205,7 @@ export const buildCompradoresAnalysis = (
     const topCampaigns = buildMetrics(buyersByCampaign, leadsCountByCampaign);
     const topSources = buildMetrics(buyersBySource, leadsCountBySource);
     const topTerms = buildMetrics(buyersByTerm, leadsCountByTerm);
+    const topContents = buildMetrics(buyersByContent, leadsCountByContent);
 
     const questionsAnalysis: QuestionAnalysis[] = [];
     buyersByAnswer.forEach((answersMap, qName) => {
@@ -210,6 +235,7 @@ export const buildCompradoresAnalysis = (
         topCampaigns: topCampaigns.slice(0, 15),
         topSources: topSources.slice(0, 10),
         topTerms: topTerms.slice(0, 15),
+        topContents: topContents.slice(0, 15),
         questionsAnalysis
     };
 };

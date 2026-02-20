@@ -27,10 +27,9 @@ export function CommentSection({ taskId, comments, hideForm = false }: CommentSe
 
         addComment({
             task_id: taskId,
-            author: currentUser.nome || currentUser.email || "Usuário",
+            author_name: currentUser.nome || currentUser.email || "Usuário",
             content: newComment.trim(),
-            created_by_id: currentUser.id,
-        }, {
+        } as any, {
             onSuccess: () => setNewComment(""),
         });
     };
@@ -43,13 +42,13 @@ export function CommentSection({ taskId, comments, hideForm = false }: CommentSe
                 {comments.map((comment) => (
                     <div key={comment.id} className="flex gap-3 group relative">
                         <Avatar className="w-8 h-8">
-                            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${comment.author}`} />
-                            <AvatarFallback>{comment.author?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${comment.author_name}`} />
+                            <AvatarFallback>{comment.author_name?.substring(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
 
                         <div className="flex-1 space-y-1">
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">{comment.author}</span>
+                                <span className="text-sm font-medium">{comment.author_name}</span>
                                 <span className="text-xs text-muted-foreground">
                                     {format(new Date(comment.created_at), "dd MMM, HH:mm", { locale: ptBR })}
                                 </span>
@@ -60,7 +59,7 @@ export function CommentSection({ taskId, comments, hideForm = false }: CommentSe
                             </div>
                         </div>
 
-                        {(currentUser?.id === comment.created_by_id || currentUser?.role === 'admin') && (
+                        {((currentUser?.nome === comment.author_name || currentUser?.email === comment.author_name) || currentUser?.role === 'admin') && (
                             <Button
                                 variant="ghost"
                                 size="icon"

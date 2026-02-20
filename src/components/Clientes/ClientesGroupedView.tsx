@@ -14,6 +14,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, horizontalList
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useFieldOptions } from "@/hooks/useFieldOptions";
 
 interface Cliente {
   id: string;
@@ -66,34 +67,8 @@ interface ClientesGroupedViewProps {
   activeTab?: string;
 }
 
-// Opções para classificações (mesmos nomes da visualização padrão)
-const situacaoClienteOptions = [
-  { value: 'nao_iniciado', label: 'Não Iniciado', color: 'bg-gray-500' },
-  { value: 'alerta', label: 'Alerta', color: 'bg-red-500' },
-  { value: 'ponto_de_atencao', label: 'Ponto de Atenção', color: 'bg-yellow-500' },
-  { value: 'resultados_normais', label: 'Resultados Normais', color: 'bg-blue-500' },
-  { value: 'indo_bem', label: 'Indo bem', color: 'bg-green-500' },
-];
-
-const etapaOnboardingOptions = [
-  { value: 'onboarding', label: 'Onboarding', color: 'bg-orange-500' },
-  { value: 'ongoing', label: 'Ongoing', color: 'bg-green-500' },
-  { value: 'pausa_temporaria', label: 'Pausa Temporária', color: 'bg-red-500' },
-];
-
-const etapaTrafegoOptions = [
-  { value: 'estrategia', label: 'Estratégia', color: 'bg-gray-500' },
-  { value: 'distribuicao_criativos', label: 'Distribuição de Criativos', color: 'bg-blue-500' },
-  { value: 'conversao_iniciada', label: 'Conversão Iniciada', color: 'bg-yellow-500' },
-  { value: 'voo_de_cruzeiro', label: 'Voo de Cruzeiro', color: 'bg-green-500' },
-  { value: 'campanhas_pausadas', label: 'Campanhas Pausadas', color: 'bg-red-500' },
-];
-
+// Opções para classificações
 const seriesOptions = ['Serie A', 'Serie B', 'Serie C', 'Serie D'];
-
-const getStatusOption = (options: typeof situacaoClienteOptions, value: string | null | undefined) => {
-  return options.find(o => o.value === value) || options[0];
-};
 
 const getSerieColor = (serie: string) => {
   switch (serie) {
@@ -181,6 +156,10 @@ export const ClientesGroupedView = ({
 }: ClientesGroupedViewProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const situacaoOptions = useFieldOptions('situacao_cliente');
+  const etapaOnboardingOptions = useFieldOptions('etapa_onboarding');
+  const etapaTrafegoOptions = useFieldOptions('etapa_trafego');
 
   // Estado para ordenação
   const [sortField, setSortField] = useState<string>('nome');
@@ -480,22 +459,23 @@ export const ClientesGroupedView = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
                   <Badge
-                    className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white font-bold tracking-wide rounded-full text-[11px] cursor-pointer hover:opacity-80 flex items-center justify-center gap-1.5 px-3.5 py-1.5 border-transparent shadow-sm w-[140px]`}
+                    style={{ backgroundColor: situacaoOptions.getColor(cliente.situacao_cliente) }}
+                    className="text-white font-bold tracking-wide rounded-full text-[11px] cursor-pointer hover:opacity-80 flex items-center justify-center gap-1.5 px-3.5 py-1.5 border-transparent shadow-sm w-[140px]"
                   >
-                    {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
+                    {situacaoOptions.getLabel(cliente.situacao_cliente)}
                     <ChevronDown className="h-3 w-3 opacity-70" />
                   </Badge>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="bg-background rounded-xl p-1.5 shadow-lg w-[180px]">
-                {situacaoClienteOptions.map((option) => (
+                {situacaoOptions.options.map((option) => (
                   <DropdownMenuItem
-                    key={option.value}
-                    onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.value, cliente.situacao_cliente || 'nao_iniciado')}
-                    className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.situacao_cliente === option.value ? 'bg-muted' : ''}`}
+                    key={option.option_key}
+                    onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.option_key, cliente.situacao_cliente || 'nao_iniciado')}
+                    className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.situacao_cliente === option.option_key ? 'bg-muted' : ''}`}
                   >
-                    <Badge className={`${option.color} text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent`}>
-                      {option.label}
+                    <Badge style={{ backgroundColor: option.color }} className="text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent">
+                      {option.option_label}
                     </Badge>
                   </DropdownMenuItem>
                 ))}
@@ -510,23 +490,23 @@ export const ClientesGroupedView = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
                   <Badge
-                    style={{ backgroundColor: etapaOnboardingOptions.find(o => o.value === cliente.etapa_onboarding)?.color?.replace('bg-', '') || '#f59e0b' }} // fallback orange
+                    style={{ backgroundColor: etapaOnboardingOptions.getColor(cliente.etapa_onboarding) }}
                     className="text-white font-bold tracking-wide rounded-full text-[11px] cursor-pointer hover:opacity-80 flex items-center justify-center gap-1.5 px-3.5 py-1.5 border-transparent shadow-sm w-[140px]"
                   >
-                    {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
+                    {etapaOnboardingOptions.getLabel(cliente.etapa_onboarding)}
                     <ChevronDown className="h-3 w-3 opacity-70" />
                   </Badge>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="bg-background rounded-xl p-1.5 shadow-lg w-[180px]">
-                {etapaOnboardingOptions.map((option) => (
+                {etapaOnboardingOptions.options.map((option) => (
                   <DropdownMenuItem
-                    key={option.value}
-                    onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.value, cliente.etapa_onboarding || 'onboarding')}
-                    className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.etapa_onboarding === option.value ? 'bg-muted' : ''}`}
+                    key={option.option_key}
+                    onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.option_key, cliente.etapa_onboarding || 'onboarding')}
+                    className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.etapa_onboarding === option.option_key ? 'bg-muted' : ''}`}
                   >
-                    <Badge className={`${option.color} text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent`}>
-                      {option.label}
+                    <Badge style={{ backgroundColor: option.color }} className="text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent">
+                      {option.option_label}
                     </Badge>
                   </DropdownMenuItem>
                 ))}
@@ -541,23 +521,23 @@ export const ClientesGroupedView = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
                   <Badge
-                    style={{ backgroundColor: etapaTrafegoOptions.find(o => o.value === cliente.etapa_trafego)?.color?.replace('bg-', '') || '#3b82f6' }} // fallback blue
+                    style={{ backgroundColor: etapaTrafegoOptions.getColor(cliente.etapa_trafego) }}
                     className="text-white font-bold tracking-wide rounded-full text-[11px] cursor-pointer hover:opacity-80 flex items-center justify-center gap-1.5 px-3.5 py-1.5 border-transparent shadow-sm w-[140px] whitespace-nowrap overflow-hidden text-ellipsis"
                   >
-                    {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
+                    {etapaTrafegoOptions.getLabel(cliente.etapa_trafego)}
                     <ChevronDown className="h-3 w-3 opacity-70 flex-shrink-0" />
                   </Badge>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="bg-background rounded-xl p-1.5 shadow-lg w-[180px]">
-                {etapaTrafegoOptions.map((option) => (
+                {etapaTrafegoOptions.options.map((option) => (
                   <DropdownMenuItem
-                    key={option.value}
-                    onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.value, cliente.etapa_trafego || 'estrategia')}
-                    className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.etapa_trafego === option.value ? 'bg-muted' : ''}`}
+                    key={option.option_key}
+                    onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.option_key, cliente.etapa_trafego || 'estrategia')}
+                    className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.etapa_trafego === option.option_key ? 'bg-muted' : ''}`}
                   >
-                    <Badge className={`${option.color} text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent`}>
-                      {option.label}
+                    <Badge style={{ backgroundColor: option.color }} className="text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent">
+                      {option.option_label}
                     </Badge>
                   </DropdownMenuItem>
                 ))}

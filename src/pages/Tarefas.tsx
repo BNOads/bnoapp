@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag, Filter, ChevronDown } from "lucide-react";
+import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag, Filter, ChevronDown, Zap } from "lucide-react";
 
 import { useTasks, TaskFilters } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -14,6 +14,7 @@ import { TaskKanban } from "@/components/tasks/views/TaskKanban";
 import { TasksByPersonView } from "@/components/tasks/views/TasksByPersonView";
 import { TasksByListView } from "@/components/tasks/views/TasksByListView";
 import { AdminTasksPanel } from "@/components/tasks/views/AdminTasksPanel";
+import { AutomacoesView } from "@/components/tasks/views/AutomacoesView";
 import { PRIORITY_LABELS } from "@/types/tasks";
 
 import { BulkTaskModal } from "@/components/tasks/modals/BulkTaskModal";
@@ -34,7 +35,7 @@ export default function Tarefas() {
         status: "all",
         date: "all"
     });
-    const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "listas">("minhas");
+    const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "listas" | "automacoes">("minhas");
     const [timeViewType, setTimeViewType] = useState<"tabela" | "kanban">("tabela");
     const [hideCompleted, setHideCompleted] = useState(false);
 
@@ -80,6 +81,14 @@ export default function Tarefas() {
         );
     };
 
+    const handleSelectBatch = (ids: string[], select: boolean) => {
+        if (select) {
+            setSelectedTasks(prev => Array.from(new Set([...prev, ...ids])));
+        } else {
+            setSelectedTasks(prev => prev.filter(id => !ids.includes(id)));
+        }
+    };
+
     const renderContent = () => {
         if (isLoading) {
             return <div className="flex items-center justify-center p-12 text-muted-foreground">Carregando tarefas...</div>;
@@ -96,6 +105,7 @@ export default function Tarefas() {
                 onTaskClick={handleTaskClick}
                 selectedTasks={selectedTasks}
                 onToggleSelectTask={handleToggleSelectTask}
+                onSelectBatch={handleSelectBatch}
                 onCreateTaskForPerson={(person) => {
                     setCreateDefaultAssignee(person);
                     setIsCreateOpen(true);
@@ -110,12 +120,13 @@ export default function Tarefas() {
                 <TasksByListView
                     tasks={tasks}
                     onTaskClick={handleTaskClick}
+                    selectedTasks={selectedTasks}
+                    onToggleSelectTask={handleToggleSelectTask}
+                    onSelectBatch={handleSelectBatch}
                     isAdmin={isAdmin}
+                    hideCompleted={hideCompleted}
                     onCreateTaskForList={(listId) => {
                         setCreateDefaultAssignee("unassigned");
-                        // We need a way to pass list_id to CreateTaskModal
-                        // Added `defaultListId` to CreateTaskModal in previous step
-                        // I will add another state to Tarefas to hold it
                         setCreateDefaultListId(listId);
                         setIsCreateOpen(true);
                     }}
@@ -154,6 +165,7 @@ export default function Tarefas() {
                             onTaskClick={handleTaskClick}
                             selectedTasks={selectedTasks}
                             onToggleSelectTask={handleToggleSelectTask}
+                            onSelectBatch={handleSelectBatch}
                             onCreateTaskForPerson={(person) => {
                                 setCreateDefaultAssignee(person);
                                 setIsCreateOpen(true);
@@ -164,6 +176,10 @@ export default function Tarefas() {
                     </div>
                 </div>
             );
+        }
+
+        if (activeMainTab === "automacoes") {
+            return <AutomacoesView />;
         }
 
         return null;
@@ -181,7 +197,7 @@ export default function Tarefas() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        {selectedTasks.length > 0 && activeMainTab === "time" && (
+                        {selectedTasks.length > 0 && (activeMainTab === "time" || activeMainTab === "listas") && (
                             <Button variant="secondary" onClick={() => setIsBulkEditOpen(true)} className="gap-2">
                                 <Layers className="w-4 h-4" />
                                 Editar Lote ({selectedTasks.length})
@@ -209,6 +225,13 @@ export default function Tarefas() {
                             >
                                 <Kanban className="w-4 h-4" />
                                 Listas
+                            </button>
+                            <button
+                                onClick={() => setActiveMainTab("automacoes")}
+                                className={`px-4 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${activeMainTab === "automacoes" ? "bg-yellow-500 text-white shadow-sm" : "text-muted-foreground hover:bg-yellow-500/10 hover:text-yellow-600"}`}
+                            >
+                                <Zap className="w-4 h-4" />
+                                Automações
                             </button>
                         </div>
 
@@ -346,36 +369,38 @@ export default function Tarefas() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
-                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                            <span className="w-2 h-2 rounded-full border border-current opacity-50"></span>
-                            <span className="text-sm font-medium">Pendentes</span>
+                {activeMainTab !== "automacoes" && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <span className="w-2 h-2 rounded-full border border-current opacity-50"></span>
+                                <span className="text-sm font-medium">Pendentes</span>
+                            </div>
+                            <span className="text-4xl font-bold">{pendingCount}</span>
                         </div>
-                        <span className="text-4xl font-bold">{pendingCount}</span>
-                    </div>
-                    <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
-                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                            <CheckCircle2 className="w-4 h-4 text-muted-foreground opacity-50" />
-                            <span className="text-sm font-medium">Concluídas</span>
+                        <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <CheckCircle2 className="w-4 h-4 text-muted-foreground opacity-50" />
+                                <span className="text-sm font-medium">Concluídas</span>
+                            </div>
+                            <span className="text-4xl font-bold">{completedCount}</span>
                         </div>
-                        <span className="text-4xl font-bold">{completedCount}</span>
-                    </div>
-                    <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden border-rose-100 dark:border-rose-900 bg-rose-50/30 dark:bg-rose-950/20">
-                        <div className="flex items-center gap-2 text-destructive mb-1">
-                            <AlertCircle className="w-4 h-4" />
-                            <span className="text-sm font-medium">Atrasadas</span>
+                        <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden border-rose-100 dark:border-rose-900 bg-rose-50/30 dark:bg-rose-950/20">
+                            <div className="flex items-center gap-2 text-destructive mb-1">
+                                <AlertCircle className="w-4 h-4" />
+                                <span className="text-sm font-medium">Atrasadas</span>
+                            </div>
+                            <span className="text-4xl font-bold text-foreground">{overdueCount}</span>
                         </div>
-                        <span className="text-4xl font-bold text-foreground">{overdueCount}</span>
-                    </div>
-                    <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
-                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                            <Flag className="w-4 h-4 text-rose-500 opacity-60" />
-                            <span className="text-sm font-medium">Alta prioridade</span>
+                        <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <Flag className="w-4 h-4 text-rose-500 opacity-60" />
+                                <span className="text-sm font-medium">Alta prioridade</span>
+                            </div>
+                            <span className="text-4xl font-bold">{highPriorityCount}</span>
                         </div>
-                        <span className="text-4xl font-bold">{highPriorityCount}</span>
                     </div>
-                </div>
+                )}
             </div>
 
             <div className="flex-1 bg-slate-50/30 dark:bg-background pt-4 px-6">

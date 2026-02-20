@@ -137,7 +137,7 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                             <Checkbox
                                                 checked={task.completed}
                                                 onCheckedChange={(c) => toggleComplete({ id: task.id, completed: c as boolean })}
-                                                className={`w-6 h-6 border-2 transition-all rounded-md ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : ""}`}
+                                                className={`w-5 h-5 border-2 transition-all rounded-sm ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : ""}`}
                                             />
                                         </div>
 

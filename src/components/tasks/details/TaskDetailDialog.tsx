@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
     Check, Clock, CalendarIcon, AlertCircle, Share2, MoreHorizontal,
     Maximize2, Link as LinkIcon, User, Tag, Flag, Search, Bell, Pin, Play, Square, Users, RefreshCw, RepeatIcon, List
@@ -48,6 +49,9 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
     const [description, setDescription] = useState("");
     const [isEditingDescription, setIsEditingDescription] = useState(false);
 
+    const [title, setTitle] = useState("");
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+
     // Time tracking state
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -65,7 +69,10 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
         if (task && !isEditingDescription) {
             setDescription(task.description || "");
         }
-    }, [task, isEditingDescription]);
+        if (task && !isEditingTitle) {
+            setTitle(task.title || "");
+        }
+    }, [task, isEditingDescription, isEditingTitle]);
 
     // Time tracking effect
     useEffect(() => {
@@ -146,15 +153,26 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
         setIsEditingDescription(false);
     };
 
+    const handleSaveTitle = () => {
+        if (!title.trim()) {
+            setTitle(task?.title || "");
+            setIsEditingTitle(false);
+            return;
+        }
+        if (task && title.trim() !== task.title) {
+            handleUpdateField("title", title.trim());
+        }
+        setIsEditingTitle(false);
+    };
+
     const handleAddComment = () => {
         if (!newComment.trim() || !currentUser || !task) return;
 
         addComment({
             task_id: task.id,
-            author: currentUser.nome || currentUser.email || "Usuário",
+            author_name: currentUser.nome || currentUser.email || "Usuário",
             content: newComment.trim(),
-            created_by_id: currentUser.id,
-        }, {
+        } as any, {
             onSuccess: () => setNewComment(""),
         });
     };
@@ -248,9 +266,32 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
 
                                 {/* Task Title Row */}
                                 <div className="space-y-4">
-                                    <h1 className={`text-2xl sm:text-3xl font-semibold tracking-tight ${task.completed ? "line-through text-muted-foreground" : ""}`}>
-                                        {task.title}
-                                    </h1>
+                                    {isEditingTitle ? (
+                                        <Input
+                                            value={title}
+                                            onChange={(e) => setTitle(e.target.value)}
+                                            onBlur={handleSaveTitle}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    handleSaveTitle();
+                                                }
+                                                if (e.key === "Escape") {
+                                                    setTitle(task.title);
+                                                    setIsEditingTitle(false);
+                                                }
+                                            }}
+                                            autoFocus
+                                            className={`text-2xl sm:text-3xl font-semibold tracking-tight h-auto py-1 px-2 -ml-2 border-primary/50 bg-background`}
+                                        />
+                                    ) : (
+                                        <h1
+                                            className={`text-2xl sm:text-3xl font-semibold tracking-tight cursor-text hover:bg-muted/50 w-full py-1 px-2 -ml-2 rounded-md transition-colors ${task.completed ? "line-through text-muted-foreground" : ""}`}
+                                            onClick={() => !task.completed && setIsEditingTitle(true)}
+                                            title={task.completed ? "Tarefas concluídas não podem ser renomeadas" : "Clique para editar"}
+                                        >
+                                            {task.title}
+                                        </h1>
+                                    )}
                                 </div>
 
                                 {/* Properties Grid */}

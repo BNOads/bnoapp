@@ -20,12 +20,13 @@ interface TasksByPersonViewProps {
     onTaskClick: (taskId: string) => void;
     selectedTasks: string[];
     onToggleSelectTask: (taskId: string) => void;
+    onSelectBatch?: (taskIds: string[], select: boolean) => void;
     onCreateTaskForPerson?: (person: string) => void;
     gridLayout?: boolean;
     hideCompleted?: boolean;
 }
 
-export function TasksByPersonView({ tasks, onTaskClick, selectedTasks, onToggleSelectTask, onCreateTaskForPerson, gridLayout = false, hideCompleted = false }: TasksByPersonViewProps) {
+export function TasksByPersonView({ tasks, onTaskClick, selectedTasks, onToggleSelectTask, onSelectBatch, onCreateTaskForPerson, gridLayout = false, hideCompleted = false }: TasksByPersonViewProps) {
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: deleteTask } = useDeleteTask();
     const { mutate: createTask } = useCreateTask();
@@ -424,6 +425,18 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks, onToggleS
                             >
                                 <div className="flex items-center gap-3">
                                     {isCollapsed ? <ChevronRight className="w-4 h-4 text-muted-foreground/60" /> : <ChevronDown className="w-4 h-4 text-muted-foreground/60" />}
+                                    <div onClick={e => e.stopPropagation()} className="flex items-center mr-1">
+                                        <Checkbox
+                                            checked={personTasks.length > 0 && personTasks.every(t => selectedTasks.includes(t.id))}
+                                            onCheckedChange={(c) => {
+                                                if (onSelectBatch) {
+                                                    onSelectBatch(personTasks.map(t => t.id), !!c);
+                                                }
+                                            }}
+                                            className="w-4 h-4"
+                                            title="Selecionar todas desta pessoa"
+                                        />
+                                    </div>
                                     {person === "Sem Responsável" ? (
                                         <UserCircle className="w-6 h-6 text-muted-foreground" />
                                     ) : (
@@ -500,12 +513,21 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks, onToggleS
                                                         <div className="col-span-12 sm:col-span-6 flex items-center gap-3 min-w-0">
                                                             <div onClick={e => e.stopPropagation()} className="shrink-0 pl-1 mt-0.5 sm:mt-0">
                                                                 <Checkbox
-                                                                    checked={task.completed}
-                                                                    onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
-                                                                    className={task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white rounded-sm" : "rounded-sm"}
+                                                                    checked={selectedTasks.includes(task.id)}
+                                                                    onCheckedChange={() => onToggleSelectTask(task.id)}
+                                                                    className="w-4 h-4 rounded-sm border-muted-foreground/30 data-[state=checked]:border-primary"
+                                                                    title="Selecionar tarefa"
                                                                 />
                                                             </div>
-                                                            <div className="flex flex-col min-w-0 flex-1">
+                                                            <div onClick={e => e.stopPropagation()} className="shrink-0">
+                                                                <Checkbox
+                                                                    checked={task.completed}
+                                                                    onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
+                                                                    className={`w-5 h-5 border-2 transition-all rounded-sm ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : ""}`}
+                                                                    title="Marcar como concluída"
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0 flex-1 ml-1">
                                                                 <div className="flex items-center gap-2">
                                                                     <p className={`text-[13px] font-medium hover:underline truncate ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                                                                         {task.title}

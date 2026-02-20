@@ -604,18 +604,7 @@ export const ClientesView = () => {
     }
   };
 
-  // Opções para Situação do Cliente
-  const situacaoClienteOptions = [
-    { value: 'nao_iniciado', label: 'Não Iniciado', color: 'bg-gray-500' },
-    { value: 'alerta', label: 'Alerta', color: 'bg-red-500' },
-    { value: 'ponto_de_atencao', label: 'Ponto de Atenção', color: 'bg-yellow-500' },
-    { value: 'resultados_normais', label: 'Resultados Normais', color: 'bg-blue-500' },
-    { value: 'indo_bem', label: 'Indo bem', color: 'bg-green-500' },
-  ];
 
-  const getStatusOption = (options: typeof situacaoClienteOptions, value: string | null) => {
-    return options.find(o => o.value === value) || options[0];
-  };
 
   // Função genérica para atualizar status do cliente
   const handleStatusChange = async (clienteId: string, field: string, value: string, valorAnterior: string) => {
@@ -1092,29 +1081,29 @@ export const ClientesView = () => {
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                                          <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white font-bold tracking-wide rounded-full text-[11px] cursor-pointer hover:opacity-80 flex items-center justify-center gap-1.5 px-3.5 py-1.5 border-transparent shadow-sm w-[140px]`}>
-                                            {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
+                                          <Badge style={{ backgroundColor: situacaoOptions.getColor(cliente.situacao_cliente) }} className="text-white font-bold tracking-wide rounded-full text-[11px] cursor-pointer hover:opacity-80 flex items-center justify-center gap-1.5 px-3.5 py-1.5 border-transparent shadow-sm w-[140px]">
+                                            {situacaoOptions.getLabel(cliente.situacao_cliente)}
                                             <ChevronDown className="h-3 w-3 opacity-70" />
                                           </Badge>
                                         </Button>
                                       </DropdownMenuTrigger>
                                       <DropdownMenuContent align="center" className="bg-background rounded-xl p-1.5 shadow-lg w-[180px]">
-                                        {situacaoClienteOptions.map((option) => (
+                                        {situacaoOptions.options.map((option) => (
                                           <DropdownMenuItem
-                                            key={option.value}
-                                            onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.value, cliente.situacao_cliente || 'nao_iniciado')}
-                                            className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.situacao_cliente === option.value ? 'bg-muted' : ''}`}
+                                            key={option.option_key}
+                                            onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.option_key, cliente.situacao_cliente || 'nao_iniciado')}
+                                            className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.situacao_cliente === option.option_key ? 'bg-muted' : ''}`}
                                           >
-                                            <Badge className={`${option.color} text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent`}>
-                                              {option.label}
+                                            <Badge style={{ backgroundColor: option.color }} className="text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent">
+                                              {option.option_label}
                                             </Badge>
                                           </DropdownMenuItem>
                                         ))}
                                       </DropdownMenuContent>
                                     </DropdownMenu>
                                   ) : (
-                                    <Badge className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white font-bold tracking-wide rounded-full text-[11px] px-3.5 py-1.5 border-transparent shadow-sm w-[140px] justify-center`}>
-                                      {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
+                                    <Badge style={{ backgroundColor: situacaoOptions.getColor(cliente.situacao_cliente) }} className="text-white font-bold tracking-wide rounded-full text-[11px] px-3.5 py-1.5 border-transparent shadow-sm w-[140px] justify-center">
+                                      {situacaoOptions.getLabel(cliente.situacao_cliente)}
                                     </Badge>
                                   )}
                                 </TableCell>
