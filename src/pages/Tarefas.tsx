@@ -33,7 +33,8 @@ export default function Tarefas() {
         status: "all",
         date: "all"
     });
-    const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "usuario" | "listas">("minhas");
+    const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "listas">("minhas");
+    const [timeViewType, setTimeViewType] = useState<"tabela" | "kanban">("tabela");
     const [hideCompleted, setHideCompleted] = useState(false);
 
     // Selection for ByPerson view mainly, but could be global
@@ -107,20 +108,29 @@ export default function Tarefas() {
         }
 
         if (activeMainTab === "time") {
-            return ByPersonBase;
-        }
-
-        if (activeMainTab === "usuario") {
             return (
                 <div className="space-y-6 w-full max-w-[1400px] mx-auto xl:px-4">
-                    {isAdmin && <AdminTasksPanel tasks={tasks} />}
-                    <div className="mt-8">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold flex items-center gap-2">
-                                <Users className="w-5 h-5" /> Tarefas por Responsável
-                            </h2>
-                        </div>
-                        {ByPersonBase}
+                    {timeViewType === "kanban" && isAdmin && <AdminTasksPanel tasks={tasks} />}
+                    <div className={timeViewType === "kanban" ? "mt-8" : "mt-4"}>
+                        {timeViewType === "kanban" && (
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold flex items-center gap-2">
+                                    <Users className="w-5 h-5" /> Tarefas por Responsável
+                                </h2>
+                            </div>
+                        )}
+                        <TasksByPersonView
+                            tasks={tasks}
+                            onTaskClick={handleTaskClick}
+                            selectedTasks={selectedTasks}
+                            onToggleSelectTask={handleToggleSelectTask}
+                            onCreateTaskForPerson={(person) => {
+                                setCreateDefaultAssignee(person);
+                                setIsCreateOpen(true);
+                            }}
+                            gridLayout={timeViewType === "kanban"}
+                            hideCompleted={hideCompleted}
+                        />
                     </div>
                 </div>
             );
@@ -141,7 +151,7 @@ export default function Tarefas() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        {selectedTasks.length > 0 && (activeMainTab === "time" || activeMainTab === "usuario") && (
+                        {selectedTasks.length > 0 && activeMainTab === "time" && (
                             <Button variant="secondary" onClick={() => setIsBulkEditOpen(true)} className="gap-2">
                                 <Layers className="w-4 h-4" />
                                 Editar Lote ({selectedTasks.length})
@@ -162,13 +172,6 @@ export default function Tarefas() {
                             >
                                 <Users className="w-4 h-4" />
                                 Time
-                            </button>
-                            <button
-                                onClick={() => setActiveMainTab("usuario")}
-                                className={`px-4 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${activeMainTab === "usuario" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
-                            >
-                                <Grid2X2 className="w-4 h-4" />
-                                Por Usuário
                             </button>
                             <button
                                 onClick={() => setActiveMainTab("listas")}
@@ -276,6 +279,25 @@ export default function Tarefas() {
                                 <SelectItem value="mes">Este mês</SelectItem>
                             </SelectContent>
                         </Select>
+
+                        {activeMainTab === "time" && (
+                            <div className="flex items-center bg-muted/50 p-1 rounded-md border text-sm font-medium mx-2 lg:ml-auto">
+                                <button
+                                    onClick={() => setTimeViewType("tabela")}
+                                    className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${timeViewType === "tabela" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                >
+                                    <List className="w-4 h-4" />
+                                    Tabela
+                                </button>
+                                <button
+                                    onClick={() => setTimeViewType("kanban")}
+                                    className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${timeViewType === "kanban" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                >
+                                    <Grid2X2 className="w-4 h-4" />
+                                    Kanban
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 

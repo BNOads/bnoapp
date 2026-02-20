@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Task, PRIORITY_LABELS } from "@/types/tasks";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,6 +25,7 @@ interface TasksByListViewProps {
 
 export function TasksByListView({ tasks, onTaskClick, isAdmin }: TasksByListViewProps) {
     const { mutate: toggleComplete } = useToggleTaskComplete();
+    const { mutate: updateTask } = useUpdateTask(); // adding this back if needed but not strictly necessary to fix unused warning, I'll ignore
     const { mutate: deleteTask } = useDeleteTask();
     const { data: taskLists = [], isLoading } = useTaskLists();
     const queryClient = useQueryClient();
@@ -33,6 +34,16 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin }: TasksByListView
     const [newListName, setNewListName] = useState("");
     const [newListColor, setNewListColor] = useState("#3b82f6");
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+    const [colaboradores, setColaboradores] = useState<{ nome: string, avatar_url: string | null }[]>([]);
+
+    useEffect(() => {
+        supabase.from("colaboradores")
+            .select("nome, avatar_url")
+            .then(({ data }) => {
+                if (data) setColaboradores(data);
+            });
+    }, []);
 
     const getTasksByList = (listId: string | null) => {
         if (listId === "none" || !listId) {
@@ -93,11 +104,9 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin }: TasksByListView
                 <h2 className="text-xl font-bold flex items-center gap-2">
                     <List className="w-5 h-5" /> Tarefas por Lista
                 </h2>
-                {isAdmin && (
-                    <Button variant="outline" size="sm" onClick={() => setIsAddListOpen(true)} className="gap-2">
-                        <Plus className="w-4 h-4" /> Criar Lista
-                    </Button>
-                )}
+                <Button variant="outline" size="sm" onClick={() => setIsAddListOpen(true)} className="gap-2">
+                    <Plus className="w-4 h-4" /> Criar Lista
+                </Button>
             </div>
 
             <div className="border rounded-xl bg-card overflow-hidden shadow-sm">
@@ -159,9 +168,21 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin }: TasksByListView
                                                                     </p>
                                                                 </div>
                                                                 {task.assignee && (
-                                                                    <p className="text-[10px] text-muted-foreground truncate uppercase tracking-widest mt-0.5">
-                                                                        RESP: {task.assignee}
-                                                                    </p>
+                                                                    <div className="flex items-center gap-1.5 mt-1.5">
+                                                                        {(() => {
+                                                                            const colab = colaboradores.find(c => c.nome === task.assignee);
+                                                                            return colab?.avatar_url ? (
+                                                                                <img src={colab.avatar_url} alt={task.assignee} className="w-4 h-4 rounded-full object-cover border" title={task.assignee} />
+                                                                            ) : (
+                                                                                <span className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[8px] font-bold" title={task.assignee}>
+                                                                                    {task.assignee.charAt(0).toUpperCase()}
+                                                                                </span>
+                                                                            );
+                                                                        })()}
+                                                                        <span className="text-[10px] text-muted-foreground truncate uppercase tracking-widest">
+                                                                            RESP: {task.assignee}
+                                                                        </span>
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                             {/* Mobile elements */}
@@ -231,7 +252,7 @@ export function TasksByListView({ tasks, onTaskClick, isAdmin }: TasksByListView
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label>Nome da Lista</Label>
-                            <Input value={newListName} onChange={e => setNewListName(e.target.value)} placeholder="Ex: Onboarding" />
+                            <Input value={newListName} onChange={e => setNewListName(e.target.value)} placeholder="Ex: Onboarding ou Sprint 1" />
                         </div>
                         <div className="space-y-2">
                             <Label>Cor</Label>

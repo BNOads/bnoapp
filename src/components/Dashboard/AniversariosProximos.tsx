@@ -103,13 +103,13 @@ export function AniversariosProximos({ compact = false, className }: Aniversario
             </div>
           </div>
         </CardHeader>
-        <CardContent className={`${compact ? "p-1.5 pt-1 space-y-0.5" : "space-y-3"} flex-1 flex flex-col justify-center`}>
+        <CardContent className={`${compact ? "p-2.5 pt-2 space-y-2" : "space-y-3"} flex-1 flex flex-col justify-center`}>
           {[1, 2].map((i) => (
-            <div key={i} className={`flex items-center gap-2 rounded-md bg-white/40 border border-blue-50 animate-pulse ${compact ? 'p-1' : 'p-3'}`}>
-              <div className={`rounded-full bg-slate-200 ${compact ? 'h-6 w-6' : 'h-12 w-12'}`} />
+            <div key={i} className={`flex items-center gap-3 rounded-md bg-white/40 border border-blue-50 animate-pulse ${compact ? 'p-2.5' : 'p-3'}`}>
+              <div className={`rounded-full bg-slate-200 ${compact ? 'h-12 w-12' : 'h-12 w-12'}`} />
               <div className="flex-1 space-y-2">
-                <div className="h-3 bg-slate-200 rounded w-20" />
-                <div className="h-2 bg-slate-200 rounded w-12" />
+                <div className={`bg-slate-200 rounded ${compact ? 'h-5 w-28' : 'h-3 w-20'}`} />
+                <div className={`bg-slate-200 rounded ${compact ? 'h-3.5 w-20' : 'h-2 w-12'}`} />
               </div>
             </div>
           ))}
@@ -139,17 +139,17 @@ export function AniversariosProximos({ compact = false, className }: Aniversario
       <CardHeader className={`${compact ? "p-1.5 pb-0" : "pb-3"}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <div className={`rounded-full bg-blue-100 ${compact ? 'p-0.5' : 'p-2'}`}>
-              <Cake className={`text-blue-600 ${compact ? 'h-3 w-3' : 'h-5 w-5'}`} />
+            <div className={`rounded-full bg-blue-100 ${compact ? 'p-1' : 'p-2'}`}>
+              <Cake className={`text-blue-600 ${compact ? 'h-4 w-4' : 'h-5 w-5'}`} />
             </div>
-            <span className={`font-bold text-slate-900 ${compact ? 'text-[10px]' : 'text-lg'}`}>Aniversários Próximos</span>
+            <span className={`font-bold text-slate-900 ${compact ? 'text-base' : 'text-lg'}`}>Aniversários Próximos</span>
           </div>
           <Badge className="bg-slate-800 text-white hover:bg-slate-700 h-3.5 px-1 min-w-[14px] justify-center text-[8px]">
             {aniversariantes.length}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className={`${compact ? "p-1.5 pt-1 space-y-0.5" : "space-y-3"} flex-1 flex flex-col justify-center`}>
+      <CardContent className={`${compact ? "p-2.5 pt-2 space-y-2" : "space-y-3"} flex-1 flex flex-col justify-center`}>
         {aniversariantes.map((colab) => {
           const { text, variant, icon: Icon } = getAniversarioLabel(colab.diasRestantes);
           const isToday = colab.diasRestantes === 0;
@@ -157,27 +157,27 @@ export function AniversariosProximos({ compact = false, className }: Aniversario
           return (
             <div
               key={colab.id}
-              className={`flex items-center gap-1.5 rounded-md transition-all bg-white/60 hover:bg-white border border-blue-100/50 ${compact ? 'p-1' : 'p-3'}`}
+              className={`flex items-center rounded-md transition-all bg-white/60 hover:bg-white border border-blue-100/50 ${compact ? 'gap-3 p-2.5' : 'gap-1.5 p-3'}`}
             >
-              <Avatar className={`${compact ? 'h-6 w-6 border border-white shadow-sm' : 'h-12 w-12'}`}>
+              <Avatar className={`${compact ? 'h-12 w-12 border border-white shadow-sm' : 'h-12 w-12'}`}>
                 <AvatarImage src={colab.avatar_url || undefined} alt={colab.nome} />
-                <AvatarFallback className="text-[9px] bg-slate-200 text-slate-600">
+                <AvatarFallback className={`${compact ? 'text-xs' : 'text-[9px]'} bg-slate-200 text-slate-600`}>
                   {colab.nome.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
 
               <div className="flex-1 min-w-0">
-                <p className={`font-bold truncate text-slate-900 leading-tight ${compact ? 'text-xs' : ''}`}>
+                <p className={`font-bold truncate text-slate-900 leading-tight ${compact ? 'text-base' : ''}`}>
                   {colab.nome}
                 </p>
-                <p className="text-[9px] text-slate-500 font-medium uppercase tracking-wide mt-0.5">
+                <p className={`${compact ? 'text-xs' : 'text-[9px]'} text-slate-500 font-medium uppercase tracking-wide mt-0.5`}>
                   {format(parseDateLocal(colab.data_nascimento)!, "dd 'de' MMM", { locale: ptBR })}
                 </p>
               </div>
 
-              <div className={`flex items-center gap-1 bg-white border border-slate-200 rounded-md px-1.5 py-0.5 shadow-sm ${isToday ? 'animate-pulse border-blue-300 ring-1 ring-blue-100' : ''}`}>
-                <Icon className={`h-2.5 w-2.5 ${isToday ? 'text-blue-500' : 'text-slate-400'}`} />
-                <span className={`text-[9px] font-bold ${isToday ? 'text-blue-600' : 'text-slate-600'}`}>
+              <div className={`flex items-center gap-1.5 bg-white border border-slate-200 rounded-md shadow-sm ${compact ? 'px-2.5 py-1.5' : 'px-1.5 py-0.5'} ${isToday ? 'animate-pulse border-blue-300 ring-1 ring-blue-100' : ''}`}>
+                <Icon className={`${compact ? 'h-4 w-4' : 'h-2.5 w-2.5'} ${isToday ? 'text-blue-500' : 'text-slate-400'}`} />
+                <span className={`${compact ? 'text-sm' : 'text-[9px]'} font-bold ${isToday ? 'text-blue-600' : 'text-slate-600'}`}>
                   {isToday ? 'HOJE' : text}
                 </span>
               </div>
