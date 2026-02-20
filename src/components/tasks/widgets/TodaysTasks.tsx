@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTasks } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -6,8 +6,8 @@ import { isToday, isOverdue } from "@/lib/dateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToggleTaskComplete, useUpdateTask, useCreateTask } from "@/hooks/useTaskMutations";
-import { PRIORITY_LABELS } from "@/types/tasks";
-import { CalendarIcon, Clock, AlertCircle, CheckCircle2, ChevronRight, FileText, Check, Plus, RepeatIcon, SkipForward } from "lucide-react";
+import { PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS } from "@/types/tasks";
+import { CalendarIcon, Clock, AlertCircle, CheckCircle2, ChevronRight, FileText, Check, Plus, RepeatIcon, SkipForward, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -15,6 +15,10 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { supabase } from "@/integrations/supabase/client";
 
 export function TodaysTasks() {
     const { userData: currentUser } = useCurrentUser();
@@ -30,8 +34,22 @@ export function TodaysTasks() {
 
     const [isInlineCreateOpen, setIsInlineCreateOpen] = useState(false);
     const [inlineTaskTitle, setInlineTaskTitle] = useState("");
+    const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
 
-    const handleTaskClick = (id: string) => {
+    useEffect(() => {
+        supabase.from("colaboradores").select("nome, user_id, avatar_url").order("nome").then(({ data }) => {
+            if (data) setColaboradores(data);
+        });
+    }, []);
+
+    const handleTaskClick = (id: string, e?: React.MouseEvent) => {
+        // Only navigate if we didn't click on an interactive element
+        if (e) {
+            const target = e.target as HTMLElement;
+            if (target.closest('button') || target.closest('[role="combobox"]') || target.closest('[role="dialog"]')) {
+                return;
+            }
+        }
         navigate(`/tarefas/${id}`);
     };
 
@@ -57,6 +75,10 @@ export function TodaysTasks() {
         setIsInlineCreateOpen(false);
     };
 
+    const handleUpdateField = (taskId: string, field: string, value: any) => {
+        updateTask({ id: taskId, updates: { [field]: value } });
+    };
+
     // Calculate metrics
     const totalTasks = rawTasks.length;
     const completedTasksNum = rawTasks.filter(t => t.completed).length;
@@ -70,46 +92,139 @@ export function TodaysTasks() {
     const renderTaskItem = (task: any) => (
         <div
             key={task.id}
-            className={`group flex flex-col justify-center py-3 px-4 rounded-xl border transition-all cursor-pointer mb-2 ${task.completed ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-border/50 bg-card hover:border-primary/50 hover:shadow-sm"}`}
-            onClick={() => handleTaskClick(task.id)}
+            className={`group flex flex-col justify-center py-4 px-5 rounded-xl border transition-all cursor-pointer mb-3 ${task.completed ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" : task.priority === "alta" ? "border-red-500 bg-red-50/10 dark:bg-red-950/20 hover:border-red-500/80 hover:shadow-sm shadow-sm" : "border-border/50 bg-card hover:border-primary/50 hover:shadow-sm"}`}
+            onClick={(e) => handleTaskClick(task.id, e)}
         >
             <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                    <div onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                            checked={task.completed}
-                            onCheckedChange={(c) => toggleComplete({ id: task.id, completed: c as boolean })}
-                            className={task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : "rounded-sm"}
-                        />
-                    </div>
-                    <div>
-                        <div className="flex flex-col">
-                            <span className={`text-sm font-medium hover:underline truncate inline-block max-w-full ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
-                                {task.title}
-                            </span>
+                <div className="flex flex-col gap-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 w-full">
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                                checked={task.completed}
+                                onCheckedChange={(c) => toggleComplete({ id: task.id, completed: c as boolean })}
+                                className={task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : "rounded-sm"}
+                            />
                         </div>
-                        <div className={`flex items-center gap-4 text-[11px] mt-1 ${task.completed ? "text-emerald-600/70 dark:text-emerald-500/70" : "text-muted-foreground"}`}>
-                            {task.due_date && (
-                                <span className="flex items-center gap-1">
-                                    <CalendarIcon className="w-3 h-3" />
-                                    {format(new Date(`${task.due_date}T00:00:00`), "dd 'de' MMM.", { locale: ptBR })}
-                                </span>
-                            )}
-                            {task.recurrence && task.recurrence !== 'none' && (
-                                <span className="flex items-center gap-1 italic">
-                                    <RepeatIcon className="w-3 h-3" />
-                                    Recorrência
-                                </span>
-                            )}
-                        </div>
+                        <span className={`text-sm font-medium hover:underline truncate inline-block max-w-[80%] ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
+                            {task.title}
+                        </span>
                     </div>
+
+                    {!task.completed && (
+                        <div className="flex flex-wrap items-center gap-2.5 mt-2 ml-6" onClick={e => e.stopPropagation()}>
+
+                            {/* Editable Assignee */}
+                            <Select
+                                value={task.assignee || "unassigned"}
+                                onValueChange={(val) => {
+                                    const newAssignee = val === "unassigned" ? null : val;
+                                    const colab = colaboradores.find(c => c.nome === val);
+                                    handleUpdateField(task.id, "assignee", newAssignee);
+                                    if (colab) handleUpdateField(task.id, "assigned_to_id", colab.user_id);
+                                    else handleUpdateField(task.id, "assigned_to_id", null);
+                                }}
+                            >
+                                <SelectTrigger className="h-6 px-2 text-xs border-none bg-transparent hover:bg-muted shadow-none w-fit gap-1.5 text-muted-foreground p-0 focus:ring-0">
+                                    {task.assignee ? (
+                                        <div className="flex items-center gap-1.5">
+                                            <Avatar className="h-4 w-4">
+                                                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${task.assignee}`} />
+                                                <AvatarFallback className="text-[8px]">{task.assignee.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="truncate max-w-[80px] font-medium text-foreground">{task.assignee}</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1.5">
+                                            <User className="w-3.5 h-3.5" />
+                                            <span>Sem resp.</span>
+                                        </div>
+                                    )}
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="unassigned" className="text-xs">Sem responsável</SelectItem>
+                                    {colaboradores.map(c => (
+                                        <SelectItem key={c.user_id || c.nome} value={c.nome} className="text-xs">
+                                            <div className="flex items-center gap-2">
+                                                <Avatar className="h-5 w-5">
+                                                    <AvatarImage src={c.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.nome}`} />
+                                                    <AvatarFallback className="text-[9px]">{c.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                </Avatar>
+                                                {c.nome}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            {/* Editable Due Date */}
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs hover:bg-muted font-normal gap-1.5 p-0 bg-transparent text-foreground">
+                                        <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                                        {task.due_date ? format(new Date(`${task.due_date}T00:00:00`), "dd MMM", { locale: ptBR }) : <span className="text-muted-foreground">Sem data</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-2" align="start">
+                                    <input
+                                        type="date"
+                                        className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                                        value={task.due_date || ""}
+                                        onChange={(e) => handleUpdateField(task.id, "due_date", e.target.value || null)}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+
+                            {/* Editable Recurrence */}
+                            <Select
+                                value={task.recurrence || "none"}
+                                onValueChange={(val) => handleUpdateField(task.id, "recurrence", val === "none" ? null : val)}
+                            >
+                                <SelectTrigger className="h-6 px-2 text-xs border-none bg-transparent hover:bg-muted shadow-none w-fit gap-1.5 p-0 focus:ring-0 text-foreground">
+                                    <RepeatIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                                    {task.recurrence && task.recurrence !== 'none' ? RECURRENCE_LABELS[task.recurrence as RecurrenceType] : <span className="text-muted-foreground">Sem rec.</span>}
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(RECURRENCE_LABELS).map(([val, label]) => (
+                                        <SelectItem key={val} value={val} className="text-xs">{label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                        </div>
+                    )}
                 </div>
 
-                <div className="flex items-center shrink-0">
-                    {task.priority && !task.completed && (
-                        <Badge variant={task.priority === "alta" ? "destructive" : task.priority === "media" ? "secondary" : "outline"} className={`font-normal text-[10px] px-2 h-[20px] ${task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' : task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 border-transparent text-white' : ''}`}>
-                            {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
-                        </Badge>
+                <div className="flex items-center shrink-0" onClick={e => e.stopPropagation()}>
+                    {(task.time_tracked || 0) > 0 && !task.completed && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded border border-transparent mr-2">
+                            <Clock className="w-3 h-3" />
+                            <span className="font-mono">{Math.floor((task.time_tracked || 0) / 3600)}:{Math.floor(((task.time_tracked || 0) % 3600) / 60).toString().padStart(2, '0')}:{(task.time_tracked || 0) % 60 < 10 ? '0' : ''}{(task.time_tracked || 0) % 60}</span>
+                        </div>
+                    )}
+                    {/* Editable Priority */}
+                    {!task.completed && (
+                        <Select
+                            value={task.priority || "none"}
+                            onValueChange={(val) => handleUpdateField(task.id, "priority", val === "none" ? null : val as TaskPriority)}
+                        >
+                            <SelectTrigger className="h-auto py-0 px-0 border-none bg-transparent shadow-none hover:bg-transparent focus:ring-0">
+                                {task.priority ? (
+                                    <Badge variant={task.priority === "alta" ? "destructive" : task.priority === "media" ? "secondary" : "outline"} className={`font-normal text-[10px] px-2 h-[20px] ${task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' : task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 border-transparent text-white' : ''}`}>
+                                        {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="outline" className="font-normal text-[10px] px-2 h-[20px] text-muted-foreground border-dashed">
+                                        Prioridade
+                                    </Badge>
+                                )}
+                            </SelectTrigger>
+                            <SelectContent align="end">
+                                <SelectItem value="none" className="text-xs">Sem prioridade</SelectItem>
+                                <SelectItem value="baixa" className="text-xs">{PRIORITY_LABELS.baixa}</SelectItem>
+                                <SelectItem value="media" className="text-xs">{PRIORITY_LABELS.media}</SelectItem>
+                                <SelectItem value="alta" className="text-xs text-red-500 font-medium">{PRIORITY_LABELS.alta}</SelectItem>
+                            </SelectContent>
+                        </Select>
                     )}
                 </div>
             </div>

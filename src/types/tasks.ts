@@ -42,6 +42,8 @@ export interface Task extends TaskRow {
     subtasks?: Subtask[];
     task_comments?: TaskComment[];
     task_history?: TaskHistory[];
+    timer_started_at?: string | null;
+    time_tracked?: number | null;
 }
 
 export interface Subtask extends SubtaskRow {

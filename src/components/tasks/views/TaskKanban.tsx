@@ -6,7 +6,7 @@ import { useToggleTaskComplete, useUpdateTask } from "@/hooks/useTaskMutations";
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, MessageSquare } from "lucide-react";
+import { CalendarIcon, MessageSquare, Clock } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
 
 interface TaskKanbanProps {
@@ -98,6 +98,12 @@ export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
                         <span className="flex items-center gap-1">
                             <MessageSquare className="w-3.5 h-3.5" />
                             {task.task_comments.length}
+                        </span>
+                    )}
+                    {(task.time_tracked || 0) > 0 && !task.completed && (
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span className="font-mono">{Math.floor((task.time_tracked || 0) / 3600)}:{Math.floor(((task.time_tracked || 0) % 3600) / 60).toString().padStart(2, '0')}:{(task.time_tracked || 0) % 60 < 10 ? '0' : ''}{(task.time_tracked || 0) % 60}</span>
                         </span>
                     )}
                     {task.due_date && !task.completed && (

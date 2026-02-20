@@ -12,9 +12,10 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 interface CommentSectionProps {
     taskId: string;
     comments: TaskComment[];
+    hideForm?: boolean;
 }
 
-export function CommentSection({ taskId, comments }: CommentSectionProps) {
+export function CommentSection({ taskId, comments, hideForm = false }: CommentSectionProps) {
     const [newComment, setNewComment] = useState("");
     const { userData: currentUser } = useCurrentUser();
 
@@ -79,24 +80,26 @@ export function CommentSection({ taskId, comments }: CommentSectionProps) {
                 )}
             </div>
 
-            <div className="flex flex-col gap-2 pt-2">
-                <Textarea
-                    placeholder="Adicione um comentário..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    className="resize-none min-h-[80px]"
-                    disabled={isPending}
-                />
-                <div className="flex justify-end">
-                    <Button
-                        size="sm"
-                        onClick={handleAddComment}
-                        disabled={!newComment.trim() || isPending || !currentUser}
-                    >
-                        Comentar
-                    </Button>
+            {!hideForm && (
+                <div className="flex flex-col gap-2 pt-2">
+                    <Textarea
+                        placeholder="Adicione um comentário..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        className="resize-none min-h-[80px]"
+                        disabled={isPending}
+                    />
+                    <div className="flex justify-end">
+                        <Button
+                            size="sm"
+                            onClick={handleAddComment}
+                            disabled={!newComment.trim() || isPending || !currentUser}
+                        >
+                            Comentar
+                        </Button>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

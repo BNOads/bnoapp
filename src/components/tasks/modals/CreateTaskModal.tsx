@@ -8,6 +8,12 @@ import { useCreateTask } from "@/hooks/useTaskMutations";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskPriority, RecurrenceType, RECURRENCE_LABELS, PRIORITY_LABELS } from "@/types/tasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { CalendarIcon, Flag, RefreshCw, Sparkles, Tag, Users } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
 
 interface CreateTaskModalProps {
     open: boolean;
@@ -24,7 +30,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
     const [category, setCategory] = useState<string>("none");
     const [dueDate, setDueDate] = useState<string>("");
 
-    const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string }[]>([]);
+    const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
     const { userData: currentUser } = useCurrentUser();
     const { mutate: createTask, isPending } = useCreateTask();
 
@@ -41,7 +47,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
 
     useEffect(() => {
         if (open) {
-            supabase.from("colaboradores").select("nome, user_id").order("nome").then(({ data }) => {
+            supabase.from("colaboradores").select("nome, user_id, avatar_url").order("nome").then(({ data }) => {
                 if (data) setColaboradores(data);
             });
             // Reset values when opened
@@ -78,67 +84,46 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                    <DialogTitle>Nova Tarefa</DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Título *</label>
-                        <Input
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Ex: Revisar layout da campanha..."
-                            autoFocus
-                        />
+            <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden bg-background border rounded-xl shadow-lg">
+                <div className="flex flex-col h-full w-full">
+                    {/* Header Controls (Optional top bar) */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-muted/20">
+                        <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground">
+                            <span className="text-primary cursor-pointer border-b-2 border-primary pb-[10px] -mb-[13px]">Tarefa</span>
+                        </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Descrição</label>
-                        <Textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Detalhes adicionais da tarefa"
-                            className="min-h-[80px]"
-                        />
-                    </div>
+                    <div className="p-6 space-y-6">
+                        {/* Title & Description */}
+                        <div className="space-y-4">
+                            <Input
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Nome da Tarefa"
+                                className="text-3xl py-1 font-semibold border-0 px-0 h-auto focus-visible:ring-0 shadow-none placeholder:text-muted-foreground"
+                                autoFocus
+                            />
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Responsável</label>
-                            <Select value={assignee} onValueChange={setAssignee}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="unassigned">Sem responsável</SelectItem>
-                                    {colaboradores.map(c => (
-                                        <SelectItem key={c.user_id || c.nome} value={c.nome}>{c.nome}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="relative group">
+                                <Textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    placeholder="Adicionar descrição"
+                                    className="min-h-[80px] resize-none border-0 bg-muted/30 focus-visible:ring-0 shadow-none px-4 py-3 text-sm placeholder:text-muted-foreground/70"
+                                />
+                            </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Prioridade</label>
-                            <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
-                                    <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
-                                    <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        {/* Pills Row */}
+                        <div className="flex flex-wrap items-center gap-2 pt-4">
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Categoria</label>
+                            {/* Categoria/Status Pill */}
                             <Select value={category} onValueChange={setCategory}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Sem categoria" />
+                                <SelectTrigger className="w-auto h-8 px-3 rounded-full bg-muted/40 border text-xs font-medium hover:bg-muted/60 transition-colors shadow-none">
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-slate-500" />
+                                        <SelectValue placeholder="Categoria" />
+                                    </div>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">Sem categoria</SelectItem>
@@ -149,23 +134,98 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
                                     <SelectItem value="Administrativo">Administrativo</SelectItem>
                                 </SelectContent>
                             </Select>
-                        </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Data de Conclusão</label>
-                            <input
-                                type="date"
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                value={dueDate}
-                                onChange={(e) => setDueDate(e.target.value)}
-                            />
-                        </div>
+                            {/* Assignee Pill */}
+                            <Select value={assignee} onValueChange={setAssignee}>
+                                <SelectTrigger className="w-auto h-8 px-3 rounded-full border border-border text-xs font-medium hover:bg-muted/50 transition-colors shadow-none bg-transparent">
+                                    <div className="flex items-center gap-2">
+                                        {assignee !== "unassigned" ? (
+                                            <>
+                                                <Avatar className="w-5 h-5">
+                                                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${assignee}`} />
+                                                    <AvatarFallback>{assignee.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                </Avatar>
+                                                <span className="truncate max-w-[100px]">{assignee}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                                                <span className="text-muted-foreground">Responsável</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="unassigned">Sem responsável</SelectItem>
+                                    {colaboradores.map(c => (
+                                        <SelectItem key={c.user_id || c.nome} value={c.nome}>
+                                            <div className="flex items-center gap-2">
+                                                <Avatar className="w-5 h-5">
+                                                    <AvatarImage src={c.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.nome}`} />
+                                                    <AvatarFallback>{c.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                </Avatar>
+                                                {c.nome}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
 
-                        <div className="space-y-2 col-span-2">
-                            <label className="text-sm font-medium">Recorrência</label>
+                            {/* Due Date Pill */}
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className={`h-8 px-3 rounded-full border text-xs font-medium hover:bg-muted/50 transition-colors shadow-none bg-transparent ${!dueDate && 'text-muted-foreground'}`}>
+                                        <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
+                                        {dueDate ? format(new Date(dueDate), "dd MMM, yyyy", { locale: ptBR }) : "Data de vencimento"}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={dueDate ? new Date(dueDate + 'T12:00:00') : undefined}
+                                        onSelect={(date) => setDueDate(date ? format(date, "yyyy-MM-dd") : "")}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+
+                            {/* Priority Pill */}
+                            <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
+                                <SelectTrigger className="w-auto h-8 px-3 rounded-full border text-xs font-medium hover:bg-muted/50 transition-colors shadow-none bg-transparent">
+                                    <div className="flex items-center gap-1.5 focus:outline-none">
+                                        <Flag className={`w-3.5 h-3.5 ${priority === 'alta' ? 'text-red-500 fill-red-500/20' :
+                                            priority === 'media' ? 'text-amber-500 fill-amber-500/20' :
+                                                'text-blue-500 fill-blue-500/20'
+                                            }`} />
+                                        <span className="capitalize">{priority === 'baixa' ? 'Brasileirão' : priority === 'media' ? 'Libertadores' : 'Copa do Mundo'}</span>
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="baixa">
+                                        <div className="flex items-center gap-2">
+                                            <Flag className="w-3.5 h-3.5 text-blue-500" /> {PRIORITY_LABELS.baixa}
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="media">
+                                        <div className="flex items-center gap-2">
+                                            <Flag className="w-3.5 h-3.5 text-amber-500" /> {PRIORITY_LABELS.media}
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="alta">
+                                        <div className="flex items-center gap-2">
+                                            <Flag className="w-3.5 h-3.5 text-red-500" /> {PRIORITY_LABELS.alta}
+                                        </div>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            {/* Recurrence Pill */}
                             <Select value={recurrence} onValueChange={(v) => setRecurrence(v as RecurrenceType)}>
-                                <SelectTrigger>
-                                    <SelectValue />
+                                <SelectTrigger className="w-auto h-8 px-3 rounded-full border text-xs font-medium hover:bg-muted/50 transition-colors shadow-none bg-transparent">
+                                    <div className="flex items-center gap-1.5">
+                                        <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
+                                        <span className="capitalize">{recurrence === 'none' ? 'Recorrência' : RECURRENCE_LABELS[recurrence]}</span>
+                                    </div>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {Object.entries(RECURRENCE_LABELS).map(([val, label]) => (
@@ -173,18 +233,25 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee }: CreateT
                                     ))}
                                 </SelectContent>
                             </Select>
+
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border shadow-none bg-transparent text-muted-foreground hover:bg-muted/50">
+                                <Tag className="w-3.5 h-3.5" />
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Footer Controls */}
+                    <div className="p-4 border-t bg-muted/10 flex items-center justify-end">
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending} className="h-9 text-muted-foreground hover:text-foreground">
+                                Cancelar
+                            </Button>
+                            <Button onClick={handleSave} disabled={isPending || !title.trim()} className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-none rounded-md">
+                                Criar Tarefa
+                            </Button>
                         </div>
                     </div>
                 </div>
-
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-                        Cancelar
-                    </Button>
-                    <Button onClick={handleSave} disabled={isPending || !title.trim()}>
-                        Salvar Tarefa
-                    </Button>
-                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
