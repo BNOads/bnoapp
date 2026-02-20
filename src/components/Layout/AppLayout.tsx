@@ -5,6 +5,7 @@ import { Header } from "@/components/Layout/Header";
 import { PublicLogo } from "@/components/Layout/PublicLogo";
 import { useRecentTabs } from "@/hooks/useRecentTabs";
 import NotificationPopup from "@/components/Notifications/NotificationPopup";
+import { MobileBottomNav } from "@/components/Layout/MobileBottomNav";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -66,11 +67,12 @@ export function AppLayout({ children }: AppLayoutProps) {
         // Usuário não logado - mostrar apenas logo e botão de login
         <PublicLogo />
       )}
-      <main className={shouldShowHeader || user ? "container mx-auto px-6 py-8" : ""}>
+      <main className={`${shouldShowHeader || user ? "container mx-auto px-6 py-8" : ""} mb-20 md:mb-0`}>
         {children}
       </main>
       {shouldShowFAB && <FloatingNoteButton />}
       <NotificationPopup />
+      {shouldShowHeader && <MobileBottomNav />}
     </div>
   );
 }

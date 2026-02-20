@@ -105,7 +105,7 @@ export const Header = ({ }: HeaderProps) => {
 
         <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex space-x-1 xl:space-x-2">
+          <nav className="hidden md:flex space-x-1 xl:space-x-2">
             {tabs.map(tab => {
               const Icon = tab.icon;
               return <Button
@@ -122,33 +122,6 @@ export const Header = ({ }: HeaderProps) => {
               </Button>;
             })}
           </nav>
-
-          {/* Mobile Navigation */}
-          <div className="lg:hidden">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center space-x-1 px-2">
-                  <LayoutDashboard className="h-4 w-4" />
-                  <span className="sr-only">Menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40 sm:w-48">
-                {tabs.map(tab => {
-                  const Icon = tab.icon;
-                  return <DropdownMenuItem
-                    key={tab.id}
-                    asChild
-                    className={`flex items-center space-x-2 text-sm ${activeTab === tab.id ? "bg-accent" : ""}`}
-                  >
-                    <Link to={tab.path}>
-                      <Icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{tab.label}</span>
-                    </Link>
-                  </DropdownMenuItem>;
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
           {/* Theme Switch */}
           <div className="hidden sm:block">
