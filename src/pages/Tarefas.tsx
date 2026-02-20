@@ -3,7 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag, Filter, ChevronDown } from "lucide-react";
 
 import { useTasks, TaskFilters } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -231,74 +232,106 @@ export default function Tarefas() {
                                 placeholder="Buscar tarefas..."
                                 value={filters.search}
                                 onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
-                                className="pl-9 h-10 w-full"
+                                className="pl-9 h-10 w-full bg-background border-border/50 rounded-xl shadow-sm text-sm"
                             />
                         </div>
 
+                        <div className="flex items-center gap-2 w-full lg:w-auto">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="h-10 bg-background border-border/50 rounded-xl shadow-sm gap-2 font-medium w-full lg:w-auto">
+                                        <Filter className="h-4 w-4 text-slate-500" />
+                                        Filtros
+                                        <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-[300px] sm:w-[500px] p-4 rounded-2xl shadow-xl">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between pb-2 border-b">
+                                            <h4 className="font-semibold text-sm">Filtros de Tarefas</h4>
+                                            <Button variant="ghost" size="sm" onClick={() => setFilters({ search: filters.search, priority: "all", category: "all", assignee: "all", recurrence: "all", status: "all", date: "all" })} className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+                                                Limpar Filtros
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-medium text-muted-foreground">Prioridade</label>
+                                                <Select value={filters.priority} onValueChange={(v) => setFilters(f => ({ ...f, priority: v }))}>
+                                                    <SelectTrigger className="w-full h-9 bg-background border-border/50 rounded-lg shadow-sm text-sm font-medium">
+                                                        <SelectValue placeholder="Prioridade" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Todas</SelectItem>
+                                                        <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
+                                                        <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
+                                                        <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
 
-                        <Select value={filters.priority} onValueChange={(v) => setFilters(f => ({ ...f, priority: v }))}>
-                            <SelectTrigger className="w-[140px] h-10">
-                                <Flag className="w-4 h-4 mr-2 text-muted-foreground" />
-                                <SelectValue placeholder="Prioridade" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas</SelectItem>
-                                <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
-                                <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
-                                <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
-                            </SelectContent>
-                        </Select>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-medium text-muted-foreground">Status</label>
+                                                <Select value={filters.status} onValueChange={(v) => setFilters(f => ({ ...f, status: v }))}>
+                                                    <SelectTrigger className="w-full h-9 bg-background border-border/50 rounded-lg shadow-sm text-sm font-medium">
+                                                        <SelectValue placeholder="Status" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Todas</SelectItem>
+                                                        <SelectItem value="pendentes">Pendentes</SelectItem>
+                                                        <SelectItem value="concluidas">Concluídas</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
 
-                        <Select value={filters.status} onValueChange={(v) => setFilters(f => ({ ...f, status: v }))}>
-                            <SelectTrigger className="w-[140px] h-10">
-                                <List className="w-4 h-4 mr-2 text-muted-foreground" />
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas</SelectItem>
-                                <SelectItem value="pendentes">Pendentes</SelectItem>
-                                <SelectItem value="concluidas">Concluídas</SelectItem>
-                            </SelectContent>
-                        </Select>
+                                            {activeMainTab !== "minhas" && (
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-medium text-muted-foreground">Responsável</label>
+                                                    <Select value={filters.assignee} onValueChange={(v) => setFilters(f => ({ ...f, assignee: v }))}>
+                                                        <SelectTrigger className="w-full h-9 bg-background border-border/50 rounded-lg shadow-sm text-sm font-medium">
+                                                            <SelectValue placeholder="Responsável" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="all">Todos</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
 
-                        {activeMainTab !== "minhas" && (
-                            <Select value={filters.assignee} onValueChange={(v) => setFilters(f => ({ ...f, assignee: v }))}>
-                                <SelectTrigger className="w-[140px] h-10">
-                                    <Users className="w-4 h-4 mr-2 text-muted-foreground" />
-                                    <SelectValue placeholder="Responsável" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todos</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        )}
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-medium text-muted-foreground">Recorrência</label>
+                                                <Select value={filters.recurrence} onValueChange={(v) => setFilters(f => ({ ...f, recurrence: v }))}>
+                                                    <SelectTrigger className="w-full h-9 bg-background border-border/50 rounded-lg shadow-sm text-sm font-medium">
+                                                        <SelectValue placeholder="Recorrência" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Todas</SelectItem>
+                                                        <SelectItem value="none">Sem repetição</SelectItem>
+                                                        <SelectItem value="diario">Diária</SelectItem>
+                                                        <SelectItem value="semanal">Semanal</SelectItem>
+                                                        <SelectItem value="mensal">Mensal</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
 
-                        <Select value={filters.recurrence} onValueChange={(v) => setFilters(f => ({ ...f, recurrence: v }))}>
-                            <SelectTrigger className="w-[140px] h-10">
-                                <Layers className="w-4 h-4 mr-2 text-muted-foreground" />
-                                <SelectValue placeholder="Recorrência" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas</SelectItem>
-                                <SelectItem value="none">Sem repetição</SelectItem>
-                                <SelectItem value="diario">Diária</SelectItem>
-                                <SelectItem value="semanal">Semanal</SelectItem>
-                                <SelectItem value="mensal">Mensal</SelectItem>
-                            </SelectContent>
-                        </Select>
-
-                        <Select value={filters.date} onValueChange={(v) => setFilters(f => ({ ...f, date: v }))}>
-                            <SelectTrigger className="w-[180px] h-10">
-                                <CalendarIcon className="w-4 h-4 mr-2 text-muted-foreground" />
-                                <SelectValue placeholder="Datas" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas as datas</SelectItem>
-                                <SelectItem value="hoje">Hoje</SelectItem>
-                                <SelectItem value="semana">Esta semana</SelectItem>
-                                <SelectItem value="mes">Este mês</SelectItem>
-                            </SelectContent>
-                        </Select>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-medium text-muted-foreground">Data</label>
+                                                <Select value={filters.date} onValueChange={(v) => setFilters(f => ({ ...f, date: v }))}>
+                                                    <SelectTrigger className="w-full h-9 bg-background border-border/50 rounded-lg shadow-sm text-sm font-medium">
+                                                        <SelectValue placeholder="Datas" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Todas as datas</SelectItem>
+                                                        <SelectItem value="hoje">Hoje</SelectItem>
+                                                        <SelectItem value="semana">Esta semana</SelectItem>
+                                                        <SelectItem value="mes">Este mês</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
 
                         <button
                             onClick={() => setHideCompleted(!hideCompleted)}

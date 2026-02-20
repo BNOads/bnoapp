@@ -4,8 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ChevronDown, ChevronRight, User, ArrowUpDown, GripVertical, History } from "lucide-react";
+import { ChevronDown, ChevronRight, User, ArrowUpDown, GripVertical, History, Plus, Check } from "lucide-react";
 import { HistoricoStatusModal } from "./HistoricoStatusModal";
 import { useNavigate } from "react-router-dom";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -58,6 +59,11 @@ interface ClientesGroupedViewProps {
   groupBy: 'gestor' | 'cs';
   onClienteClick?: (cliente: Cliente) => void;
   onClienteUpdate?: () => void;
+  clientesSelecionados?: string[];
+  toggleClienteSelection?: (id: string) => void;
+  setClientesSelecionados?: React.Dispatch<React.SetStateAction<string[]>>;
+  canCreateContent?: boolean;
+  activeTab?: string;
 }
 
 // Opções para classificações (mesmos nomes da visualização padrão)
@@ -166,7 +172,12 @@ export const ClientesGroupedView = ({
   colaboradores,
   groupBy,
   onClienteClick,
-  onClienteUpdate
+  onClienteUpdate,
+  clientesSelecionados,
+  toggleClienteSelection,
+  setClientesSelecionados,
+  canCreateContent,
+  activeTab
 }: ClientesGroupedViewProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -396,6 +407,23 @@ export const ClientesGroupedView = ({
     setExpandedGroups(new Set());
   };
 
+  const handleSelectGroup = (e: React.MouseEvent, groupClientes: Cliente[]) => {
+    e.stopPropagation();
+    if (!setClientesSelecionados || !clientesSelecionados) return;
+
+    const groupClientIds = groupClientes.map((c: Cliente) => c.id);
+    const allSelectedInGroup = groupClientIds.every((id: string) => clientesSelecionados.includes(id));
+
+    if (allSelectedInGroup) {
+      setClientesSelecionados((prev: string[]) => prev.filter((id: string) => !groupClientIds.includes(id)));
+    } else {
+      setClientesSelecionados((prev: string[]) => {
+        const newSelected = new Set([...prev, ...groupClientIds]);
+        return Array.from(newSelected);
+      });
+    }
+  };
+
   const getColumnLabel = (columnId: string) => {
     return columnDefinitions.find(c => c.id === columnId)?.label || columnId;
   };
@@ -408,11 +436,10 @@ export const ClientesGroupedView = ({
           <TableCell className="text-center py-4">
             <Badge
               variant="outline"
-              className={`text-sm font-medium px-4 py-2 min-w-[140px] justify-center ${
-                cliente.categoria === 'negocio_local'
-                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                  : 'bg-green-50 text-green-700 border-green-200'
-              }`}
+              className={`font-semibold text-xs tracking-tight rounded-full px-3 py-1 bg-transparent border uppercase ${cliente.categoria === 'negocio_local'
+                ? 'text-blue-600 border-blue-200'
+                : 'text-green-600 border-green-200'
+                }`}
             >
               {cliente.categoria === 'negocio_local' ? 'Negócio Local' : 'Infoproduto'}
             </Badge>
@@ -424,20 +451,20 @@ export const ClientesGroupedView = ({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                  <Badge className={`${getSerieColor(cliente.serie || 'Serie A')} text-sm font-medium px-4 py-2 min-w-[100px] justify-center cursor-pointer hover:opacity-80 flex items-center gap-1`}>
+                  <Badge className={`${getSerieColor(cliente.serie || 'Serie A')} rounded-full px-3 py-1 font-semibold tracking-tight text-[11px] cursor-pointer hover:opacity-80 flex items-center gap-1 bg-transparent border`}>
                     {cliente.serie || 'Serie A'}
                     <ChevronDown className="h-3 w-3" />
                   </Badge>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="bg-background">
+              <DropdownMenuContent align="center" className="bg-background rounded-xl p-1 shadow-lg">
                 {seriesOptions.map((serie) => (
                   <DropdownMenuItem
                     key={serie}
                     onClick={() => handleStatusChange(cliente.id, 'serie', serie, cliente.serie || 'Serie A')}
-                    className={cliente.serie === serie ? 'bg-muted' : ''}
+                    className={`rounded-lg cursor-pointer my-0.5 ${cliente.serie === serie ? 'bg-muted' : ''}`}
                   >
-                    <Badge className={`${getSerieColor(serie)} text-sm w-full justify-center`}>
+                    <Badge className={`${getSerieColor(serie)} text-xs w-full justify-center bg-transparent border`}>
                       {serie}
                     </Badge>
                   </DropdownMenuItem>
@@ -453,21 +480,21 @@ export const ClientesGroupedView = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
                   <Badge
-                    className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white text-sm font-medium px-4 py-2 min-w-[160px] justify-center cursor-pointer hover:opacity-80 flex items-center gap-1`}
+                    className={`${getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).color} text-white font-bold tracking-wide rounded-full text-[11px] cursor-pointer hover:opacity-80 flex items-center justify-center gap-1.5 px-3.5 py-1.5 border-transparent shadow-sm w-[140px]`}
                   >
                     {getStatusOption(situacaoClienteOptions, cliente.situacao_cliente).label}
-                    <ChevronDown className="h-3 w-3" />
+                    <ChevronDown className="h-3 w-3 opacity-70" />
                   </Badge>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="bg-background">
+              <DropdownMenuContent align="center" className="bg-background rounded-xl p-1.5 shadow-lg w-[180px]">
                 {situacaoClienteOptions.map((option) => (
                   <DropdownMenuItem
                     key={option.value}
                     onClick={() => handleStatusChange(cliente.id, 'situacao_cliente', option.value, cliente.situacao_cliente || 'nao_iniciado')}
-                    className={cliente.situacao_cliente === option.value ? 'bg-muted' : ''}
+                    className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.situacao_cliente === option.value ? 'bg-muted' : ''}`}
                   >
-                    <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
+                    <Badge className={`${option.color} text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent`}>
                       {option.label}
                     </Badge>
                   </DropdownMenuItem>
@@ -483,21 +510,22 @@ export const ClientesGroupedView = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
                   <Badge
-                    className={`${getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).color} text-white text-sm font-medium px-4 py-2 min-w-[140px] justify-center cursor-pointer hover:opacity-80 flex items-center gap-1`}
+                    style={{ backgroundColor: etapaOnboardingOptions.find(o => o.value === cliente.etapa_onboarding)?.color?.replace('bg-', '') || '#f59e0b' }} // fallback orange
+                    className="text-white font-bold tracking-wide rounded-full text-[11px] cursor-pointer hover:opacity-80 flex items-center justify-center gap-1.5 px-3.5 py-1.5 border-transparent shadow-sm w-[140px]"
                   >
                     {getStatusOption(etapaOnboardingOptions, cliente.etapa_onboarding).label}
-                    <ChevronDown className="h-3 w-3" />
+                    <ChevronDown className="h-3 w-3 opacity-70" />
                   </Badge>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="bg-background">
+              <DropdownMenuContent align="center" className="bg-background rounded-xl p-1.5 shadow-lg w-[180px]">
                 {etapaOnboardingOptions.map((option) => (
                   <DropdownMenuItem
                     key={option.value}
                     onClick={() => handleStatusChange(cliente.id, 'etapa_onboarding', option.value, cliente.etapa_onboarding || 'onboarding')}
-                    className={cliente.etapa_onboarding === option.value ? 'bg-muted' : ''}
+                    className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.etapa_onboarding === option.value ? 'bg-muted' : ''}`}
                   >
-                    <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
+                    <Badge className={`${option.color} text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent`}>
                       {option.label}
                     </Badge>
                   </DropdownMenuItem>
@@ -513,23 +541,131 @@ export const ClientesGroupedView = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
                   <Badge
-                    className={`${getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).color} text-white text-sm font-medium px-4 py-2 min-w-[180px] justify-center cursor-pointer hover:opacity-80 flex items-center gap-1`}
+                    style={{ backgroundColor: etapaTrafegoOptions.find(o => o.value === cliente.etapa_trafego)?.color?.replace('bg-', '') || '#3b82f6' }} // fallback blue
+                    className="text-white font-bold tracking-wide rounded-full text-[11px] cursor-pointer hover:opacity-80 flex items-center justify-center gap-1.5 px-3.5 py-1.5 border-transparent shadow-sm w-[140px] whitespace-nowrap overflow-hidden text-ellipsis"
                   >
                     {getStatusOption(etapaTrafegoOptions, cliente.etapa_trafego).label}
-                    <ChevronDown className="h-3 w-3" />
+                    <ChevronDown className="h-3 w-3 opacity-70 flex-shrink-0" />
                   </Badge>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="bg-background">
+              <DropdownMenuContent align="center" className="bg-background rounded-xl p-1.5 shadow-lg w-[180px]">
                 {etapaTrafegoOptions.map((option) => (
                   <DropdownMenuItem
                     key={option.value}
                     onClick={() => handleStatusChange(cliente.id, 'etapa_trafego', option.value, cliente.etapa_trafego || 'estrategia')}
-                    className={cliente.etapa_trafego === option.value ? 'bg-muted' : ''}
+                    className={`rounded-lg cursor-pointer my-0.5 justify-center ${cliente.etapa_trafego === option.value ? 'bg-muted' : ''}`}
                   >
-                    <Badge className={`${option.color} text-white text-sm w-full justify-center`}>
+                    <Badge className={`${option.color} text-white font-bold tracking-wide rounded-full text-[11px] w-full justify-center px-3 py-1 border-transparent`}>
                       {option.label}
                     </Badge>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        );
+      case 'gestor':
+        return (
+          <TableCell className="text-center py-4" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="flex justify-center items-center gap-1.5 cursor-pointer group/avatar p-1 rounded-md hover:bg-slate-100/50 transition-colors">
+                  {cliente.primary_gestor ? (
+                    <Avatar className="h-9 w-9 group-hover/avatar:ring-2 ring-blue-400 ring-offset-2 transition-all shadow-sm ring-1 ring-border">
+                      <AvatarImage src={cliente.primary_gestor.avatar_url} />
+                      <AvatarFallback className="bg-slate-100 text-slate-600 text-xs font-bold font-mono">
+                        {cliente.primary_gestor.nome.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <Button variant="outline" size="icon" className="h-9 w-9 text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full border-dashed group-hover/avatar:border-blue-300">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-56 p-2 rounded-xl shadow-lg border-border/50 max-h-[300px] overflow-y-auto z-50">
+                <div className="mb-2 px-2 pb-1 border-b text-xs font-semibold text-muted-foreground uppercase flex justify-between items-center">
+                  <span>Atribuir Gestor</span>
+                </div>
+                <DropdownMenuItem onClick={async (e) => {
+                  e.stopPropagation();
+                  await supabase.from('clientes').update({ primary_gestor_user_id: null }).eq('id', cliente.id);
+                  if (onClienteUpdate) onClienteUpdate();
+                }} className="rounded-lg cursor-pointer my-0.5 opacity-80">
+                  Nenhum gestor
+                </DropdownMenuItem>
+                {colaboradores.map((colab: any) => (
+                  <DropdownMenuItem key={colab.user_id} onClick={async (e) => {
+                    e.stopPropagation();
+                    await supabase.from('clientes').update({ primary_gestor_user_id: colab.user_id }).eq('id', cliente.id);
+                    if (onClienteUpdate) onClienteUpdate();
+                  }} className="rounded-lg cursor-pointer my-0.5 flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={colab.avatar_url} />
+                      <AvatarFallback className="text-[10px]">{colab.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="flex-1 text-sm">{colab.nome}</span>
+                    {cliente.primary_gestor?.id === colab.user_id && <Check className="h-4 w-4 text-blue-600" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        );
+      case 'cs':
+        const csTeam = cliente.client_roles?.filter((cr: any) => cr.role === 'cs') || [];
+        const primaryCs = cliente.primary_cs;
+        return (
+          <TableCell className="text-center py-4" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="flex justify-center items-center gap-1.5 cursor-pointer group/avatar p-1 rounded-md hover:bg-slate-100/50 transition-colors">
+                  {primaryCs ? (
+                    <>
+                      <Avatar className="h-9 w-9 group-hover/avatar:ring-2 ring-blue-400 ring-offset-2 transition-all shadow-sm ring-1 ring-border">
+                        <AvatarImage src={primaryCs.avatar_url} />
+                        <AvatarFallback className="bg-slate-100 text-slate-600 text-xs font-bold font-mono">
+                          {primaryCs.nome.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {csTeam.length > 1 && (
+                        <Badge variant="secondary" className="text-[10px] font-bold px-1.5 h-5 rounded-full bg-slate-100 text-slate-600 mt-1">
+                          +{csTeam.length - 1}
+                        </Badge>
+                      )}
+                    </>
+                  ) : (
+                    <Button variant="outline" size="icon" className="h-9 w-9 text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full border-dashed group-hover/avatar:border-blue-300">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-56 p-2 rounded-xl shadow-lg border-border/50 max-h-[300px] overflow-y-auto z-50">
+                <div className="mb-2 px-2 pb-1 border-b text-xs font-semibold text-muted-foreground uppercase flex justify-between items-center">
+                  <span>Atribuir CS primário</span>
+                </div>
+                <DropdownMenuItem onClick={async (e) => {
+                  e.stopPropagation();
+                  await supabase.from('clientes').update({ primary_cs_user_id: null }).eq('id', cliente.id);
+                  if (onClienteUpdate) onClienteUpdate();
+                }} className="rounded-lg cursor-pointer my-0.5 opacity-80">
+                  Nenhum CS
+                </DropdownMenuItem>
+                {colaboradores.map((colab: any) => (
+                  <DropdownMenuItem key={colab.user_id} onClick={async (e) => {
+                    e.stopPropagation();
+                    await supabase.from('clientes').update({ primary_cs_user_id: colab.user_id }).eq('id', cliente.id);
+                    if (onClienteUpdate) onClienteUpdate();
+                  }} className="rounded-lg cursor-pointer my-0.5 flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={colab.avatar_url} />
+                      <AvatarFallback className="text-[10px]">{colab.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="flex-1 text-sm">{colab.nome}</span>
+                    {primaryCs?.id === colab.user_id && <Check className="h-4 w-4 text-blue-600" />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -567,7 +703,7 @@ export const ClientesGroupedView = ({
           >
             <div className="border rounded-lg bg-card">
               <CollapsibleTrigger asChild>
-                <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50/50 transition-colors">
                   <div className="flex items-center gap-3">
                     {isExpanded ? (
                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -575,11 +711,11 @@ export const ClientesGroupedView = ({
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     )}
 
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-9 w-9 ring-1 ring-border shadow-sm">
                       {group.responsavel.avatar_url ? (
                         <AvatarImage src={group.responsavel.avatar_url} />
                       ) : null}
-                      <AvatarFallback className="text-xs bg-primary/10">
+                      <AvatarFallback className="bg-slate-100 text-slate-600 text-xs font-bold font-mono">
                         {group.responsavel.nome === 'Sem Responsável' ? (
                           <User className="h-4 w-4" />
                         ) : (
@@ -589,14 +725,23 @@ export const ClientesGroupedView = ({
                     </Avatar>
 
                     <div>
-                      <span className="font-medium text-foreground">
+                      <span className="font-semibold text-foreground text-base">
                         {group.responsavel.nome}
                       </span>
-                      <Badge variant="secondary" className="ml-2 text-xs">
-                        {group.clientes.length}
+                      <Badge variant="secondary" className="ml-2 bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full text-xs">
+                        {group.clientes.length} {group.clientes.length === 1 ? 'cliente' : 'clientes'}
                       </Badge>
                     </div>
                   </div>
+                  {canCreateContent && activeTab === 'ativos' && clientesSelecionados && (
+                    <div onClick={(e) => e.stopPropagation()} className="ml-auto mr-4">
+                      <Checkbox
+                        checked={group.clientes.length > 0 && group.clientes.every((c: Cliente) => clientesSelecionados.includes(c.id))}
+                        onCheckedChange={() => handleSelectGroup(new MouseEvent('click') as any, group.clientes)}
+                        className="h-4 w-4 border-slate-300"
+                      />
+                    </div>
+                  )}
                 </div>
               </CollapsibleTrigger>
 
@@ -608,15 +753,24 @@ export const ClientesGroupedView = ({
                     onDragEnd={handleColumnDragEnd}
                   >
                     <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/30">
+                      <TableHeader className="bg-slate-50/80">
+                        <TableRow className="border-b border-border/50">
+                          {canCreateContent && activeTab === 'ativos' && clientesSelecionados && (
+                            <TableHead className="w-12 text-center align-middle px-4">
+                              <Checkbox
+                                checked={group.clientes.length > 0 && group.clientes.every((c: Cliente) => clientesSelecionados.includes(c.id))}
+                                onCheckedChange={() => handleSelectGroup(new MouseEvent('click') as any, group.clientes)}
+                                className="border-slate-300"
+                              />
+                            </TableHead>
+                          )}
                           <TableHead
-                            className="cursor-pointer hover:bg-muted/50"
+                            className="cursor-pointer hover:bg-slate-100/50 transition-colors font-semibold text-slate-600 h-11"
                             onClick={() => handleSort('nome')}
                           >
-                            <div className="flex items-center">
+                            <div className="flex items-center text-xs tracking-tight uppercase px-4">
                               Cliente
-                              <ArrowUpDown className="ml-2 h-4 w-4" />
+                              <ArrowUpDown className="ml-1.5 h-3.5 w-3.5 opacity-50" />
                             </div>
                           </TableHead>
                           <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
@@ -625,10 +779,12 @@ export const ClientesGroupedView = ({
                                 key={columnId}
                                 id={columnId}
                                 onClick={() => handleSort(columnId)}
-                                className="text-center hover:bg-muted/50"
+                                className={`hover:bg-slate-100/50 transition-colors font-semibold text-slate-600 h-11 ${['situacao_cliente', 'etapa_onboarding', 'etapa_trafego', 'gestor', 'cs'].includes(columnId) ? 'text-center' : ''}`}
                               >
-                                {getColumnLabel(columnId)}
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                                <div className={`flex items-center text-xs tracking-tight uppercase ${['situacao_cliente', 'etapa_onboarding', 'etapa_trafego', 'gestor', 'cs'].includes(columnId) ? 'justify-center' : ''}`}>
+                                  {getColumnLabel(columnId)}
+                                  <ArrowUpDown className="ml-1.5 h-3.5 w-3.5 opacity-50" />
+                                </div>
                               </SortableTableHead>
                             ))}
                           </SortableContext>
@@ -638,7 +794,7 @@ export const ClientesGroupedView = ({
                         {group.clientes.map((cliente) => (
                           <TableRow
                             key={cliente.id}
-                            className="hover:bg-muted/50 cursor-pointer h-16"
+                            className="hover:bg-slate-50/50 cursor-pointer h-16 transition-colors border-b border-border/50 group/row"
                             onClick={() => {
                               if (onClienteClick) {
                                 onClienteClick(cliente);
@@ -647,19 +803,31 @@ export const ClientesGroupedView = ({
                               }
                             }}
                           >
-                            <TableCell className="py-4">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-base">{cliente.nome}</span>
+                            {canCreateContent && activeTab === 'ativos' && toggleClienteSelection && clientesSelecionados && (
+                              <TableCell className="w-12 text-center align-middle" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={clientesSelecionados.includes(cliente.id)}
+                                  onCheckedChange={() => toggleClienteSelection(cliente.id)}
+                                  className="border-slate-300"
+                                />
+                              </TableCell>
+                            )}
+                            <TableCell className="py-4 px-8 font-medium text-foreground text-sm">
+                              <div className="flex items-center gap-2 group">
+                                <div className="h-4 w-4 rounded-full border border-blue-200 bg-blue-50/50 flex-shrink-0" />
+                                <span className="font-bold text-slate-800 group-hover/row:text-blue-600 transition-colors uppercase tracking-tight text-[13px]">{cliente.nome}</span>
                                 {cliente.funis_trabalhando && cliente.funis_trabalhando.length > 0 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {cliente.funis_trabalhando[0]}
-                                    {cliente.funis_trabalhando.length > 1 && ` +${cliente.funis_trabalhando.length - 1}`}
-                                  </Badge>
+                                  <div className="flex flex-wrap gap-1 ml-2">
+                                    <Badge variant="outline" className="text-[10px] font-semibold tracking-wide">
+                                      {cliente.funis_trabalhando[0]}
+                                      {cliente.funis_trabalhando.length > 1 && ` +${cliente.funis_trabalhando.length - 1}`}
+                                    </Badge>
+                                  </div>
                                 )}
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-primary ml-auto"
+                                  className="h-6 w-6 text-muted-foreground/50 opacity-0 group-hover:opacity-100 group-hover/row:opacity-100 transition-opacity hover:text-primary hover:bg-muted ml-auto mr-4"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setClienteHistorico({ id: cliente.id, nome: cliente.nome });
@@ -667,7 +835,7 @@ export const ClientesGroupedView = ({
                                   }}
                                   title="Ver histórico de alterações"
                                 >
-                                  <History className="h-4 w-4" />
+                                  <History className="h-3.5 w-3.5" />
                                 </Button>
                               </div>
                             </TableCell>
