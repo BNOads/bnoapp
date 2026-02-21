@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateTask } from "@/hooks/useTaskMutations";
 import { useTaskLists } from "@/hooks/useTasks";
@@ -112,12 +112,13 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                                 autoFocus
                             />
 
-                            <div className="relative group">
-                                <Textarea
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    placeholder="Adicionar descrição"
-                                    className="min-h-[80px] resize-none border-0 bg-muted/30 focus-visible:ring-0 shadow-none px-4 py-3 text-sm placeholder:text-muted-foreground/70"
+                            <div className="relative group editor-container">
+                                <RichTextEditor
+                                    content={description}
+                                    onChange={setDescription}
+                                    placeholder="Adicionar descrição..."
+                                    className="bg-muted/30 border-0 shadow-none min-h-[120px]"
+                                    context="tasks"
                                 />
                             </div>
                         </div>

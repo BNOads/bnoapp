@@ -10,14 +10,15 @@ import Image from '@tiptap/extension-image'
 import { Button } from '@/components/ui/button'
 import { useImagePaste } from '@/hooks/useImagePaste'
 import { ImageUploadButton } from './ImageUploadButton'
-import { 
-  Bold, 
-  Italic, 
-  Underline, 
-  Heading1, 
-  Heading2, 
-  List, 
-  CheckSquare, 
+import { FileUploadButton } from './FileUploadButton'
+import {
+  Bold,
+  Italic,
+  Underline,
+  Heading1,
+  Heading2,
+  List,
+  CheckSquare,
   Link as LinkIcon,
   Palette,
   Plus,
@@ -41,7 +42,7 @@ interface RichTextEditorProps {
 }
 
 const COLORS = [
-  '#000000', '#374151', '#6B7280', '#EF4444', '#F97316', 
+  '#000000', '#374151', '#6B7280', '#EF4444', '#F97316',
   '#EAB308', '#22C55E', '#3B82F6', '#8B5CF6', '#EC4899'
 ]
 
@@ -51,9 +52,9 @@ const DECISION_BLOCKS = [
   { id: 'followup', label: 'Follow-up', icon: '🔄', color: '#3B82F6' }
 ]
 
-export function RichTextEditor({ 
-  content, 
-  onChange, 
+export function RichTextEditor({
+  content,
+  onChange,
   placeholder = "Digite aqui...",
   className = "",
   showToolbar = true,
@@ -98,7 +99,7 @@ export function RichTextEditor({
     onUpdate: ({ editor }) => {
       const html = editor.getHTML()
       onChange(html)
-      
+
       // Extract titles for index
       if (onTitleExtracted) {
         const titles: string[] = []
@@ -141,7 +142,7 @@ export function RichTextEditor({
       e.preventDefault();
       (e as DragEvent).dataTransfer!.dropEffect = 'copy';
     };
-    
+
     container.addEventListener('drop', dropHandler);
     container.addEventListener('dragover', dragOverHandler);
 
@@ -160,14 +161,14 @@ export function RichTextEditor({
     } else {
       editor.chain().focus().extendMarkRange('link').unsetLink().run()
     }
-    
+
     setShowLinkDialog(false)
     setLinkUrl('')
   }, [editor, linkUrl])
 
   const addDecisionBlock = (type: string) => {
     if (!editor) return
-    
+
     const block = DECISION_BLOCKS.find(b => b.id === type)
     if (!block) return
 
@@ -202,7 +203,7 @@ export function RichTextEditor({
             >
               <Bold className="h-4 w-4" />
             </Button>
-            
+
             <Button
               variant={editor.isActive('italic') ? 'default' : 'ghost'}
               size="sm"
@@ -286,8 +287,8 @@ export function RichTextEditor({
             {/* Link */}
             <Popover open={showLinkDialog} onOpenChange={setShowLinkDialog}>
               <PopoverTrigger asChild>
-                <Button 
-                  variant={editor.isActive('link') ? 'default' : 'ghost'} 
+                <Button
+                  variant={editor.isActive('link') ? 'default' : 'ghost'}
                   size="sm"
                 >
                   <LinkIcon className="h-4 w-4" />
@@ -314,9 +315,9 @@ export function RichTextEditor({
                     <Button size="sm" onClick={setLink}>
                       Inserir Link
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => {
                         editor.chain().focus().unsetLink().run()
                         setShowLinkDialog(false)
@@ -376,16 +377,34 @@ export function RichTextEditor({
             >
               <Redo className="h-4 w-4" />
             </Button>
+
+            <Separator orientation="vertical" className="h-6" />
+
+            {/* Upload buttons */}
+            <ImageUploadButton
+              editor={editor}
+              context={context}
+              entityId={entityId}
+              variant="ghost"
+              size="sm"
+            />
+            <FileUploadButton
+              editor={editor}
+              context={context}
+              entityId={entityId}
+              variant="ghost"
+              size="sm"
+            />
           </div>
         </div>
       )}
 
       <div className="relative" ref={editorContainerRef}>
-        <EditorContent 
-          editor={editor} 
+        <EditorContent
+          editor={editor}
           className="min-h-[120px] max-h-96 overflow-y-auto"
         />
-        
+
         {editor.isEmpty && (
           <div className="absolute top-4 left-4 text-muted-foreground pointer-events-none">
             {placeholder}
