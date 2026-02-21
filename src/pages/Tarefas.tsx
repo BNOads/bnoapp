@@ -364,7 +364,7 @@ export default function Tarefas() {
                                 }`}
                         >
                             <CheckCircle2 className="w-4 h-4" />
-                            Ocultar concluídas
+                            {hideCompleted ? "Mostrar concluídas" : "Ocultar concluídas"}
                         </button>
                     </div>
                 </div>
