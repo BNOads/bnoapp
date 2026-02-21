@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useTaskAutomations, useUpdateTaskAutomation, useDeleteTaskAutomation } from "@/hooks/useTaskAutomations";
 import { Button } from "@/components/ui/button";
-import { Plus, Zap, Trash2, Power, PowerOff, Bell, CheckCircle, MoreVertical, Edit, Copy } from "lucide-react";
+import { Plus, Zap, Trash2, Power, PowerOff, Bell, CheckCircle, MoreVertical, Edit, Copy, Activity } from "lucide-react";
 import { AutomationBuilderModal } from "../modals/AutomationBuilderModal";
+import { AutomationLogsModal } from "../modals/AutomationLogsModal";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TaskAutomation } from "@/hooks/useTaskAutomations";
@@ -12,6 +13,7 @@ export function AutomacoesView() {
     const updateMutation = useUpdateTaskAutomation();
     const deleteMutation = useDeleteTaskAutomation();
     const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+    const [isLogsOpen, setIsLogsOpen] = useState(false);
     const [selectedAutomation, setSelectedAutomation] = useState<TaskAutomation | null>(null);
     const [builderMode, setBuilderMode] = useState<"create" | "edit" | "duplicate">("create");
 
@@ -63,10 +65,16 @@ export function AutomacoesView() {
                         Crie regras para gerar ou atualizar tarefas e avisos automaticamente conforme eventos no sistema.
                     </p>
                 </div>
-                <Button onClick={() => handleOpenBuilder("create")} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 font-medium">
-                    <Zap className="w-4 h-4 fill-white text-white" />
-                    Nova Regra
-                </Button>
+                <div className="flex gap-3">
+                    <Button variant="outline" onClick={() => setIsLogsOpen(true)} className="gap-2 font-medium bg-white">
+                        <Activity className="w-4 h-4 text-slate-500" />
+                        Ver Logs
+                    </Button>
+                    <Button onClick={() => handleOpenBuilder("create")} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 font-medium">
+                        <Zap className="w-4 h-4 fill-white text-white" />
+                        Nova Regra
+                    </Button>
+                </div>
             </div>
 
             {automations.length === 0 ? (
@@ -162,6 +170,10 @@ export function AutomacoesView() {
                 onOpenChange={setIsBuilderOpen}
                 initialData={selectedAutomation}
                 mode={builderMode}
+            />
+            <AutomationLogsModal
+                open={isLogsOpen}
+                onOpenChange={setIsLogsOpen}
             />
         </div>
     );

@@ -38,7 +38,7 @@ export default function NotificationPopup() {
     try {
       // Buscar avisos não lidos que devem ser exibidos como popup
       const now = new Date().toISOString();
-      
+
       const { data: avisos, error } = await supabase
         .from('avisos')
         .select('*')
@@ -60,10 +60,10 @@ export default function NotificationPopup() {
       if (leiturasError) throw leiturasError;
 
       const leitosIds = new Set(leituras?.map(l => l.aviso_id) || []);
-      
+
       // Filtrar avisos não lidos e não visualizados como popup
-      const naoLidos = (avisos || []).filter(aviso => 
-        !leitosIds.has(aviso.id) && 
+      const naoLidos = (avisos || []).filter(aviso =>
+        !leitosIds.has(aviso.id) &&
         !checkedNotifications.has(aviso.id)
       );
 
@@ -95,7 +95,7 @@ export default function NotificationPopup() {
     try {
       await supabase
         .from('avisos_leitura')
-        .insert({
+        .upsert({
           aviso_id: notificationId,
           user_id: user.id
         });
@@ -116,7 +116,7 @@ export default function NotificationPopup() {
     if (user?.id) {
       // Verificação inicial
       checkForNewNotifications();
-      
+
       // Verificar a cada 30 segundos
       const interval = setInterval(checkForNewNotifications, 30000);
       return () => clearInterval(interval);
@@ -203,7 +203,7 @@ export default function NotificationPopup() {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            
+
             <div className="space-y-1">
               <h3 className="font-semibold text-lg">{currentNotification.titulo}</h3>
               <p className="text-xs text-muted-foreground">
@@ -212,7 +212,7 @@ export default function NotificationPopup() {
               </p>
             </div>
           </CardHeader>
-          
+
           <CardContent className="pt-0">
             <div className="space-y-4">
               <div className="prose prose-sm max-w-none">
@@ -222,7 +222,7 @@ export default function NotificationPopup() {
                   text={currentNotification.conteudo}
                 />
               </div>
-              
+
               <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"

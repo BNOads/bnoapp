@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bell, Calendar, Users } from "lucide-react";
+import { Bell, Calendar, Users, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -16,12 +16,19 @@ import { FormattedNotificationText } from "@/components/Notifications/FormattedN
 interface CreateNotificationModalProps {
   onSuccess?: () => void;
   showButton?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  initialData?: any;
 }
 
-export default function CreateNotificationModal({ onSuccess, showButton = true }: CreateNotificationModalProps) {
+export default function CreateNotificationModal({ onSuccess, showButton = true, open: externalOpen, onOpenChange: setExternalOpen, initialData }: CreateNotificationModalProps) {
   // All hooks must be called unconditionally at the top
   const [user, setUser] = useState<User | null>(null);
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = setExternalOpen || setInternalOpen;
+
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     titulo: '',
@@ -41,10 +48,34 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
     });
   }, []);
 
-  // Don't render anything if showButton is false
-  if (!showButton) {
-    return null;
-  }
+
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        setFormData({
+          titulo: `[Reenvio] ${initialData.titulo}`,
+          conteudo: initialData.conteudo,
+          tipo: initialData.tipo || 'info',
+          prioridade: initialData.prioridade || 'normal',
+          data_inicio: '',
+          recorrencia_tipo: null,
+          recorrencia_intervalo: null,
+          destinatarios: initialData.destinatarios || ['all']
+        });
+      } else {
+        setFormData({
+          titulo: '',
+          conteudo: '',
+          tipo: 'info',
+          prioridade: 'normal',
+          data_inicio: '',
+          recorrencia_tipo: null,
+          recorrencia_intervalo: null,
+          destinatarios: ['all']
+        });
+      }
+    }
+  }, [open, initialData]);
 
   const resetForm = () => {
     setFormData({
@@ -91,11 +122,11 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
       if (error) throw error;
 
       toast.success(
-        formData.data_inicio 
-          ? 'Notificação agendada com sucesso!' 
+        formData.data_inicio
+          ? 'Notificação agendada com sucesso!'
           : 'Notificação criada e enviada!'
       );
-      
+
       resetForm();
       setOpen(false);
       onSuccess?.();
@@ -135,17 +166,14 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white">
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/>
-            <path d="M9.5 9a2.5 2.5 0 0 1 5 0v2a2.5 2.5 0 0 1-5 0V9z"/>
-            <path d="M9 13h6v3H9z"/>
-            <path d="M7 16h10v1H7z"/>
-          </svg>
-        </Button>
-      </DialogTrigger>
-      
+      {showButton && (
+        <DialogTrigger asChild>
+          <Button className="flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white px-3">
+            <Send className="h-[22px] w-[22px]" />
+          </Button>
+        </DialogTrigger>
+      )}
+
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -203,8 +231,8 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="tipo">Tipo</Label>
-                  <Select 
-                    value={formData.tipo} 
+                  <Select
+                    value={formData.tipo}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, tipo: value }))}
                   >
                     <SelectTrigger>
@@ -241,8 +269,8 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
 
                 <div>
                   <Label htmlFor="prioridade">Prioridade</Label>
-                  <Select 
-                    value={formData.prioridade} 
+                  <Select
+                    value={formData.prioridade}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, prioridade: value }))}
                   >
                     <SelectTrigger>
@@ -285,8 +313,8 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
                     min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {formData.data_inicio 
-                      ? 'Será enviada no horário especificado' 
+                    {formData.data_inicio
+                      ? 'Será enviada no horário especificado'
                       : 'Deixe vazio para enviar imediatamente'
                     }
                   </p>
@@ -294,30 +322,30 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
 
                 <div>
                   <Label htmlFor="recorrencia">Recorrência</Label>
-                  <Select 
-                    value={formData.recorrencia_tipo || 'nenhuma'} 
+                  <Select
+                    value={formData.recorrencia_tipo || 'nenhuma'}
                     onValueChange={(value) => {
                       if (value === 'nenhuma') {
-                        setFormData(prev => ({ 
-                          ...prev, 
+                        setFormData(prev => ({
+                          ...prev,
                           recorrencia_tipo: null,
                           recorrencia_intervalo: null
                         }));
                       } else if (value === 'diaria') {
-                        setFormData(prev => ({ 
-                          ...prev, 
+                        setFormData(prev => ({
+                          ...prev,
                           recorrencia_tipo: 'diaria',
                           recorrencia_intervalo: 1
                         }));
                       } else if (value === 'semanal') {
-                        setFormData(prev => ({ 
-                          ...prev, 
+                        setFormData(prev => ({
+                          ...prev,
                           recorrencia_tipo: 'semanal',
                           recorrencia_intervalo: 7
                         }));
                       } else if (value === 'mensal') {
-                        setFormData(prev => ({ 
-                          ...prev, 
+                        setFormData(prev => ({
+                          ...prev,
                           recorrencia_tipo: 'mensal',
                           recorrencia_intervalo: 30
                         }));
@@ -355,8 +383,8 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {formData.recorrencia_tipo 
-                      ? `Notificação será exibida repetidamente a cada ${formData.recorrencia_intervalo} dia(s)` 
+                    {formData.recorrencia_tipo
+                      ? `Notificação será exibida repetidamente a cada ${formData.recorrencia_intervalo} dia(s)`
                       : 'Aviso será exibido apenas uma vez'
                     }
                   </p>
@@ -376,8 +404,8 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
             <CardContent>
               <div>
                 <Label>Quem receberá esta notificação?</Label>
-                <Select 
-                  value={formData.destinatarios[0]} 
+                <Select
+                  value={formData.destinatarios[0]}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, destinatarios: [value] }))}
                 >
                   <SelectTrigger>
@@ -424,11 +452,10 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
                 <div className="border rounded-lg p-4 bg-muted/50">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xl">{getTypeIcon(formData.tipo)}</span>
-                    <div className={`w-3 h-3 rounded-full ${
-                      formData.prioridade === 'alta' ? 'bg-red-500' :
+                    <div className={`w-3 h-3 rounded-full ${formData.prioridade === 'alta' ? 'bg-red-500' :
                       formData.prioridade === 'media' ? 'bg-yellow-500' :
-                      'bg-green-500'
-                    }`} />
+                        'bg-green-500'
+                      }`} />
                     <h4 className="font-medium">{formData.titulo || 'Título da notificação'}</h4>
                   </div>
                   <FormattedNotificationText
@@ -442,7 +469,7 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
                     </span>
                     <span>•</span>
                     <span>
-                      {formData.data_inicio ? 
+                      {formData.data_inicio ?
                         `Agendada para: ${format(new Date(formData.data_inicio), 'dd/MM/yyyy HH:mm')}` :
                         'Envio imediato'
                       }
@@ -463,9 +490,9 @@ export default function CreateNotificationModal({ onSuccess, showButton = true }
 
           {/* Botões */}
           <div className="flex justify-end gap-2">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setOpen(false)}
               disabled={loading}
             >

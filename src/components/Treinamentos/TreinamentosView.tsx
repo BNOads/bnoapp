@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Play, Search, Plus, Star, Award, GraduationCap, FileText, Edit, MoreVertical, Filter, Clock, CheckCircle, Users } from "lucide-react";
+import { BookOpen, Play, Search, Plus, Star, Award, GraduationCap, FileText, Edit, MoreVertical, Filter, Clock, CheckCircle, Users, ArrowRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -217,13 +217,16 @@ export const TreinamentosView = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-500 max-w-[1200px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">Biblioteca de Treinamentos</h2>
-          <p className="text-muted-foreground mt-1">
-            Explore cursos, tutoriais e materiais de capacitação
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center justify-center p-2 bg-primary/10 rounded-xl mb-2 text-primary">
+            <GraduationCap className="h-6 w-6" />
+          </div>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Treinamentos BNO</h2>
+          <p className="text-slate-500 max-w-2xl text-base">
+            Desenvolva suas habilidades com nossos cursos completos, tutoriais e procedimentos passo-a-passo.
           </p>
         </div>
         {canCreateContent && (
@@ -316,9 +319,10 @@ export const TreinamentosView = () => {
           )}
 
           {/* Treinamentos Grid */}
-          <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-foreground">
-              {searchTerm ? `Cursos (${filteredTreinamentos.length})` : 'Cursos Disponíveis'}
+          <div className="space-y-6 pt-2">
+            <h3 className="text-xl font-semibold text-slate-800 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-indigo-500" />
+              {searchTerm ? `Resultados (${filteredTreinamentos.length})` : 'Cursos Disponíveis'}
             </h3>
 
             {loading ? (
@@ -344,30 +348,40 @@ export const TreinamentosView = () => {
                 )}
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredTreinamentos.map(treinamento => {
                   const TipoIcon = getTipoIcon(treinamento.tipo);
+                  // Generate a pseudo-random gradient variant based on string length to give each card a distinct look
+                  const gradientIndex = treinamento.titulo.length % 4;
+                  const gradients = [
+                    "from-indigo-500 to-purple-500",
+                    "from-blue-500 to-cyan-500",
+                    "from-rose-500 to-orange-400",
+                    "from-emerald-400 to-teal-500"
+                  ];
+                  const cardGradient = gradients[gradientIndex];
+
                   return (
-                    <Card key={treinamento.id} className="overflow-hidden hover:shadow-card transition-all duration-300">
-                      <div className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center space-x-2">
-                            <div className="bg-primary/10 p-2 rounded-lg">
-                              <TipoIcon className="h-4 w-4 text-primary" />
-                            </div>
-                            <Badge className={getNivelColor(treinamento.nivel)}>
-                              {treinamento.nivel}
-                            </Badge>
-                          </div>
+                    <Card
+                      key={treinamento.id}
+                      className="group overflow-hidden bg-white border-slate-200 hover:border-slate-300 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col h-full"
+                      onClick={() => navigate(`/curso/${treinamento.id}`)}
+                    >
+                      {/* Visual Header / Cover */}
+                      <div className={`h-32 bg-gradient-to-br ${cardGradient} relative p-5 flex flex-col justify-between`}>
+                        <div className="flex justify-between items-start">
+                          <Badge className="bg-white/20 hover:bg-white/30 text-white border-transparent backdrop-blur-md font-medium px-2.5 py-0.5">
+                            {formatarCategoria(treinamento.categoria)}
+                          </Badge>
 
                           {isAdmin && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/20 hover:text-white rounded-full transition-colors" onClick={(e) => e.stopPropagation()}>
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenuItem onClick={() => handleEditarTreinamento(treinamento.id)}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   Editar
@@ -377,28 +391,30 @@ export const TreinamentosView = () => {
                           )}
                         </div>
 
-                        <h4 className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
-                          {treinamento.titulo}
-                        </h4>
+                        <div className="mt-auto w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-inner mb-[-2.5rem] z-10 border border-white/20 relative group-hover:scale-110 transition-transform duration-300">
+                          <TipoIcon className="h-5 w-5 fill-white/20" />
+                        </div>
+                      </div>
 
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                          {treinamento.descricao || 'Sem descrição disponível'}
-                        </p>
-
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Categoria:</span>
-                            <Badge variant="outline" className="text-xs">
-                              {formatarCategoria(treinamento.categoria)}
-                            </Badge>
-                          </div>
+                      {/* Content Area */}
+                      <div className="p-5 pt-8 flex-1 flex flex-col">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-[17px] font-bold text-slate-800 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                            {treinamento.titulo}
+                          </h4>
                         </div>
 
-                        <div className="mt-6 space-y-2">
-                          <Button className="w-full" variant="default" onClick={() => navigate(`/curso/${treinamento.id}`)}>
-                            <Play className="h-4 w-4 mr-2" />
-                            Acessar Curso
-                          </Button>
+                        <p className="text-sm text-slate-500 mb-5 line-clamp-3 leading-relaxed flex-1">
+                          {treinamento.descricao || 'Este curso não possui uma descrição.'}
+                        </p>
+
+                        <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                          <span className={`text-[11px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-md border ${getNivelColor(treinamento.nivel)}`}>
+                            {treinamento.nivel}
+                          </span>
+                          <span className="text-xs font-semibold text-indigo-600 flex items-center gap-1.5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                            Acessar <ArrowRight className="w-3.5 h-3.5" />
+                          </span>
                         </div>
                       </div>
                     </Card>

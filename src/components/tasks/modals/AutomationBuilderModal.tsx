@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useCreateTaskAutomation, TaskAutomation, useUpdateTaskAutomation } from "@/hooks/useTaskAutomations";
 import { supabase } from "@/integrations/supabase/client";
 import { Zap, ArrowRight, Activity, PlusCircle, CheckCircle, Bell, ArrowLeft, Trash2 } from "lucide-react";
@@ -91,12 +93,40 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
     ];
 
     const TRIGGER_CONDITION_FIELDS = [
-        { id: "traffic_manager", label: "Gestor de Tráfego" },
+        { id: "traffic_manager", label: "Gestor do Cliente / Tráfego" },
         { id: "cs_manager", label: "Gestor de CS" },
-        { id: "client_manager", label: "Gestor do Cliente" },
         { id: "funnel_status", label: "Status do Funil" },
         { id: "budget_value", label: "Valor do Orçamento" },
     ];
+
+    const VARIABLES = [
+        { id: "{nome_cliente}", label: "Nome do Cliente" },
+        { id: "{instagram_cliente}", label: "Instagram do Cliente" },
+        { id: "{gestor_cliente}", label: "Gestor do Cliente / Tráfego" },
+        { id: "{cs_cliente}", label: "CS do Cliente" },
+        { id: "{nome_funil}", label: "Nome do Funil" },
+        { id: "{status_funil}", label: "Status do Funil" },
+        { id: "{orcamento_funil}", label: "Orçamento do Funil" },
+        { id: "{nome_lancamento}", label: "Nome do Lançamento" },
+        { id: "{data_atual}", label: "Data Atual" },
+    ];
+
+    const VariableSelector = ({ onSelect }: { onSelect: (v: string) => void }) => (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-0 border border-indigo-100">
+                    <PlusCircle className="w-3 h-3 mr-1" /> Variáveis
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[200px] max-h-[300px] overflow-auto">
+                {VARIABLES.map(v => (
+                    <DropdownMenuItem key={v.id} onClick={() => onSelect(v.id)} className="text-xs cursor-pointer">
+                        {v.label}
+                    </DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
 
     const addCondition = () => {
         setConditions([...conditions, { id: crypto.randomUUID(), field: "", operator: "==", value: "" }]);
@@ -178,7 +208,31 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         setConditions([]);
     };
 
-    const isFormValid = name.trim().length > 0 && triggerType !== "" && actions.length > 0 && actions.some(a => a.type !== "");
+    const isFormValid = React.useMemo(() => {
+        if (name.trim().length === 0) return false;
+        if (!triggerType) return false;
+        if (actions.length === 0) return false;
+
+        // Validate all conditions
+        const hasInvalidConditions = conditions.some(c => !c.field || !c.operator || !c.value);
+        if (hasInvalidConditions) return false;
+
+        // Validate all actions
+        const hasInvalidActions = actions.some(a => {
+            if (!a.type) return true; // Missing type
+            if (a.type === "create_task") {
+                if (!a.payload?.title || a.payload.title.trim().length === 0) return true;
+            }
+            if (a.type === "notify_team") {
+                if (!a.payload?.message || a.payload.message.trim().length === 0) return true;
+            }
+            return false;
+        });
+
+        if (hasInvalidActions) return false;
+
+        return true;
+    }, [name, triggerType, actions, conditions]);
 
     return (
         <Dialog open={open} onOpenChange={(val) => {
@@ -327,12 +381,27 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                                 {act.type === "create_task" && (
                                                     <div className="space-y-3 pt-2 border-t border-slate-100">
                                                         <div className="space-y-1.5">
-                                                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Título da Tarefa Gerada</label>
+                                                            <div className="flex items-center justify-between">
+                                                                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Título da Tarefa Gerada</label>
+                                                                <VariableSelector onSelect={(v) => updateAction(act.id, { payload: { ...act.payload, title: (act.payload.title || "") + " " + v } })} />
+                                                            </div>
                                                             <Input
                                                                 className="bg-white h-10 border-slate-200"
                                                                 placeholder="Ex: Ligar para novo cliente"
                                                                 value={act.payload?.title || ""}
                                                                 onChange={(e) => updateAction(act.id, { payload: { ...act.payload, title: e.target.value } })}
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <div className="flex items-center justify-between">
+                                                                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Descrição</label>
+                                                                <VariableSelector onSelect={(v) => updateAction(act.id, { payload: { ...act.payload, description: (act.payload.description || "") + " " + v } })} />
+                                                            </div>
+                                                            <Textarea
+                                                                className="bg-white min-h-[60px] border-slate-200 resize-none text-sm"
+                                                                placeholder="Descrição opcional com variáveis..."
+                                                                value={act.payload?.description || ""}
+                                                                onChange={(e) => updateAction(act.id, { payload: { ...act.payload, description: e.target.value } })}
                                                             />
                                                         </div>
                                                         <div className="space-y-1.5">
@@ -343,8 +412,7 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                                                 </SelectTrigger>
                                                                 <SelectContent>
                                                                     <SelectItem value="unassigned">Sem responsável automático</SelectItem>
-                                                                    <SelectItem value="{client_manager}">Gestor do Cliente (Dinâmico)</SelectItem>
-                                                                    <SelectItem value="{traffic_manager}">Gestor de Tráfego (Dinâmico)</SelectItem>
+                                                                    <SelectItem value="{traffic_manager}">Gestor do Cliente / Tráfego (Dinâmico)</SelectItem>
                                                                     <SelectItem value="{cs}">CS (Dinâmico)</SelectItem>
                                                                     {users.map((u: any) => (
                                                                         <SelectItem key={u.id} value={u.nome || u.email}>{u.nome || u.email}</SelectItem>
@@ -401,6 +469,11 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
+                        {!isFormValid && (
+                            <span className="text-xs text-rose-500 font-medium bg-rose-50 px-2 py-1 rounded border border-rose-100 hidden sm:inline-block">
+                                Preencha todos os campos
+                            </span>
+                        )}
                         <Button variant="ghost" className="text-slate-500 hover:text-slate-800 font-medium" onClick={() => onOpenChange(false)}>Cancelar</Button>
                         <Button
                             onClick={handleCreate}

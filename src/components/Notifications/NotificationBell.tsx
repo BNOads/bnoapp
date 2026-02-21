@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, X, Check, Search } from "lucide-react";
+import { Bell, X, Check, Search, Info, AlertTriangle, XCircle, CheckCircle, MailX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { User } from "@supabase/supabase-js";
 import { FormattedNotificationText } from "@/components/Notifications/FormattedNotificationText";
+import { useNavigate } from "react-router-dom";
 
 interface Notification {
   id: string;
@@ -35,6 +36,7 @@ export default function NotificationBell() {
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [activeTab, setActiveTab] = useState("all");
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
 
   // Load user on mount
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function NotificationBell() {
 
     try {
       setLoading(true);
-      
+
       // Buscar avisos relevantes para o usuário
       const { data: avisos, error: avisosError } = await supabase
         .from('avisos')
@@ -102,7 +104,7 @@ export default function NotificationBell() {
     try {
       const { error } = await supabase
         .from('avisos_leitura')
-        .insert({
+        .upsert({
           aviso_id: notificationId,
           user_id: user.id
         });
@@ -110,16 +112,45 @@ export default function NotificationBell() {
       if (error) throw error;
 
       // Atualizar estado local
-      setNotifications(prev => 
-        prev.map(n => 
+      setNotifications(prev =>
+        prev.map(n =>
           n.id === notificationId ? { ...n, lido: true } : n
         )
       );
-      
+
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error: any) {
       console.error('Erro ao marcar como lido:', error);
       toast.error('Erro ao marcar como lido');
+    }
+  };
+
+  // Marcar como não lido
+  const markAsUnread = async (notificationId: string) => {
+    if (!user?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('avisos_leitura')
+        .delete()
+        .match({
+          aviso_id: notificationId,
+          user_id: user.id
+        });
+
+      if (error) throw error;
+
+      // Atualizar estado local
+      setNotifications(prev =>
+        prev.map(n =>
+          n.id === notificationId ? { ...n, lido: false } : n
+        )
+      );
+
+      setUnreadCount(prev => prev + 1);
+    } catch (error: any) {
+      console.error('Erro ao marcar como não lido:', error);
+      toast.error('Erro ao marcar como não lido');
     }
   };
 
@@ -138,12 +169,12 @@ export default function NotificationBell() {
 
       const { error } = await supabase
         .from('avisos_leitura')
-        .insert(inserts);
+        .upsert(inserts);
 
       if (error) throw error;
 
       // Atualizar estado local
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(n => ({ ...n, lido: true }))
       );
       setUnreadCount(0);
@@ -157,12 +188,12 @@ export default function NotificationBell() {
   // Filtrar notificações
   const filteredNotifications = notifications.filter(notification => {
     const matchesSearch = notification.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         notification.conteudo.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      notification.conteudo.toLowerCase().includes(searchTerm.toLowerCase());
+
     if (activeTab === "unread") {
       return matchesSearch && !notification.lido;
     }
-    
+
     return matchesSearch;
   });
 
@@ -170,7 +201,7 @@ export default function NotificationBell() {
   useEffect(() => {
     if (user?.id) {
       loadNotifications();
-      
+
       const interval = setInterval(loadNotifications, 30000);
       return () => clearInterval(interval);
     }
@@ -222,11 +253,14 @@ export default function NotificationBell() {
 
   const getTypeIcon = (tipo: string) => {
     switch (tipo) {
-      case 'info': return 'ℹ️';
-      case 'warning': return '⚠️';
-      case 'error': return '❌';
-      case 'success': return '✅';
-      default: return '📢';
+      case 'info': return <Info className="h-5 w-5 text-blue-500" />;
+      case 'warning':
+      case 'alerta': return <AlertTriangle className="h-5 w-5 text-amber-500" />;
+      case 'erro':
+      case 'error': return <XCircle className="h-5 w-5 text-red-500" />;
+      case 'sucesso':
+      case 'success': return <CheckCircle className="h-5 w-5 text-green-500" />;
+      default: return <Bell className="h-5 w-5 text-slate-500" />;
     }
   };
 
@@ -242,8 +276,8 @@ export default function NotificationBell() {
           <Button variant="ghost" size="sm" className="relative">
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <Badge 
-                variant="destructive" 
+              <Badge
+                variant="destructive"
                 className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
               >
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -251,11 +285,11 @@ export default function NotificationBell() {
             )}
           </Button>
         </SheetTrigger>
-        
+
         <SheetContent className="w-[400px] sm:w-[540px]">
           <SheetHeader>
             <SheetTitle className="flex items-center justify-between">
-              <span>Notificações</span>
+              <span>Notificações {unreadCount > 0 && <span className="text-indigo-600 font-normal">({unreadCount} não lidas)</span>}</span>
               {unreadCount > 0 && (
                 <Button variant="outline" size="sm" onClick={markAllAsRead}>
                   <Check className="h-4 w-4 mr-1" />
@@ -277,53 +311,36 @@ export default function NotificationBell() {
               />
             </div>
 
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="all">
-                  Todas ({notifications.length})
-                </TabsTrigger>
-                <TabsTrigger value="unread">
-                  Não lidas ({unreadCount})
-                </TabsTrigger>
-              </TabsList>
+            <div className="mt-4 space-y-2 max-h-[500px] overflow-y-auto pr-2 pb-2">
+              {filteredNotifications.map((notification) => (
+                <NotificationCard
+                  key={notification.id}
+                  notification={notification}
+                  onMarkAsRead={markAsRead}
+                  onMarkAsUnread={markAsUnread}
+                  onViewDetails={setSelectedNotification}
+                />
+              ))}
+              {filteredNotifications.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  {searchTerm ? 'Nenhuma notificação encontrada' : 'Nenhuma notificação'}
+                </p>
+              )}
+            </div>
 
-              <TabsContent value="all" className="mt-4">
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {filteredNotifications.map((notification) => (
-                    <NotificationCard
-                      key={notification.id}
-                      notification={notification}
-                      onMarkAsRead={markAsRead}
-                      onViewDetails={setSelectedNotification}
-                    />
-                  ))}
-                  {filteredNotifications.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">
-                      {searchTerm ? 'Nenhuma notificação encontrada' : 'Nenhuma notificação'}
-                    </p>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="unread" className="mt-4">
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {filteredNotifications.filter(n => !n.lido).map((notification) => (
-                    <NotificationCard
-                      key={notification.id}
-                      notification={notification}
-                      onMarkAsRead={markAsRead}
-                      onViewDetails={setSelectedNotification}
-                    />
-                  ))}
-                  {filteredNotifications.filter(n => !n.lido).length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">
-                      {searchTerm ? 'Nenhuma notificação não lida encontrada' : 'Todas as notificações foram lidas! 🎉'}
-                    </p>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
+            {/* Link para central */}
+            <div className="pt-4 mt-2 border-t border-slate-100 flex justify-center">
+              <Button
+                variant="ghost"
+                className="w-full text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate('/notificacoes');
+                }}
+              >
+                Ver todas as notificações no painel central
+              </Button>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -333,11 +350,11 @@ export default function NotificationBell() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">{getTypeIcon(selectedNotification?.tipo || '')}</span>
+              <span>{getTypeIcon(selectedNotification?.tipo || '')}</span>
               {selectedNotification?.titulo}
             </DialogTitle>
           </DialogHeader>
-          
+
           {selectedNotification && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -350,7 +367,7 @@ export default function NotificationBell() {
                   {format(new Date(selectedNotification.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                 </span>
               </div>
-              
+
               <div className="prose prose-sm max-w-none">
                 <FormattedNotificationText
                   as="div"
@@ -359,19 +376,30 @@ export default function NotificationBell() {
                 />
               </div>
 
-              {!selectedNotification.lido && (
-                <div className="flex justify-end">
-                  <Button 
+              <div className="flex justify-end gap-2">
+                {selectedNotification.lido ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      markAsUnread(selectedNotification.id);
+                      setSelectedNotification(prev => prev ? { ...prev, lido: false } : null);
+                    }}
+                  >
+                    <MailX className="h-4 w-4 mr-2" />
+                    Marcar como não lido
+                  </Button>
+                ) : (
+                  <Button
                     onClick={() => {
                       markAsRead(selectedNotification.id);
-                      setSelectedNotification(null);
+                      setSelectedNotification(prev => prev ? { ...prev, lido: true } : null);
                     }}
                   >
                     <Check className="h-4 w-4 mr-2" />
                     Marcar como lida
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
@@ -383,10 +411,11 @@ export default function NotificationBell() {
 interface NotificationCardProps {
   notification: Notification;
   onMarkAsRead: (id: string) => void;
+  onMarkAsUnread: (id: string) => void;
   onViewDetails: (notification: Notification) => void;
 }
 
-function NotificationCard({ notification, onMarkAsRead, onViewDetails }: NotificationCardProps) {
+function NotificationCard({ notification, onMarkAsRead, onMarkAsUnread, onViewDetails }: NotificationCardProps) {
   const getPriorityColor = (prioridade: string) => {
     switch (prioridade) {
       case 'alta': return 'bg-red-500';
@@ -407,41 +436,66 @@ function NotificationCard({ notification, onMarkAsRead, onViewDetails }: Notific
   };
 
   return (
-    <Card className={`cursor-pointer transition-colors hover:bg-muted/50 ${!notification.lido ? 'bg-blue-50 border-blue-200' : ''}`}>
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0" onClick={() => onViewDetails(notification)}>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-lg">{getTypeIcon(notification.tipo)}</span>
-              <div className={`w-2 h-2 rounded-full ${getPriorityColor(notification.prioridade)}`} />
-              <h4 className="font-medium text-sm truncate">{notification.titulo}</h4>
-              {!notification.lido && (
-                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
-              )}
+    <Card className={`group cursor-pointer transition-all border relative overflow-hidden ${!notification.lido ? 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100 shadow-md ring-1 ring-indigo-500/20' : 'bg-white border-slate-100 hover:bg-slate-50 hover:shadow-sm'}`}>
+      {!notification.lido && (
+        <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-indigo-500" />
+      )}
+      <CardContent className="p-4 pl-5">
+        <div className="flex gap-3">
+          <div className="mt-1 flex-shrink-0 relative">
+            {getTypeIcon(notification.tipo)}
+            {!notification.lido && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-indigo-600 rounded-full border-2 border-indigo-50 ring-1 ring-white" />
+            )}
+          </div>
+          <div className="flex-1 space-y-1 cursor-pointer" onClick={() => onViewDetails(notification)}>
+            <div className="flex items-center justify-between">
+              <p className={`text-sm font-semibold leading-none ${!notification.lido ? 'text-indigo-950' : 'text-slate-600'}`}>
+                {notification.titulo}
+              </p>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${getPriorityColor(notification.prioridade)}`} title={`Prioridade: ${notification.prioridade}`} />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {format(new Date(notification.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                </span>
+              </div>
             </div>
             <FormattedNotificationText
               as="p"
-              className="text-xs text-muted-foreground line-clamp-2 mb-2"
+              className={`text-[13px] leading-relaxed line-clamp-2 ${!notification.lido ? 'text-indigo-900/80' : 'text-slate-500'}`}
               text={notification.conteudo}
             />
-            <span className="text-xs text-muted-foreground">
-              {format(new Date(notification.created_at), 'dd/MM HH:mm', { locale: ptBR })}
-            </span>
           </div>
-          
-          {!notification.lido && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMarkAsRead(notification.id);
-              }}
-              className="flex-shrink-0"
-            >
-              <Check className="h-3 w-3" />
-            </Button>
-          )}
+
+          <div className="flex flex-col gap-1 items-end pl-2 ml-auto">
+            {!notification.lido ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMarkAsRead(notification.id);
+                }}
+                className="flex-shrink-0 h-8 w-8 p-0 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-200"
+                title="Marcar como lido"
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMarkAsUnread(notification.id);
+                }}
+                className="flex-shrink-0 h-8 w-8 p-0 text-slate-400 hover:text-slate-700 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Marcar como não lido"
+              >
+                <MailX className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

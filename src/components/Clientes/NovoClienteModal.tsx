@@ -79,6 +79,18 @@ export const NovoClienteModal = ({
         created_by: user?.id
       });
 
+      // Execute Automations
+      try {
+        await supabase.functions.invoke('evaluate-automations', {
+          body: {
+            trigger_type: 'new_client',
+            data: { cliente: { nome: formData.nome, categoria: formData.categoria, user_id: user?.id } }
+          }
+        });
+      } catch (autoErr) {
+        console.error("Erro ao avaliar automações", autoErr);
+      }
+
       // Disparar webhook após criação bem-sucedida
       console.log('Disparando webhook para cliente criado:', formData.nome);
       try {

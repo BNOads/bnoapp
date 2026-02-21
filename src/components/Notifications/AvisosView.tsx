@@ -10,23 +10,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Bell, 
-  Plus, 
-  Send, 
-  AlertTriangle, 
-  Info, 
-  CheckCircle, 
+import {
+  Bell,
+  Plus,
+  Send,
+  AlertTriangle,
+  Info,
+  CheckCircle,
   XCircle,
   MessageSquare,
   Settings,
   Eye,
-  EyeOff
+  EyeOff,
+  BellRing
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { FormattedNotificationText } from '@/components/Notifications/FormattedNotificationText';
+import { NovoAvisoModal } from '@/components/Notifications/NovoAvisoModal';
 
 interface Aviso {
   id: string;
@@ -60,21 +62,6 @@ export const AvisosView: React.FC = () => {
   const [webhookModal, setWebhookModal] = useState(false);
   const { toast } = useToast();
 
-  const [novoAviso, setNovoAviso] = useState({
-    titulo: '',
-    conteudo: '',
-    tipo: 'info' as const,
-    prioridade: 'normal' as const,
-    destinatarios: ['all'],
-    canais: {
-      painel: true,
-      slack: false,
-      email: false
-    },
-    dataInicio: '',
-    dataFim: ''
-  });
-
   const [novoWebhook, setNovoWebhook] = useState<SlackWebhook>({
     nome: '',
     webhook_url: '',
@@ -97,7 +84,7 @@ export const AvisosView: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       // Load avisos with read count separately
       const avisosWithReads = await Promise.all(
         (data || []).map(async (aviso) => {
@@ -105,14 +92,14 @@ export const AvisosView: React.FC = () => {
             .from('avisos_leitura')
             .select('user_id, lido_em')
             .eq('aviso_id', aviso.id);
-          
+
           return {
             ...aviso,
             avisos_leitura: readData || []
           };
         })
       );
-      
+
       setAvisos(avisosWithReads);
     } catch (error) {
       console.error('Erro ao carregar avisos:', error);
@@ -136,48 +123,6 @@ export const AvisosView: React.FC = () => {
       setWebhooks(data.webhooks || []);
     } catch (error) {
       console.error('Erro ao carregar webhooks:', error);
-    }
-  };
-
-  const createNotification = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('slack-notifications', {
-        body: {
-          action: 'create_notification',
-          ...novoAviso
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso",
-        description: "Aviso criado com sucesso"
-      });
-
-      setNovoAvisoModal(false);
-      setNovoAviso({
-        titulo: '',
-        conteudo: '',
-        tipo: 'info',
-        prioridade: 'normal',
-        destinatarios: ['all'],
-        canais: {
-          painel: true,
-          slack: false,
-          email: false
-        },
-        dataInicio: '',
-        dataFim: ''
-      });
-      loadAvisos();
-    } catch (error) {
-      console.error('Erro ao criar aviso:', error);
-      toast({
-        title: "Erro",
-        description: "Falha ao criar aviso",
-        variant: "destructive"
-      });
     }
   };
 
@@ -300,7 +245,7 @@ export const AvisosView: React.FC = () => {
             Gerencie notificações e integrações com Slack
           </p>
         </div>
-        
+
         <div className="flex gap-2">
           <Dialog open={webhookModal} onOpenChange={setWebhookModal}>
             <DialogTrigger asChild>
@@ -316,38 +261,38 @@ export const AvisosView: React.FC = () => {
                   Configure a integração com o Slack para envio automático de notificações
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="nome">Nome do Webhook</Label>
                   <Input
                     id="nome"
                     value={novoWebhook.nome}
-                    onChange={(e) => setNovoWebhook({...novoWebhook, nome: e.target.value})}
+                    onChange={(e) => setNovoWebhook({ ...novoWebhook, nome: e.target.value })}
                     placeholder="Ex: Canal Geral"
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="webhook_url">URL do Webhook</Label>
                   <Input
                     id="webhook_url"
                     value={novoWebhook.webhook_url}
-                    onChange={(e) => setNovoWebhook({...novoWebhook, webhook_url: e.target.value})}
+                    onChange={(e) => setNovoWebhook({ ...novoWebhook, webhook_url: e.target.value })}
                     placeholder="https://hooks.slack.com/services/..."
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="canal">Canal (opcional)</Label>
                   <Input
                     id="canal"
                     value={novoWebhook.canal}
-                    onChange={(e) => setNovoWebhook({...novoWebhook, canal: e.target.value})}
+                    onChange={(e) => setNovoWebhook({ ...novoWebhook, canal: e.target.value })}
                     placeholder="#geral"
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label>Tipos de Aviso</Label>
                   <div className="flex flex-wrap gap-2">
@@ -375,16 +320,16 @@ export const AvisosView: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Switch
                     checked={novoWebhook.ativo}
-                    onCheckedChange={(checked) => setNovoWebhook({...novoWebhook, ativo: checked})}
+                    onCheckedChange={(checked) => setNovoWebhook({ ...novoWebhook, ativo: checked })}
                   />
                   <Label>Ativo</Label>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setWebhookModal(false)}>
                   Cancelar
@@ -395,146 +340,17 @@ export const AvisosView: React.FC = () => {
               </div>
             </DialogContent>
           </Dialog>
-          
-          <Dialog open={novoAvisoModal} onOpenChange={setNovoAvisoModal}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Aviso
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Criar Novo Aviso</DialogTitle>
-                <DialogDescription>
-                  Crie um novo aviso para a equipe
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="titulo">Título</Label>
-                  <Input
-                    id="titulo"
-                    value={novoAviso.titulo}
-                    onChange={(e) => setNovoAviso({...novoAviso, titulo: e.target.value})}
-                    placeholder="Título do aviso"
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="conteudo">Conteúdo</Label>
-                  <Textarea
-                    id="conteudo"
-                    value={novoAviso.conteudo}
-                    onChange={(e) => setNovoAviso({...novoAviso, conteudo: e.target.value})}
-                    placeholder="Conteúdo detalhado do aviso"
-                    rows={4}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="tipo">Tipo</Label>
-                    <Select value={novoAviso.tipo} onValueChange={(value: any) => setNovoAviso({...novoAviso, tipo: value})}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="info">Informação</SelectItem>
-                        <SelectItem value="alerta">Alerta</SelectItem>
-                        <SelectItem value="sucesso">Sucesso</SelectItem>
-                        <SelectItem value="erro">Erro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <Label htmlFor="prioridade">Prioridade</Label>
-                    <Select value={novoAviso.prioridade} onValueChange={(value: any) => setNovoAviso({...novoAviso, prioridade: value})}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="baixa">Baixa</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="alta">Alta</SelectItem>
-                        <SelectItem value="critica">Crítica</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label>Canais de Notificação</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={novoAviso.canais.painel}
-                        onCheckedChange={(checked) => setNovoAviso({
-                          ...novoAviso,
-                          canais: {...novoAviso.canais, painel: checked}
-                        })}
-                      />
-                      <Label>Painel</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={novoAviso.canais.slack}
-                        onCheckedChange={(checked) => setNovoAviso({
-                          ...novoAviso,
-                          canais: {...novoAviso.canais, slack: checked}
-                        })}
-                      />
-                      <Label>Slack</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={novoAviso.canais.email}
-                        onCheckedChange={(checked) => setNovoAviso({
-                          ...novoAviso,
-                          canais: {...novoAviso.canais, email: checked}
-                        })}
-                      />
-                      <Label>Email</Label>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="dataInicio">Data de Início (opcional)</Label>
-                    <Input
-                      id="dataInicio"
-                      type="datetime-local"
-                      value={novoAviso.dataInicio}
-                      onChange={(e) => setNovoAviso({...novoAviso, dataInicio: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <Label htmlFor="dataFim">Data de Fim (opcional)</Label>
-                    <Input
-                      id="dataFim"
-                      type="datetime-local"
-                      value={novoAviso.dataFim}
-                      onChange={(e) => setNovoAviso({...novoAviso, dataFim: e.target.value})}
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setNovoAvisoModal(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={createNotification}>
-                  <Send className="h-4 w-4 mr-2" />
-                  Criar Aviso
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+
+          <Button onClick={() => setNovoAvisoModal(true)} className="bg-indigo-600 hover:bg-indigo-700">
+            <Send className="h-4 w-4 mr-2" />
+            Novo Aviso
+          </Button>
+
+          <NovoAvisoModal
+            open={novoAvisoModal}
+            onOpenChange={setNovoAvisoModal}
+            onSuccess={loadAvisos}
+          />
         </div>
       </div>
 
@@ -603,7 +419,7 @@ export const AvisosView: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
@@ -612,7 +428,7 @@ export const AvisosView: React.FC = () => {
                     >
                       {aviso.ativo ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
-                    
+
                     {aviso.ativo && (
                       <Badge className="bg-green-500">Ativo</Badge>
                     )}
@@ -621,27 +437,27 @@ export const AvisosView: React.FC = () => {
                     )}
                   </div>
                 </div>
-                
+
                 <FormattedNotificationText
                   as="p"
                   className="text-muted-foreground mb-4 whitespace-pre-wrap"
                   text={aviso.conteudo}
                 />
-                
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <MessageSquare className="h-4 w-4" />
                       {aviso.avisos_leitura?.length || 0} visualizações
                     </div>
-                    
+
                     <div className="flex gap-1">
                       {aviso.canais.painel && <Badge variant="outline" className="text-xs">Painel</Badge>}
                       {aviso.canais.slack && <Badge variant="outline" className="text-xs">Slack</Badge>}
                       {aviso.canais.email && <Badge variant="outline" className="text-xs">Email</Badge>}
                     </div>
                   </div>
-                  
+
                   <Button
                     size="sm"
                     variant="outline"

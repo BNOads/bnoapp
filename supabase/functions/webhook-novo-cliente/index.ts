@@ -25,7 +25,7 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse request body
@@ -37,8 +37,8 @@ serve(async (req) => {
       console.error('Nome do cliente é obrigatório');
       return new Response(
         JSON.stringify({ error: 'Nome do cliente é obrigatório' }),
-        { 
-          status: 400, 
+        {
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -79,8 +79,8 @@ serve(async (req) => {
       console.error('Erro ao criar cliente:', clienteError);
       return new Response(
         JSON.stringify({ error: 'Erro ao criar cliente: ' + clienteError.message }),
-        { 
-          status: 500, 
+        {
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -109,6 +109,18 @@ serve(async (req) => {
       }
     }
 
+    // Evaluate Automations
+    try {
+      await supabase.functions.invoke('evaluate-automations', {
+        body: {
+          trigger_type: 'new_client',
+          data: { cliente: novoCliente }
+        }
+      });
+    } catch (autoErr) {
+      console.error('Error invoking automations for new client', autoErr);
+    }
+
     // Return success response
     const response = {
       success: true,
@@ -126,22 +138,22 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(response),
-      { 
-        status: 200, 
+      {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
 
   } catch (error) {
     console.error('Erro no webhook:', error);
-    
+
     return new Response(
-      JSON.stringify({ 
-        error: 'Erro interno do servidor', 
-        details: (error as Error).message 
+      JSON.stringify({
+        error: 'Erro interno do servidor',
+        details: (error as Error).message
       }),
-      { 
-        status: 500, 
+      {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );

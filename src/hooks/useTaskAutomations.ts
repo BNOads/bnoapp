@@ -129,3 +129,34 @@ export function useDeleteTaskAutomation() {
         },
     });
 }
+
+export interface TaskAutomationLog {
+    id: string;
+    automation_id: string;
+    trigger_event: string;
+    status: 'success' | 'error' | 'skipped';
+    message: string;
+    details: any;
+    created_at: string;
+}
+
+export const automationLogKeys = {
+    all: ["task_automation_logs"] as const,
+    list: () => [...automationLogKeys.all, "list"] as const,
+};
+
+export function useTaskAutomationLogs() {
+    return useQuery({
+        queryKey: automationLogKeys.list(),
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from("task_automation_logs")
+                .select("*, automations:task_automations(name)")
+                .order("created_at", { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
+            return data as (TaskAutomationLog & { automations?: { name: string } | null })[];
+        },
+    });
+}

@@ -49,6 +49,7 @@ import Tarefas from "./pages/Tarefas";
 import TarefaDetalhe from "./pages/TarefaDetalhe";
 import { AppLayout } from "@/components/Layout/AppLayout";
 import FerramentaProjecaoView from "@/components/Ferramentas/FerramentaProjecaoView";
+import { NotificacoesDetalhesView } from "./pages/Notificacoes";
 
 
 const queryClient = new QueryClient({
@@ -229,6 +230,11 @@ function App() {
                   <Route path="/" element={
                     <ProtectedRoute>
                       <Index />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/notificacoes" element={
+                    <ProtectedRoute>
+                      <NotificacoesDetalhesView />
                     </ProtectedRoute>
                   } />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

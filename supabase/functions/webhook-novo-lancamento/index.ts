@@ -29,7 +29,7 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse request body
@@ -41,8 +41,8 @@ serve(async (req) => {
       console.error('Campo obrigatório ausente: nome_lancamento');
       return new Response(
         JSON.stringify({ error: 'Campo obrigatório: nome_lancamento' }),
-        { 
-          status: 400, 
+        {
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -59,8 +59,8 @@ serve(async (req) => {
       console.error('Erro ao buscar clientes:', clientesError);
       return new Response(
         JSON.stringify({ error: 'Erro ao buscar clientes: ' + clientesError.message }),
-        { 
-          status: 500, 
+        {
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -69,7 +69,7 @@ serve(async (req) => {
     let clienteDetectado = null;
     const nomeLancamentoLower = payload.nome_lancamento.toLowerCase().trim();
     const palavrasLancamento = nomeLancamentoLower.split(/[\s\-_|]+/).filter(p => p.length > 2);
-    
+
     console.log(`Buscando cliente para lançamento: "${payload.nome_lancamento}"`);
     console.log(`Palavras do lançamento: ${JSON.stringify(palavrasLancamento)}`);
     console.log(`Total de clientes ativos: ${clientes.length}`);
@@ -77,8 +77,8 @@ serve(async (req) => {
     // Função auxiliar para verificar match exato de palavras
     const temMatchExato = (texto: string, palavras: string[]): boolean => {
       const textoLower = texto.toLowerCase().trim();
-      return palavras.some(palavra => 
-        textoLower === palavra || 
+      return palavras.some(palavra =>
+        textoLower === palavra ||
         palavrasLancamento.some(p => p === textoLower)
       );
     };
@@ -93,15 +93,15 @@ serve(async (req) => {
     for (const cliente of clientes) {
       const nomeClienteLower = cliente.nome.toLowerCase().trim();
       const palavrasNomeCliente = nomeClienteLower.split(/[\s\-_|]+/).filter((p: string) => p.length > 2);
-      
+
       console.log(`\nVerificando cliente: ${cliente.nome}`);
       console.log(`  Palavras do nome: ${JSON.stringify(palavrasNomeCliente)}`);
-      
+
       // Verificar se alguma palavra significativa do nome do cliente está no lançamento
-      const matchNome = palavrasNomeCliente.some((palavraCliente: string) => 
+      const matchNome = palavrasNomeCliente.some((palavraCliente: string) =>
         palavrasLancamento.includes(palavraCliente)
       );
-      
+
       if (matchNome) {
         clienteDetectado = cliente;
         console.log(`✅ Cliente detectado por match exato no nome: ${cliente.nome}`);
@@ -114,16 +114,16 @@ serve(async (req) => {
       for (const cliente of clientes) {
         if (cliente.aliases && Array.isArray(cliente.aliases)) {
           console.log(`  Testando aliases de ${cliente.nome}: ${JSON.stringify(cliente.aliases)}`);
-          
+
           for (const alias of cliente.aliases) {
             const aliasLower = alias.toLowerCase().trim();
             const palavrasAlias = aliasLower.split(/[\s\-_|]+/).filter((p: string) => p.length > 2);
-            
+
             // Match exato de palavras do alias
-            const matchAlias = palavrasAlias.some((palavraAlias: string) => 
+            const matchAlias = palavrasAlias.some((palavraAlias: string) =>
               palavrasLancamento.includes(palavraAlias)
             );
-            
+
             if (matchAlias) {
               clienteDetectado = cliente;
               console.log(`✅ Cliente detectado por match exato no alias: "${alias}" -> ${cliente.nome}`);
@@ -139,14 +139,14 @@ serve(async (req) => {
     if (!clienteDetectado) {
       for (const cliente of clientes) {
         const nomeClienteLower = cliente.nome.toLowerCase().trim();
-        
+
         // Match parcial do nome
         if (temMatchParcial(nomeClienteLower, nomeLancamentoLower)) {
           clienteDetectado = cliente;
           console.log(`✅ Cliente detectado por match parcial no nome: ${cliente.nome}`);
           break;
         }
-        
+
         // Match parcial dos aliases
         if (cliente.aliases && Array.isArray(cliente.aliases)) {
           for (const alias of cliente.aliases) {
@@ -169,7 +169,7 @@ serve(async (req) => {
     // Map incoming status to database enum values
     const statusMapping: Record<string, string> = {
       'ativo': 'em_captacao',
-      'iniciado': 'cpl', 
+      'iniciado': 'cpl',
       'finalizado': 'finalizado',
       'pausado': 'pausado',
       'cancelado': 'cancelado',
@@ -209,8 +209,8 @@ serve(async (req) => {
       console.error('Erro ao criar lançamento:', lancamentoError);
       return new Response(
         JSON.stringify({ error: 'Erro ao criar lançamento: ' + lancamentoError.message }),
-        { 
-          status: 500, 
+        {
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -221,7 +221,7 @@ serve(async (req) => {
     // Buscar gestor para incluir na notificação
     let gestorInfo = null;
     let gestorUserId = null;
-    
+
     if (clienteDetectado?.primary_gestor_user_id) {
       const { data: gestor, error: gestorError } = await supabase
         .from('colaboradores')
@@ -229,11 +229,11 @@ serve(async (req) => {
         .eq('user_id', clienteDetectado.primary_gestor_user_id)
         .eq('ativo', true)
         .single();
-      
+
       if (gestorError) {
         console.error('Erro ao buscar gestor:', gestorError);
       }
-      
+
       if (gestor) {
         gestorInfo = { id: gestor.id, nome: gestor.nome };
         gestorUserId = gestor.user_id;
@@ -243,7 +243,7 @@ serve(async (req) => {
 
     // Criar notificação para alertar equipe
     console.log('Criando notificação de novo lançamento...');
-    
+
     // Buscar primeiro admin para ser o created_by da notificação
     const { data: adminUser } = await supabase
       .from('colaboradores')
@@ -268,10 +268,10 @@ serve(async (req) => {
     const notificacaoData = {
       titulo: `🚀 Novo Lançamento: ${payload.nome_lancamento.trim()}`,
       conteudo: `Um novo lançamento foi criado via webhook${clienteDetectado ? ` para o cliente **${clienteDetectado.nome}**` : ' mas **nenhum cliente foi detectado**'}.\n\n` +
-                `📊 Investimento: ${payload.investimento ? `R$ ${payload.investimento.toLocaleString('pt-BR')}` : 'Não informado'}\n` +
-                `📅 Status: ${mappedStatus}\n\n` +
-                `${!clienteDetectado ? '⚠️ **ATENÇÃO:** Associe manualmente um cliente ao lançamento.\n' : ''}` +
-                `⚙️ Configure as datas e detalhes do lançamento.`,
+        `📊 Investimento: ${payload.investimento ? `R$ ${payload.investimento.toLocaleString('pt-BR')}` : 'Não informado'}\n` +
+        `📅 Status: ${mappedStatus}\n\n` +
+        `${!clienteDetectado ? '⚠️ **ATENÇÃO:** Associe manualmente um cliente ao lançamento.\n' : ''}` +
+        `⚙️ Configure as datas e detalhes do lançamento.`,
       tipo: 'warning',
       prioridade: 'alta',
       destinatarios: destinatarios,
@@ -294,6 +294,18 @@ serve(async (req) => {
       // Não falha o webhook se a notificação falhar
     } else {
       console.log('Notificação criada com sucesso:', notificacao?.id);
+    }
+
+    // Evaluate Automations
+    try {
+      await supabase.functions.invoke('evaluate-automations', {
+        body: {
+          trigger_type: 'new_launch',
+          data: { lancamento: novoLancamento, cliente: clienteDetectado }
+        }
+      });
+    } catch (autoErr) {
+      console.error('Error invoking automations for new launch', autoErr);
     }
 
     // Return success response
@@ -321,22 +333,22 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(response),
-      { 
-        status: 200, 
+      {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
 
   } catch (error) {
     console.error('Erro no webhook:', error);
-    
+
     return new Response(
-      JSON.stringify({ 
-        error: 'Erro interno do servidor', 
-        details: (error as Error).message 
+      JSON.stringify({
+        error: 'Erro interno do servidor',
+        details: (error as Error).message
       }),
-      { 
-        status: 500, 
+      {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
