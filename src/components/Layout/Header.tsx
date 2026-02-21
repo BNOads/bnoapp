@@ -37,12 +37,6 @@ export const Header = ({ }: HeaderProps) => {
   };
   const tabs = [
     {
-      id: 'dashboard',
-      label: 'Inicio',
-      icon: LayoutDashboard,
-      path: '/'
-    },
-    {
       id: 'clientes',
       label: 'Clientes',
       icon: Calendar,
@@ -59,14 +53,7 @@ export const Header = ({ }: HeaderProps) => {
       label: 'Ferramentas',
       icon: Rocket,
       path: '/ferramentas'
-    },
-    {
-      id: 'projecoes',
-      label: 'Projeções',
-      icon: Calculator,
-      path: '/ferramentas/projecoes'
-    },
-
+    }
   ];
 
   const getActiveTab = () => {
@@ -89,15 +76,20 @@ export const Header = ({ }: HeaderProps) => {
     <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2 sm:space-x-4">
-          <div className="p-1 sm:p-2">
-            <img src={bnoadsLogo} alt="BNOads Logo" className="h-8 w-8 sm:h-12 sm:w-12 object-contain rounded-lg" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-lg sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              BNOads
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Sistema interno</p>
-          </div>
+          <Link
+            to="/"
+            className="flex items-center space-x-2 sm:space-x-4 group"
+          >
+            <div className="p-1 sm:p-2">
+              <img src={bnoadsLogo} alt="BNOads Logo" className="h-8 w-8 sm:h-12 sm:w-12 object-contain rounded-lg transition-transform group-hover:scale-105" />
+            </div>
+            <div className={`min-w-0 border-b-2 transition-colors duration-200 ${activeTab === 'dashboard' ? 'border-primary pb-0.5' : 'border-transparent group-hover:border-primary/30 pb-0.5'}`}>
+              <h1 className="text-lg sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                BNOads
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Sistema interno</p>
+            </div>
+          </Link>
           {/* Mobile Theme Switch */}
           <div className="sm:hidden ml-2">
             <ThemeSwitch className="scale-75 origin-left" />
@@ -132,7 +124,9 @@ export const Header = ({ }: HeaderProps) => {
             <ThemeSwitch />
           </div>
 
-          <GlobalSearch isHeader={true} />
+          {location.pathname !== '/' && (
+            <GlobalSearch isHeader={true} />
+          )}
 
           {/* Admin Create Notification - Always render but conditionally display */}
           <CreateNotificationModal showButton={isAdmin} />
