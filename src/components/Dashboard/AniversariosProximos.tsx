@@ -18,10 +18,9 @@ interface ColaboradorAniversario {
 export interface AniversariosProximosProps {
   compact?: boolean;
   className?: string;
-  variant?: "default" | "banner";
 }
 
-export function AniversariosProximos({ compact = false, className, variant = "default" }: AniversariosProximosProps) {
+export function AniversariosProximos({ compact = false, className }: AniversariosProximosProps) {
   const [aniversariantes, setAniversariantes] = useState<ColaboradorAniversario[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,7 +94,7 @@ export function AniversariosProximos({ compact = false, className, variant = "de
 
   if (loading) {
     return (
-      <Card className={`${variant === 'banner' ? 'border-white/20 bg-white/10 backdrop-blur-md shadow-inner text-white' : 'border border-blue-100 bg-blue-50/50 shadow-sm'} ${compact ? 'mt-0' : ''} ${className}`}>
+      <Card className={`border border-blue-100 bg-blue-50/50 shadow-sm ${compact ? 'mt-0' : ''} ${className}`}>
         <CardHeader className={`${compact ? "p-1.5 pb-0" : "pb-3"}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -136,16 +135,16 @@ export function AniversariosProximos({ compact = false, className, variant = "de
   };
 
   return (
-    <Card className={`${variant === 'banner' ? 'border-white/20 bg-white/10 backdrop-blur-md shadow-inner text-white' : 'border border-blue-100 bg-blue-50/90 shadow-sm'} ${compact ? 'mt-0' : ''} ${className}`}>
+    <Card className={`border border-blue-100 bg-blue-50/90 shadow-sm ${compact ? 'mt-0' : ''} ${className}`}>
       <CardHeader className={`${compact ? "p-1.5 pb-0" : "pb-3"}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <div className={`rounded-full ${variant === 'banner' ? 'bg-white/20' : 'bg-blue-100'} ${compact ? 'p-1' : 'p-2'}`}>
-              <Cake className={`${variant === 'banner' ? 'text-white' : 'text-blue-600'} ${compact ? 'h-4 w-4' : 'h-5 w-5'}`} />
+            <div className={`rounded-full bg-blue-100 ${compact ? 'p-1' : 'p-2'}`}>
+              <Cake className={`text-blue-600 ${compact ? 'h-4 w-4' : 'h-5 w-5'}`} />
             </div>
-            <span className={`font-bold ${variant === 'banner' ? 'text-white' : 'text-slate-900'} ${compact ? 'text-base' : 'text-lg'}`}>Aniversários Próximos</span>
+            <span className={`font-bold text-slate-900 ${compact ? 'text-base' : 'text-lg'}`}>Aniversários Próximos</span>
           </div>
-          <Badge className={`${variant === 'banner' ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-slate-800 text-white hover:bg-slate-700'} h-3.5 px-1 min-w-[14px] justify-center text-[8px]`}>
+          <Badge className="bg-slate-800 text-white hover:bg-slate-700 h-3.5 px-1 min-w-[14px] justify-center text-[8px]">
             {aniversariantes.length}
           </Badge>
         </div>
@@ -158,7 +157,7 @@ export function AniversariosProximos({ compact = false, className, variant = "de
           return (
             <div
               key={colab.id}
-              className={`flex items-center rounded-md transition-all ${variant === 'banner' ? 'bg-white/10 hover:bg-white/20 border border-white/10' : 'bg-white/60 hover:bg-white border border-blue-100/50'} ${compact ? 'gap-3 p-2.5' : 'gap-1.5 p-3'}`}
+              className={`flex items-center rounded-md transition-all bg-white/60 hover:bg-white border border-blue-100/50 ${compact ? 'gap-3 p-2.5' : 'gap-1.5 p-3'}`}
             >
               <Avatar className={`${compact ? 'h-12 w-12 border border-white shadow-sm' : 'h-12 w-12'}`}>
                 <AvatarImage src={colab.avatar_url || undefined} alt={colab.nome} />
@@ -168,17 +167,17 @@ export function AniversariosProximos({ compact = false, className, variant = "de
               </Avatar>
 
               <div className="flex-1 min-w-0">
-                <p className={`font-bold truncate leading-tight ${variant === 'banner' ? 'text-white' : 'text-slate-900'} ${compact ? 'text-base' : ''}`}>
+                <p className={`font-bold truncate text-slate-900 leading-tight ${compact ? 'text-base' : ''}`}>
                   {colab.nome}
                 </p>
-                <p className={`${compact ? 'text-xs' : 'text-[9px]'} ${variant === 'banner' ? 'text-white/70' : 'text-slate-500'} font-medium uppercase tracking-wide mt-0.5`}>
+                <p className={`${compact ? 'text-xs' : 'text-[9px]'} text-slate-500 font-medium uppercase tracking-wide mt-0.5`}>
                   {format(parseDateLocal(colab.data_nascimento)!, "dd 'de' MMM", { locale: ptBR })}
                 </p>
               </div>
 
-              <div className={`flex items-center gap-1.5 rounded-md shadow-sm ${variant === 'banner' ? 'bg-white/10 border border-white/10' : 'bg-white border border-slate-200'} ${compact ? 'px-2.5 py-1.5' : 'px-1.5 py-0.5'} ${isToday ? (variant === 'banner' ? 'animate-pulse border-white/40 ring-1 ring-white/20' : 'animate-pulse border-blue-300 ring-1 ring-blue-100') : ''}`}>
-                <Icon className={`${compact ? 'h-4 w-4' : 'h-2.5 w-2.5'} ${isToday ? (variant === 'banner' ? 'text-white' : 'text-blue-500') : (variant === 'banner' ? 'text-white/60' : 'text-slate-400')}`} />
-                <span className={`${compact ? 'text-sm' : 'text-[9px]'} font-bold ${isToday ? (variant === 'banner' ? 'text-white' : 'text-blue-600') : (variant === 'banner' ? 'text-white/80' : 'text-slate-600')}`}>
+              <div className={`flex items-center gap-1.5 bg-white border border-slate-200 rounded-md shadow-sm ${compact ? 'px-2.5 py-1.5' : 'px-1.5 py-0.5'} ${isToday ? 'animate-pulse border-blue-300 ring-1 ring-blue-100' : ''}`}>
+                <Icon className={`${compact ? 'h-4 w-4' : 'h-2.5 w-2.5'} ${isToday ? 'text-blue-500' : 'text-slate-400'}`} />
+                <span className={`${compact ? 'text-sm' : 'text-[9px]'} font-bold ${isToday ? 'text-blue-600' : 'text-slate-600'}`}>
                   {isToday ? 'HOJE' : text}
                 </span>
               </div>

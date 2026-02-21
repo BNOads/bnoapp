@@ -8,6 +8,7 @@ import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, Graduation
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
+import { GlobalSearch } from "@/components/Dashboard/GlobalSearch";
 import { PDICard } from "@/components/PDI/PDICard";
 import { PDIEquipeCard } from "@/components/Dashboard/PDIEquipeCard";
 import { useRecentTabs } from "@/hooks/useRecentTabs";
@@ -330,22 +331,25 @@ export function DashboardView() {
     );
   }
 
-  return <div className="space-y-6 lg:scale-[0.85] lg:origin-top-left lg:w-[117%] px-4 pb-12">
-    {/* Clean Top Banner */}
-    <div className={`${getCurrentColorClass()} rounded-2xl p-6 lg:p-8 text-white shadow-md relative overflow-hidden`}>
-      <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center relative z-10">
-        <div className="flex-1 flex flex-col gap-2 min-w-[300px]">
+  return <div className="space-y-3 lg:scale-[0.85] lg:origin-top-left lg:w-[117%] px-4">
+    {/* Header Section */}
+    <div className={`${getCurrentColorClass()} rounded-xl p-5 text-white shadow-glow relative`}>
+      <div className="flex flex-col lg:flex-row gap-8 justify-between items-stretch">
+        {/* Left Column: Welcome, Subtitle, Buttons */}
+        <div className="flex-1 flex flex-col gap-2 justify-center min-h-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl lg:text-3xl font-bold tracking-tight">Bem-vindo à BNOads!</h2>
-            {/* Color Picker Toggle */}
+            <h2 className="text-2xl font-bold truncate">Bem-vindo à BNOads!</h2>
+
+
+            {/* Color Picker moved here */}
             <div className="relative inline-block" ref={colorPickerRef}>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowColorPicker(!showColorPicker)}
-                className="text-white hover:bg-white/20 border-2 border-white/20 h-8 w-8 rounded-full"
+                className="text-white hover:bg-white/20 border-2 border-white/20 h-10 w-10 rounded-full"
               >
-                <Palette className="h-4 w-4" />
+                <Palette className="h-5 w-5" />
               </Button>
 
               {showColorPicker && (
@@ -368,14 +372,16 @@ export function DashboardView() {
               )}
             </div>
           </div>
-          <p className="text-white/90 text-base lg:text-lg font-light tracking-wide">
-            Sua central de navegação rápida e atalhos
-          </p>
+          <div>
+            <p className="text-white/90 text-lg lg:text-xl font-light tracking-wide">
+              Sua central de navegação e atalhos rápidos
+            </p>
+          </div>
 
-          <div className="flex flex-wrap gap-3 mt-4">
+          <div className="flex flex-wrap gap-3 mt-1">
             <Button
               variant="ghost"
-              className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/20 h-10 px-4 text-sm font-medium transition-all duration-300 shadow-sm gap-2 rounded-lg"
+              className="bg-white hover:bg-white/90 text-blue-600 border border-transparent h-11 px-6 text-sm font-bold transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] gap-2"
               onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfWcsLJsV0Wc7HOfUFbqa4Kl10e9AkBoq9UeOxGFdNCa_LXnw/viewform', '_blank')}
             >
               <MessageCircle className="h-4 w-4" />
@@ -383,7 +389,7 @@ export function DashboardView() {
             </Button>
             <Button
               variant="ghost"
-              className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/20 h-10 px-4 text-sm font-medium transition-all duration-300 shadow-sm gap-2 rounded-lg"
+              className="bg-white hover:bg-white/90 text-blue-600 border border-transparent h-11 px-6 text-sm font-bold transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] gap-2"
               onClick={() => window.open('https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0cWtPyvaNzPZUaGIaDsYjDGshuYHKA_BhbvCN1YOWxny-lU4EfOpteOvNPjfzj8aBxfbP9baoo', '_blank')}
             >
               <CalendarDays className="h-4 w-4" />
@@ -394,7 +400,7 @@ export function DashboardView() {
               <DialogTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="bg-white hover:bg-white/90 text-blue-600 border border-transparent h-10 px-5 text-sm font-bold transition-all duration-300 shadow-sm gap-2 rounded-lg"
+                  className="bg-white hover:bg-white/90 text-blue-600 border border-transparent h-11 px-6 text-sm font-bold transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   Atalhos
@@ -412,59 +418,47 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Widgets on the right side of the Banner */}
-        <div className="w-full lg:w-[400px] xl:w-[450px] flex flex-col gap-3">
-          <DesafioSidebar variant="banner" />
-          <AniversariosProximos compact={true} variant="banner" className="flex-1" />
+        {/* Middle Column: Search */}
+        <div className="hidden lg:flex flex-col justify-center min-w-[350px] max-w-[500px] flex-1 px-4">
+          <GlobalSearch />
+        </div>
+
+        {/* Right Section: Desafio + Birthday + Settings */}
+        <div className="flex flex-col lg:flex-row gap-3 items-stretch w-full lg:w-auto">
+          <div className="w-full lg:w-[320px] text-foreground h-full">
+            <DesafioSidebar />
+          </div>
+          {/* Birthday & Settings */}
+          <div className="min-w-0 w-full lg:w-[280px] h-full">
+            <AniversariosProximos compact={true} className="h-full flex flex-col" />
+          </div>
+
         </div>
       </div>
     </div>
-
-    {/* Main Content Grid: Priorities on Left, Context on Right */}
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
-      {/* Left Column: Urgent Actions & Tasks (8 cols) */}
-      <div className="lg:col-span-8 xl:col-span-9 space-y-6">
-
-
-        {/* View Only Badge */}
-        {!canCreateContent && <ViewOnlyBadge />}
-
-        {/* Main Workspace: Todays Tasks */}
-        <div className="w-full bg-card rounded-xl border shadow-sm">
-          <TodaysTasks />
-        </div>
-      </div>
-
-      {/* Right Sidebar: Context & Secondary (4 cols) */}
-      <aside className="lg:col-span-4 xl:col-span-3 space-y-6">
-
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Sidebar - Agora com Desafio e Lançamentos */}
+      <aside className="w-full lg:w-1/4 min-w-[260px] space-y-2">
+        {/* Desafio Moved to Header */}
         {(isAdmin || isMaster || canManageBudgets) && (
-          <div className="transition-transform hover:-translate-y-1 duration-300">
-            <LancamentosSidebar />
-          </div>
+          <LancamentosSidebar />
         )}
 
-        <div className="transition-transform hover:-translate-y-1 duration-300">
-          <TestesProximosVencer />
-        </div>
+        <TestesProximosVencer />
 
-        {/* PDI Section */}
-        <div className="space-y-4 bg-muted/30 p-4 rounded-xl border">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-primary" />
-              <h3 className="text-base font-semibold text-foreground">Meus PDIs</h3>
-            </div>
-            {pdis.length > 0 && <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-medium">{pdis.filter(p => p.status === 'ativo').length} ativos</span>}
+        {/* PDI Section - Moved to Sidebar */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-muted-foreground">Meus PDIs</h3>
           </div>
 
           {loadingPdis ? (
             <div className="flex flex-col gap-3">
               {[1, 2].map(i => (
-                <Card key={i} className="p-4 flex flex-col gap-3 animate-pulse border-none shadow-sm">
+                <Card key={i} className="p-4 flex flex-col gap-3 animate-pulse">
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-muted" />
+                    <div className="h-8 w-8 rounded bg-muted" />
                     <div className="flex-1 space-y-2">
                       <div className="h-4 bg-muted rounded w-3/4" />
                       <div className="h-3 bg-muted rounded w-1/2" />
@@ -474,8 +468,8 @@ export function DashboardView() {
               ))}
             </div>
           ) : pdis.length === 0 ? (
-            <Card className="p-6 text-center bg-background border-dashed shadow-none">
-              <p className="text-sm text-muted-foreground">Nenhum PDI ativo no momento.</p>
+            <Card className="p-4 text-center bg-muted/20">
+              <p className="text-xs text-muted-foreground">Nenhum PDI ativo</p>
             </Card>
           ) : (
             <div className="flex flex-col gap-3">
@@ -492,22 +486,36 @@ export function DashboardView() {
           )}
         </div>
       </aside>
-    </div>
 
-    {/* Modals placed outside layout flow */}
-    {desafioAtual && (
-      <RegistrarAcaoModal
-        open={showRegistrarAcao}
-        onOpenChange={(open) => {
-          setShowRegistrarAcao(open);
-          if (!open) carregarDesafioAtual();
-        }}
-        desafioId={desafioAtual.id}
-        onSuccess={() => {
-          carregarDesafioAtual();
-        }}
-      />
-    )}
-  </div>;
+      {/* Main Content Area */}
+      <div className="flex-1 space-y-6">
+
+
+
+        {/* View Only Badge */}
+        {!canCreateContent && <ViewOnlyBadge />}
+
+        <div className="w-full">
+          <TodaysTasks />
+        </div>
+
+        {
+          desafioAtual && (
+            <RegistrarAcaoModal
+              open={showRegistrarAcao}
+              onOpenChange={(open) => {
+                setShowRegistrarAcao(open);
+                if (!open) carregarDesafioAtual();
+              }}
+              desafioId={desafioAtual.id}
+              onSuccess={() => {
+                carregarDesafioAtual();
+              }}
+            />
+          )
+        }
+      </div>
+    </div>
+  </div >;
 }
 ;
