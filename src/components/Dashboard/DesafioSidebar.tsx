@@ -9,7 +9,7 @@ import { ptBR } from "date-fns/locale";
 import { Top3Ranking } from "@/components/Gamificacao/Top3Ranking";
 import { Badge } from "@/components/ui/badge";
 
-export function DesafioSidebar() {
+export function DesafioSidebar({ variant = "default" }: { variant?: "default" | "banner" }) {
     const navigate = useNavigate();
     const [desafioAtual, setDesafioAtual] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -54,17 +54,20 @@ export function DesafioSidebar() {
     if (!desafioAtual) return null;
 
     return (
-        <Card className="border-yellow-500/20 bg-gradient-to-br from-yellow-50/50 to-transparent dark:from-yellow-900/10 h-full flex flex-col justify-center">
+        <Card className={variant === "banner"
+            ? "border-white/20 bg-white/10 backdrop-blur-md shadow-inner h-full flex flex-col justify-center"
+            : "border-yellow-500/20 bg-gradient-to-br from-yellow-50/50 to-transparent dark:from-yellow-900/10 h-full flex flex-col justify-center"
+        }>
             <CardHeader className="p-3 pb-0">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-bold flex items-center gap-2 text-yellow-700 dark:text-yellow-500">
+                    <CardTitle className={`text-base font-bold flex items-center gap-2 ${variant === 'banner' ? 'text-white' : 'text-yellow-700 dark:text-yellow-500'}`}>
                         <Trophy className="h-4 w-4" />
                         Desafio Atual
                     </CardTitle>
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900/40"
+                        className={`h-6 w-6 ${variant === 'banner' ? 'text-white/80 hover:text-white hover:bg-white/20' : 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900/40'}`}
                         onClick={() => navigate('/gamificacao')}
                     >
                         <ArrowRight className="h-4 w-4" />
@@ -73,7 +76,7 @@ export function DesafioSidebar() {
             </CardHeader>
             <CardContent className="p-3 pt-2 flex flex-col lg:flex-row gap-4 items-center justify-between flex-1">
                 <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-                    <h4 className="font-bold text-base leading-tight text-foreground" title={desafioAtual.titulo}>
+                    <h4 className={`font-bold text-base leading-tight ${variant === 'banner' ? 'text-white' : 'text-foreground'}`} title={desafioAtual.titulo}>
                         {desafioAtual.titulo}
                     </h4>
                     {(() => {

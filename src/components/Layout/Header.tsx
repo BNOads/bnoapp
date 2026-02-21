@@ -12,6 +12,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import ThemeSwitch from "@/components/ui/theme-switch";
+import { GlobalSearch } from "@/components/Dashboard/GlobalSearch";
 
 interface HeaderProps { }
 
@@ -84,7 +85,7 @@ export const Header = ({ }: HeaderProps) => {
   };
 
   const activeTab = getActiveTab();
-  return <header className="bg-gradient-subtle border-b border-border shadow-card">
+  return <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 shadow-sm">
     <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2 sm:space-x-4">
@@ -110,10 +111,13 @@ export const Header = ({ }: HeaderProps) => {
               const Icon = tab.icon;
               return <Button
                 key={tab.id}
-                variant={activeTab === tab.id ? "hero" : "ghost"}
+                variant="ghost"
                 size="sm"
                 asChild
-                className="flex items-center space-x-1 xl:space-x-2 px-2 xl:px-3 text-xs xl:text-sm"
+                className={`flex items-center space-x-1 xl:space-x-2 px-2 xl:px-3 text-xs xl:text-sm transition-all duration-200 ${activeTab === tab.id
+                  ? "bg-primary/10 text-primary font-semibold shadow-sm hover:bg-primary/15"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  }`}
               >
                 <Link to={tab.path}>
                   <Icon className="h-3 w-3 xl:h-4 xl:w-4 flex-shrink-0" />
@@ -127,6 +131,8 @@ export const Header = ({ }: HeaderProps) => {
           <div className="hidden sm:block">
             <ThemeSwitch />
           </div>
+
+          <GlobalSearch isHeader={true} />
 
           {/* Admin Create Notification - Always render but conditionally display */}
           <CreateNotificationModal showButton={isAdmin} />

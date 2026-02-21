@@ -62,7 +62,7 @@ const STATIC_TOOLS = [
     { id: "tarefas", title: "Minhas Tarefas", url: "/tarefas", subtitle: "Página" },
 ];
 
-export function GlobalSearch() {
+export function GlobalSearch({ isHeader = false }: { isHeader?: boolean }) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
@@ -384,17 +384,28 @@ export function GlobalSearch() {
 
     return (
         <>
-            <Button
-                variant="ghost"
-                className="relative h-14 w-full justify-start rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm border border-white/20 px-4 transition-all duration-300 group"
-                onClick={() => setOpen(true)}
-            >
-                <Search className="mr-2 h-5 w-5 text-white/70 group-hover:text-white" />
-                <span className="text-white/70 font-medium group-hover:text-white text-lg lg:text-xl">Pesquisar...</span>
-                <kbd className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 hidden h-6 select-none items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 font-mono text-[10px] font-medium text-white opacity-100 sm:flex">
-                    <span className="text-xs">⌘</span>J
-                </kbd>
-            </Button>
+            {isHeader ? (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground h-8 w-8 rounded-full"
+                    onClick={() => setOpen(true)}
+                >
+                    <Search className="h-4 w-4" />
+                </Button>
+            ) : (
+                <Button
+                    variant="ghost"
+                    className="relative h-14 w-full justify-start rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm border border-white/20 px-4 transition-all duration-300 group"
+                    onClick={() => setOpen(true)}
+                >
+                    <Search className="mr-2 h-5 w-5 text-white/70 group-hover:text-white" />
+                    <span className="text-white/70 font-medium group-hover:text-white text-lg lg:text-xl">Pesquisar...</span>
+                    <kbd className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 hidden h-6 select-none items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 font-mono text-[10px] font-medium text-white opacity-100 sm:flex">
+                        <span className="text-xs">⌘</span>J
+                    </kbd>
+                </Button>
+            )}
 
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="overflow-hidden p-0 shadow-lg max-w-2xl">
