@@ -8,7 +8,7 @@ import { Users, Calendar, BookOpen, BarChart3, MessageSquare, Wrench, Graduation
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ViewOnlyBadge } from "@/components/ui/ViewOnlyBadge";
 import { OrcamentosView } from "@/components/Orcamento/OrcamentosView";
-import { GlobalSearch } from "@/components/Dashboard/GlobalSearch";
+
 import { PDICard } from "@/components/PDI/PDICard";
 import { PDIEquipeCard } from "@/components/Dashboard/PDIEquipeCard";
 import { useRecentTabs } from "@/hooks/useRecentTabs";
@@ -418,10 +418,6 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Middle Column: Search */}
-        <div className="hidden lg:flex flex-col justify-center min-w-[350px] max-w-[500px] flex-1 px-4">
-          <GlobalSearch />
-        </div>
 
         {/* Right Section: Desafio + Birthday + Settings */}
         <div className="flex flex-col lg:flex-row gap-3 items-stretch w-full lg:w-auto">
