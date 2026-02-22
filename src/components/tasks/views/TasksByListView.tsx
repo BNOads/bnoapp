@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Task, PRIORITY_LABELS } from "@/types/tasks";
+import { Task, PRIORITY_LABELS, TaskPriority } from "@/types/tasks";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToggleTaskComplete, useUpdateTask, useDeleteTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, MessageSquare, Clock, Plus, Flag, List, ChevronDown, ChevronRight, Trash2, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { CalendarIcon, MessageSquare, Clock, Plus, Flag, List, ChevronDown, ChevronRight, Trash2, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, CalendarDays } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
 import { useTaskLists } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,9 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { taskKeys } from "@/hooks/useTasks";
@@ -26,14 +29,15 @@ interface TasksByListViewProps {
     isAdmin: boolean;
     hideCompleted?: boolean;
     onCreateTaskForList?: (listId: string) => void;
+    onOpenBulkEdit?: () => void;
 }
 
 type SortColumn = 'title' | 'assignee' | 'priority' | 'due_date' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSelectTask, onSelectBatch, isAdmin, hideCompleted = false, onCreateTaskForList }: TasksByListViewProps) {
+export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSelectTask, onSelectBatch, isAdmin, hideCompleted = false, onCreateTaskForList, onOpenBulkEdit }: TasksByListViewProps) {
     const { mutate: toggleComplete } = useToggleTaskComplete();
-    const { mutate: updateTask } = useUpdateTask(); // adding this back if needed but not strictly necessary to fix unused warning, I'll ignore
+    const { mutate: updateTask } = useUpdateTask();
     const { mutate: deleteTask } = useDeleteTask();
     const { data: taskLists = [], isLoading } = useTaskLists();
     const queryClient = useQueryClient();
@@ -46,12 +50,13 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
 
     const [sortColumn, setSortColumn] = useState<SortColumn>('title');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+    const [lastSelectedTaskId, setLastSelectedTaskId] = useState<string | null>(null);
 
-    const [colaboradores, setColaboradores] = useState<{ nome: string, avatar_url: string | null }[]>([]);
+    const [colaboradores, setColaboradores] = useState<{ nome: string, avatar_url: string | null, user_id: string }[]>([]);
 
     useEffect(() => {
         supabase.from("colaboradores")
-            .select("nome, avatar_url")
+            .select("nome, avatar_url, user_id")
             .then(({ data }) => {
                 if (data) setColaboradores(data);
             });
@@ -115,6 +120,28 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
         setCollapsed(prev => ({ ...prev, [colId]: !prev[colId] }));
     };
 
+    const handleCheckboxClick = (e: React.MouseEvent, taskId: string, listId: string | null) => {
+        e.stopPropagation();
+        if (e.shiftKey && lastSelectedTaskId) {
+            const listTasks = getTasksByList(listId).map(t => t.id);
+            const start = listTasks.indexOf(lastSelectedTaskId);
+            const end = listTasks.indexOf(taskId);
+            if (start !== -1 && end !== -1) {
+                const min = Math.min(start, end);
+                const max = Math.max(start, end);
+                const idsToSelect = listTasks.slice(min, max + 1);
+
+                const isDeselecting = selectedTasks.includes(taskId);
+                if (onSelectBatch) {
+                    onSelectBatch(idsToSelect, !isDeselecting);
+                }
+            }
+        } else {
+            onToggleSelectTask(taskId);
+        }
+        setLastSelectedTaskId(taskId);
+    };
+
     // Combine taskLists and a "Sem Lista" column
     const columns = [
         ...taskLists.map(l => ({ id: l.id, title: l.name, color: l.color })),
@@ -153,8 +180,16 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
     };
 
     return (
-        <div className="pb-20 space-y-6 w-full max-w-[1400px] mx-auto xl:px-4">
-            <div className="flex items-center justify-between mt-8 mb-4">
+        <div className="pb-20 space-y-4 w-full max-w-[1400px] mx-auto xl:px-4">
+            {selectedTasks.length > 0 && onOpenBulkEdit && (
+                <div className="flex justify-end animate-in fade-in slide-in-from-top-1">
+                    <Button variant="secondary" onClick={onOpenBulkEdit} className="gap-2 shadow-sm border bg-card hover:bg-muted font-semibold text-primary">
+                        <Layers className="w-4 h-4" />
+                        Editar Lote ({selectedTasks.length} {selectedTasks.length === 1 ? 'tarefa' : 'tarefas'})
+                    </Button>
+                </div>
+            )}
+            <div className="flex items-center justify-between xl:mt-4 mb-4">
                 <h2 className="text-xl font-bold flex items-center gap-2">
                     <List className="w-5 h-5" /> Tarefas por Lista
                 </h2>
@@ -242,12 +277,10 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                         onClick={() => onTaskClick(task.id)}
                                                     >
                                                         <div className="col-span-12 sm:col-span-5 flex items-center gap-3 min-w-0">
-                                                            <div onClick={e => e.stopPropagation()} className="shrink-0 pl-1 mt-0.5 sm:mt-0">
+                                                            <div onClick={e => handleCheckboxClick(e, task.id, col.id === 'none' ? null : col.id)} className="shrink-0 pl-1 mt-0.5 sm:mt-0" title="Segure Shift para selecionar múltiplos">
                                                                 <Checkbox
                                                                     checked={selectedTasks.includes(task.id)}
-                                                                    onCheckedChange={() => onToggleSelectTask(task.id)}
-                                                                    className="w-4 h-4 rounded-sm border-muted-foreground/30 data-[state=checked]:border-primary"
-                                                                    title="Selecionar tarefa"
+                                                                    className="w-4 h-4 rounded-sm border-muted-foreground/30 data-[state=checked]:border-primary pointer-events-none"
                                                                 />
                                                             </div>
                                                             <div onClick={e => e.stopPropagation()} className="shrink-0">
@@ -284,51 +317,92 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                             </div>
                                                             {/* Mobile elements */}
                                                             <div className="sm:hidden flex flex-col items-end shrink-0 gap-1 text-xs">
-                                                                {task.due_date && <span className={`${isOverdue(task.due_date, task.completed) ? "text-destructive" : "text-muted-foreground"}`}>{format(new Date(`${task.due_date}T00:00:00`), "dd/MM")}</span>}
+                                                                {task.due_date && <span className={`${isOverdue(task.due_date, task.completed) ? "text-destructive" : "text-muted-foreground"}`}>{format(new Date(`${task.due_date}T12:00:00`), "dd/MM")}</span>}
                                                                 {task.priority && !task.completed && <Badge variant="outline" className="text-[9px] px-1 h-4 scale-90">{PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}</Badge>}
                                                             </div>
                                                         </div>
 
-                                                        <div className="col-span-12 sm:col-span-2 hidden sm:flex items-center gap-2 min-w-0">
-                                                            {task.assignee ? (
-                                                                <>
-                                                                    {(() => {
-                                                                        const colab = colaboradores.find(c => c.nome === task.assignee);
-                                                                        return colab?.avatar_url ? (
-                                                                            <img src={colab.avatar_url} alt={task.assignee} className="w-5 h-5 rounded-full object-cover border" title={task.assignee} />
-                                                                        ) : (
-                                                                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold" title={task.assignee}>
-                                                                                {task.assignee.charAt(0).toUpperCase()}
-                                                                            </span>
-                                                                        );
-                                                                    })()}
-                                                                    <span className="text-[12px] text-muted-foreground truncate" title={task.assignee}>
-                                                                        {task.assignee}
-                                                                    </span>
-                                                                </>
-                                                            ) : (
-                                                                <span className="text-muted-foreground/30 text-xs">-</span>
-                                                            )}
+                                                        <div className="col-span-12 sm:col-span-2 hidden sm:flex items-center gap-2 min-w-0" onClick={e => e.stopPropagation()}>
+                                                            <Select
+                                                                value={task.assignee || "unassigned"}
+                                                                onValueChange={(val) => {
+                                                                    const newAssignee = val === "unassigned" ? null : val;
+                                                                    if (newAssignee) {
+                                                                        const colab = colaboradores.find(c => c.nome === newAssignee);
+                                                                        updateTask({ id: task.id, assignee: newAssignee, assigned_to_id: colab?.user_id || undefined });
+                                                                    } else {
+                                                                        updateTask({ id: task.id, assignee: null, assigned_to_id: null });
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <SelectTrigger className="w-full h-auto p-0 border-0 bg-transparent text-[12px] font-medium text-muted-foreground gap-2 shadow-none hover:text-foreground focus:ring-0">
+                                                                    <SelectValue>
+                                                                        <div className="flex items-center gap-1 min-w-0">
+                                                                            {task.assignee ? (
+                                                                                <>
+                                                                                    {(() => {
+                                                                                        const colab = colaboradores.find(c => c.nome === task.assignee);
+                                                                                        return colab?.avatar_url ? (
+                                                                                            <img src={colab.avatar_url} alt={task.assignee} className="w-5 h-5 rounded-full object-cover border" title={task.assignee} />
+                                                                                        ) : (
+                                                                                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold" title={task.assignee}>
+                                                                                                {task.assignee.charAt(0).toUpperCase()}
+                                                                                            </span>
+                                                                                        );
+                                                                                    })()}
+                                                                                    <span className="truncate" title={task.assignee}>{task.assignee}</span>
+                                                                                </>
+                                                                            ) : (
+                                                                                <span className="text-muted-foreground/30">-</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </SelectValue>
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="unassigned">Sem responsável</SelectItem>
+                                                                    {colaboradores.map(c => (
+                                                                        <SelectItem key={c.user_id} value={c.nome}>{c.nome}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
                                                         </div>
 
-                                                        <div className="col-span-3 sm:col-span-1 hidden sm:flex justify-center">
-                                                            {task.priority && !task.completed ? (
-                                                                <Badge variant={task.priority === "alta" ? "destructive" : task.priority === "media" ? "secondary" : "outline"} className={`text-[10px] px-[10px] h-[22px] rounded-full shadow-sm font-medium ${task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' : task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 border-transparent text-white' : ''}`}>
-                                                                    {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
-                                                                </Badge>
-                                                            ) : (
-                                                                <span className="text-muted-foreground/30">-</span>
-                                                            )}
+                                                        <div className="col-span-3 sm:col-span-1 hidden sm:flex justify-center" onClick={e => e.stopPropagation()}>
+                                                            <Select
+                                                                value={task.priority || "media"}
+                                                                onValueChange={(val) => updateTask({ id: task.id, priority: val as TaskPriority })}
+                                                            >
+                                                                <SelectTrigger className={`h-[22px] px-2 border-0 shadow-sm rounded-full text-[10px] font-medium justify-center focus:ring-0 ${task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 text-white' : task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-transparent border border-muted hover:bg-muted text-foreground'}`}>
+                                                                    <SelectValue>
+                                                                        {task.priority ? PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] : "Média"}
+                                                                    </SelectValue>
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
+                                                                    <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
+                                                                    <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
                                                         </div>
 
-                                                        <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center">
-                                                            {task.due_date ? (
-                                                                <span className={`text-[13px] ${isOverdue(task.due_date, task.completed) ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                                                                    {format(new Date(`${task.due_date}T00:00:00`), "dd/MM/yyyy")}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-muted-foreground/30">-</span>
-                                                            )}
+                                                        <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center" onClick={e => e.stopPropagation()}>
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <div className={`text-[13px] px-2 py-1 rounded-md cursor-pointer hover:bg-muted/50 transition-colors ${task.due_date ? (isOverdue(task.due_date, task.completed) ? "text-destructive font-medium" : "text-muted-foreground") : "text-muted-foreground/50"}`}>
+                                                                        {task.due_date ? format(new Date(`${task.due_date}T12:00:00`), "dd/MM/yyyy") : 'Definir'}
+                                                                    </div>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-auto p-0" align="center">
+                                                                    <Calendar
+                                                                        mode="single"
+                                                                        selected={task.due_date ? new Date(`${task.due_date}T12:00:00`) : undefined}
+                                                                        onSelect={(date) => {
+                                                                            updateTask({ id: task.id, due_date: date ? format(date, "yyyy-MM-dd") : null });
+                                                                        }}
+                                                                        initialFocus
+                                                                    />
+                                                                </PopoverContent>
+                                                            </Popover>
                                                         </div>
 
                                                         <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-3 relative">

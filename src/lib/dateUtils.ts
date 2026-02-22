@@ -17,13 +17,13 @@ import { ptBR } from "date-fns/locale";
 /**
  * Parses a Postgres timestamp ("2026-02-04 14:41:29.882+00") or
  * date-only ("2026-02-04") to a local Date object.
- * To avoid timezone shifting for date-only strings, we append T00:00:00.
+ * To avoid timezone shifting for date-only strings, we append T12:00:00.
  */
 export function parseToLocalDate(value: string | null | undefined): Date | null {
   if (!value) return null;
-  // If it's a date-only string (YYYY-MM-DD), force it to local midnight
+  // If it's a date-only string (YYYY-MM-DD), force it to local midday to avoid TZ shifts
   if (value.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return new Date(`${value}T00:00:00`);
+    return new Date(`${value}T12:00:00`);
   }
   // Otherwise, use date-fns parseISO to handle the full timestamp
   return parseISO(value);

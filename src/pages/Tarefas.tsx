@@ -16,6 +16,7 @@ import { TasksByListView } from "@/components/tasks/views/TasksByListView";
 import { AdminTasksPanel } from "@/components/tasks/views/AdminTasksPanel";
 import { AutomacoesView } from "@/components/tasks/views/AutomacoesView";
 import { PRIORITY_LABELS } from "@/types/tasks";
+import { isInDateRange, DateRangePreset } from "@/lib/dateUtils";
 
 import { BulkTaskModal } from "@/components/tasks/modals/BulkTaskModal";
 import { BulkEditModal } from "@/components/tasks/modals/BulkEditModal";
@@ -60,10 +61,22 @@ export default function Tarefas() {
     } else if (filters.assignee && filters.assignee !== "all") {
         // use specific assignee if selected
     } else {
-        appliedFilters.assignee = "all";
     }
 
-    const { data: tasks = [], isLoading } = useTasks(appliedFilters);
+    const { data: rawTasks = [], isLoading } = useTasks(appliedFilters);
+
+    // Apply the local date filter
+    const tasks = React.useMemo(() => {
+        if (!filters.date || filters.date === "all") return rawTasks;
+
+        let preset: DateRangePreset = "all";
+        if (filters.date === "hoje") preset = "today";
+        if (filters.date === "semana") preset = "week";
+        if (filters.date === "mes") preset = "month";
+        if (filters.date === "atrasadas") preset = "overdue";
+
+        return rawTasks.filter(task => isInDateRange(task.due_date, preset, task.completed));
+    }, [rawTasks, filters.date]);
 
     const pendingCount = tasks.filter(t => !t.completed).length;
     const completedCount = tasks.filter(t => t.completed).length;
@@ -110,6 +123,7 @@ export default function Tarefas() {
                     setCreateDefaultAssignee(person);
                     setIsCreateOpen(true);
                 }}
+                onOpenBulkEdit={() => setIsBulkEditOpen(true)}
                 gridLayout={activeMainTab === "usuario"}
                 hideCompleted={hideCompleted}
             />
@@ -130,6 +144,7 @@ export default function Tarefas() {
                         setCreateDefaultListId(listId);
                         setIsCreateOpen(true);
                     }}
+                    onOpenBulkEdit={() => setIsBulkEditOpen(true)}
                 />
             );
         }
@@ -197,12 +212,6 @@ export default function Tarefas() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        {selectedTasks.length > 0 && (activeMainTab === "time" || activeMainTab === "listas") && (
-                            <Button variant="secondary" onClick={() => setIsBulkEditOpen(true)} className="gap-2">
-                                <Layers className="w-4 h-4" />
-                                Editar Lote ({selectedTasks.length})
-                            </Button>
-                        )}
 
                         <div className="flex flex-wrap items-center bg-muted/50 p-1 rounded-md border text-sm font-medium mx-2 gap-1">
                             <button

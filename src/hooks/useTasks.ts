@@ -21,7 +21,7 @@ export interface TaskFilters {
     list_id?: string;
     assignee?: string;
     recurrence?: string;
-    // Others as needed
+    date?: string;
 }
 
 export function useTasks(filters?: TaskFilters) {

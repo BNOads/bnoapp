@@ -153,13 +153,17 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
                             </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Data de Conclusão (Opcional)</label>
+                        <div className={`space-y-2 ${recurrence !== "none" ? "col-span-2" : ""}`}>
+                            <label className="text-sm font-medium">
+                                {recurrence !== "none" ? (
+                                    <span className="text-blue-600 font-semibold">Data do Primeiro Gatilho (Obrigatório)</span>
+                                ) : "Data de Conclusão (Opcional)"}
+                            </label>
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" className={`w-full justify-start text-left font-normal ${!dueDate && 'text-muted-foreground'}`}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {dueDate ? format(new Date(`${dueDate}T00:00:00`), "dd MMM, yyyy", { locale: ptBR }) : <span>Selecione uma data</span>}
+                                    <Button variant="outline" className={`w-full justify-start text-left font-normal ${!dueDate && 'text-muted-foreground'} ${recurrence !== 'none' && !dueDate ? 'border-destructive/50 ring-1 ring-destructive/30 bg-destructive/5 hover:bg-destructive/10 text-destructive' : ''}`}>
+                                        <CalendarIcon className={`mr-2 h-4 w-4 ${recurrence !== 'none' && !dueDate ? 'text-destructive' : ''}`} />
+                                        {dueDate ? format(new Date(`${dueDate}T12:00:00`), "dd MMM, yyyy", { locale: ptBR }) : <span>Selecione a data inicial</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
@@ -188,7 +192,10 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
                         Cancelar
                     </Button>
-                    <Button onClick={handleSave} disabled={isPending || tasksText.trim().length === 0}>
+                    <Button
+                        onClick={handleSave}
+                        disabled={isPending || tasksText.trim().length === 0 || (recurrence !== "none" && !dueDate)}
+                    >
                         Criar Tarefas
                     </Button>
                 </DialogFooter>
