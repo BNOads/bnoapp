@@ -144,9 +144,16 @@ export const Header = ({ }: HeaderProps) => {
                     {userData?.nome ? userData.nome.split(' ').map(n => n[0]).join('').substring(0, 2) : user?.email?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden md:inline text-xs sm:text-sm truncate max-w-20 lg:max-w-32">
-                  {userData?.nome?.split(' ')[0] || user?.email?.split('@')[0]}
-                </span>
+                <div className="hidden md:flex flex-col items-start px-1 text-left">
+                  <span className="text-sm font-medium truncate max-w-28 xl:max-w-40 leading-none mb-1 text-foreground">
+                    {userData?.nome?.split(' ')[0] || user?.email?.split('@')[0]}
+                  </span>
+                  {userData?.cargo_display && (
+                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-semibold truncate max-w-28 xl:max-w-40 border border-primary/20">
+                      {userData.cargo_display}
+                    </span>
+                  )}
+                </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40 sm:w-48">

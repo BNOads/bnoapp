@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToggleTaskComplete, useDeleteTask, useCreateTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, UserCircle, Plus, ChevronDown, ChevronRight, Trash2, Flag, Users } from "lucide-react";
+import { CalendarIcon, UserCircle, Plus, ChevronDown, ChevronRight, Trash2, Flag, Users, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,9 @@ interface TasksByPersonViewProps {
     hideCompleted?: boolean;
 }
 
+type SortColumn = 'title' | 'priority' | 'due_date' | 'status';
+type SortDirection = 'asc' | 'desc';
+
 export function TasksByPersonView({ tasks, onTaskClick, selectedTasks, onToggleSelectTask, onSelectBatch, onCreateTaskForPerson, gridLayout = false, hideCompleted = false }: TasksByPersonViewProps) {
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: deleteTask } = useDeleteTask();
@@ -33,11 +36,27 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks, onToggleS
 
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
     const [colaboradores, setColaboradores] = useState<{ nome: string, avatar_url: string | null }[]>([]);
-
     const [inlineCreatePerson, setInlineCreatePerson] = useState<string | null>(null);
     const [inlineTaskTitle, setInlineTaskTitle] = useState("");
 
+    const [sortColumn, setSortColumn] = useState<SortColumn>('title');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
     const { data: taskLists } = useTaskLists();
+
+    const handleSort = (column: SortColumn) => {
+        if (sortColumn === column) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortColumn(column);
+            setSortDirection('asc');
+        }
+    };
+
+    const renderSortIcon = (column: SortColumn) => {
+        if (sortColumn !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-20" />;
+        return sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
+    };
 
     const handleInlineCreate = (personStr: string) => {
         if (!inlineTaskTitle.trim()) return;
@@ -372,7 +391,7 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks, onToggleS
                                                             <Checkbox
                                                                 checked={task.completed}
                                                                 onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
-                                                                className={task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500 rounded-sm" : task.priority === 'alta' ? "border-rose-500 rounded-sm" : task.priority === 'media' ? "border-amber-500 rounded-sm" : "rounded-sm"}
+                                                                className={`w-5 h-5 transition-all rounded-[4px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : task.priority === 'alta' ? "border-2 border-rose-500/50 hover:border-rose-500" : task.priority === 'media' ? "border-2 border-amber-500/50 hover:border-amber-500" : "border-2 border-muted-foreground/30 hover:border-muted-foreground/50"}`}
                                                             />
                                                         </div>
                                                         <div className="truncate flex items-center gap-2">
@@ -416,6 +435,30 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks, onToggleS
                     if (hideCompleted && personTasks.length === 0 && originalTasks.length > 0) return null;
                     const isCollapsed = collapsed[person] ?? false;
                     const completedCount = originalTasks.filter(t => t.completed).length;
+
+                    const sortedPersonTasks = [...personTasks].sort((a, b) => {
+                        let valA: any = a[sortColumn];
+                        let valB: any = b[sortColumn];
+
+                        if (sortColumn === 'status') {
+                            valA = a.completed ? 1 : 0;
+                            valB = b.completed ? 1 : 0;
+                        } else if (sortColumn === 'priority') {
+                            const priorityWeight: Record<string, number> = { 'alta': 3, 'media': 2, 'baixa': 1 };
+                            valA = priorityWeight[a.priority as keyof typeof priorityWeight] || 0;
+                            valB = priorityWeight[b.priority as keyof typeof priorityWeight] || 0;
+                        } else if (sortColumn === 'due_date') {
+                            valA = a.due_date ? new Date(a.due_date).getTime() : 0;
+                            valB = b.due_date ? new Date(b.due_date).getTime() : 0;
+                        } else if (typeof valA === 'string' && typeof valB === 'string') {
+                            valA = valA.toLowerCase();
+                            valB = valB.toLowerCase();
+                        }
+
+                        if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                        if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                        return 0;
+                    });
 
                     return (
                         <div key={person} className="border rounded-xl bg-card overflow-hidden shadow-sm">
@@ -498,13 +541,13 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks, onToggleS
                                     ) : (
                                         <div className="bg-background">
                                             <div className="grid grid-cols-12 gap-4 p-3 border-b text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                                <div className="col-span-12 sm:col-span-6 flex items-center gap-1 select-none">Tarefa <span className="opacity-50">↑↓</span></div>
-                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none">Prioridade <span className="opacity-50">↑↓</span></div>
-                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none">Prazo <span className="opacity-50">↑</span></div>
-                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none">Status <span className="opacity-50">↑↓</span></div>
+                                                <div className="col-span-12 sm:col-span-6 flex items-center gap-1 select-none cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('title')}>Tarefa {renderSortIcon('title')}</div>
+                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('priority')}>Prioridade {renderSortIcon('priority')}</div>
+                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('due_date')}>Prazo {renderSortIcon('due_date')}</div>
+                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('status')}>Status {renderSortIcon('status')}</div>
                                             </div>
                                             <div className="divide-y">
-                                                {personTasks.map(task => (
+                                                {sortedPersonTasks.map(task => (
                                                     <div
                                                         key={task.id}
                                                         className={`group grid grid-cols-12 gap-4 p-3 transition-colors items-center cursor-pointer ${task.completed ? "bg-emerald-50/50 dark:bg-emerald-950/20 relative before:absolute before:inset-0 before:border-b before:border-emerald-500/20 before:pointer-events-none" : "hover:bg-muted/50 border-b border-transparent"}`}
@@ -523,7 +566,7 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks, onToggleS
                                                                 <Checkbox
                                                                     checked={task.completed}
                                                                     onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
-                                                                    className={`w-5 h-5 border-2 transition-all rounded-sm ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : ""}`}
+                                                                    className={`w-5 h-5 transition-all rounded-[4px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : "border-2 border-muted-foreground/30 hover:border-muted-foreground/50"}`}
                                                                     title="Marcar como concluída"
                                                                 />
                                                             </div>

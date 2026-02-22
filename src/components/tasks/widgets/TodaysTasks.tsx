@@ -126,8 +126,8 @@ export function TodaysTasks() {
                             <div onClick={(e) => e.stopPropagation()} className="mt-1 md:mt-0 shrink-0">
                                 <Checkbox
                                     checked={task.completed}
-                                    onCheckedChange={(c) => toggleComplete({ id: task.id, completed: c as boolean })}
-                                    className={`w-6 h-6 border-2 transition-all ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : "rounded-md"}`}
+                                    onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
+                                    className={`w-5 h-5 transition-all rounded-[4px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : task.priority === 'alta' ? "border-2 border-rose-500/50 hover:border-rose-500" : task.priority === 'media' ? "border-2 border-amber-500/50 hover:border-amber-500" : "border-2 border-muted-foreground/30 hover:border-muted-foreground/50"}`}
                                 />
                             </div>
 

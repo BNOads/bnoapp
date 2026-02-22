@@ -14,7 +14,6 @@ import { NovoPDIModal } from "@/components/PDI/NovoPDIModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { POPViewNova } from "./POPViewNova";
 import { PDIEquipeCard } from "@/components/Dashboard/PDIEquipeCard";
 
 interface Aula {
@@ -248,14 +247,10 @@ export const TreinamentosView = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="cursos" className="space-y-6">
-        <TabsList className={`grid w-full max-w-md ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <TabsList className={`grid w-full max-w-md ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <TabsTrigger value="cursos" className="flex items-center gap-2">
             <Play className="h-4 w-4" />
             Cursos
-          </TabsTrigger>
-          <TabsTrigger value="pops" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            POPs
           </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="pdis-equipe" className="flex items-center gap-2">
@@ -424,11 +419,6 @@ export const TreinamentosView = () => {
             )}
           </div>
         </TabsContent>
-
-        <TabsContent value="pops">
-          <POPViewNova />
-        </TabsContent>
-
 
         <TabsContent value="pdis-equipe">
           <div className="space-y-6">

@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { User } from "@supabase/supabase-js";
 import { Send } from "lucide-react";
+import { toast } from "sonner";
 
 interface NotificationRead {
     user_id: string;

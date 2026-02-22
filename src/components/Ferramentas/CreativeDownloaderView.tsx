@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download, Youtube, Instagram, Facebook, Loader2, ArrowLeft, Disc } from "lucide-react";
+import { Download, Instagram, Facebook, Loader2, ArrowLeft, Disc } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +23,14 @@ export const CreativeDownloaderView = () => {
             return;
         }
 
-
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            toast({
+                title: "Plataforma não suportada",
+                description: "O download de vídeos do YouTube foi descontinuado.",
+                variant: "destructive",
+            });
+            return;
+        }
 
         setIsLoading(true);
 
@@ -46,56 +53,6 @@ export const CreativeDownloaderView = () => {
                 throw new Error(data.message || "Erro retornado pela API.");
             }
 
-            // Handle YouTube specific message or limitation
-            if (data.hosting === 'youtube') {
-                console.log("Detectado YouTube, tentando download via youtube-dl function...");
-
-                const { data: ytData, error: ytError } = await supabase.functions.invoke('youtube-dl', {
-                    body: { url },
-                });
-
-                if (ytError) {
-                    console.error("Erro no youtube-dl:", ytError);
-                    toast({
-                        title: "Erro no YouTube",
-                        description: "Não foi possível processar o vídeo do YouTube. Tente novamente mais tarde.",
-                        variant: "destructive",
-                    });
-                    return;
-                }
-
-                // Create a blob from the response stream/data if possible, or handle the download link if the function returns one. 
-                // The current youtube-dl function returns a stream. 
-                // However, invoke returns JSON by default unless responseType is set.
-
-                // Let's adjust the invoke to handle blob response
-                const response = await supabase.functions.invoke('youtube-dl', {
-                    body: { url },
-                    responseType: 'blob'
-                });
-
-                if (response.error) {
-                    throw new Error("Erro no download do YouTube: " + response.error.message);
-                }
-
-                // Create download link from blob
-                const blob = response.data;
-                const downloadUrl = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = "video.mp4"; // Name could be improved if we parse header
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(downloadUrl);
-
-                toast({
-                    title: "Sucesso!",
-                    description: "Download do YouTube iniciado.",
-                });
-                return;
-            }
-
             // Logic to find the best download link
             let downloadLink = "";
 
@@ -115,17 +72,15 @@ export const CreativeDownloaderView = () => {
                 });
             } else {
                 console.error("Nenhum link encontrado na resposta:", data);
-                // If we already showed a toast for YouTube, don't throw detailed error
-                if (data.hosting === 'youtube') return;
-
-                throw new Error("Link de download não encontrado na resposta.");
+                throw new Error("Link de download não encontrado. Resposta: " + JSON.stringify(data));
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Download error:", error);
+            const errorMessage = error instanceof Error ? error.message : "Não foi possível baixar o vídeo. Verifique o console para mais detalhes.";
             toast({
                 title: "Erro no download",
-                description: error.message || "Não foi possível baixar o vídeo. Verifique o console para mais detalhes.",
+                description: errorMessage,
                 variant: "destructive",
             });
         } finally {
@@ -166,7 +121,7 @@ export const CreativeDownloaderView = () => {
                         </label>
                         <div className="flex gap-2">
                             <Input
-                                placeholder="Cole aqui o link do vídeo (YouTube, Instagram ou Meta Ad Library)..."
+                                placeholder="Cole aqui o link do vídeo (Instagram ou Meta Ad Library)..."
                                 className="h-12 text-lg"
                                 value={url}
                                 onChange={(e) => setUrl(e.target.value)}
@@ -190,27 +145,14 @@ export const CreativeDownloaderView = () => {
                             </Button>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                            Compatível com YouTube, Instagram e Biblioteca de Anúncios Meta.
+                            Compatível com Instagram e Biblioteca de Anúncios Meta.
                         </p>
                     </div>
                 </CardContent>
             </Card>
 
             {/* Info Cards */}
-            <div className="grid md:grid-cols-3 gap-4">
-                <Card className="bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/20 shadow-sm hover:shadow-md transition-all">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-base font-semibold flex items-center gap-2 text-red-600 dark:text-red-400">
-                            <Youtube className="h-5 w-5" />
-                            YouTube
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-balance text-muted-foreground">
-                            Vídeos regulares, Shorts e lives. Qualidade até 720p.
-                        </p>
-                    </CardContent>
-                </Card>
+            <div className="grid md:grid-cols-2 gap-4">
 
                 <Card className="bg-purple-50/50 dark:bg-purple-900/10 border-purple-100 dark:border-purple-900/20 shadow-sm hover:shadow-md transition-all">
                     <CardHeader className="pb-2">

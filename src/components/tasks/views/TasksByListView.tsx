@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToggleTaskComplete, useUpdateTask, useDeleteTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, MessageSquare, Clock, Plus, Flag, List, ChevronDown, ChevronRight, Trash2, Search } from "lucide-react";
+import { CalendarIcon, MessageSquare, Clock, Plus, Flag, List, ChevronDown, ChevronRight, Trash2, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
 import { useTaskLists } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,9 @@ interface TasksByListViewProps {
     onCreateTaskForList?: (listId: string) => void;
 }
 
+type SortColumn = 'title' | 'assignee' | 'priority' | 'due_date' | 'status';
+type SortDirection = 'asc' | 'desc';
+
 export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSelectTask, onSelectBatch, isAdmin, hideCompleted = false, onCreateTaskForList }: TasksByListViewProps) {
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: updateTask } = useUpdateTask(); // adding this back if needed but not strictly necessary to fix unused warning, I'll ignore
@@ -41,6 +44,9 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
     const [listSearch, setListSearch] = useState("");
 
+    const [sortColumn, setSortColumn] = useState<SortColumn>('title');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
     const [colaboradores, setColaboradores] = useState<{ nome: string, avatar_url: string | null }[]>([]);
 
     useEffect(() => {
@@ -51,12 +57,44 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
             });
     }, []);
 
+    const handleSort = (column: SortColumn) => {
+        if (sortColumn === column) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortColumn(column);
+            setSortDirection('asc');
+        }
+    };
+
     const getTasksByList = (listId: string | null) => {
         let listTasks = tasks.filter(t => (listId === "none" || !listId) ? !t.list_id : t.list_id === listId);
         if (hideCompleted) {
             listTasks = listTasks.filter(t => !t.completed);
         }
-        return listTasks;
+
+        return listTasks.sort((a, b) => {
+            let valA: any = a[sortColumn];
+            let valB: any = b[sortColumn];
+
+            if (sortColumn === 'status') {
+                valA = a.completed ? 1 : 0;
+                valB = b.completed ? 1 : 0;
+            } else if (sortColumn === 'priority') {
+                const priorityWeight: Record<string, number> = { 'alta': 3, 'media': 2, 'baixa': 1 };
+                valA = priorityWeight[a.priority as keyof typeof priorityWeight] || 0;
+                valB = priorityWeight[b.priority as keyof typeof priorityWeight] || 0;
+            } else if (sortColumn === 'due_date') {
+                valA = a.due_date ? new Date(a.due_date).getTime() : 0;
+                valB = b.due_date ? new Date(b.due_date).getTime() : 0;
+            } else if (typeof valA === 'string' && typeof valB === 'string') {
+                valA = valA.toLowerCase();
+                valB = valB.toLowerCase();
+            }
+
+            if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
     };
 
     const handleCreateList = async () => {
@@ -108,6 +146,11 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
             </svg>
         );
     }
+
+    const renderSortIcon = (column: SortColumn) => {
+        if (sortColumn !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-20" />;
+        return sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
+    };
 
     return (
         <div className="pb-20 space-y-6 w-full max-w-[1400px] mx-auto xl:px-4">
@@ -185,10 +228,11 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                     ) : (
                                         <div className="bg-background">
                                             <div className="grid grid-cols-12 gap-4 p-3 border-b text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                                <div className="col-span-12 sm:col-span-6 flex items-center gap-1 select-none">Tarefa <span className="opacity-50">↑↓</span></div>
-                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none">Prioridade <span className="opacity-50">↑↓</span></div>
-                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none">Prazo <span className="opacity-50">↑</span></div>
-                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none">Status <span className="opacity-50">↑↓</span></div>
+                                                <div className="col-span-12 sm:col-span-5 flex items-center gap-1 select-none cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('title')}>Tarefa {renderSortIcon('title')}</div>
+                                                <div className="col-span-12 sm:col-span-2 hidden sm:flex items-center gap-1 select-none cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('assignee')}>Gestor {renderSortIcon('assignee')}</div>
+                                                <div className="col-span-3 sm:col-span-1 hidden sm:flex justify-center items-center gap-1 select-none cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('priority')}>Prioridade {renderSortIcon('priority')}</div>
+                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('due_date')}>Prazo {renderSortIcon('due_date')}</div>
+                                                <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-1 select-none cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('status')}>Status {renderSortIcon('status')}</div>
                                             </div>
                                             <div className="divide-y">
                                                 {colTasks.map(task => (
@@ -197,7 +241,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                         className={`group grid grid-cols-12 gap-4 p-3 transition-colors items-center cursor-pointer ${task.completed ? "bg-emerald-50/50 dark:bg-emerald-950/20 relative before:absolute before:inset-0 before:border-b before:border-emerald-500/20 before:pointer-events-none" : "hover:bg-muted/50 border-b border-transparent"}`}
                                                         onClick={() => onTaskClick(task.id)}
                                                     >
-                                                        <div className="col-span-12 sm:col-span-6 flex items-center gap-3 min-w-0">
+                                                        <div className="col-span-12 sm:col-span-5 flex items-center gap-3 min-w-0">
                                                             <div onClick={e => e.stopPropagation()} className="shrink-0 pl-1 mt-0.5 sm:mt-0">
                                                                 <Checkbox
                                                                     checked={selectedTasks.includes(task.id)}
@@ -210,7 +254,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                                 <Checkbox
                                                                     checked={task.completed}
                                                                     onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
-                                                                    className={`w-5 h-5 border-2 transition-all rounded-sm ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" : ""}`}
+                                                                    className={`w-5 h-5 transition-all rounded-[4px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : "border-2 border-muted-foreground/30 hover:border-muted-foreground/50"}`}
                                                                     title="Marcar como concluída"
                                                                 />
                                                             </div>
@@ -245,7 +289,29 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                             </div>
                                                         </div>
 
-                                                        <div className="col-span-2 hidden sm:flex justify-center">
+                                                        <div className="col-span-12 sm:col-span-2 hidden sm:flex items-center gap-2 min-w-0">
+                                                            {task.assignee ? (
+                                                                <>
+                                                                    {(() => {
+                                                                        const colab = colaboradores.find(c => c.nome === task.assignee);
+                                                                        return colab?.avatar_url ? (
+                                                                            <img src={colab.avatar_url} alt={task.assignee} className="w-5 h-5 rounded-full object-cover border" title={task.assignee} />
+                                                                        ) : (
+                                                                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold" title={task.assignee}>
+                                                                                {task.assignee.charAt(0).toUpperCase()}
+                                                                            </span>
+                                                                        );
+                                                                    })()}
+                                                                    <span className="text-[12px] text-muted-foreground truncate" title={task.assignee}>
+                                                                        {task.assignee}
+                                                                    </span>
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-muted-foreground/30 text-xs">-</span>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="col-span-3 sm:col-span-1 hidden sm:flex justify-center">
                                                             {task.priority && !task.completed ? (
                                                                 <Badge variant={task.priority === "alta" ? "destructive" : task.priority === "media" ? "secondary" : "outline"} className={`text-[10px] px-[10px] h-[22px] rounded-full shadow-sm font-medium ${task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' : task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 border-transparent text-white' : ''}`}>
                                                                     {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
@@ -255,7 +321,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                             )}
                                                         </div>
 
-                                                        <div className="col-span-2 hidden sm:flex justify-center">
+                                                        <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center">
                                                             {task.due_date ? (
                                                                 <span className={`text-[13px] ${isOverdue(task.due_date, task.completed) ? "text-destructive font-medium" : "text-muted-foreground"}`}>
                                                                     {format(new Date(`${task.due_date}T00:00:00`), "dd/MM/yyyy")}
@@ -265,7 +331,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                             )}
                                                         </div>
 
-                                                        <div className="col-span-2 hidden sm:flex justify-center items-center gap-3 relative">
+                                                        <div className="col-span-3 sm:col-span-2 hidden sm:flex justify-center items-center gap-3 relative">
                                                             <Badge variant="outline" className={`capitalize text-[10px] w-[76px] justify-center shadow-sm h-[22px] px-0 ${task.completed ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60" : "bg-muted/40 text-muted-foreground"}`}>
                                                                 {task.completed ? "Concluída" : "Pendente"}
                                                             </Badge>

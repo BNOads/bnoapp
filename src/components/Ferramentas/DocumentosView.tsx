@@ -36,6 +36,8 @@ import {
   Search,
   Star,
   Trash2,
+  ChevronRight,
+  ChevronDown
 } from "lucide-react";
 
 type WorkspaceFolder = Database["public"]["Tables"]["workspace_document_folders"]["Row"];
@@ -91,6 +93,7 @@ export function DocumentosView() {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [draggingDocumentId, setDraggingDocumentId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | "root" | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
   const saveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pendingPatchesRef = useRef<Record<string, WorkspaceDocumentUpdate>>({});
@@ -136,12 +139,10 @@ export function DocumentosView() {
         supabase
           .from("workspace_document_folders")
           .select("*")
-          .eq("user_id", user.id)
           .order("name", { ascending: true }),
         supabase
           .from("workspace_documents")
           .select("*")
-          .eq("user_id", user.id)
           .order("updated_at", { ascending: false }),
       ]);
 
@@ -205,7 +206,6 @@ export function DocumentosView() {
         .from("workspace_documents")
         .update(patch)
         .eq("id", documentId)
-        .eq("user_id", user.id)
         .select("updated_at, is_public, public_slug")
         .single();
 
@@ -216,12 +216,12 @@ export function DocumentosView() {
           prev.map((doc) =>
             doc.id === documentId
               ? {
-                  ...doc,
-                  ...patch,
-                  updated_at: data.updated_at,
-                  is_public: data.is_public,
-                  public_slug: data.public_slug,
-                }
+                ...doc,
+                ...patch,
+                updated_at: data.updated_at,
+                is_public: data.is_public,
+                public_slug: data.public_slug,
+              }
               : doc
           )
         )
@@ -343,8 +343,7 @@ export function DocumentosView() {
       const { error } = await supabase
         .from("workspace_documents")
         .delete()
-        .eq("id", documentId)
-        .eq("user_id", user.id);
+        .eq("id", documentId);
 
       if (error) throw error;
 
@@ -378,7 +377,6 @@ export function DocumentosView() {
         .from("workspace_documents")
         .update({ is_public: !selectedDocument.is_public })
         .eq("id", selectedDocument.id)
-        .eq("user_id", user.id)
         .select("is_public, public_slug, updated_at")
         .single();
 
@@ -389,11 +387,11 @@ export function DocumentosView() {
           prev.map((doc) =>
             doc.id === selectedDocument.id
               ? {
-                  ...doc,
-                  is_public: data.is_public,
-                  public_slug: data.public_slug,
-                  updated_at: data.updated_at,
-                }
+                ...doc,
+                is_public: data.is_public,
+                public_slug: data.public_slug,
+                updated_at: data.updated_at,
+              }
               : doc
           )
         )
@@ -474,9 +472,8 @@ export function DocumentosView() {
         onDragStart={(event) => handleDocumentDragStart(event, doc.id)}
         onDragEnd={handleDocumentDragEnd}
         onClick={() => selectDocument(doc.id)}
-        className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-left transition-colors ${
-          isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted"
-        } ${draggingDocumentId === doc.id ? "opacity-50" : ""}`}
+        className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-left transition-colors ${isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted"
+          } ${draggingDocumentId === doc.id ? "opacity-50" : ""}`}
       >
         <span className="text-base leading-none">{doc.emoji || "📝"}</span>
         <span className="flex-1 truncate text-sm font-medium">{doc.title || "Sem título"}</span>
@@ -568,6 +565,13 @@ export function DocumentosView() {
     setDragOverFolderId(null);
   };
 
+  const toggleFolderExpanded = (folderId: string) => {
+    setExpandedFolders((prev) => ({
+      ...prev,
+      [folderId]: !prev[folderId],
+    }));
+  };
+
   if (loading) {
     return <div className="py-12 text-center text-muted-foreground">Carregando documentos...</div>;
   }
@@ -628,9 +632,8 @@ export function DocumentosView() {
             )}
 
             <div
-              className={`space-y-1 rounded-md p-1 transition-colors ${
-                dragOverFolderId === "root" ? "bg-primary/10" : ""
-              }`}
+              className={`space-y-1 rounded-md p-1 transition-colors ${dragOverFolderId === "root" ? "bg-primary/10" : ""
+                }`}
               onDragOver={(event) => handleFolderDragOver(event, "root")}
               onDragLeave={() =>
                 setDragOverFolderId((current) => (current === "root" ? null : current))
@@ -653,9 +656,8 @@ export function DocumentosView() {
               return (
                 <div
                   key={folder.id}
-                  className={`space-y-1 rounded-md p-1 transition-colors ${
-                    dragOverFolderId === folder.id ? "bg-primary/10" : ""
-                  }`}
+                  className={`space-y-1 rounded-md p-1 transition-colors ${dragOverFolderId === folder.id ? "bg-primary/10" : ""
+                    }`}
                   onDragOver={(event) => handleFolderDragOver(event, folder.id)}
                   onDragLeave={() =>
                     setDragOverFolderId((current) => (current === folder.id ? null : current))
@@ -663,10 +665,19 @@ export function DocumentosView() {
                   onDrop={(event) => handleFolderDrop(event, folder.id)}
                 >
                   <div className="px-2 pt-1 flex items-center justify-between gap-2">
-                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleFolderExpanded(folder.id)}
+                      className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      {expandedFolders[folder.id] === false ? (
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      )}
                       <Folder className="h-3.5 w-3.5" />
                       {folder.name}
-                    </div>
+                    </button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -677,10 +688,14 @@ export function DocumentosView() {
                     </Button>
                   </div>
 
-                  {folderDocs.length > 0 ? (
-                    folderDocs.map(renderDocumentRow)
-                  ) : (
-                    <p className="px-2 py-1 text-xs text-muted-foreground">Pasta vazia</p>
+                  {expandedFolders[folder.id] !== false && (
+                    <>
+                      {folderDocs.length > 0 ? (
+                        folderDocs.map(renderDocumentRow)
+                      ) : (
+                        <p className="px-2 py-1 text-xs text-muted-foreground">Pasta vazia</p>
+                      )}
+                    </>
                   )}
                 </div>
               );
