@@ -54,6 +54,16 @@ export default function Tarefas() {
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+    const [colaboradores, setColaboradores] = useState<{ nome: string }[]>([]);
+
+    React.useEffect(() => {
+        supabase.from("colaboradores")
+            .select("nome")
+            .then(({ data }) => {
+                if (data) setColaboradores(data);
+            });
+    }, []);
+
     // Prepare payload dynamically for useTasks to route "Minhas" cleanly
     const appliedFilters = { ...filters };
     if (activeMainTab === "minhas") {
@@ -74,8 +84,16 @@ export default function Tarefas() {
         if (filters.date === "semana") preset = "week";
         if (filters.date === "mes") preset = "month";
         if (filters.date === "atrasadas") preset = "overdue";
+        if (filters.date !== "all" && filters.date !== "hoje" && filters.date !== "semana" && filters.date !== "mes" && filters.date !== "atrasadas") {
+            preset = "custom";
+        }
 
-        return rawTasks.filter(task => isInDateRange(task.due_date, preset, task.completed));
+        return rawTasks.filter(task => {
+            if (preset === "custom") {
+                return isInDateRange(task.due_date, preset, task.completed, new Date(`${filters.date}T12:00:00`), new Date(`${filters.date}T12:00:00`));
+            }
+            return isInDateRange(task.due_date, preset, task.completed);
+        });
     }, [rawTasks, filters.date]);
 
     const pendingCount = tasks.filter(t => !t.completed).length;
@@ -324,6 +342,9 @@ export default function Tarefas() {
                                                         </SelectTrigger>
                                                         <SelectContent>
                                                             <SelectItem value="all">Todos</SelectItem>
+                                                            {colaboradores.map(c => (
+                                                                <SelectItem key={c.nome} value={c.nome}>{c.nome}</SelectItem>
+                                                            ))}
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
@@ -347,7 +368,9 @@ export default function Tarefas() {
 
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-medium text-muted-foreground">Data</label>
-                                                <Select value={filters.date} onValueChange={(v) => setFilters(f => ({ ...f, date: v }))}>
+                                                <Select value={filters.date} onValueChange={(v) => {
+                                                    if (v !== "custom") setFilters(f => ({ ...f, date: v }));
+                                                }}>
                                                     <SelectTrigger className="w-full h-9 bg-background border-border/50 rounded-lg shadow-sm text-sm font-medium">
                                                         <SelectValue placeholder="Datas" />
                                                     </SelectTrigger>
@@ -356,6 +379,31 @@ export default function Tarefas() {
                                                         <SelectItem value="hoje">Hoje</SelectItem>
                                                         <SelectItem value="semana">Esta semana</SelectItem>
                                                         <SelectItem value="mes">Este mês</SelectItem>
+                                                        <div className="px-2 py-1 flex items-center gap-2 border-t mt-1">
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <Button variant="outline" className="w-full justify-start text-left font-normal h-8 px-2 text-xs">
+                                                                        <CalendarIcon className="mr-2 h-3 w-3" />
+                                                                        <span>Data Personalizada</span>
+                                                                    </Button>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-auto p-0" align="start">
+                                                                    <Calendar
+                                                                        mode="single"
+                                                                        selected={filters.date !== "all" && filters.date !== "hoje" && filters.date !== "semana" && filters.date !== "mes" ? new Date(`${filters.date}T12:00:00`) : undefined}
+                                                                        onSelect={(date) => {
+                                                                            if (date) {
+                                                                                setFilters(f => ({ ...f, date: date.toISOString().split('T')[0] }));
+                                                                            }
+                                                                        }}
+                                                                        initialFocus
+                                                                    />
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </div>
+                                                        {filters.date !== "all" && filters.date !== "hoje" && filters.date !== "semana" && filters.date !== "mes" && (
+                                                            <SelectItem value={filters.date}>{new Date(`${filters.date}T12:00:00`).toLocaleDateString('pt-BR')}</SelectItem>
+                                                        )}
                                                     </SelectContent>
                                                 </Select>
                                             </div>

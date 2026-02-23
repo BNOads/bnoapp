@@ -101,15 +101,15 @@ export function TodaysTasks() {
         updateTask({ id: taskId, updates: { [field]: value } });
     };
 
-    // Calculate metrics
-    const totalTasks = rawTasks.length;
-    const completedTasksNum = rawTasks.filter(t => t.completed).length;
-    const progress = totalTasks > 0 ? Math.round((completedTasksNum / totalTasks) * 100) : 0;
-
     const overdueTasks = rawTasks.filter(t => !t.completed && t.due_date && isOverdue(t.due_date, false));
     const todayCompletedTasks = rawTasks.filter(t => t.completed && t.completed_at && isToday(t.completed_at));
     const upcomingTasks = rawTasks.filter(t => !t.completed && t.due_date && isToday(t.due_date));
     const futureTasks = rawTasks.filter(t => !t.completed && (!t.due_date || t.due_date > format(new Date(), 'yyyy-MM-dd')));
+
+    // Calculate metrics (focusing only on today's workload and overdue tasks)
+    const totalTasks = overdueTasks.length + upcomingTasks.length + todayCompletedTasks.length;
+    const completedTasksNum = todayCompletedTasks.length;
+    const progress = totalTasks > 0 ? Math.round((completedTasksNum / totalTasks) * 100) : 0;
 
     const renderTaskItem = (task: any) => {
         const assigneeColab = task.assignee ? colaboradores.find(c => c.nome === task.assignee) : null;

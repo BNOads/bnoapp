@@ -329,9 +329,9 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                                     const newAssignee = val === "unassigned" ? null : val;
                                                                     if (newAssignee) {
                                                                         const colab = colaboradores.find(c => c.nome === newAssignee);
-                                                                        updateTask({ id: task.id, assignee: newAssignee, assigned_to_id: colab?.user_id || undefined });
+                                                                        updateTask({ id: task.id, updates: { assignee: newAssignee, assigned_to_id: colab?.user_id || undefined } });
                                                                     } else {
-                                                                        updateTask({ id: task.id, assignee: null, assigned_to_id: null });
+                                                                        updateTask({ id: task.id, updates: { assignee: null, assigned_to_id: null } });
                                                                     }
                                                                 }}
                                                             >
@@ -370,7 +370,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                         <div className="col-span-3 sm:col-span-1 hidden sm:flex justify-center" onClick={e => e.stopPropagation()}>
                                                             <Select
                                                                 value={task.priority || "media"}
-                                                                onValueChange={(val) => updateTask({ id: task.id, priority: val as TaskPriority })}
+                                                                onValueChange={(val) => updateTask({ id: task.id, updates: { priority: val as TaskPriority } })}
                                                             >
                                                                 <SelectTrigger className={`h-[22px] px-2 border-0 shadow-sm rounded-full text-[10px] font-medium justify-center focus:ring-0 ${task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 text-white' : task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-transparent border border-muted hover:bg-muted text-foreground'}`}>
                                                                     <SelectValue>
@@ -397,7 +397,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                                         mode="single"
                                                                         selected={task.due_date ? new Date(`${task.due_date}T12:00:00`) : undefined}
                                                                         onSelect={(date) => {
-                                                                            updateTask({ id: task.id, due_date: date ? format(date, "yyyy-MM-dd") : null });
+                                                                            updateTask({ id: task.id, updates: { due_date: date ? format(date, "yyyy-MM-dd") : null } });
                                                                         }}
                                                                         initialFocus
                                                                     />
