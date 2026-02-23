@@ -10,8 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { WeekPicker } from "@/components/ui/WeekPicker";
-import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus, Pencil, Trash2, Copy, MoreHorizontal, Wand2 } from "lucide-react";
+import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus, Pencil, Trash2, Copy, MoreHorizontal, Wand2, Trash, AlertCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, getWeek, getYear, parse } from "date-fns";
@@ -51,6 +53,8 @@ export function MensagensSemanaisView() {
   const [modalEditarMensagem, setModalEditarMensagem] = useState(false);
   const [mensagemEditando, setMensagemEditando] = useState<MensagemSemanal | null>(null);
   const [mensagemExcluindo, setMensagemExcluindo] = useState<MensagemSemanal | null>(null);
+  const [mensagensSelecionadasIds, setMensagensSelecionadasIds] = useState<string[]>([]);
+  const [clientesPendentesNomes, setClientesPendentesNomes] = useState<string[]>([]);
 
   // Filtros
   const TIMEZONE = "America/Sao_Paulo";
@@ -156,6 +160,7 @@ export function MensagensSemanaisView() {
       setCurrentUser(user);
 
       // Initialize week from URL params or current week
+      // Configurar semana inicial da URL ou a atual
       const urlParams = new URLSearchParams(window.location.search);
       const weekStartParam = urlParams.get('week_start');
       if (weekStartParam) {
@@ -186,9 +191,72 @@ export function MensagensSemanaisView() {
     };
     inicializar();
   }, []);
+
+  useEffect(() => {
+    const buscarPendentes = async () => {
+      if (!filtroWeekStart) return;
+      try {
+        let queryClientes = supabase.from("clientes")
+          .select("id, nome")
+          .eq("ativo", true)
+          .eq("is_active", true)
+          .is("deleted_at", null);
+
+        if (filtroGestor && filtroGestor !== "all") {
+          const gestorColab = colaboradores.find(c => c.id === filtroGestor);
+          if (gestorColab?.user_id) {
+            queryClientes = queryClientes.eq("primary_gestor_user_id", gestorColab.user_id);
+          }
+        }
+
+        const { data: clientesDoFiltro } = await queryClientes;
+        if (!clientesDoFiltro || clientesDoFiltro.length === 0) {
+          setClientesPendentesNomes([]);
+          return;
+        }
+
+        const weekStartDate = parse(filtroWeekStart, "yyyy-MM-dd", new Date());
+        const weekEndDate = endOfWeek(weekStartDate, { weekStartsOn: 1 });
+        const weekEnd = format(weekEndDate, "yyyy-MM-dd");
+
+        let queryMensagens = supabase.from("mensagens_semanais")
+          .select("cliente_id, enviado")
+          .gte("semana_referencia", filtroWeekStart)
+          .lte("semana_referencia", weekEnd);
+        // Nao limito por enviado = true AQUI, pego todos. 
+
+        if (filtroGestor && filtroGestor !== "all") {
+          const gestorColab = colaboradores.find(c => c.id === filtroGestor);
+          if (gestorColab) {
+            queryMensagens = queryMensagens.eq("gestor_id", gestorColab.id);
+          }
+        }
+
+        const { data: mensagensNaSemana } = await queryMensagens;
+        const clientesComMensagem = new Set(
+          mensagensNaSemana?.map(m => m.cliente_id) || []
+        );
+
+        const nomesPendentes = clientesDoFiltro
+          .filter(c => !clientesComMensagem.has(c.id))
+          .map(c => c.nome);
+
+        setClientesPendentesNomes(nomesPendentes);
+      } catch (err) {
+        console.error("Erro ao buscar clientes pendentes", err);
+      }
+    };
+
+    // Roda quando muda semana, gestor, carrega as mensagens ou os colaboradores
+    if (colaboradores.length > 0) {
+      buscarPendentes();
+    }
+  }, [filtroWeekStart, filtroGestor, mensagens, colaboradores]);
+
   useEffect(() => {
     carregarMensagens();
   }, [filtroWeekStart, filtroGestor, filtroCliente, filtroEnviado, ordenarPor, ordenarDirecao]);
+
   const carregarDados = async () => {
     try {
       // Carregar clientes
@@ -620,6 +688,141 @@ ${mensagem.mensagem}`;
   const podeEditar = (mensagem: MensagemSemanal) => {
     return isAdmin || mensagem.created_by === currentUser?.data?.user?.id;
   };
+
+  const toggleSelectMensagem = (id: string) => {
+    setMensagensSelecionadasIds(prev =>
+      prev.includes(id) ? prev.filter(mId => mId !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (mensagensSelecionadasIds.length === mensagens.length) {
+      setMensagensSelecionadasIds([]);
+    } else {
+      setMensagensSelecionadasIds(mensagens.map(m => m.id));
+    }
+  };
+
+  const acaoMassaMarcarEnvio = async (enviado: boolean) => {
+    if (!mensagensSelecionadasIds.length) return;
+    try {
+      const agora = new Date().toISOString();
+      const payload: any = {
+        enviado: enviado,
+        updated_at: agora
+      };
+
+      if (enviado) {
+        payload.enviado_cs_em = agora;
+        payload.enviado_por = currentUser?.data?.user?.id;
+      }
+
+      const { error } = await supabase
+        .from("mensagens_semanais")
+        .update(payload)
+        .in("id", mensagensSelecionadasIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: `${mensagensSelecionadasIds.length} mensagens atualizadas com sucesso!`
+      });
+      setMensagensSelecionadasIds([]);
+      carregarMensagens();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao atualizar mensagens em massa",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const acaoMassaGerarIA = async () => {
+    if (!mensagensSelecionadasIds.length) return;
+    setLoadingAi(true);
+    let successCount = 0;
+
+    try {
+      // Create a copy of the selected IDs to process them in parallel
+      const promessasIA = mensagensSelecionadasIds.map(async (msgId) => {
+        const mensagemOriginal = mensagens.find(m => m.id === msgId);
+        if (!mensagemOriginal) return null;
+
+        const { data, error } = await supabase.functions.invoke('formatar-mensagem-semanal', {
+          body: {
+            cliente_nome: mensagemOriginal.cliente_nome,
+            rascunho: mensagemOriginal.mensagem
+          },
+        });
+
+        if (error) throw error;
+
+        if (data?.mensagemFormato) {
+          const { error: updateError } = await supabase
+            .from("mensagens_semanais")
+            .update({ mensagem_ia: data.mensagemFormato })
+            .eq("id", msgId);
+
+          if (updateError) throw updateError;
+          return true;
+        }
+        return false;
+      });
+
+      const resultados = await Promise.allSettled(promessasIA);
+      successCount = resultados.filter(r => r.status === 'fulfilled' && r.value === true).length;
+
+      if (successCount > 0) {
+        toast({
+          title: "Inteligência Artificial",
+          description: `${successCount} mensagens geradas pela IA com sucesso!`
+        });
+        setMensagensSelecionadasIds([]);
+        carregarMensagens();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao formatar",
+        description: "Ocorreu um erro na geração em massa.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingAi(false);
+    }
+  };
+
+  const acaoMassaExcluir = async () => {
+    if (!mensagensSelecionadasIds.length) return;
+    if (!window.confirm(`Tem certeza que deseja excluir as ${mensagensSelecionadasIds.length} mensagens selecionadas?`)) return;
+
+    setExcluindoMensagem(true);
+    try {
+      const { error } = await supabase
+        .from("mensagens_semanais")
+        .delete()
+        .in("id", mensagensSelecionadasIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: `${mensagensSelecionadasIds.length} mensagens excluídas com sucesso!`
+      });
+      setMensagensSelecionadasIds([]);
+      carregarMensagens();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao excluir mensagens",
+        variant: "destructive"
+      });
+    } finally {
+      setExcluindoMensagem(false);
+    }
+  };
+
   const precisaCompactar = (texto: string) => {
     return texto.length > 600;
   };
@@ -744,139 +947,201 @@ ${mensagem.mensagem}`;
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? <div className="text-center py-8">Carregando mensagens...</div> : mensagens.length === 0 ? <div className="text-center py-8 text-muted-foreground">
-            Nenhuma mensagem encontrada para os filtros selecionados
-          </div> : <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("cliente_nome")}>
-                    <div className="flex items-center gap-2">
-                      Cliente
-                      <IconeOrdenacao coluna="cliente_nome" />
-                    </div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("gestor_nome")}>
-                    <div className="flex items-center gap-2">
-                      Gestor
-                      <IconeOrdenacao coluna="gestor_nome" />
-                    </div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("semana_referencia")}>
-                    <div className="flex items-center gap-2">
-                      Semana
-                      <IconeOrdenacao coluna="semana_referencia" />
-                    </div>
-                  </TableHead>
-                  <TableHead>Mensagem</TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("created_at")}>
-                    <div className="flex items-center gap-2">
-                      Histórico
-                      <IconeOrdenacao coluna="created_at" />
-                    </div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("enviado")}>
-                    <div className="flex items-center gap-2">
-                      Status
-                      <IconeOrdenacao coluna="enviado" />
-                    </div>
-                  </TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mensagens.map(mensagem => <TableRow key={mensagem.id}>
-                  <TableCell className="font-medium">
-                    {mensagem.cliente_nome}
-                  </TableCell>
-                  <TableCell>{mensagem.gestor_nome}</TableCell>
-                  <TableCell>
-                    {format(new Date(mensagem.semana_referencia), "dd/MM/yyyy", {
-                      locale: ptBR
-                    })}
-                  </TableCell>
-                  <TableCell className="max-w-md">
-                    <div className="truncate">
-                      {previewMensagem(mensagem.mensagem)}
-                    </div>
-                  </TableCell>
+          {loading ? (
+            <div className="text-center py-8">Carregando mensagens...</div>
+          ) : mensagens.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhuma mensagem encontrada para os filtros selecionados
+            </div>
+          ) : (
+            <div className="space-y-4">
 
-                  <TableCell>
-                    <div className="text-xs text-muted-foreground">
-                      {mensagem.enviado_gestor_em && <div>✅ Gestor: {format(new Date(mensagem.enviado_gestor_em), "dd/MM HH:mm", {
-                        locale: ptBR
-                      })}</div>}
-                      {mensagem.enviado_cs_em && <div>📤 CS: {format(new Date(mensagem.enviado_cs_em), "dd/MM HH:mm", {
-                        locale: ptBR
-                      })}</div>}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={mensagem.enviado ? "default" : "destructive"} className={mensagem.enviado ? "bg-green-100 text-green-800" : ""}>
-                      {mensagem.enviado ? "✅ Enviado" : "❌ Pendente"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setMensagemSelecionada(mensagem)} title="Visualizar mensagem">
-                        <Eye className="h-4 w-4" />
-                      </Button>
+              {clientesPendentesNomes.length > 0 && (
+                <Alert variant="destructive" className="bg-red-50 text-red-900 border-red-200">
+                  <AlertCircle className="h-4 w-4 stroke-red-600" />
+                  <AlertTitle className="text-red-800">Clientes com pendência de envio</AlertTitle>
+                  <AlertDescription className="text-red-700/90 text-sm mt-1">
+                    Existem {clientesPendentesNomes.length} clientes aguardando envio definitivo para esta semana:
+                    <span className="font-semibold block mt-1">
+                      {clientesPendentesNomes.join(", ")}
+                    </span>
+                  </AlertDescription>
+                </Alert>
+              )}
 
-                      {/* Desktop: Botões lado a lado */}
-                      <div className="hidden md:flex items-center gap-2">
-                        {podeEditar(mensagem) && <>
+              {mensagensSelecionadasIds.length > 0 && (
+                <div className="bg-muted p-3 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border">
+                  <div className="text-sm font-medium">
+                    {mensagensSelecionadasIds.length} mensagem(s) selecionada(s)
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setMensagensSelecionadasIds([])} className="text-muted-foreground mr-2">
+                      Cancelar
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => acaoMassaMarcarEnvio(true)} className="text-green-600 hover:text-green-700 bg-green-50/50">
+                      <Check className="h-4 w-4 mr-2" />
+                      Enviar
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => acaoMassaMarcarEnvio(false)} className="text-red-600 hover:text-red-700 bg-red-50/50">
+                      <X className="h-4 w-4 mr-2" />
+                      Pendentes
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={acaoMassaGerarIA} disabled={loadingAi} className="text-blue-600 hover:text-blue-700 bg-blue-50/50">
+                      <Wand2 className={`h-4 w-4 mr-2 ${loadingAi ? 'animate-spin' : ''}`} />
+                      Gerar IA
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={acaoMassaExcluir}>
+                      <Trash className="h-4 w-4 mr-2" />
+                      Excluir
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12 text-center">
+                        <Checkbox
+                          checked={mensagens.length > 0 && mensagensSelecionadasIds.length === mensagens.length}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Selecionar todas as mensagens"
+                        />
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("cliente_nome")}>
+                        <div className="flex items-center gap-2">
+                          Cliente
+                          <IconeOrdenacao coluna="cliente_nome" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("gestor_nome")}>
+                        <div className="flex items-center gap-2">
+                          Gestor
+                          <IconeOrdenacao coluna="gestor_nome" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("semana_referencia")}>
+                        <div className="flex items-center gap-2">
+                          Semana
+                          <IconeOrdenacao coluna="semana_referencia" />
+                        </div>
+                      </TableHead>
+                      <TableHead>Mensagem</TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("created_at")}>
+                        <div className="flex items-center gap-2">
+                          Histórico
+                          <IconeOrdenacao coluna="created_at" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("enviado")}>
+                        <div className="flex items-center gap-2">
+                          Status
+                          <IconeOrdenacao coluna="enviado" />
+                        </div>
+                      </TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {mensagens.map(mensagem => <TableRow key={mensagem.id} className={mensagensSelecionadasIds.includes(mensagem.id) ? "bg-muted/50" : ""}>
+                      <TableCell className="text-center">
+                        <Checkbox
+                          checked={mensagensSelecionadasIds.includes(mensagem.id)}
+                          onCheckedChange={() => toggleSelectMensagem(mensagem.id)}
+                          aria-label={`Selecionar mensagem de ${mensagem.cliente_nome}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {mensagem.cliente_nome}
+                      </TableCell>
+                      <TableCell>{mensagem.gestor_nome}</TableCell>
+                      <TableCell>
+                        {format(new Date(mensagem.semana_referencia), "dd/MM/yyyy", {
+                          locale: ptBR
+                        })}
+                      </TableCell>
+                      <TableCell className="max-w-md">
+                        <div className="truncate">
+                          {previewMensagem(mensagem.mensagem)}
+                        </div>
+                      </TableCell>
 
+                      <TableCell>
+                        <div className="text-xs text-muted-foreground">
+                          {mensagem.enviado_gestor_em && <div>✅ Gestor: {format(new Date(mensagem.enviado_gestor_em), "dd/MM HH:mm", {
+                            locale: ptBR
+                          })}</div>}
+                          {mensagem.enviado_cs_em && <div>📤 CS: {format(new Date(mensagem.enviado_cs_em), "dd/MM HH:mm", {
+                            locale: ptBR
+                          })}</div>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={mensagem.enviado ? "default" : "destructive"} className={mensagem.enviado ? "bg-green-100 text-green-800" : ""}>
+                          {mensagem.enviado ? "✅ Enviado" : "❌ Pendente"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setMensagemSelecionada(mensagem)} title="Visualizar mensagem">
+                            <Eye className="h-4 w-4" />
+                          </Button>
 
-
-                        </>}
-                        {!podeEditar(mensagem)}
-                      </div>
-
-                      {/* Mobile: Menu dropdown */}
-                      <div className="md:hidden">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" title="Mais ações">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          {/* Desktop: Botões lado a lado */}
+                          <div className="hidden md:flex items-center gap-2">
                             {podeEditar(mensagem) && <>
-                              <DropdownMenuItem onClick={() => iniciarEdicao(mensagem)}>
-                                <Pencil className="h-4 w-4 mr-2" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => copiarMensagem(mensagem)}>
-                                <Copy className="h-4 w-4 mr-2" />
-                                Copiar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setMensagemExcluindo(mensagem)} className="text-red-600">
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Excluir
-                              </DropdownMenuItem>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => gerarVersaoIABackground(mensagem.id, mensagem.mensagem, mensagem.cliente_id)}
+                                title={mensagem.mensagem_ia ? "Regerar IA" : "Gerar com IA"}
+                                disabled={loadingAi}
+                                className={mensagem.mensagem_ia ? "text-blue-600 border-blue-200 hover:bg-blue-50" : ""}
+                              >
+                                <Wand2 className={`h-4 w-4 ${loadingAi ? 'animate-spin' : ''}`} />
+                              </Button>
                             </>}
-                            {!podeEditar(mensagem) && <DropdownMenuItem onClick={() => copiarMensagem(mensagem)}>
-                              <Copy className="h-4 w-4 mr-2" />
-                              Copiar
-                            </DropdownMenuItem>}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                          </div>
 
-                      {(isCS || isAdmin) && <div className="flex items-center gap-1">
-                        <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagem.id, true)} disabled={mensagem.enviado} className="text-green-600 hover:text-green-700" title="Marcar como enviado">
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagem.id, false)} disabled={!mensagem.enviado} className="text-red-600 hover:text-red-700" title="Marcar como pendente">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>}
-                    </div>
-                  </TableCell>
-                </TableRow>)}
-              </TableBody>
-            </Table>
-          </div>}
+                          {/* Mobile: Menu dropdown */}
+                          <div className="md:hidden">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" title="Mais ações">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => copiarMensagem(mensagem)}>
+                                  <Copy className="h-4 w-4 mr-2" />
+                                  Copiar
+                                </DropdownMenuItem>
+                                {podeEditar(mensagem) && <>
+                                  <DropdownMenuItem onClick={() => gerarVersaoIABackground(mensagem.id, mensagem.mensagem, mensagem.cliente_id)} disabled={loadingAi}>
+                                    <Wand2 className={`h-4 w-4 mr-2 ${loadingAi ? 'animate-spin' : ''}`} />
+                                    {mensagem.mensagem_ia ? "Regerar IA" : "Gerar Versão IA"}
+                                  </DropdownMenuItem>
+                                </>}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          {(isCS || isAdmin) && <div className="flex items-center gap-1">
+                            <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagem.id, true)} disabled={mensagem.enviado} className="text-green-600 hover:text-green-700" title="Marcar como enviado">
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagem.id, false)} disabled={!mensagem.enviado} className="text-red-600 hover:text-red-700" title="Marcar como pendente">
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>}
+                        </div>
+                      </TableCell>
+                    </TableRow>)}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </TabsContent>

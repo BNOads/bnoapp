@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,20 +8,30 @@ import { toZonedTime } from "date-fns-tz";
 import { startOfWeek, endOfWeek, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Copy, CheckCircle2, MessageSquare, Video, Rocket, Calendar as CalendarIcon, Users, Eye, Check, X, Target } from "lucide-react";
+import { Loader2, Copy, MessageSquare, Calendar as CalendarIcon, Users, Eye, Check, X, Trash2, Wand2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function ResumosSistemaTab() {
     const [clientes, setClientes] = useState<any[]>([]);
     const [clienteSelecionado, setClienteSelecionado] = useState<string>("all");
     const [weekStart, setWeekStart] = useState<string>("");
     const [loading, setLoading] = useState(false);
+    const [loadingAi, setLoadingAi] = useState(false);
     const [resumosData, setResumosData] = useState<any[] | null>(null);
+    const [selectedMensagens, setSelectedMensagens] = useState<string[]>([]);
     const { toast } = useToast();
 
     // Modal state for viewing a message
     const [mensagemSelecionada, setMensagemSelecionada] = useState<any>(null);
+
+    // Sorting state
+    const [ordenacao, setOrdenacao] = useState<{ coluna: string; direcao: 'asc' | 'desc' }>({
+        coluna: 'cliente_nome',
+        direcao: 'asc'
+    });
 
     const TIMEZONE = "America/Sao_Paulo";
 
@@ -40,6 +50,54 @@ export function ResumosSistemaTab() {
         setWeekStart(format(start, "yyyy-MM-dd"));
     }, []);
 
+    const previewMensagem = (texto: string | null | undefined) => {
+        if (!texto) return "-";
+        return texto.length > 70 ? texto.substring(0, 70) + "..." : texto;
+    };
+
+    const gerarTextoVazioCheck = (resumoData: any) => {
+        return resumoData.tarefas?.length > 0 || resumoData.lancamentos?.length > 0 || resumoData.reunioes?.length > 0 || resumoData.gravacoes?.length > 0 || resumoData.diario?.length > 0 || resumoData.orcamentos?.length > 0 || (resumoData.mensagens && resumoData.mensagens.length > 0);
+    }
+
+    const gerarTextoWhatsapp = (resumoData: any) => {
+        const { cliente, mensagens, diario, reunioes, gravacoes, lancamentos, orcamentos, tarefas } = resumoData;
+
+        let texto = `*Resumo Semanal - ${cliente.nome}* 📊\n\n`;
+
+        if (tarefas && tarefas.length > 0) {
+            texto += `*✅ Tarefas Concluídas:*\n`;
+            tarefas.forEach((t: any) => texto += `• ${t.title}\n`);
+            texto += `\n`;
+        }
+
+        if (lancamentos && lancamentos.length > 0) {
+            texto += `*🚀 Lançamentos Ativos:*\n`;
+            lancamentos.forEach((l: any) => texto += `• ${l.nome_lancamento} (${l.status_lancamento?.replace(/_/g, " ")})\n`);
+            texto += `\n`;
+        }
+
+        if (orcamentos && orcamentos.length > 0) {
+            texto += `*🎯 Funis Ativos:*\n`;
+            orcamentos.forEach((o: any) => texto += `• ${o.nome_funil} ${o.etapa_funil ? `(${o.etapa_funil})` : ''}\n`);
+            texto += `\n`;
+        }
+
+        if (reunioes && reunioes.length > 0 || gravacoes && gravacoes.length > 0) {
+            texto += `*🎥 Reuniões & Gravações:*\n`;
+            (reunioes || []).forEach((r: any) => texto += `• ${r.titulo}\n`);
+            (gravacoes || []).forEach((g: any) => texto += `• ${g.titulo}\n`);
+            texto += `\n`;
+        }
+
+        if (diario && diario.length > 0) {
+            texto += `*📝 Atualizações do Painel:*\n`;
+            diario.forEach((d: any) => texto += `• ${d.texto}\n`);
+            texto += `\n`;
+        }
+
+        return texto.trim();
+    };
+
     const carregarDados = async (gerarParaTodos: boolean = false) => {
         if (!gerarParaTodos && clienteSelecionado === "all") {
             toast({
@@ -54,6 +112,7 @@ export function ResumosSistemaTab() {
 
         setLoading(true);
         setResumosData(null);
+        setSelectedMensagens([]);
 
         try {
             const clientesParaGerar = gerarParaTodos
@@ -69,16 +128,12 @@ export function ResumosSistemaTab() {
             const startStr = start.toISOString();
             const endStr = endDate.toISOString();
 
-            // 1. Mensagens Semanais
-            let qMensagens = supabase.from("mensagens_semanais").select("*").gte("created_at", startStr).lte("created_at", endStr);
-            // 2. Diário de Bordo
+            // Queries
+            let qMensagens = supabase.from("mensagens_semanais").select("*").gte("semana_referencia", weekStart).lte("semana_referencia", weekStart);
             let qDiario = supabase.from("diario_bordo").select("texto, created_at, autor_id, cliente_id").gte("created_at", startStr).lte("created_at", endStr).order("created_at", { ascending: true });
-            // 3. Reuniões e Gravações
             let qReunioes = supabase.from("reunioes").select("titulo, descricao, data, cliente_id").gte("data", startStr).lte("data", endStr);
             let qGravacoes = supabase.from("gravacoes").select("titulo, created_at, cliente_id").gte("created_at", startStr).lte("created_at", endStr);
-            // 4. Lançamentos Ativos (não pode ser finalizado ou cancelado)
             let qLancamentos = supabase.from("lancamentos").select("nome_lancamento, status_lancamento, cliente_id").eq("ativo", true).not("status_lancamento", "in", '("finalizado","cancelado")');
-            // 5. Orçamentos / Funis ativos
             let qOrcamentos = supabase.from("orcamentos_funil").select("nome_funil, etapa_funil, cliente_id, ativo").eq("ativo", true);
 
             if (!gerarParaTodos) {
@@ -95,7 +150,6 @@ export function ResumosSistemaTab() {
                 qMensagens, qDiario, qReunioes, qGravacoes, qLancamentos, qOrcamentos
             ]);
 
-            // 6. Tarefas concluidas na semana
             const { data: tarefas } = await supabase
                 .from("tasks")
                 .select("title, completed_at, description")
@@ -103,7 +157,6 @@ export function ResumosSistemaTab() {
                 .gte("completed_at", startStr)
                 .lte("completed_at", endStr);
 
-            // Formatar Resumos
             const formataResumos = clientesParaGerar.map(cliente => {
                 const m = (resMensagens.data || []).filter(x => x.cliente_id === cliente.id);
                 const d = (resDiario.data || []).filter(x => x.cliente_id === cliente.id);
@@ -136,7 +189,44 @@ export function ResumosSistemaTab() {
                 };
             });
 
-            setResumosData(formataResumos);
+            // Salvar mensagens_semanais automaticamente para resumos válidos sem mensagens ainda nesta semana
+            const resumosValidosSemMensagem = formataResumos.filter(r => gerarTextoVazioCheck(r) && r.mensagens.length === 0);
+
+            if (resumosValidosSemMensagem.length > 0) {
+                const { data: userData } = await supabase.auth.getUser();
+                const userId = userData.user?.id;
+                const agora = new Date().toISOString();
+
+                const msgsToInsert = resumosValidosSemMensagem.map(r => ({
+                    cliente_id: r.cliente.id,
+                    semana_referencia: weekStart,
+                    mensagem: gerarTextoWhatsapp(r),
+                    enviado: false,
+                    created_by: userId,
+                    historico_envios: [{
+                        tipo: 'sistema_gerado',
+                        data: agora,
+                        user_id: userId,
+                        detalhes: 'Resumo semanal salvo automaticamente no momento da geração.'
+                    }]
+                }));
+
+                const { data: insertedMsgs, error: insertError } = await supabase
+                    .from("mensagens_semanais")
+                    .insert(msgsToInsert)
+                    .select();
+
+                if (!insertError && insertedMsgs) {
+                    insertedMsgs.forEach(msg => {
+                        const resumoTarget = formataResumos.find(r => r.cliente.id === msg.cliente_id);
+                        if (resumoTarget) resumoTarget.mensagens = [msg];
+                    });
+                } else {
+                    console.error("Erro inserindo mensagens em lote:", insertError);
+                }
+            }
+
+            setResumosData([...formataResumos]);
 
         } catch (error: any) {
             console.error(error);
@@ -153,26 +243,93 @@ export function ResumosSistemaTab() {
     const handleGerarResumo = () => carregarDados(false);
     const handleGerarTodos = () => carregarDados(true);
 
-    const marcarEnvio = async (mensagemId: string, enviado: boolean) => {
+    const gerarVersaoIA = async (resumoData: any) => {
+        const msgDb = resumoData.mensagens.length > 0 ? resumoData.mensagens[0] : null;
+
+        if (!msgDb) {
+            toast({ title: "Erro", description: "O resumo ainda não está salvo no banco de dados.", variant: "destructive" });
+            return;
+        }
+
+        setLoadingAi(true);
+        const toastId = toast({
+            title: "Gerando com IA...",
+            description: "Criando uma mensagem atraente baseada nas atividades do sistema.",
+            duration: 10000,
+        }).id;
+
+        try {
+            const textoContextoRaw = msgDb.mensagem || gerarTextoWhatsapp(resumoData);
+
+            const { data, error } = await supabase.functions.invoke('formatar-mensagem-semanal', {
+                body: {
+                    mensagemId: msgDb.id,
+                    contextoOriginal: textoContextoRaw,
+                    clienteId: resumoData.cliente.id
+                }
+            });
+
+            if (error) throw error;
+
+            toast({
+                title: "Sucesso!",
+                description: "Versão com IA gerada.",
+            });
+
+            // Atualiza localmente a interface
+            const mensagemAtualizada = { ...msgDb, mensagem_ia: data.mensagemRevisada };
+
+            if (resumosData) {
+                const newData = resumosData.map(resumo => {
+                    if (resumo.cliente.id === resumoData.cliente.id) {
+                        return { ...resumo, mensagens: [mensagemAtualizada] };
+                    }
+                    return resumo;
+                });
+                setResumosData(newData);
+            }
+
+            if (mensagemSelecionada && mensagemSelecionada.cliente.id === resumoData.cliente.id) {
+                setMensagemSelecionada({ ...mensagemSelecionada, mensagens: [mensagemAtualizada] });
+            }
+
+        } catch (error: any) {
+            console.error('Erro ao gerar IA:', error);
+            toast({
+                title: "Erro na geração",
+                description: error.message || "Não foi possível gerar a versão com IA",
+                variant: "destructive"
+            });
+        } finally {
+            setLoadingAi(false);
+        }
+    }
+
+    const marcarEnvio = async (resumoData: any, enviado: boolean) => {
         try {
             const user = await supabase.auth.getUser();
             const agora = new Date().toISOString();
+            const msgDb = resumoData.mensagens.length > 0 ? resumoData.mensagens[0] : null;
 
-            const { data: mensagemAtual } = await supabase.from("mensagens_semanais").select("historico_envios").eq("id", mensagemId).single();
+            if (!msgDb) {
+                toast({ title: "Erro", description: "Mensagem não encontrada no banco de dados.", variant: "destructive" });
+                return;
+            }
+
             const novoHistorico = {
                 tipo: enviado ? 'cs_enviado' : 'cs_marcado_pendente',
                 data: agora,
                 user_id: user.data.user?.id,
-                detalhes: enviado ? 'Mensagem enviada para o cliente pela CS' : 'Mensagem marcada como pendente pela CS'
+                detalhes: enviado ? 'Resumo semanal marcado como enviado.' : 'Resumo semanal marcado como pendente.'
             };
 
-            const dadosAtualizacao: any = {
+            const dataAtualizacao: any = {
                 enviado,
                 enviado_cs_em: enviado ? agora : null,
-                historico_envios: mensagemAtual?.historico_envios ? [...mensagemAtual.historico_envios, novoHistorico] : [novoHistorico]
+                historico_envios: [...(msgDb.historico_envios || []), novoHistorico]
             };
 
-            const { error } = await supabase.from("mensagens_semanais").update(dadosAtualizacao).eq("id", mensagemId);
+            const { error, data } = await supabase.from("mensagens_semanais").update(dataAtualizacao).eq("id", msgDb.id).select().single();
             if (error) throw error;
 
             toast({
@@ -180,86 +337,117 @@ export function ResumosSistemaTab() {
                 description: `Mensagem marcada como ${enviado ? 'enviada' : 'pendente'}.`
             });
 
-            // Atualiza os dados localmente
             if (resumosData) {
                 const newData = resumosData.map(resumo => {
-                    const idx = resumo.mensagens.findIndex((m: any) => m.id === mensagemId);
-                    if (idx > -1) {
-                        const newMsgs = [...resumo.mensagens];
-                        newMsgs[idx] = { ...newMsgs[idx], ...dadosAtualizacao };
-                        return { ...resumo, mensagens: newMsgs };
+                    if (resumo.cliente.id === resumoData.cliente.id) {
+                        return { ...resumo, mensagens: [data] };
                     }
                     return resumo;
                 });
                 setResumosData(newData);
             }
-            if (mensagemSelecionada && mensagemSelecionada.id === mensagemId) {
-                setMensagemSelecionada({ ...mensagemSelecionada, ...dadosAtualizacao });
+
+            if (mensagemSelecionada && mensagemSelecionada.cliente.id === resumoData.cliente.id) {
+                setMensagemSelecionada({ ...mensagemSelecionada, mensagens: [data] });
             }
 
         } catch (error: any) {
             console.error("Erro ao marcar envio:", error);
-            toast({
-                title: "Erro",
-                description: error.message || "Não foi possível atualizar o status da mensagem.",
-                variant: "destructive"
-            });
+            toast({ title: "Erro", description: "Não foi possível atualizar o status da mensagem.", variant: "destructive" });
         }
     };
 
-    const previewMensagem = (texto: string | null | undefined) => {
-        if (!texto) return "-";
-        return texto.length > 50 ? texto.substring(0, 50) + "..." : texto;
-    };
+    const handleMassApprove = async () => {
+        if (!selectedMensagens.length) return;
+        setLoading(true);
+        try {
+            const user = await supabase.auth.getUser();
+            const agora = new Date().toISOString();
 
-    const gerarTextoVazioCheck = (resumoData: any) => {
-        return resumoData.tarefas.length > 0 || resumoData.lancamentos.length > 0 || resumoData.reunioes.length > 0 || resumoData.gravacoes.length > 0 || resumoData.diario.length > 0 || resumoData.mensagens.length > 0 || resumoData.orcamentos.length > 0;
+            const msgsToUpdate = resumosData?.flatMap(r => r.mensagens).filter(m => selectedMensagens.includes(m.id)) || [];
+
+            for (const msg of msgsToUpdate) {
+                const novoHistorico = {
+                    tipo: 'cs_enviado',
+                    data: agora,
+                    user_id: user.data.user?.id,
+                    detalhes: 'Mensagem aprovada/marcada em massa como enviada pela CS'
+                };
+
+                await supabase.from("mensagens_semanais").update({
+                    enviado: true,
+                    enviado_cs_em: agora,
+                    historico_envios: [...(msg.historico_envios || []), novoHistorico]
+                }).eq("id", msg.id);
+            }
+
+            toast({ title: "Sucesso", description: `${selectedMensagens.length} mensagens marcadas como enviadas.` });
+            setSelectedMensagens([]);
+
+            // Reload local UI softly without full refetch
+            if (resumosData) {
+                const newData = resumosData.map(resumo => {
+                    if (resumo.mensagens.length > 0 && selectedMensagens.includes(resumo.mensagens[0].id)) {
+                        return { ...resumo, mensagens: [{ ...resumo.mensagens[0], enviado: true, enviado_cs_em: agora }] };
+                    }
+                    return resumo;
+                });
+                setResumosData(newData);
+            }
+        } catch (error) {
+            console.error("Erro em massa:", error);
+            toast({ title: "Erro", description: "Falha ao aprovar em massa.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
     }
 
-    const gerarTextoDoResumo = (resumoData: any) => {
-        const { cliente, periodo, mensagens, diario, reunioes, gravacoes, lancamentos, orcamentos, tarefas } = resumoData;
+    const handleMassDelete = async () => {
+        if (!selectedMensagens.length) return;
 
-        let texto = `*Resumo Semanal - ${cliente.nome}*\n`;
-        texto += `*Período:* ${format(periodo.start, "dd/MM")} a ${format(periodo.end, "dd/MM")}\n\n`;
-
-        if (tarefas.length > 0) {
-            texto += `*✅ Tarefas Concluídas:*\n`;
-            tarefas.forEach((t: any) => texto += `- ${t.title}\n`);
-            texto += `\n`;
+        if (!window.confirm(`Você tem certeza que quer excluir ${selectedMensagens.length} resumos salvos? (Eles serão recriados apenas se clicar em Gerar novamente)`)) {
+            return;
         }
 
-        if (lancamentos.length > 0) {
-            texto += `*🚀 Lançamentos Ativos:*\n`;
-            lancamentos.forEach((l: any) => texto += `- ${l.nome_lancamento} (${l.status_lancamento?.replace(/_/g, " ")})\n`);
-            texto += `\n`;
+        setLoading(true);
+        try {
+            await supabase.from("mensagens_semanais").delete().in("id", selectedMensagens);
+            toast({ title: "Sucesso", description: `${selectedMensagens.length} mensagens excluídas.` });
+            setSelectedMensagens([]);
+            carregarDados(resumosData?.length && resumosData.length > 1 ? true : false); // refetch
+        } catch (error) {
+            console.error("Erro excluir em massa:", error);
+            toast({ title: "Erro", description: "Falha ao excluir mensagens em massa.", variant: "destructive" });
+        } finally {
+            setLoading(false);
         }
+    }
 
-        if (orcamentos.length > 0) {
-            texto += `*🎯 Funis Ativos:*\n`;
-            orcamentos.forEach((o: any) => texto += `- ${o.nome_funil}\n`);
-            texto += `\n`;
+    const handleSelectRow = (msgId: string, checked: boolean) => {
+        if (checked) {
+            setSelectedMensagens(prev => [...prev, msgId]);
+        } else {
+            setSelectedMensagens(prev => prev.filter(id => id !== msgId));
         }
+    };
 
-        if (reunioes.length > 0 || gravacoes.length > 0) {
-            texto += `*🎥 Reuniões & Gravações:*\n`;
-            reunioes.forEach((r: any) => texto += `- ${r.titulo}\n`);
-            gravacoes.forEach((g: any) => texto += `- ${g.titulo}\n`);
-            texto += `\n`;
+    const handleSelectAll = (checked: boolean) => {
+        if (!resumosData) return;
+        if (checked) {
+            const allIds = resumosData
+                .filter(gerarTextoVazioCheck)
+                .map(r => r.mensagens?.[0]?.id)
+                .filter(Boolean);
+            setSelectedMensagens(allIds as string[]);
+        } else {
+            setSelectedMensagens([]);
         }
-
-        if (diario.length > 0) {
-            texto += `*📝 Notas do Painel:*\n`;
-            diario.forEach((d: any) => texto += `- ${d.texto}\n`);
-            texto += `\n`;
-        }
-
-        return texto;
     };
 
     const handleCopiarResumo = (resumoData: any) => {
         if (!resumoData) return;
-        const texto = gerarTextoDoResumo(resumoData);
-        navigator.clipboard.writeText(texto);
+        const msg = resumoData.mensagens?.[0]?.mensagem_ia || resumoData.mensagens?.[0]?.mensagem || gerarTextoWhatsapp(resumoData);
+        navigator.clipboard.writeText(msg);
         toast({
             title: "Copiado!",
             description: "Resumo copiado para a área de transferência.",
@@ -272,15 +460,16 @@ export function ResumosSistemaTab() {
         let textoFinal = "";
         let copiados = 0;
 
-        resumosData.forEach((res) => {
-            if (gerarTextoVazioCheck(res)) {
-                textoFinal += gerarTextoDoResumo(res) + "\n-------------------------------------------------\n\n";
+        resumosOrdenados.forEach((res) => {
+            if (gerarTextoVazioCheck(res) && res.mensagens.length > 0) {
+                const text = res.mensagens[0]?.mensagem_ia || res.mensagens[0]?.mensagem; // IA refines > plain Whatsapp
+                textoFinal += `*Resumo Semanal - ${res.cliente.nome}*\n` + text + "\n-------------------------------------------------\n\n";
                 copiados++;
             }
         });
 
         if (!textoFinal.trim()) {
-            toast({ title: "Nenhum dado", description: `Nenhum dos clientes possuía atividades para copiar nesta semana.`, variant: "destructive" });
+            toast({ title: "Nenhum dado", description: `Nenhum dos clientes possuía mensagens preenchidas para copiar nesta semana.`, variant: "destructive" });
             return;
         }
 
@@ -289,6 +478,53 @@ export function ResumosSistemaTab() {
         navigator.clipboard.writeText(textoFinal);
         toast({ title: "Sucesso!", description: `Copiado os resumos consolidados de ${copiados} clientes com sucesso.` });
     };
+
+    const countEnviadas = resumosData ? resumosData.filter(r => r.mensagens.length > 0 && r.mensagens[0].enviado).length : 0;
+    const countPendentes = resumosData ? resumosData.filter(r => r.mensagens.length > 0 && !r.mensagens[0].enviado).filter(gerarTextoVazioCheck).length : 0;
+
+    // Sort logic
+    const handleOrdenar = (coluna: string) => {
+        setOrdenacao(prev => ({
+            coluna,
+            direcao: prev.coluna === coluna && prev.direcao === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const IconeOrdenacao = ({ coluna }: { coluna: string }) => {
+        if (ordenacao.coluna !== coluna) return <ArrowUpDown className="h-4 w-4 text-muted-foreground/30 ml-1" />;
+        return ordenacao.direcao === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
+    };
+
+    const resumosOrdenados = useMemo(() => {
+        if (!resumosData) return [];
+        let ordenado = [...resumosData].filter(gerarTextoVazioCheck);
+
+        ordenado.sort((a, b) => {
+            let valorA = "";
+            let valorB = "";
+
+            if (ordenacao.coluna === "cliente_nome") {
+                valorA = a.cliente.nome.toLowerCase();
+                valorB = b.cliente.nome.toLowerCase();
+            } else if (ordenacao.coluna === "status") {
+                valorA = a.mensagens.length > 0 && a.mensagens[0].enviado ? "1" : "0";
+                valorB = b.mensagens.length > 0 && b.mensagens[0].enviado ? "1" : "0";
+            } else if (ordenacao.coluna === "semana") {
+                valorA = weekStart;
+                valorB = weekStart;
+            }
+
+            if (valorA < valorB) return ordenacao.direcao === 'asc' ? -1 : 1;
+            if (valorA > valorB) return ordenacao.direcao === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return ordenado;
+    }, [resumosData, ordenacao, weekStart]);
+
+    // Validate if the user is checking all currently available msg IDs
+    const allValidIds = resumosOrdenados.map(r => r.mensagens?.[0]?.id).filter(Boolean) || [];
+    const isAllSelected = allValidIds.length > 0 && selectedMensagens.length === allValidIds.length;
 
     return (
         <div className="space-y-6 animate-in fade-in-50 duration-500">
@@ -328,161 +564,156 @@ export function ResumosSistemaTab() {
 
                             <Button onClick={handleGerarTodos} disabled={loading} className="w-full sm:w-auto bg-primary text-primary-foreground">
                                 {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
-                                Gerar Para Todos
+                                Gerar & Salvar Resumos
                             </Button>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {resumosData && resumosData.length > 0 && (
-                <div className="flex justify-between items-center bg-muted/30 p-4 rounded-lg border">
-                    <div className="text-sm text-muted-foreground">
-                        Exibindo relatórios gerados (com atividade na semana aplicável).
-                    </div>
-                    {resumosData.some(gerarTextoVazioCheck) && (
-                        <Button variant="default" onClick={handleCopiarTodos} className="shadow-sm">
-                            <Copy className="h-4 w-4 mr-2" /> Copiar Todos Resumos (C/ Atividades)
-                        </Button>
-                    )}
+            {resumosData && resumosOrdenados.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card>
+                        <CardHeader className="py-4">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">Total Gerados</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{resumosOrdenados.length}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="py-4">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">Enviados</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600">{countEnviadas}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="py-4 flex flex-row items-center justify-between">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
+                            {resumosData && resumosOrdenados.length > 0 && (
+                                <Button variant="outline" size="sm" onClick={handleCopiarTodos} className="h-8">
+                                    <Copy className="h-4 w-4 mr-2" /> Copiar Todos ({resumosOrdenados.length})
+                                </Button>
+                            )}
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-red-600">{countPendentes}</div>
+                        </CardContent>
+                    </Card>
                 </div>
             )}
 
-            {resumosData && (
-                <div className="space-y-6">
-                    {resumosData.filter(gerarTextoVazioCheck).map((resumoData, index) => (
-                        <Card key={index} className="shadow-sm border-l-4" style={{ borderLeftColor: 'hsl(var(--primary))' }}>
-                            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                <div>
-                                    <CardTitle className="text-xl">{resumoData.cliente.nome}</CardTitle>
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                        Período de: {format(resumoData.periodo.start, "dd/MM")} até {format(resumoData.periodo.end, "dd/MM")}
-                                    </div>
-                                </div>
-                                <Button variant="ghost" size="sm" onClick={() => handleCopiarResumo(resumoData)} className="hover:bg-muted">
-                                    <Copy className="h-4 w-4 mr-2" /> Copiar Dados Básicos
-                                </Button>
-                            </CardHeader>
-                            <CardContent className="space-y-6 pt-4">
+            {/* Bulk Actions Menu */}
+            {selectedMensagens.length > 0 && (
+                <div className="bg-muted border p-3 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2">
+                    <div className="text-sm font-medium ml-2">
+                        {selectedMensagens.length} mensagem(ns) selecionada(s)
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="text-green-600 hover:text-green-700 bg-white" onClick={handleMassApprove} disabled={loading}>
+                            <Check className="h-4 w-4 mr-2" />
+                            Aprovar Selecionados
+                        </Button>
+                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-white" onClick={handleMassDelete} disabled={loading}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir Resumos
+                        </Button>
+                    </div>
+                </div>
+            )}
 
-                                {resumoData.tarefas.length > 0 && (
-                                    <div className="space-y-2">
-                                        <h3 className="font-semibold flex items-center gap-2 text-primary">
-                                            <CheckCircle2 className="h-4 w-4" /> Tarefas Concluídas ({resumoData.tarefas.length})
-                                        </h3>
-                                        <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground ml-1">
-                                            {resumoData.tarefas.map((t: any, i: number) => (
-                                                <li key={i}>{t.title}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-
-                                {resumoData.lancamentos.length > 0 && (
-                                    <div className="space-y-2">
-                                        <h3 className="font-semibold flex items-center gap-2 text-orange-500">
-                                            <Rocket className="h-4 w-4" /> Lançamentos Ativos ({resumoData.lancamentos.length})
-                                        </h3>
-                                        <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground ml-1">
-                                            {resumoData.lancamentos.map((l: any, i: number) => (
-                                                <li key={i}>{l.nome_lancamento} - <span className="capitalize">{l.status_lancamento?.replace(/_/g, " ")}</span></li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-
-                                {resumoData.orcamentos.length > 0 && (
-                                    <div className="space-y-2">
-                                        <h3 className="font-semibold flex items-center gap-2 text-purple-500">
-                                            <Target className="h-4 w-4" /> Funis Ativos ({resumoData.orcamentos.length})
-                                        </h3>
-                                        <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground ml-1">
-                                            {resumoData.orcamentos.map((o: any, i: number) => (
-                                                <li key={i}>{o.nome_funil} {o.etapa_funil ? `(${o.etapa_funil})` : ''}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-
-                                {(resumoData.reunioes.length > 0 || resumoData.gravacoes.length > 0) && (
-                                    <div className="space-y-2">
-                                        <h3 className="font-semibold flex items-center gap-2 text-blue-500">
-                                            <Video className="h-4 w-4" /> Reuniões & Gravações
-                                        </h3>
-                                        <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground ml-1">
-                                            {resumoData.reunioes.map((r: any, i: number) => (
-                                                <li key={`r-${i}`}>{r.titulo}</li>
-                                            ))}
-                                            {resumoData.gravacoes.map((g: any, i: number) => (
-                                                <li key={`g-${i}`}>{g.titulo}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-
-                                {resumoData.diario.length > 0 && (
-                                    <div className="space-y-2">
-                                        <h3 className="font-semibold flex items-center gap-2 text-emerald-500">
-                                            <MessageSquare className="h-4 w-4" /> Notas do Painel (Diário de Bordo)
-                                        </h3>
-                                        <div className="space-y-2">
-                                            {resumoData.diario.map((d: any, i: number) => (
-                                                <div key={i} className="text-sm bg-muted/50 p-3 rounded-lg text-muted-foreground">
-                                                    {d.texto}
-                                                </div>
-                                            ))}
+            {resumosData && resumosOrdenados.length > 0 && (
+                <Card className="border-t-4 border-t-primary">
+                    <CardHeader>
+                        <CardTitle className="text-lg">Tabela de Resumos ({format(new Date(weekStart), "MMM/yyyy", { locale: ptBR })})</CardTitle>
+                        <div className="text-sm text-muted-foreground">Listagem de mensagens criadas no sistema que reúnem as atividades de cada cliente na respectiva semana.</div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-12 text-center items-center">
+                                        <Checkbox
+                                            checked={isAllSelected}
+                                            onCheckedChange={handleSelectAll}
+                                            aria-label="Selecionar todos"
+                                        />
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleOrdenar("cliente_nome")}>
+                                        <div className="flex items-center">
+                                            Cliente
+                                            <IconeOrdenacao coluna="cliente_nome" />
                                         </div>
-                                    </div>
-                                )}
-
-                                {resumoData.mensagens.length > 0 && (
-                                    <div className="space-y-4 pt-2">
-                                        <h3 className="font-semibold flex items-center gap-2 text-indigo-500 border-t pt-4">
-                                            <MessageSquare className="h-4 w-4" /> Mensagens da Semana
-                                        </h3>
-                                        <div className="space-y-3">
-                                            {resumoData.mensagens.map((m: any, i: number) => (
-                                                <div key={i} className="flex flex-col sm:flex-row items-center justify-between p-3 border rounded-lg gap-4 bg-background">
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-xs text-muted-foreground mb-1">
-                                                            Semana: {format(new Date(m.semana_referencia), "dd/MM/yyyy", { locale: ptBR })}
-                                                        </div>
-                                                        <div className="text-sm font-medium text-muted-foreground truncate">
-                                                            {previewMensagem(m.mensagem)}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-4 shrink-0">
-                                                        <Badge variant={m.enviado ? "default" : "destructive"} className={m.enviado ? "bg-green-100 text-green-800" : ""}>
-                                                            {m.enviado ? "✅ Enviado" : "❌ Pendente"}
-                                                        </Badge>
-
-                                                        <div className="flex items-center gap-1">
-                                                            <Button variant="outline" size="sm" onClick={() => setMensagemSelecionada({ ...m, cliente_nome: resumoData.cliente.nome })} title="Visualizar mensagem">
-                                                                <Eye className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button variant="outline" size="sm" onClick={() => marcarEnvio(m.id, true)} disabled={m.enviado} className="text-green-600 hover:text-green-700" title="Marcar como enviado">
-                                                                <Check className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button variant="outline" size="sm" onClick={() => marcarEnvio(m.id, false)} disabled={!m.enviado} className="text-red-600 hover:text-red-700" title="Marcar como pendente">
-                                                                <X className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleOrdenar("semana")}>
+                                        <div className="flex items-center">
+                                            Semana
+                                            <IconeOrdenacao coluna="semana" />
                                         </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    ))}
+                                    </TableHead>
+                                    <TableHead>Mensagem Formato WA</TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleOrdenar("status")}>
+                                        <div className="flex items-center">
+                                            Status
+                                            <IconeOrdenacao coluna="status" />
+                                        </div>
+                                    </TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {resumosOrdenados.map((resumoData, index) => {
+                                    const msgDb = resumoData.mensagens.length > 0 ? resumoData.mensagens[0] : null;
+                                    const isEnviado = msgDb?.enviado || false;
+                                    const rawText = msgDb ? (msgDb.mensagem_ia || msgDb.mensagem) : gerarTextoWhatsapp(resumoData);
 
-                    {resumosData.every(r => !gerarTextoVazioCheck(r)) && (
-                        <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg">
-                            Nenhuma atividade registrada para os clientes pesquisados nesta semana.
-                        </div>
-                    )}
+                                    return (
+                                        <TableRow key={index} className="hover:bg-muted/30">
+                                            <TableCell className="align-middle text-center">
+                                                {msgDb && (
+                                                    <Checkbox
+                                                        checked={selectedMensagens.includes(msgDb.id)}
+                                                        onCheckedChange={(checked) => handleSelectRow(msgDb.id, checked as boolean)}
+                                                        aria-label={`Selecionar resumo de ${resumoData.cliente.nome}`}
+                                                    />
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="font-medium">{resumoData.cliente.nome}</TableCell>
+                                            <TableCell>{format(new Date(weekStart), "dd/MM/yy", { locale: ptBR })}</TableCell>
+                                            <TableCell className="max-w-md">
+                                                <div className="truncate text-muted-foreground text-sm">
+                                                    {previewMensagem(rawText)}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={isEnviado ? "default" : "destructive"} className={isEnviado ? "bg-green-100 text-green-800" : ""}>
+                                                    {isEnviado ? "Enviado" : "Pendente"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Button variant="outline" size="sm" onClick={() => setMensagemSelecionada(resumoData)} title="Visualizar mensagem">
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" onClick={() => handleCopiarResumo(resumoData)} title="Copiar resumo">
+                                                        <Copy className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+
+            {resumosData && resumosOrdenados.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg border">
+                    Nenhuma atividade registrada para os clientes pesquisados nesta semana.
                 </div>
             )}
 
@@ -490,69 +721,103 @@ export function ResumosSistemaTab() {
             <Dialog open={!!mensagemSelecionada} onOpenChange={(open) => {
                 if (!open) setMensagemSelecionada(null);
             }}>
-                <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto w-full">
                     <DialogHeader>
-                        <div className="flex items-center justify-between">
-                            <DialogTitle>Visualizar Mensagem - {mensagemSelecionada?.cliente_nome}</DialogTitle>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+                            <div className="space-y-1">
+                                <DialogTitle className="text-xl">Resumo - {mensagemSelecionada?.cliente.nome}</DialogTitle>
+                                <div className="text-sm text-muted-foreground">Visualize ou gere uma mensagem baseada na matriz de atividades semanais.</div>
+                            </div>
 
-                            {mensagemSelecionada && (
-                                <div className="flex items-center gap-2 mr-6">
-                                    <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagemSelecionada.id, true)} disabled={mensagemSelecionada.enviado} className="text-green-600">
-                                        <Check className="h-4 w-4 mr-1" /> Enviar
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagemSelecionada.id, false)} disabled={!mensagemSelecionada.enviado} className="text-red-600">
-                                        <X className="h-4 w-4 mr-1" /> Pendente
-                                    </Button>
-                                </div>
-                            )}
+                            {mensagemSelecionada && (() => {
+                                const msgDb = mensagemSelecionada.mensagens.length > 0 ? mensagemSelecionada.mensagens[0] : null;
+                                const isEnviado = msgDb?.enviado || false;
+
+                                return (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => handleCopiarResumo(mensagemSelecionada)}>
+                                            <Copy className="h-4 w-4 mr-1" /> Copiar Texto
+                                        </Button>
+                                        {msgDb && (
+                                            <>
+                                                <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagemSelecionada, true)} disabled={isEnviado} className="text-green-600">
+                                                    <Check className="h-4 w-4 mr-1" /> Marcar Enviado
+                                                </Button>
+                                                <Button variant="outline" size="sm" onClick={() => marcarEnvio(mensagemSelecionada, false)} disabled={!isEnviado} className="text-red-600">
+                                                    <X className="h-4 w-4 mr-1" /> Marcar Pendente
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </DialogHeader>
 
-                    {mensagemSelecionada && (
-                        <div className="space-y-6 mt-4">
-                            {!mensagemSelecionada.enviado && (
-                                <div className="bg-yellow-50 text-yellow-800 p-4 rounded-md border border-yellow-200">
-                                    <h4 className="font-semibold flex items-center gap-2">
-                                        <Check className="h-4 w-4" />
-                                        Ação Necessária
-                                    </h4>
-                                    <p className="text-sm mt-1">
-                                        Esta mensagem ainda está pendente de envio. Após enviá-la ao cliente, clique no botão "Enviar" acima.
-                                    </p>
-                                </div>
-                            )}
+                    {mensagemSelecionada && (() => {
+                        const msgDb = mensagemSelecionada.mensagens.length > 0 ? mensagemSelecionada.mensagens[0] : null;
+                        const textoRaw = msgDb ? msgDb.mensagem : gerarTextoWhatsapp(mensagemSelecionada);
+                        const isEnviado = msgDb?.enviado || false;
 
-                            <div className="space-y-2">
-                                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2 border-b pb-2">
-                                    <MessageSquare className="h-4 w-4" />
-                                    Mensagem Original
-                                </h3>
-                                <div className="bg-muted/50 p-4 rounded-lg whitespace-pre-wrap text-sm border">
-                                    {mensagemSelecionada.mensagem}
+                        return (
+                            <div className="space-y-6 mt-2 pt-2">
+                                {!isEnviado && (
+                                    <div className="bg-yellow-50 text-yellow-800 p-4 rounded-md border border-yellow-200">
+                                        <h4 className="font-semibold flex items-center gap-2">
+                                            <Check className="h-4 w-4" />
+                                            Ação Necessária
+                                        </h4>
+                                        <p className="text-sm mt-1">
+                                            Este resumo ainda está pendente de envio. Após enviá-lo ao cliente no WhatsApp, clique no botão "Marcar Enviado" acima.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {msgDb && (
+                                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-semibold text-primary flex items-center gap-2">
+                                                <Wand2 className="h-4 w-4" />
+                                                Assistente IA de Resumos
+                                            </h3>
+                                            <Button
+                                                variant="default"
+                                                size="sm"
+                                                onClick={() => gerarVersaoIA(mensagemSelecionada)}
+                                                disabled={loadingAi}
+                                                className="bg-primary text-primary-foreground shadow-sm"
+                                            >
+                                                {loadingAi ? (
+                                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando...</>
+                                                ) : (
+                                                    <><Wand2 className="h-4 w-4 mr-2" /> {msgDb.mensagem_ia ? "Regerar Texto com IA" : "✨ Gerar Texto com IA"}</>
+                                                )}
+                                            </Button>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mr-4">
+                                            Crie uma mensagem amigável e consolidada para o cliente com a ajuda da Inteligência Artificial. A IA irá transformar a matriz de dados em um texto final otimizado.
+                                        </p>
+
+                                        {msgDb.mensagem_ia && (
+                                            <div className="bg-white dark:bg-zinc-900 p-4 rounded-lg whitespace-pre-wrap text-sm border shadow-sm mt-4">
+                                                {msgDb.mensagem_ia}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="space-y-2">
+                                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2 border-b pb-2">
+                                        <MessageSquare className="h-4 w-4" />
+                                        Registro Matriz de Atividades (Extração Bruta)
+                                    </h3>
+                                    <div className="bg-muted/50 p-4 rounded-lg whitespace-pre-wrap text-sm border font-mono">
+                                        {textoRaw}
+                                    </div>
                                 </div>
                             </div>
-
-                            {mensagemSelecionada.mensagem_ia && (
-                                <div className="space-y-2">
-                                    <h3 className="text-sm font-medium text-emerald-600 flex items-center gap-2 border-b border-emerald-100 pb-2">
-                                        <MessageSquare className="h-4 w-4" />
-                                        Versão Refinada (IA)
-                                    </h3>
-                                    <div className="bg-emerald-50/50 p-4 rounded-lg whitespace-pre-wrap text-sm border border-emerald-100">
-                                        {mensagemSelecionada.mensagem_ia}
-                                    </div>
-                                    <div className="flex justify-end mt-2">
-                                        <Button variant="outline" size="sm" onClick={() => {
-                                            navigator.clipboard.writeText(mensagemSelecionada.mensagem_ia);
-                                            toast({ title: "Copiado!", description: "Versão da IA copiada." });
-                                        }}>
-                                            <Copy className="w-4 h-4 mr-2" /> Copiar Texto da IA
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                        );
+                    })()}
                 </DialogContent>
             </Dialog>
         </div>
