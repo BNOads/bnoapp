@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag, Filter, ChevronDown, Zap } from "lucide-react";
@@ -17,8 +18,8 @@ import { TasksByPersonView } from "@/components/tasks/views/TasksByPersonView";
 import { TasksByListView } from "@/components/tasks/views/TasksByListView";
 import { AdminTasksPanel } from "@/components/tasks/views/AdminTasksPanel";
 import { AutomacoesView } from "@/components/tasks/views/AutomacoesView";
-import { PRIORITY_LABELS } from "@/types/tasks";
-import { isInDateRange, DateRangePreset } from "@/lib/dateUtils";
+import { Task, PRIORITY_LABELS } from "@/types/tasks";
+import { isOverdue, isInDateRange, DateRangePreset } from "@/lib/dateUtils";
 
 import { BulkTaskModal } from "@/components/tasks/modals/BulkTaskModal";
 import { BulkEditModal } from "@/components/tasks/modals/BulkEditModal";
@@ -48,16 +49,18 @@ export default function Tarefas() {
 
     // Modals state
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [createDefaultAssignee, setCreateDefaultAssignee] = useState<string>("unassigned");
-    const [createDefaultListId, setCreateDefaultListId] = useState<string>("none");
+    const [createDefaultAssignee, setCreateDefaultAssignee] = useState<string | null>(null);
+    const [createDefaultListId, setCreateDefaultListId] = useState<string | null>(null);
     const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
+
+    const [kpiPopupFilter, setKpiPopupFilter] = useState<{ title: string; filterFn: (t: Task) => boolean } | null>(null);
+
+    const [colaboradores, setColaboradores] = useState<{ nome: string }[]>([]);
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
 
     // Detail Dialog state
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
-
-    const [colaboradores, setColaboradores] = useState<{ nome: string }[]>([]);
 
     React.useEffect(() => {
         supabase.from("colaboradores")
@@ -154,10 +157,24 @@ export default function Tarefas() {
                                 </button>
                             </div>
                         </div>
+                        {selectedTasks.length > 0 && minhasViewType === "tabela" && (
+                            <div className="flex justify-end mb-4 animate-in fade-in slide-in-from-top-1">
+                                <Button variant="secondary" onClick={() => setIsBulkEditOpen(true)} className="gap-2 shadow-sm border bg-card hover:bg-muted font-semibold text-primary">
+                                    <Layers className="w-4 h-4" />
+                                    Editar Lote ({selectedTasks.length} {selectedTasks.length === 1 ? 'tarefa' : 'tarefas'})
+                                </Button>
+                            </div>
+                        )}
                         {minhasViewType === "kanban" ? (
                             <TaskKanban tasks={filteredTasks} onTaskClick={handleTaskClick} />
                         ) : (
-                            <TarefasList tasks={filteredTasks} onTaskClick={handleTaskClick} />
+                            <TarefasList
+                                tasks={filteredTasks}
+                                onTaskClick={handleTaskClick}
+                                selectedTasks={selectedTasks}
+                                onToggleSelectTask={handleToggleSelectTask}
+                                onSelectBatch={handleSelectBatch}
+                            />
                         )}
                     </div>
                 </div>
@@ -462,34 +479,46 @@ export default function Tarefas() {
 
                 {activeMainTab !== "automacoes" && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                        <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
+                        <button
+                            onClick={() => setKpiPopupFilter({ title: 'Tarefas Pendentes', filterFn: (t) => !t.completed })}
+                            className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden text-left hover:border-primary/50 transition-colors cursor-pointer text-foreground"
+                        >
                             <div className="flex items-center gap-2 text-muted-foreground mb-1">
                                 <span className="w-2 h-2 rounded-full border border-current opacity-50"></span>
                                 <span className="text-sm font-medium">Pendentes</span>
                             </div>
                             <span className="text-4xl font-bold">{pendingCount}</span>
-                        </div>
-                        <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
+                        </button>
+                        <button
+                            onClick={() => setKpiPopupFilter({ title: 'Tarefas Concluídas', filterFn: (t) => t.completed })}
+                            className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden text-left hover:border-primary/50 transition-colors cursor-pointer text-foreground"
+                        >
                             <div className="flex items-center gap-2 text-muted-foreground mb-1">
                                 <CheckCircle2 className="w-4 h-4 text-muted-foreground opacity-50" />
                                 <span className="text-sm font-medium">Concluídas</span>
                             </div>
                             <span className="text-4xl font-bold">{completedCount}</span>
-                        </div>
-                        <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden border-rose-100 dark:border-rose-900 bg-rose-50/30 dark:bg-rose-950/20">
+                        </button>
+                        <button
+                            onClick={() => setKpiPopupFilter({ title: 'Tarefas Atrasadas', filterFn: (t) => !t.completed && !!t.due_date && isOverdue(t.due_date, false) })}
+                            className="p-4 rounded-xl border flex py-6 flex-col justify-center relative overflow-hidden border-rose-100 dark:border-rose-900 bg-rose-50/30 dark:bg-rose-950/20 text-left hover:border-rose-300 dark:hover:border-rose-700 transition-colors cursor-pointer"
+                        >
                             <div className="flex items-center gap-2 text-destructive mb-1">
                                 <AlertCircle className="w-4 h-4" />
                                 <span className="text-sm font-medium">Atrasadas</span>
                             </div>
                             <span className="text-4xl font-bold text-foreground">{overdueCount}</span>
-                        </div>
-                        <div className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden">
+                        </button>
+                        <button
+                            onClick={() => setKpiPopupFilter({ title: 'Alta Prioridade', filterFn: (t) => !t.completed && t.priority === 'alta' })}
+                            className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden text-left hover:border-primary/50 transition-colors cursor-pointer text-foreground"
+                        >
                             <div className="flex items-center gap-2 text-muted-foreground mb-1">
                                 <Flag className="w-4 h-4 text-rose-500 opacity-60" />
                                 <span className="text-sm font-medium">Alta prioridade</span>
                             </div>
                             <span className="text-4xl font-bold">{highPriorityCount}</span>
-                        </div>
+                        </button>
                     </div>
                 )}
             </div>
@@ -519,12 +548,34 @@ export default function Tarefas() {
                 }}
             />
 
+            <Dialog open={!!kpiPopupFilter} onOpenChange={(open) => !open && setKpiPopupFilter(null)}>
+                <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-6">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl">{kpiPopupFilter?.title}</DialogTitle>
+                        <DialogDescription>Tarefas correspondentes a este indicador baseadas nos seus filtros atuais.</DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-auto mt-2 -mx-2 px-2 pb-4">
+                        {kpiPopupFilter && (
+                            <div className="bg-slate-50/30 dark:bg-background rounded-md">
+                                <TarefasList
+                                    tasks={tasks.filter(kpiPopupFilter.filterFn)}
+                                    onTaskClick={(id) => {
+                                        setSelectedTaskId(id);
+                                        setIsDetailOpen(true);
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             <CreateTaskModal
                 open={isCreateOpen}
                 onOpenChange={setIsCreateOpen}
                 defaultAssignee={createDefaultAssignee}
                 defaultListId={createDefaultListId}
             />
-        </div >
+        </div>
     );
 }

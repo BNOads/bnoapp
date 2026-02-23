@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,6 +41,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: updateTask } = useUpdateTask();
     const { mutate: deleteTask } = useDeleteTask();
+    const { mutate: createTask } = useCreateTask();
     const { data: taskLists = [], isLoading } = useTaskLists();
     const queryClient = useQueryClient();
 
@@ -116,8 +119,32 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
         }
     };
 
-    const toggleCollapse = (colId: string) => {
-        setCollapsed(prev => ({ ...prev, [colId]: !prev[colId] }));
+    const handleDuplicateTask = (task: Task, e: React.MouseEvent) => {
+        e.stopPropagation();
+        createTask({
+            title: `${task.title} (Cópia)`,
+            description: task.description,
+            status: 'pendente',
+            priority: task.priority || 'media',
+            assignee: task.assignee,
+            assigned_to_id: task.assigned_to_id,
+            list_id: task.list_id,
+            due_date: task.due_date,
+            due_time: task.due_time,
+            category: task.category,
+            recurrence: task.recurrence
+        });
+    };
+
+    const handleDeleteClick = (taskId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
+            deleteTask(taskId);
+        }
+    };
+
+    const toggleCollapse = (listId: string) => {
+        setCollapsed(prev => ({ ...prev, [listId]: !prev[listId] }));
     };
 
     const handleCheckboxClick = (e: React.MouseEvent, taskId: string, listId: string | null) => {
@@ -409,20 +436,24 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                             <Badge variant="outline" className={`capitalize text-[10px] w-[76px] justify-center shadow-sm h-[22px] px-0 ${task.completed ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60" : "bg-muted/40 text-muted-foreground"}`}>
                                                                 {task.completed ? "Concluída" : "Pendente"}
                                                             </Badge>
-                                                            <div className="absolute right-[-10px] opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="w-7 h-7 text-destructive/50 hover:text-destructive hover:bg-destructive/10"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
-                                                                            deleteTask(task.id);
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                                </Button>
+                                                            <div className="absolute right-[-14px] opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <div onClick={e => e.stopPropagation()}>
+                                                                    <DropdownMenu>
+                                                                        <DropdownMenuTrigger asChild>
+                                                                            <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-foreground hover:bg-muted/60">
+                                                                                <MoreVertical className="w-4 h-4" />
+                                                                            </Button>
+                                                                        </DropdownMenuTrigger>
+                                                                        <DropdownMenuContent align="end">
+                                                                            <DropdownMenuItem onClick={(e) => handleDuplicateTask(task, e)}>
+                                                                                <Copy className="w-4 h-4 mr-2" /> Duplicar Tarefa
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem onClick={(e) => handleDeleteClick(task.id, e)} className="text-red-600 focus:bg-red-50">
+                                                                                <Trash2 className="w-4 h-4 mr-2" /> Excluir Tarefa
+                                                                            </DropdownMenuItem>
+                                                                        </DropdownMenuContent>
+                                                                    </DropdownMenu>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

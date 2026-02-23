@@ -3,12 +3,13 @@ import { Task, PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS,
 import { isOverdue, isToday, isRecurringDate } from "@/lib/dateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, CalendarIcon, AlertCircle, User, RepeatIcon, Clock, CircleUserIcon, ChevronDownIcon, MessageSquare, CheckCircleIcon, List, Trash2 } from "lucide-react";
-import { useToggleTaskComplete, useUpdateTask, useDeleteTask } from "@/hooks/useTaskMutations";
+import { ChevronDown, ChevronRight, CalendarIcon, AlertCircle, User, RepeatIcon, Clock, CircleUserIcon, ChevronDownIcon, MessageSquare, CheckCircleIcon, List, Trash2, Copy, MoreVertical } from "lucide-react";
+import { useToggleTaskComplete, useUpdateTask, useDeleteTask, useCreateTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTaskLists } from "@/hooks/useTasks";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,15 +21,20 @@ import { supabase } from "@/integrations/supabase/client";
 interface TarefasListProps {
     tasks: Task[];
     onTaskClick: (taskId: string) => void;
+    selectedTasks?: string[];
+    onToggleSelectTask?: (id: string) => void;
+    onSelectBatch?: (ids: string[], select: boolean) => void;
 }
 
-export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
+export function TarefasList({ tasks, onTaskClick, selectedTasks = [], onToggleSelectTask, onSelectBatch }: TarefasListProps) {
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: updateTask } = useUpdateTask();
     const { mutate: deleteTask } = useDeleteTask();
+    const { mutate: createTask } = useCreateTask();
 
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState("");
+    const [lastSelectedTaskId, setLastSelectedTaskId] = useState<string | null>(null);
 
     const startEditing = (task: Task, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -72,8 +78,55 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
         onTaskClick(id);
     };
 
+    const handleSelectionClick = (e: React.MouseEvent, taskId: string, groupTaskIds: string[]) => {
+        e.stopPropagation();
+        if (e.shiftKey && lastSelectedTaskId && onSelectBatch && onToggleSelectTask) {
+            const start = groupTaskIds.indexOf(lastSelectedTaskId);
+            const end = groupTaskIds.indexOf(taskId);
+            if (start !== -1 && end !== -1) {
+                const min = Math.min(start, end);
+                const max = Math.max(start, end);
+                const idsToSelect = groupTaskIds.slice(min, max + 1);
+
+                const isDeselecting = selectedTasks.includes(taskId);
+                if (isDeselecting) {
+                    onSelectBatch(idsToSelect, false);
+                } else {
+                    onSelectBatch(idsToSelect, true);
+                }
+            }
+        } else if (onToggleSelectTask) {
+            onToggleSelectTask(taskId);
+        }
+        setLastSelectedTaskId(taskId);
+    };
+
     const handleUpdateField = (taskId: string, field: string, value: any) => {
         updateTask({ id: taskId, updates: { [field]: value } });
+    };
+
+    const handleDuplicateTask = (task: Task, e: React.MouseEvent) => {
+        e.stopPropagation();
+        createTask({
+            title: `${task.title} (Cópia)`,
+            description: task.description,
+            status: 'pendente',
+            priority: task.priority || 'media',
+            assignee: task.assignee,
+            assigned_to_id: task.assigned_to_id,
+            list_id: task.list_id,
+            due_date: task.due_date,
+            due_time: task.due_time,
+            category: task.category,
+            recurrence: task.recurrence
+        });
+    };
+
+    const handleDeleteClick = (taskId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
+            deleteTask(taskId);
+        }
     };
 
     const groupedTasks = useMemo(() => {
@@ -133,6 +186,16 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                     onClick={(e) => handleTaskClick(task.id, e)}
                                 >
                                     <div className="flex items-start md:items-center gap-4 overflow-hidden w-full lg:flex-1">
+                                        {onToggleSelectTask && (
+                                            <div onClick={(e) => e.stopPropagation()} className="mt-1 md:mt-0 shrink-0">
+                                                <Checkbox
+                                                    checked={selectedTasks.includes(task.id)}
+                                                    onCheckedChange={() => handleSelectionClick({ stopPropagation: () => { }, shiftKey: false } as any, task.id, groupTasks.map(t => t.id))}
+                                                    onClick={(e) => handleSelectionClick(e, task.id, groupTasks.map(t => t.id))}
+                                                    className="w-4 h-4 mr-1 transition-all rounded-[4px] border-muted-foreground/30 data-[state=checked]:border-primary"
+                                                />
+                                            </div>
+                                        )}
                                         <div onClick={(e) => e.stopPropagation()} className="mt-1 md:mt-0 shrink-0">
                                             <Checkbox
                                                 checked={task.completed}
@@ -300,6 +363,25 @@ export function TarefasList({ tasks, onTaskClick }: TarefasListProps) {
                                                     <SelectItem value="alta" className="text-base py-2 text-red-500 font-medium">{PRIORITY_LABELS.alta}</SelectItem>
                                                 </SelectContent>
                                             </Select>
+                                        </div>
+                                        <div onClick={e => e.stopPropagation()}>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground">
+                                                        <MoreVertical className="w-4 h-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={(e) => handleDuplicateTask(task, e)}>
+                                                        <Copy className="w-4 h-4 mr-2" />
+                                                        Duplicar Tarefa
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={(e) => handleDeleteClick(task.id, e)} className="text-red-600 focus:text-red-700 focus:bg-red-50 dark:focus:bg-red-950/50 flex">
+                                                        <Trash2 className="w-4 h-4 mr-2" />
+                                                        Excluir Tarefa
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </div>
                                     </div>
                                 </div>
