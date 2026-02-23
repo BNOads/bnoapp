@@ -40,6 +40,7 @@ export default function Tarefas() {
     });
     const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "listas" | "automacoes">("minhas");
     const [timeViewType, setTimeViewType] = useState<"tabela" | "kanban">("tabela");
+    const [minhasViewType, setMinhasViewType] = useState<"tabela" | "kanban">("tabela");
     const [hideCompleted, setHideCompleted] = useState(false);
 
     // Selection for ByPerson view mainly, but could be global
@@ -129,7 +130,38 @@ export default function Tarefas() {
 
         if (activeMainTab === "minhas") {
             const filteredTasks = hideCompleted ? tasks.filter(t => !t.completed) : tasks;
-            return <TarefasList tasks={filteredTasks} onTaskClick={handleTaskClick} />;
+            return (
+                <div className="space-y-6 w-full max-w-[1400px] mx-auto xl:px-4">
+                    <div className="mt-4">
+                        <div className="flex items-center justify-between xl:justify-start gap-4 mb-4">
+                            <h2 className="text-xl font-bold flex items-center gap-2 mr-4">
+                                <List className="w-5 h-5 hidden sm:block" /> Minhas Tarefas
+                            </h2>
+                            <div className="flex items-center bg-muted/50 p-1 rounded-md border text-sm font-medium">
+                                <button
+                                    onClick={() => setMinhasViewType("tabela")}
+                                    className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${minhasViewType === "tabela" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                >
+                                    <List className="w-4 h-4" />
+                                    Lista
+                                </button>
+                                <button
+                                    onClick={() => setMinhasViewType("kanban")}
+                                    className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${minhasViewType === "kanban" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                >
+                                    <Grid2X2 className="w-4 h-4" />
+                                    Kanban
+                                </button>
+                            </div>
+                        </div>
+                        {minhasViewType === "kanban" ? (
+                            <TaskKanban tasks={filteredTasks} onTaskClick={handleTaskClick} />
+                        ) : (
+                            <TarefasList tasks={filteredTasks} onTaskClick={handleTaskClick} />
+                        )}
+                    </div>
+                </div>
+            );
         }
 
         const ByPersonBase = (

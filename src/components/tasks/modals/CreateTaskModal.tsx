@@ -197,7 +197,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className={`h-8 px-3 rounded-full border text-xs font-medium hover:bg-muted/50 transition-colors shadow-none bg-transparent ${!dueDate && 'text-muted-foreground'}`}>
                                         <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
-                                        {dueDate ? format(new Date(dueDate), "dd MMM, yyyy", { locale: ptBR }) : "Data de vencimento"}
+                                        {dueDate ? format(new Date(dueDate + 'T12:00:00'), "dd MMM, yyyy", { locale: ptBR }) : "Data de vencimento"}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">

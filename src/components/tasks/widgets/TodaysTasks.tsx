@@ -37,6 +37,7 @@ export function TodaysTasks() {
 
     const [isInlineCreateOpen, setIsInlineCreateOpen] = useState(false);
     const [inlineTaskTitle, setInlineTaskTitle] = useState("");
+    const [filterPriority, setFilterPriority] = useState<string>("all");
 
     // Inline editing states
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -101,10 +102,16 @@ export function TodaysTasks() {
         updateTask({ id: taskId, updates: { [field]: value } });
     };
 
-    const overdueTasks = rawTasks.filter(t => !t.completed && t.due_date && isOverdue(t.due_date, false));
-    const todayCompletedTasks = rawTasks.filter(t => t.completed && t.completed_at && isToday(t.completed_at));
-    const upcomingTasks = rawTasks.filter(t => !t.completed && t.due_date && isToday(t.due_date));
-    const futureTasks = rawTasks.filter(t => !t.completed && (!t.due_date || t.due_date > format(new Date(), 'yyyy-MM-dd')));
+    const PRIORITY_WEIGHT = { alta: 3, media: 2, baixa: 1 };
+    const getWeight = (p: string | null) => PRIORITY_WEIGHT[p as keyof typeof PRIORITY_WEIGHT] || 0;
+    const sortTasksByPriority = (tasksList: any[]) => [...tasksList].sort((a, b) => getWeight(b.priority) - getWeight(a.priority));
+
+    const filteredByPriority = rawTasks.filter(t => filterPriority === "all" || t.priority === filterPriority);
+
+    const overdueTasks = sortTasksByPriority(filteredByPriority.filter(t => !t.completed && t.due_date && isOverdue(t.due_date, false)));
+    const todayCompletedTasks = sortTasksByPriority(filteredByPriority.filter(t => t.completed && t.completed_at && isToday(t.completed_at)));
+    const upcomingTasks = sortTasksByPriority(filteredByPriority.filter(t => !t.completed && t.due_date && isToday(t.due_date)));
+    const futureTasks = sortTasksByPriority(filteredByPriority.filter(t => !t.completed && (!t.due_date || t.due_date > format(new Date(), 'yyyy-MM-dd'))));
 
     // Calculate metrics (focusing only on today's workload and overdue tasks)
     const totalTasks = overdueTasks.length + upcomingTasks.length + todayCompletedTasks.length;
@@ -335,11 +342,25 @@ export function TodaysTasks() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Select value={filterPriority} onValueChange={setFilterPriority}>
+                        <SelectTrigger className="h-9 px-3 gap-2 w-auto border-dashed shadow-none focus:ring-0 rounded-md text-muted-foreground font-medium bg-background">
+                            <Flag className="w-4 h-4" />
+                            <span className="hidden sm:inline">
+                                {filterPriority === "all" ? "Prioridade" : PRIORITY_LABELS[filterPriority as keyof typeof PRIORITY_LABELS]}
+                            </span>
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                            <SelectItem value="all">Todas</SelectItem>
+                            <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
+                            <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
+                            <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Button onClick={() => setIsInlineCreateOpen(!isInlineCreateOpen)} className="bg-amber-500 hover:bg-amber-600 text-white font-medium border-0 h-9 px-4 gap-1.5 shadow-none rounded-md transition-all">
                         <Plus className="w-4 h-4 text-white" />
                         Nova Tarefa
                     </Button>
-                    <Button variant="outline" onClick={() => navigate('/tarefas')} className="h-9 px-4 gap-1.5 rounded-md text-muted-foreground font-medium">
+                    <Button variant="outline" onClick={() => navigate('/tarefas')} className="h-9 px-4 gap-1.5 rounded-md text-muted-foreground font-medium bg-background hidden md:flex">
                         <FileText className="w-4 h-4" />
                         Ver Todas
                     </Button>

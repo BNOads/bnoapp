@@ -37,7 +37,7 @@ export function useTasks(filters?: TaskFilters) {
                 .limit(300);
 
             if (filters?.search) {
-                query = query.ilike("title", `%${filters.search}%`);
+                query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
             }
             if (filters?.priority && filters.priority !== "all") {
                 query = query.eq("priority", filters.priority);
