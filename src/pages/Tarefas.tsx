@@ -4,10 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag, Filter, ChevronDown, Zap } from "lucide-react";
 
 import { useTasks, TaskFilters } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { supabase } from "@/integrations/supabase/client";
 
 import { TarefasList } from "@/components/tasks/views/TarefasList";
 import { TaskKanban } from "@/components/tasks/views/TaskKanban";
