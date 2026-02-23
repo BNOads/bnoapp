@@ -545,11 +545,10 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                         </div>
                                     ) : (
                                         <div
-                                            className="whitespace-pre-wrap text-sm leading-relaxed p-4 sm:p-6 cursor-text min-h-[150px]"
+                                            className="whitespace-pre-wrap text-sm leading-relaxed p-4 sm:p-6 cursor-text min-h-[150px] [&_a]:text-blue-600 [&_a]:underline hover:[&_a]:text-blue-800"
                                             onClick={() => setIsEditingDescription(true)}
-                                        >
-                                            {task.description}
-                                        </div>
+                                            dangerouslySetInnerHTML={{ __html: task.description || '' }}
+                                        />
                                     )}
                                 </div>
 
