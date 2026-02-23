@@ -274,15 +274,15 @@ export function MensagensSemanaisView() {
   }, [filtroWeekStart, filtroGestor, filtroCS, mensagens, colaboradores]);
 
   useEffect(() => {
+    if (colaboradores.length === 0 || clientes.length === 0) return;
     carregarMensagens();
   }, [filtroWeekStart, filtroGestor, filtroCS, filtroCliente, filtroEnviado, filtroBusca, ordenarPor, ordenarDirecao, clientes, colaboradores]);
 
   const carregarDados = async () => {
     try {
-      // Carregar clientes
       const {
         data: clientesData
-      } = await supabase.from("clientes").select("id, nome, cs_id").eq("ativo", true).order("nome");
+      } = await supabase.from("clientes").select("id, nome, cs_id, primary_cs_user_id").eq("ativo", true).order("nome");
 
       // Carregar colaboradores com seus avatares
       const {
@@ -305,8 +305,7 @@ export function MensagensSemanaisView() {
       let query = supabase.from("mensagens_semanais").select(`
           *,
           gestor:colaboradores!mensagens_semanais_gestor_id_fkey(nome, avatar_url),
-          cs_msg:colaboradores!mensagens_semanais_cs_id_fkey(nome, avatar_url),
-          clientes!inner(nome, cs_id, client_cs:colaboradores!clientes_cs_id_fkey(nome, avatar_url))
+          clientes!inner(nome, cs_id, primary_cs_user_id)
         `);
 
       // Ordenar no banco apenas por colunas reais da tabela
@@ -357,19 +356,17 @@ export function MensagensSemanaisView() {
         let csNome = "CS não atribuído";
         let csAvatar = undefined;
 
-        if (item.cs_msg?.nome) {
-          csNome = item.cs_msg.nome;
-          csAvatar = item.cs_msg.avatar_url;
-        } else if (item.clientes?.client_cs?.nome) {
-          csNome = item.clientes.client_cs.nome;
-          csAvatar = item.clientes.client_cs.avatar_url;
-        } else if (item.clientes?.cs_id || item.cs_id) {
-          const fallbackCsId = item.clientes?.cs_id || item.cs_id;
+        const fallbackCsId = item.clientes?.primary_cs_user_id || item.clientes?.cs_id || item.cs_id;
+        if (fallbackCsId) {
           const fallbackCs = colaboradores.find((c: any) => c.user_id === fallbackCsId || c.id === fallbackCsId);
           if (fallbackCs) {
             csNome = fallbackCs.nome;
             csAvatar = fallbackCs.avatar_url;
           }
+        }
+
+        if (csNome === "CS não atribuído") {
+          console.log("CS NÃO ATRIBUÍDO PARA:", item.clientes?.nome, "item:", item, "cliente state:", clientes.find(c => c.id === item.cliente_id));
         }
 
         return {
@@ -550,10 +547,10 @@ export function MensagensSemanaisView() {
         throw new Error("Colaborador não encontrado");
       }
 
-      // Buscar CS do cliente
+      // 2. Tentar encontrar o CS padrão do cliente
       const {
         data: cliente
-      } = await supabase.from("clientes").select("cs_id").eq("id", novoClienteId).maybeSingle();
+      } = await supabase.from("clientes").select("cs_id, primary_cs_user_id").eq("id", novoClienteId).maybeSingle();
       const agora = new Date().toISOString();
       const novoHistorico = {
         tipo: 'gestor_salvo',
@@ -567,7 +564,7 @@ export function MensagensSemanaisView() {
       } = await supabase.from("mensagens_semanais").insert({
         cliente_id: novoClienteId,
         gestor_id: colaborador.id,
-        cs_id: cliente?.cs_id || null,
+        cs_id: cliente?.primary_cs_user_id || cliente?.cs_id || null,
         semana_referencia: weekStart,
         mensagem: novoTexto.trim(),
         created_by: user.data.user.id,
@@ -1551,9 +1548,18 @@ ${mensagem.mensagem}`;
           </div>
 
           {novoClienteId && <div className="text-sm text-muted-foreground bg-muted p-3 rounded">
-            <strong>Cliente selecionado:</strong> {clientes.find(c => c.id === novoClienteId)?.nome}
-            <br />
-            <strong>CS:</strong> {colaboradores.find(c => c.id === clientes.find(cl => cl.id === novoClienteId)?.cs_id)?.nome || "CS não definido"}
+            <div className="text-sm">
+              <strong>Cliente selecionado:</strong> {clientes.find(c => c.id === novoClienteId)?.nome}
+            </div>
+            <div className="text-sm">
+              <strong>CS:</strong> {
+                colaboradores.find(c => {
+                  const cli = clientes.find(cl => cl.id === novoClienteId);
+                  const cliCsId = cli?.primary_cs_user_id || cli?.cs_id;
+                  return c.id === cliCsId || c.user_id === cliCsId;
+                })?.nome || "CS não definido"
+              }
+            </div>
           </div>}
 
           <div className="flex justify-end gap-2 pt-4">

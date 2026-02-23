@@ -57,6 +57,7 @@ export function ResumosSistemaTab() {
 
     const gerarTextoVazioCheck = (resumoData: any) => {
         return (resumoData.tarefas && resumoData.tarefas.length > 0) ||
+            (resumoData.tarefasPendentes && resumoData.tarefasPendentes.length > 0) ||
             (resumoData.lancamentos && resumoData.lancamentos.length > 0) ||
             (resumoData.reunioes && resumoData.reunioes.length > 0) ||
             (resumoData.gravacoes && resumoData.gravacoes.length > 0) ||
@@ -66,13 +67,19 @@ export function ResumosSistemaTab() {
     }
 
     const gerarTextoWhatsapp = (resumoData: any) => {
-        const { cliente, mensagens, diario, reunioes, gravacoes, lancamentos, orcamentos, tarefas } = resumoData;
+        const { cliente, mensagens, diario, reunioes, gravacoes, lancamentos, orcamentos, tarefas, tarefasPendentes } = resumoData;
 
         let texto = `*Resumo Semanal - ${cliente.nome}* 📊\n\n`;
 
         if (tarefas && tarefas.length > 0) {
             texto += `*✅ Tarefas Concluídas:*\n`;
             tarefas?.forEach((t: any) => texto += `• ${t.title}\n`);
+            texto += `\n`;
+        }
+
+        if (tarefasPendentes && tarefasPendentes.length > 0) {
+            texto += `*⏳ Tarefas em Andamento/A Fazer:*\n`;
+            tarefasPendentes?.forEach((t: any) => texto += `• ${t.title}\n`);
             texto += `\n`;
         }
 
@@ -163,6 +170,11 @@ export function ResumosSistemaTab() {
                 .gte("completed_at", startStr)
                 .lte("completed_at", endStr);
 
+            const { data: tarefasAbertas } = await supabase
+                .from("tasks")
+                .select("title, description")
+                .eq("completed", false);
+
             const formataResumos = clientesParaGerar.map(cliente => {
                 const m = (resMensagens.data || []).filter(x => x.cliente_id === cliente.id);
                 const d = (resDiario.data || []).filter(x => x.cliente_id === cliente.id);
@@ -173,7 +185,8 @@ export function ResumosSistemaTab() {
 
                 const nomeMatch = (cliente.nome || "").toLowerCase();
                 const slugMatch = (cliente.slug || "").toLowerCase();
-                const t = (tarefas || []).filter(x => {
+
+                const filterTaskFunction = (x: any) => {
                     const titleStr = (x.title || "").toLowerCase();
                     const descStr = (x.description || "").toLowerCase();
                     const checks = [];
@@ -183,7 +196,10 @@ export function ResumosSistemaTab() {
                     if (checks.length === 0) return false;
 
                     return checks.some(check => titleStr.includes(check) || descStr.includes(check));
-                });
+                };
+
+                const t = (tarefas || []).filter(filterTaskFunction);
+                const tp = (tarefasAbertas || []).filter(filterTaskFunction);
 
                 return {
                     cliente,
@@ -194,7 +210,8 @@ export function ResumosSistemaTab() {
                     gravacoes: g,
                     lancamentos: l,
                     orcamentos: o,
-                    tarefas: t
+                    tarefas: t,
+                    tarefasPendentes: tp
                 };
             });
 
@@ -440,6 +457,83 @@ export function ResumosSistemaTab() {
         }
     }
 
+    const handleMassGerarIA = async () => {
+        if (!selectedMensagens.length) return;
+        setLoadingAi(true);
+        let successCount = 0;
+
+        try {
+            const promessasIA = selectedMensagens.map(async (msgId) => {
+                const resumoRecord = resumosData?.find(r => r.mensagens.length > 0 && r.mensagens[0].id === msgId);
+                if (!resumoRecord) return false;
+
+                const textoContextoRaw = gerarTextoWhatsapp(resumoRecord);
+
+                const { data, error } = await supabase.functions.invoke('formatar-mensagem-semanal', {
+                    body: {
+                        cliente_nome: resumoRecord.cliente.nome,
+                        rascunho: textoContextoRaw,
+                        tipo_resumo: 'sistema'
+                    },
+                });
+
+                if (error) throw error;
+
+                if (data?.mensagemFormato) {
+                    const { error: updateError } = await supabase
+                        .from("mensagens_semanais")
+                        .update({ mensagem_ia: data.mensagemFormato })
+                        .eq("id", msgId);
+
+                    if (updateError) throw updateError;
+                    return { id: msgId, texto: data.mensagemFormato };
+                }
+                return false;
+            });
+
+            const resultados = await Promise.allSettled(promessasIA);
+
+            const updatesLocais: any[] = [];
+            resultados.forEach(r => {
+                if (r.status === 'fulfilled' && r.value) {
+                    successCount++;
+                    updatesLocais.push(r.value);
+                }
+            });
+
+            if (successCount > 0) {
+                toast({
+                    title: "Inteligência Artificial",
+                    description: `${successCount} mensagens geradas pela IA com sucesso!`
+                });
+                setSelectedMensagens([]);
+
+                // Update local state without full reload
+                if (resumosData) {
+                    const newData = resumosData.map(resumo => {
+                        const msg = resumo.mensagens[0];
+                        if (msg) {
+                            const update = updatesLocais.find(u => u.id === msg.id);
+                            if (update) {
+                                return { ...resumo, mensagens: [{ ...msg, mensagem_ia: update.texto }] };
+                            }
+                        }
+                        return resumo;
+                    });
+                    setResumosData(newData);
+                }
+            }
+        } catch (error: any) {
+            toast({
+                title: "Erro ao formatar",
+                description: "Ocorreu um erro na geração em massa.",
+                variant: "destructive"
+            });
+        } finally {
+            setLoadingAi(false);
+        }
+    }
+
     const handleSelectRow = (msgId: string, checked: boolean) => {
         if (checked) {
             setSelectedMensagens(prev => [...prev, msgId]);
@@ -633,9 +727,13 @@ export function ResumosSistemaTab() {
                             <Check className="h-4 w-4 mr-2" />
                             Aprovar Selecionados
                         </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-white" onClick={handleMassDelete} disabled={loading}>
+                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-white" onClick={handleMassDelete} disabled={loading || loadingAi}>
                             <Trash2 className="h-4 w-4 mr-2" />
                             Excluir Resumos
+                        </Button>
+                        <Button variant="outline" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 bg-white border-blue-200" onClick={handleMassGerarIA} disabled={loading || loadingAi}>
+                            <Wand2 className={`h-4 w-4 mr-2 ${loadingAi ? 'animate-spin' : ''}`} />
+                            Gerar IA p/ Selecionados
                         </Button>
                     </div>
                 </div>
@@ -689,12 +787,14 @@ export function ResumosSistemaTab() {
                                     return (
                                         <TableRow key={index} className="hover:bg-muted/30">
                                             <TableCell className="align-middle text-center">
-                                                {msgDb && (
+                                                {msgDb ? (
                                                     <Checkbox
                                                         checked={selectedMensagens.includes(msgDb.id)}
                                                         onCheckedChange={(checked) => handleSelectRow(msgDb.id, checked as boolean)}
                                                         aria-label={`Selecionar resumo de ${resumoData.cliente.nome}`}
                                                     />
+                                                ) : (
+                                                    <div className="text-xs text-muted-foreground ml-1" title="Clique em 'Gerar Todos' novamente para resolver.">⚠️</div>
                                                 )}
                                             </TableCell>
                                             <TableCell className="font-medium">{resumoData.cliente.nome}</TableCell>
