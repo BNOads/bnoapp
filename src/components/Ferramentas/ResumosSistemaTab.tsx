@@ -56,7 +56,13 @@ export function ResumosSistemaTab() {
     };
 
     const gerarTextoVazioCheck = (resumoData: any) => {
-        return resumoData.tarefas?.length > 0 || resumoData.lancamentos?.length > 0 || resumoData.reunioes?.length > 0 || resumoData.gravacoes?.length > 0 || resumoData.diario?.length > 0 || resumoData.orcamentos?.length > 0 || (resumoData.mensagens && resumoData.mensagens.length > 0);
+        return (resumoData.tarefas && resumoData.tarefas.length > 0) ||
+            (resumoData.lancamentos && resumoData.lancamentos.length > 0) ||
+            (resumoData.reunioes && resumoData.reunioes.length > 0) ||
+            (resumoData.gravacoes && resumoData.gravacoes.length > 0) ||
+            (resumoData.diario && resumoData.diario.length > 0) ||
+            (resumoData.orcamentos && resumoData.orcamentos.length > 0) ||
+            (resumoData.mensagens && resumoData.mensagens.length > 0);
     }
 
     const gerarTextoWhatsapp = (resumoData: any) => {
@@ -66,32 +72,32 @@ export function ResumosSistemaTab() {
 
         if (tarefas && tarefas.length > 0) {
             texto += `*✅ Tarefas Concluídas:*\n`;
-            tarefas.forEach((t: any) => texto += `• ${t.title}\n`);
+            tarefas?.forEach((t: any) => texto += `• ${t.title}\n`);
             texto += `\n`;
         }
 
         if (lancamentos && lancamentos.length > 0) {
             texto += `*🚀 Lançamentos Ativos:*\n`;
-            lancamentos.forEach((l: any) => texto += `• ${l.nome_lancamento} (${l.status_lancamento?.replace(/_/g, " ")})\n`);
+            lancamentos?.forEach((l: any) => texto += `• ${l.nome_lancamento} (${l.status_lancamento?.replace(/_/g, " ")})\n`);
             texto += `\n`;
         }
 
         if (orcamentos && orcamentos.length > 0) {
             texto += `*🎯 Funis Ativos:*\n`;
-            orcamentos.forEach((o: any) => texto += `• ${o.nome_funil} ${o.etapa_funil ? `(${o.etapa_funil})` : ''}\n`);
+            orcamentos?.forEach((o: any) => texto += `• ${o.nome_funil} ${o.etapa_funil ? `(${o.etapa_funil})` : ''}\n`);
             texto += `\n`;
         }
 
-        if (reunioes && reunioes.length > 0 || gravacoes && gravacoes.length > 0) {
+        if ((reunioes && reunioes.length > 0) || (gravacoes && gravacoes.length > 0)) {
             texto += `*🎥 Reuniões & Gravações:*\n`;
-            (reunioes || []).forEach((r: any) => texto += `• ${r.titulo}\n`);
-            (gravacoes || []).forEach((g: any) => texto += `• ${g.titulo}\n`);
+            reunioes?.forEach((r: any) => texto += `• ${r.titulo}\n`);
+            gravacoes?.forEach((g: any) => texto += `• ${g.titulo}\n`);
             texto += `\n`;
         }
 
         if (diario && diario.length > 0) {
             texto += `*📝 Atualizações do Painel:*\n`;
-            diario.forEach((d: any) => texto += `• ${d.texto}\n`);
+            diario?.forEach((d: any) => texto += `• ${d.texto}\n`);
             texto += `\n`;
         }
 
@@ -165,13 +171,16 @@ export function ResumosSistemaTab() {
                 const l = (resLancamentos.data || []).filter(x => x.cliente_id === cliente.id);
                 const o = (resOrcamentos.data || []).filter(x => x.cliente_id === cliente.id);
 
-                const nomeMatch = cliente.nome.toLowerCase();
-                const slugMatch = cliente.slug?.toLowerCase();
+                const nomeMatch = (cliente.nome || "").toLowerCase();
+                const slugMatch = (cliente.slug || "").toLowerCase();
                 const t = (tarefas || []).filter(x => {
                     const titleStr = (x.title || "").toLowerCase();
                     const descStr = (x.description || "").toLowerCase();
-                    const checks = [nomeMatch];
+                    const checks = [];
+                    if (nomeMatch) checks.push(nomeMatch);
                     if (slugMatch) checks.push(slugMatch);
+
+                    if (checks.length === 0) return false;
 
                     return checks.some(check => titleStr.includes(check) || descStr.includes(check));
                 });
@@ -259,13 +268,14 @@ export function ResumosSistemaTab() {
         }).id;
 
         try {
-            const textoContextoRaw = msgDb.mensagem || gerarTextoWhatsapp(resumoData);
+            // Ignorar msgDb.mensagem propositalmente para não misturar contexto de anúncios (Ads) com atividades do sistema
+            const textoContextoRaw = gerarTextoWhatsapp(resumoData);
 
             const { data, error } = await supabase.functions.invoke('formatar-mensagem-semanal', {
                 body: {
-                    mensagemId: msgDb.id,
-                    contextoOriginal: textoContextoRaw,
-                    clienteId: resumoData.cliente.id
+                    cliente_nome: resumoData.cliente.nome,
+                    rascunho: textoContextoRaw,
+                    tipo_resumo: 'sistema'
                 }
             });
 
@@ -276,8 +286,15 @@ export function ResumosSistemaTab() {
                 description: "Versão com IA gerada.",
             });
 
+            const textoGerado = data?.mensagemFormato;
+
+            // Salva de volta no banco
+            if (textoGerado) {
+                await supabase.from('mensagens_semanais').update({ mensagem_ia: textoGerado }).eq('id', msgDb.id);
+            }
+
             // Atualiza localmente a interface
-            const mensagemAtualizada = { ...msgDb, mensagem_ia: data.mensagemRevisada };
+            const mensagemAtualizada = { ...msgDb, mensagem_ia: textoGerado };
 
             if (resumosData) {
                 const newData = resumosData.map(resumo => {

@@ -220,6 +220,20 @@ export function useUpdateTask() {
 
             // Auto update completed_at logic would go here if missing in DB
             if (updates.completed === true) {
+                // Se a tarefa está sendo concluída, verificar se precisa pausar o timer antes
+                const { data: currentTask } = await supabase
+                    .from("tasks")
+                    .select("doing_since, time_tracked")
+                    .eq("id", id)
+                    .single();
+
+                if (currentTask && currentTask.doing_since) {
+                    const now = new Date();
+                    const doingSince = new Date(currentTask.doing_since);
+                    const sessionSeconds = Math.floor((now.getTime() - doingSince.getTime()) / 1000);
+                    updates.time_tracked = (currentTask.time_tracked || 0) + sessionSeconds;
+                }
+
                 updates.completed_at = new Date().toISOString();
                 updates.doing_since = null;
             } else if (updates.completed === false) {
@@ -285,6 +299,20 @@ export function useToggleTaskComplete() {
             };
 
             if (completed) {
+                // Se o timer estiver rodando, pausa e soma o tempo no time_tracked
+                const { data: currentTask } = await supabase
+                    .from("tasks")
+                    .select("doing_since, time_tracked")
+                    .eq("id", id)
+                    .single();
+
+                if (currentTask && currentTask.doing_since) {
+                    const now = new Date();
+                    const doingSince = new Date(currentTask.doing_since);
+                    const sessionSeconds = Math.floor((now.getTime() - doingSince.getTime()) / 1000);
+                    payload.time_tracked = (currentTask.time_tracked || 0) + sessionSeconds;
+                }
+
                 payload.doing_since = null;
             }
 

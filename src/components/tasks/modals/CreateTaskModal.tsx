@@ -35,7 +35,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
     const [priority, setPriority] = useState<TaskPriority>("media");
     const [recurrence, setRecurrence] = useState<RecurrenceType>("none");
     const [listId, setListId] = useState<string>(defaultListId || "none");
-    const [dueDate, setDueDate] = useState<string>("");
+    const [dueDate, setDueDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
     const { userData: currentUser } = useCurrentUser();
@@ -65,12 +65,12 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
             setPriority("media");
             setRecurrence("none");
             setListId(defaultListId || "none");
-            setDueDate("");
+            setDueDate(format(new Date(), "yyyy-MM-dd"));
         }
     }, [open, defaultAssignee, defaultListId, defaultTitle, defaultDescription]);
 
     const handleSave = () => {
-        if (!title.trim()) return;
+        if (!title.trim() || !dueDate) return;
 
         createTask(
             {
@@ -204,7 +204,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                                     <Calendar
                                         mode="single"
                                         selected={dueDate ? new Date(dueDate + 'T12:00:00') : undefined}
-                                        onSelect={(date) => setDueDate(date ? format(date, "yyyy-MM-dd") : "")}
+                                        onSelect={(date) => date && setDueDate(format(date, "yyyy-MM-dd"))}
                                         initialFocus
                                         modifiers={{
                                             recurring: (date) => isRecurringDate(date, recurrence, dueDate)
@@ -268,7 +268,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending} className="h-9 text-muted-foreground hover:text-foreground">
                                 Cancelar
                             </Button>
-                            <Button onClick={handleSave} disabled={isPending || !title.trim()} className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-none rounded-md">
+                            <Button onClick={handleSave} disabled={isPending || !title.trim() || !dueDate} className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-none rounded-md">
                                 Criar Tarefa
                             </Button>
                         </div>

@@ -13,6 +13,7 @@ import { WeekPicker } from "@/components/ui/WeekPicker";
 import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus, Pencil, Trash2, Copy, MoreHorizontal, Wand2, Trash, AlertCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +42,9 @@ interface MensagemSemanal {
   created_by: string;
   cliente_nome: string;
   gestor_nome: string;
+  gestor_avatar?: string;
+  cs_nome?: string;
+  cs_avatar?: string;
 }
 export function MensagensSemanaisView() {
   const [mensagens, setMensagens] = useState<MensagemSemanal[]>([]);
@@ -68,6 +72,8 @@ export function MensagensSemanaisView() {
   const [filtroWeekYear, setFiltroWeekYear] = useState<number>(0);
   const [filtroWeekNumber, setFiltroWeekNumber] = useState<number>(0);
   const [filtroGestor, setFiltroGestor] = useState("all");
+  const [filtroCS, setFiltroCS] = useState("all");
+  const [filtroBusca, setFiltroBusca] = useState("");
   const [filtroCliente, setFiltroCliente] = useState("all");
   const [filtroEnviado, setFiltroEnviado] = useState("all");
 
@@ -209,6 +215,13 @@ export function MensagensSemanaisView() {
           }
         }
 
+        if (filtroCS && filtroCS !== "all") {
+          const csColab = colaboradores.find(c => c.id === filtroCS);
+          if (csColab?.user_id) {
+            queryClientes = queryClientes.eq("cs_id", csColab.user_id);
+          }
+        }
+
         const { data: clientesDoFiltro } = await queryClientes;
         if (!clientesDoFiltro || clientesDoFiltro.length === 0) {
           setClientesPendentesNomes([]);
@@ -232,6 +245,13 @@ export function MensagensSemanaisView() {
           }
         }
 
+        if (filtroCS && filtroCS !== "all") {
+          const csColab = colaboradores.find(c => c.id === filtroCS);
+          if (csColab) {
+            queryMensagens = queryMensagens.eq("cs_id", csColab.id);
+          }
+        }
+
         const { data: mensagensNaSemana } = await queryMensagens;
         const clientesComMensagem = new Set(
           mensagensNaSemana?.map(m => m.cliente_id) || []
@@ -251,11 +271,11 @@ export function MensagensSemanaisView() {
     if (colaboradores.length > 0) {
       buscarPendentes();
     }
-  }, [filtroWeekStart, filtroGestor, mensagens, colaboradores]);
+  }, [filtroWeekStart, filtroGestor, filtroCS, mensagens, colaboradores]);
 
   useEffect(() => {
     carregarMensagens();
-  }, [filtroWeekStart, filtroGestor, filtroCliente, filtroEnviado, ordenarPor, ordenarDirecao]);
+  }, [filtroWeekStart, filtroGestor, filtroCS, filtroCliente, filtroEnviado, filtroBusca, ordenarPor, ordenarDirecao, clientes, colaboradores]);
 
   const carregarDados = async () => {
     try {
@@ -264,10 +284,10 @@ export function MensagensSemanaisView() {
         data: clientesData
       } = await supabase.from("clientes").select("id, nome, cs_id").eq("ativo", true).order("nome");
 
-      // Carregar colaboradores
+      // Carregar colaboradores com seus avatares
       const {
         data: colaboradoresData
-      } = await supabase.from("colaboradores").select("id, nome, user_id").eq("ativo", true).order("nome");
+      } = await supabase.from("colaboradores").select("id, nome, user_id, avatar_url").eq("ativo", true).order("nome");
       setClientes(clientesData || []);
       setColaboradores(colaboradoresData || []);
     } catch (error) {
@@ -284,8 +304,9 @@ export function MensagensSemanaisView() {
     try {
       let query = supabase.from("mensagens_semanais").select(`
           *,
-          clientes!inner(nome),
-          gestor:colaboradores!mensagens_semanais_gestor_id_fkey(nome)
+          gestor:colaboradores!mensagens_semanais_gestor_id_fkey(nome, avatar_url),
+          cs_msg:colaboradores!mensagens_semanais_cs_id_fkey(nome, avatar_url),
+          clientes!inner(nome, cs_id, client_cs:colaboradores!clientes_cs_id_fkey(nome, avatar_url))
         `);
 
       // Ordenar no banco apenas por colunas reais da tabela
@@ -310,6 +331,9 @@ export function MensagensSemanaisView() {
       if (filtroGestor && filtroGestor !== "all") {
         query = query.eq("gestor_id", filtroGestor);
       }
+      if (filtroCS && filtroCS !== "all") {
+        query = query.eq("cs_id", filtroCS);
+      }
       if (filtroCliente && filtroCliente !== "all") {
         query = query.eq("cliente_id", filtroCliente);
       }
@@ -324,30 +348,69 @@ export function MensagensSemanaisView() {
         throw error;
       }
 
-      // Transformar dados para o formato esperado
-      const mensagensFormatadas = data?.map((item: any) => ({
-        id: item.id,
-        cliente_id: item.cliente_id,
-        gestor_id: item.gestor_id,
-        cs_id: item.cs_id,
-        semana_referencia: item.semana_referencia,
-        mensagem: item.mensagem,
-        mensagem_ia: item.mensagem_ia,
-        enviado: item.enviado,
-        enviado_por: item.enviado_por,
-        enviado_em: item.enviado_em,
-        enviado_gestor_em: item.enviado_gestor_em,
-        enviado_cs_em: item.enviado_cs_em,
-        historico_envios: Array.isArray(item.historico_envios) ? item.historico_envios : typeof item.historico_envios === 'string' ? item.historico_envios ? JSON.parse(item.historico_envios) : [] : item.historico_envios || [],
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        created_by: item.created_by,
-        cliente_nome: item.clientes?.nome || "Cliente não encontrado",
-        gestor_nome: item.gestor?.nome || "Gestor não encontrado"
-      })) || [];
+      const mensagensFormatadas = data?.map((item: any) => {
+        // Encontrar o gestor principal
+        const gestorNome = item.gestor?.nome || colaboradores.find((c: any) => c.id === item.gestor_id)?.nome || "Gestor não encontrado";
+        const gestorAvatar = item.gestor?.avatar_url || colaboradores.find((c: any) => c.id === item.gestor_id)?.avatar_url;
+
+        // Extrair o CS do objeto da mensagem (se existir), senão do cliente (via nested join), senão do fallback manual:
+        let csNome = "CS não atribuído";
+        let csAvatar = undefined;
+
+        if (item.cs_msg?.nome) {
+          csNome = item.cs_msg.nome;
+          csAvatar = item.cs_msg.avatar_url;
+        } else if (item.clientes?.client_cs?.nome) {
+          csNome = item.clientes.client_cs.nome;
+          csAvatar = item.clientes.client_cs.avatar_url;
+        } else if (item.clientes?.cs_id || item.cs_id) {
+          const fallbackCsId = item.clientes?.cs_id || item.cs_id;
+          const fallbackCs = colaboradores.find((c: any) => c.user_id === fallbackCsId || c.id === fallbackCsId);
+          if (fallbackCs) {
+            csNome = fallbackCs.nome;
+            csAvatar = fallbackCs.avatar_url;
+          }
+        }
+
+        return {
+          id: item.id,
+          cliente_id: item.cliente_id,
+          gestor_id: item.gestor_id,
+          cs_id: item.cs_id,
+          semana_referencia: item.semana_referencia,
+          mensagem: item.mensagem,
+          mensagem_ia: item.mensagem_ia,
+          enviado: item.enviado,
+          enviado_por: item.enviado_por,
+          enviado_em: item.enviado_em,
+          enviado_gestor_em: item.enviado_gestor_em,
+          enviado_cs_em: item.enviado_cs_em,
+          historico_envios: Array.isArray(item.historico_envios) ? item.historico_envios : typeof item.historico_envios === 'string' ? item.historico_envios ? JSON.parse(item.historico_envios) : [] : item.historico_envios || [],
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          created_by: item.created_by,
+          cliente_nome: item.clientes?.nome || "Cliente não encontrado",
+          gestor_nome: gestorNome,
+          gestor_avatar: gestorAvatar,
+          cs_nome: csNome,
+          cs_avatar: csAvatar
+        };
+      }) || [];
+
+      let filtradasBusca = mensagensFormatadas;
+      if (filtroBusca.trim()) {
+        const termo = filtroBusca.toLowerCase().trim();
+        filtradasBusca = mensagensFormatadas.filter((m: any) =>
+          m.cliente_nome?.toLowerCase().includes(termo) ||
+          m.mensagem?.toLowerCase().includes(termo) ||
+          m.mensagem_ia?.toLowerCase().includes(termo) ||
+          m.gestor_nome?.toLowerCase().includes(termo) ||
+          m.cs_nome?.toLowerCase().includes(termo)
+        );
+      }
 
       // Aplicar ordenação no frontend para campos derivados (nome dos colaboradores)
-      const mensagensOrdenadas = mensagensFormatadas.sort((a, b) => {
+      const mensagensOrdenadas = filtradasBusca.sort((a, b) => {
         let valorA, valorB;
         switch (ordenarPor) {
           case "cliente_nome":
@@ -886,6 +949,20 @@ ${mensagem.mensagem}`;
               }} />
             </div>
 
+            <div className="flex-1 min-w-[200px]">
+              <Label htmlFor="filtro-busca">Pesquisa</Label>
+              <div className="relative">
+                <Input
+                  id="filtro-busca"
+                  placeholder="Buscar cliente ou texto..."
+                  value={filtroBusca}
+                  onChange={(e) => setFiltroBusca(e.target.value)}
+                  className="pl-8"
+                />
+                <Filter className="w-4 h-4 absolute left-2.5 top-3 text-muted-foreground" />
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="filtro-gestor">Gestor</Label>
               <Select value={filtroGestor} onValueChange={setFiltroGestor}>
@@ -897,7 +974,36 @@ ${mensagem.mensagem}`;
                   {colaboradores
                     .filter(colaborador => colaborador.id && colaborador.id.trim() !== '')
                     .map(colaborador => <SelectItem key={colaborador.id} value={colaborador.id}>
-                      {colaborador.nome}
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={colaborador.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${colaborador.nome}`} />
+                          <AvatarFallback className="text-[9px]">{colaborador.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        {colaborador.nome}
+                      </div>
+                    </SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="filtro-cs">CS</Label>
+              <Select value={filtroCS} onValueChange={setFiltroCS}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os CSs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os CSs</SelectItem>
+                  {colaboradores
+                    .filter(colaborador => colaborador.id && colaborador.id.trim() !== '')
+                    .map(colaborador => <SelectItem key={colaborador.id} value={colaborador.id}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={colaborador.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${colaborador.nome}`} />
+                          <AvatarFallback className="text-[9px]">{colaborador.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        {colaborador.nome}
+                      </div>
                     </SelectItem>)}
                 </SelectContent>
               </Select>
@@ -1015,9 +1121,15 @@ ${mensagem.mensagem}`;
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("gestor_nome")}>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           Gestor
-                          <IconeOrdenacao coluna="gestor_nome" />
+                          <ArrowUpDown className="h-3 w-3" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("cs_nome")}>
+                        <div className="flex items-center gap-1">
+                          CS
+                          <ArrowUpDown className="h-3 w-3" />
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("semana_referencia")}>
@@ -1054,7 +1166,28 @@ ${mensagem.mensagem}`;
                       <TableCell className="font-medium">
                         {mensagem.cliente_nome}
                       </TableCell>
-                      <TableCell>{mensagem.gestor_nome}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {mensagem.gestor_nome !== "Gestor não encontrado" && (
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={mensagem.gestor_avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${mensagem.gestor_nome}`} />
+                              <AvatarFallback className="text-[10px]">{mensagem.gestor_nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <span className="font-medium text-sm text-foreground">{mensagem.gestor_nome}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {mensagem.cs_nome !== "CS não atribuído" && (
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={mensagem.cs_avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${mensagem.cs_nome}`} />
+                              <AvatarFallback className="text-[10px]">{mensagem.cs_nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <span className="font-medium text-sm text-foreground">{mensagem.cs_nome}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {format(new Date(mensagem.semana_referencia), "dd/MM/yyyy", {
                           locale: ptBR
