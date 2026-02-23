@@ -156,3 +156,37 @@ export function useTaskLists() {
         staleTime: 10 * 60 * 1000,
     });
 }
+
+// ------------------------------------------------------------------
+// Fetch Task Sessions (Daily Timer Records)
+// ------------------------------------------------------------------
+export function useTaskSessions(userId?: string, limit: number = 2000) {
+    return useQuery({
+        queryKey: [...taskKeys.all, "sessions", userId, limit],
+        queryFn: async () => {
+            let q = supabase
+                .from('task_sessions')
+                .select(`
+                    id, start_time, end_time, duration_seconds, user_id, task_id,
+                    tasks!inner(id, title, list_id, priority)
+                `)
+                .order('start_time', { ascending: false })
+                .limit(limit);
+
+            if (userId && userId !== "all") {
+                // Find matching user ID by name... Wait, we filter by name on the frontend.
+                // Let's just fetch all and filter in useMemo for now to match exactly what is done today.
+            }
+
+            const { data, error } = await q;
+
+            if (error) {
+                console.error("Error fetching task sessions:", error);
+                throw error;
+            }
+
+            return data as any[];
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+}

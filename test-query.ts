@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 dotenv.config();
 
-const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+const supabase = createClient(process.env.VITE_SUPABASE_URL as string, process.env.VITE_SUPABASE_ANON_KEY as string);
 
 async function test() {
   const { data: d1, error: e1 } = await supabase
@@ -14,7 +14,7 @@ async function test() {
         primary_cs:colaboradores!clientes_primary_cs_user_id_fkey(id, nome, avatar_url)
     `)
     .limit(1);
-
+    
   if (e1) {
     console.error("ERROR CLIENTES:", e1);
   } else {

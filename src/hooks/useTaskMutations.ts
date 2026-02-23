@@ -223,21 +223,55 @@ export function useUpdateTask() {
                 // Se a tarefa está sendo concluída, verificar se precisa pausar o timer antes
                 const { data: currentTask } = await supabase
                     .from("tasks")
-                    .select("doing_since, time_tracked")
+                    .select("timer_started_at, time_tracked")
                     .eq("id", id)
                     .single();
 
-                if (currentTask && currentTask.doing_since) {
+                if (currentTask && currentTask.timer_started_at) {
                     const now = new Date();
-                    const doingSince = new Date(currentTask.doing_since);
+                    const doingSince = new Date(currentTask.timer_started_at);
                     const sessionSeconds = Math.floor((now.getTime() - doingSince.getTime()) / 1000);
                     updates.time_tracked = (currentTask.time_tracked || 0) + sessionSeconds;
+                    
+                    // Salvar a sessão de timer no log
+                    await supabase.from("task_sessions").insert({
+                        task_id: id,
+                        user_id: user?.id,
+                        start_time: doingSince.toISOString(),
+                        end_time: now.toISOString(),
+                        duration_seconds: sessionSeconds
+                    });
                 }
 
                 updates.completed_at = new Date().toISOString();
-                updates.doing_since = null;
+                updates.timer_started_at = null;
             } else if (updates.completed === false) {
                 updates.completed_at = null;
+            }
+
+            // Se o timer estiver sendo MANUALMENTE PARADO (play/pause)
+            if (updates.timer_started_at === null && updates.time_tracked !== undefined) {
+                const { data: currentTask } = await supabase
+                    .from("tasks")
+                    .select("timer_started_at")
+                    .eq("id", id)
+                    .single();
+                
+                if (currentTask && currentTask.timer_started_at) {
+                    const now = new Date();
+                    const startDate = new Date(currentTask.timer_started_at);
+                    const sessionSeconds = Math.floor((now.getTime() - startDate.getTime()) / 1000);
+                    
+                    if (sessionSeconds > 0) {
+                        await supabase.from("task_sessions").insert({
+                            task_id: id,
+                            user_id: user?.id,
+                            start_time: startDate.toISOString(),
+                            end_time: now.toISOString(),
+                            duration_seconds: sessionSeconds
+                        });
+                    }
+                }
             }
 
             const { data, error } = await supabase

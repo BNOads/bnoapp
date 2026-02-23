@@ -18,6 +18,7 @@ import { TasksByPersonView } from "@/components/tasks/views/TasksByPersonView";
 import { TasksByListView } from "@/components/tasks/views/TasksByListView";
 import { AdminTasksPanel } from "@/components/tasks/views/AdminTasksPanel";
 import { AutomacoesView } from "@/components/tasks/views/AutomacoesView";
+import { TasksAnalysisTab } from "@/components/tasks/views/TasksAnalysisTab";
 import { Task, PRIORITY_LABELS } from "@/types/tasks";
 import { isOverdue, isInDateRange, DateRangePreset } from "@/lib/dateUtils";
 
@@ -28,7 +29,7 @@ import { TaskDetailDialog } from "@/components/tasks/details/TaskDetailDialog";
 
 export default function Tarefas() {
     const { userData: currentUser } = useCurrentUser();
-    const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+    const isAdmin = currentUser?.nivel_acesso === 'admin' || currentUser?.nivel_acesso === 'super_admin' || (currentUser as any)?.role === 'admin';
 
     const [filters, setFilters] = useState<TaskFilters>({
         search: "",
@@ -39,7 +40,7 @@ export default function Tarefas() {
         status: "all",
         date: "all"
     });
-    const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "listas" | "automacoes">("minhas");
+    const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "listas" | "automacoes" | "analise">("minhas");
     const [timeViewType, setTimeViewType] = useState<"tabela" | "kanban">("tabela");
     const [minhasViewType, setMinhasViewType] = useState<"tabela" | "kanban">("tabela");
     const [minhasAba, setMinhasAba] = useState<"atribuidas" | "criadas">("atribuidas");
@@ -289,6 +290,10 @@ export default function Tarefas() {
             return <AutomacoesView />;
         }
 
+        if (activeMainTab === "analise" && isAdmin) {
+            return <TasksAnalysisTab />;
+        }
+
         return null;
     };
 
@@ -334,6 +339,15 @@ export default function Tarefas() {
                                 <Zap className="w-4 h-4" />
                                 Automações
                             </button>
+                            {isAdmin && (
+                                <button
+                                    onClick={() => setActiveMainTab("analise")}
+                                    className={`px-4 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${activeMainTab === "analise" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                >
+                                    <BarChart3 className="w-4 h-4" />
+                                    Análise
+                                </button>
+                            )}
                         </div>
 
                         <Button variant="outline" onClick={() => setIsBulkCreateOpen(true)} className="gap-2">
@@ -500,7 +514,7 @@ export default function Tarefas() {
                     </div>
                 </div>
 
-                {activeMainTab !== "automacoes" && (
+                {activeMainTab !== "automacoes" && activeMainTab !== "analise" && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                         <button
                             onClick={() => setKpiPopupFilter({ title: 'Tarefas Pendentes', filterFn: (t) => !t.completed })}

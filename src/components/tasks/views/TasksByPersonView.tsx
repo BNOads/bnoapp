@@ -377,8 +377,8 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                 return colab?.avatar_url ? (
                                                     <img src={colab.avatar_url} alt={person} className="w-10 h-10 rounded-full object-cover border" />
                                                 ) : (
-                                                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-bold text-lg text-slate-600 dark:text-slate-300">
-                                                        {person.charAt(0).toUpperCase()}
+                                                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
+                                                        {(person || "?").charAt(0).toUpperCase()}
                                                     </div>
                                                 );
                                             })()
@@ -578,8 +578,8 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                             return colab?.avatar_url ? (
                                                 <img src={colab.avatar_url} alt={person} className="w-8 h-8 rounded-full object-cover border shadow-sm" />
                                             ) : (
-                                                <div className="w-8 h-8 rounded-full bg-slate-900 dark:bg-slate-100 text-slate-50 dark:text-slate-900 flex items-center justify-center font-bold shadow-sm">
-                                                    {person.charAt(0).toUpperCase()}
+                                                <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 shadow-sm border">
+                                                    {(person || "?").charAt(0).toUpperCase()}
                                                 </div>
                                             );
                                         })()

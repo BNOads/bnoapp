@@ -108,7 +108,7 @@ Por favor, transforme esta listagem bruta de sistema em uma mensagem amigável e
         const data = await response.json();
         let textoGerado = data.choices?.[0]?.message?.content || '';
 
-        textoGerado = textoGerado.trim();
+        textoGerado = textoGerado.trim().replace(/\*\*/g, '*');
 
         console.log('✅ Mensagem formatada com sucesso.');
 

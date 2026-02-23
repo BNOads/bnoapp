@@ -8,11 +8,13 @@ import { toZonedTime } from "date-fns-tz";
 import { startOfWeek, endOfWeek, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Copy, MessageSquare, Calendar as CalendarIcon, Users, Eye, Check, X, Trash2, Wand2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Copy, MessageSquare, Calendar as CalendarIcon, Users, Eye, Check, X, Trash2, Wand2, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown, ChevronUp } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 export function ResumosSistemaTab() {
     const [clientes, setClientes] = useState<any[]>([]);
@@ -20,6 +22,7 @@ export function ResumosSistemaTab() {
     const [weekStart, setWeekStart] = useState<string>("");
     const [loading, setLoading] = useState(false);
     const [loadingAi, setLoadingAi] = useState(false);
+    const [rawTextExpanded, setRawTextExpanded] = useState(false);
     const [resumosData, setResumosData] = useState<any[] | null>(null);
     const [selectedMensagens, setSelectedMensagens] = useState<string[]>([]);
     const { toast } = useToast();
@@ -33,14 +36,24 @@ export function ResumosSistemaTab() {
         direcao: 'asc'
     });
 
+    const { isGestor, isCS, isAdmin } = useUserPermissions();
+
     const TIMEZONE = "America/Sao_Paulo";
 
     useEffect(() => {
         // Carregar clientes ativos
         supabase
             .from("clientes")
-            .select("id, nome, slug")
+            .select(`
+                id,
+                nome,
+                slug,
+                primary_cs_user_id,
+                primary_cs:colaboradores!clientes_primary_cs_user_id_fkey(id, nome, avatar_url)
+            `)
             .eq("ativo", true)
+            .eq("is_active", true)
+            .is("deleted_at", null)
             .order("nome")
             .then(({ data }) => setClientes(data || []));
 
@@ -138,37 +151,33 @@ export function ResumosSistemaTab() {
             const end = endOfWeek(start, { weekStartsOn: 1 });
             const endDate = new Date(end.setHours(23, 59, 59, 999));
 
-            const startStr = start.toISOString();
-            const endStr = endDate.toISOString();
+            const startStr = format(start, "yyyy-MM-dd", { locale: ptBR });
+            const endStr = format(endDate, "yyyy-MM-dd", { locale: ptBR });
 
-            // Queries
-            let qMensagens = supabase.from("mensagens_semanais").select("*").gte("semana_referencia", weekStart).lte("semana_referencia", weekStart);
-            let qDiario = supabase.from("diario_bordo").select("texto, created_at, autor_id, cliente_id").gte("created_at", startStr).lte("created_at", endStr).order("created_at", { ascending: true });
-            let qReunioes = supabase.from("reunioes").select("titulo, descricao, data, cliente_id").gte("data", startStr).lte("data", endStr);
-            let qGravacoes = supabase.from("gravacoes").select("titulo, created_at, cliente_id").gte("created_at", startStr).lte("created_at", endStr);
-            let qLancamentos = supabase.from("lancamentos").select("nome_lancamento, status_lancamento, cliente_id").eq("ativo", true).not("status_lancamento", "in", '("finalizado","cancelado")');
-            let qOrcamentos = supabase.from("orcamentos_funil").select("nome_funil, etapa_funil, cliente_id, ativo").eq("ativo", true);
-
-            if (!gerarParaTodos) {
-                const singleId = clientesParaGerar[0].id;
-                qMensagens = qMensagens.eq('cliente_id', singleId);
-                qDiario = qDiario.eq('cliente_id', singleId);
-                qReunioes = qReunioes.eq('cliente_id', singleId);
-                qGravacoes = qGravacoes.eq('cliente_id', singleId);
-                qLancamentos = qLancamentos.eq('cliente_id', singleId);
-                qOrcamentos = qOrcamentos.eq('cliente_id', singleId);
-            }
-
-            const [resMensagens, resDiario, resReunioes, resGravacoes, resLancamentos, resOrcamentos] = await Promise.all([
-                qMensagens, qDiario, qReunioes, qGravacoes, qLancamentos, qOrcamentos
+            const [resMensagens, resDiario, resReunioes, resGravacoes, resLancamentos, resOrcamentos, resAlocacoes] = await Promise.all([
+                supabase.from("mensagens_semanais").select(`
+                    *,
+                    gestor:gestor_id(nome, avatar_url),
+                    cs:cs_id(nome, avatar_url)
+                `).eq("semana_referencia", weekStart).in("cliente_id", clientesParaGerar.map(c => c.id)),
+                supabase.from("diario_bordo").select("texto, created_at, autor_id, cliente_id").in("cliente_id", clientesParaGerar.map(c => c.id)).gte("created_at", start.toISOString()).lte("created_at", endDate.toISOString()).order("created_at", { ascending: true }),
+                supabase.from("reunioes").select("titulo, descricao, data, cliente_id").in("cliente_id", clientesParaGerar.map(c => c.id)).gte("data", start.toISOString()).lte("data", endDate.toISOString()),
+                supabase.from("gravacoes").select("titulo, created_at, cliente_id").in("cliente_id", clientesParaGerar.map(c => c.id)).gte("created_at", start.toISOString()).lte("created_at", endDate.toISOString()),
+                supabase.from("lancamentos").select("nome_lancamento, status_lancamento, cliente_id").eq("ativo", true).not("status_lancamento", "in", '("finalizado","cancelado")').in("cliente_id", clientesParaGerar.map(c => c.id)),
+                supabase.from("orcamentos_funil").select("nome_funil, etapa_funil, cliente_id, ativo").eq("ativo", true).in("cliente_id", clientesParaGerar.map(c => c.id)),
+                supabase.from("alocacoes").select(`
+                    cliente_id,
+                    gestor:gestor_id(id, nome, avatar_url),
+                    cs:cs_id(id, nome, avatar_url)
+                `).in("cliente_id", clientesParaGerar.map(c => c.id))
             ]);
 
             const { data: tarefas } = await supabase
                 .from("tasks")
                 .select("title, completed_at, description")
                 .eq("completed", true)
-                .gte("completed_at", startStr)
-                .lte("completed_at", endStr);
+                .gte("completed_at", start.toISOString())
+                .lte("completed_at", endDate.toISOString());
 
             const { data: tarefasAbertas } = await supabase
                 .from("tasks")
@@ -200,6 +209,7 @@ export function ResumosSistemaTab() {
 
                 const t = (tarefas || []).filter(filterTaskFunction);
                 const tp = (tarefasAbertas || []).filter(filterTaskFunction);
+                const alocacao = (resAlocacoes.data || []).find(x => x.cliente_id === cliente.id);
 
                 return {
                     cliente,
@@ -211,7 +221,8 @@ export function ResumosSistemaTab() {
                     lancamentos: l,
                     orcamentos: o,
                     tarefas: t,
-                    tarefasPendentes: tp
+                    tarefasPendentes: tp,
+                    alocacao
                 };
             });
 
@@ -225,6 +236,8 @@ export function ResumosSistemaTab() {
 
                 const msgsToInsert = resumosValidosSemMensagem.map(r => ({
                     cliente_id: r.cliente.id,
+                    gestor_id: r.alocacao?.gestor?.id || null,
+                    cs_id: r.cliente.primary_cs?.id || null,
                     semana_referencia: weekStart,
                     mensagem: gerarTextoWhatsapp(r),
                     enviado: false,
@@ -534,6 +547,94 @@ export function ResumosSistemaTab() {
         }
     }
 
+    const handleSingleGerarIA = async (msgId: string, clienteNome: string, rascunho: string) => {
+        setLoadingAi(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('formatar-mensagem-semanal', {
+                body: {
+                    cliente_nome: clienteNome,
+                    rascunho: rascunho,
+                    tipo_resumo: 'sistema'
+                },
+            });
+
+            if (error) throw error;
+
+            if (data?.mensagemFormato) {
+                const { error: updateError } = await supabase
+                    .from("mensagens_semanais")
+                    .update({ mensagem_ia: data.mensagemFormato })
+                    .eq("id", msgId);
+
+                if (updateError) throw updateError;
+
+                toast({
+                    title: "Sucesso",
+                    description: "Resumo com IA gerado e salvo."
+                });
+
+                // update local state
+                if (resumosData) {
+                    const newData = resumosData.map(resumo => {
+                        const msg = resumo.mensagens[0];
+                        if (msg && msg.id === msgId) {
+                            return { ...resumo, mensagens: [{ ...msg, mensagem_ia: data.mensagemFormato }] };
+                        }
+                        return resumo;
+                    });
+                    setResumosData(newData);
+                }
+            }
+        } catch (error) {
+            toast({
+                title: "Erro",
+                description: "Falha ao gerar IA.",
+                variant: "destructive"
+            });
+        } finally {
+            setLoadingAi(false);
+        }
+    }
+
+    const handleSingleAprovar = async (msgId: string, isAprovar: boolean) => {
+        try {
+            const updateData: any = {
+                enviado: isAprovar,
+                enviado_em: isAprovar ? new Date().toISOString() : null
+            };
+
+            const { error } = await supabase
+                .from("mensagens_semanais")
+                .update(updateData)
+                .eq("id", msgId);
+
+            if (error) throw error;
+
+            toast({
+                title: isAprovar ? "Aprovado!" : "Voltado para pendente!",
+                description: `Resumo atualizado com sucesso.`,
+            });
+
+            // Update local state directly to be reactive
+            if (resumosData) {
+                const newData = resumosData.map(resumo => {
+                    const msg = resumo.mensagens[0];
+                    if (msg && msg.id === msgId) {
+                        return { ...resumo, mensagens: [{ ...msg, ...updateData }] };
+                    }
+                    return resumo;
+                });
+                setResumosData(newData);
+            }
+        } catch (error: any) {
+            toast({
+                title: "Erro ao atualizar",
+                description: error.message,
+                variant: "destructive"
+            });
+        }
+    }
+
     const handleSelectRow = (msgId: string, checked: boolean) => {
         if (checked) {
             setSelectedMensagens(prev => [...prev, msgId]);
@@ -756,19 +857,21 @@ export function ResumosSistemaTab() {
                                             aria-label="Selecionar todos"
                                         />
                                     </TableHead>
-                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleOrdenar("cliente_nome")}>
-                                        <div className="flex items-center">
+                                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrdenar("cliente_nome")}>
+                                        <div className="flex items-center gap-2">
                                             Cliente
                                             <IconeOrdenacao coluna="cliente_nome" />
                                         </div>
                                     </TableHead>
-                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleOrdenar("semana")}>
-                                        <div className="flex items-center">
+                                    <TableHead>Gestor</TableHead>
+                                    <TableHead>CS</TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 w-[120px]" onClick={() => handleOrdenar("semana")}>
+                                        <div className="flex items-center gap-2">
                                             Semana
                                             <IconeOrdenacao coluna="semana" />
                                         </div>
                                     </TableHead>
-                                    <TableHead>Mensagem Formato WA</TableHead>
+                                    <TableHead>Mensagem Gerada</TableHead>
                                     <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleOrdenar("status")}>
                                         <div className="flex items-center">
                                             Status
@@ -798,6 +901,32 @@ export function ResumosSistemaTab() {
                                                 )}
                                             </TableCell>
                                             <TableCell className="font-medium">{resumoData.cliente.nome}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    {resumoData.alocacao?.gestor?.nome && (
+                                                        <Avatar className="h-6 w-6">
+                                                            <AvatarImage src={resumoData.alocacao?.gestor?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${resumoData.alocacao?.gestor?.nome}`} />
+                                                            <AvatarFallback className="text-[10px]">{resumoData.alocacao.gestor.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                        </Avatar>
+                                                    )}
+                                                    <span className="font-medium text-sm text-foreground">
+                                                        {resumoData.alocacao?.gestor?.nome || "-"}
+                                                    </span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    {resumoData.cliente.primary_cs?.nome && (
+                                                        <Avatar className="h-6 w-6">
+                                                            <AvatarImage src={resumoData.cliente.primary_cs?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${resumoData.cliente.primary_cs?.nome}`} />
+                                                            <AvatarFallback className="text-[10px]">{resumoData.cliente.primary_cs.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                        </Avatar>
+                                                    )}
+                                                    <span className="font-medium text-sm text-foreground">
+                                                        {resumoData.cliente.primary_cs?.nome || "-"}
+                                                    </span>
+                                                </div>
+                                            </TableCell>
                                             <TableCell>{format(new Date(weekStart), "dd/MM/yy", { locale: ptBR })}</TableCell>
                                             <TableCell className="max-w-md">
                                                 <div className="truncate text-muted-foreground text-sm">
@@ -817,6 +946,33 @@ export function ResumosSistemaTab() {
                                                     <Button variant="outline" size="sm" onClick={() => handleCopiarResumo(resumoData)} title="Copiar resumo">
                                                         <Copy className="h-4 w-4" />
                                                     </Button>
+
+                                                    {msgDb && (
+                                                        <>
+                                                            <div className="hidden md:flex items-center gap-1">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => handleSingleGerarIA(msgDb.id, resumoData.cliente.nome, gerarTextoWhatsapp(resumoData))}
+                                                                    disabled={loadingAi}
+                                                                    className={msgDb.mensagem_ia ? "text-blue-600 border-blue-200 hover:bg-blue-50" : ""}
+                                                                    title={msgDb.mensagem_ia ? "Regerar IA" : "Gerar com IA"}
+                                                                >
+                                                                    <Wand2 className={`h-4 w-4 ${loadingAi ? 'animate-spin' : ''}`} />
+                                                                </Button>
+                                                                {(isCS || isAdmin) && (
+                                                                    <>
+                                                                        <Button variant="outline" size="sm" onClick={() => handleSingleAprovar(msgDb.id, true)} disabled={msgDb.enviado} className="text-green-600 hover:text-green-700" title="Aprovar/Marcar como enviado">
+                                                                            <Check className="h-4 w-4" />
+                                                                        </Button>
+                                                                        <Button variant="outline" size="sm" onClick={() => handleSingleAprovar(msgDb.id, false)} disabled={!msgDb.enviado} className="text-red-600 hover:text-red-700" title="Marcar como pendente">
+                                                                            <X className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -836,7 +992,10 @@ export function ResumosSistemaTab() {
 
             {/* Modal de Visualização da Mensagem */}
             <Dialog open={!!mensagemSelecionada} onOpenChange={(open) => {
-                if (!open) setMensagemSelecionada(null);
+                if (!open) {
+                    setMensagemSelecionada(null);
+                    setRawTextExpanded(false);
+                }
             }}>
                 <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto w-full">
                     <DialogHeader>
@@ -923,14 +1082,24 @@ export function ResumosSistemaTab() {
                                     </div>
                                 )}
 
-                                <div className="space-y-2">
-                                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2 border-b pb-2">
-                                        <MessageSquare className="h-4 w-4" />
-                                        Registro Matriz de Atividades (Extração Bruta)
-                                    </h3>
-                                    <div className="bg-muted/50 p-4 rounded-lg whitespace-pre-wrap text-sm border font-mono">
-                                        {textoRaw}
-                                    </div>
+                                <div className="space-y-2 mt-6">
+                                    <Collapsible open={rawTextExpanded} onOpenChange={setRawTextExpanded}>
+                                        <CollapsibleTrigger asChild>
+                                            <div className="flex items-center justify-between cursor-pointer border-b pb-2 hover:bg-muted/50 p-2 rounded-t-md transition-colors">
+                                                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                                    <MessageSquare className="h-4 w-4" />
+                                                    Registro Matriz de Atividades (Extração Bruta)
+                                                </h3>
+                                                {rawTextExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                                            </div>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent className="pt-2">
+                                            <div className="bg-muted/50 p-4 rounded-b-lg whitespace-pre-wrap text-sm border-x border-b font-mono max-h-[400px] overflow-y-auto">
+
+                                                {textoRaw}
+                                            </div>
+                                        </CollapsibleContent>
+                                    </Collapsible>
                                 </div>
                             </div>
                         );

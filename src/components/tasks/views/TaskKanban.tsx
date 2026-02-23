@@ -84,9 +84,9 @@ export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
             <div className="flex items-center justify-between text-xs text-muted-foreground mt-3">
                 {task.assignee ? (
                     <span className="flex items-center gap-1">
-                        <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
-                            {task.assignee.charAt(0).toUpperCase()}
-                        </span>
+                        <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                            {(task.assignee || "?").charAt(0).toUpperCase()}
+                        </div>
                         <span className="truncate max-w-[80px]">{task.assignee}</span>
                     </span>
                 ) : (

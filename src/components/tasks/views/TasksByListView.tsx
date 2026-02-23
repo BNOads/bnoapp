@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Task, PRIORITY_LABELS, TaskPriority } from "@/types/tasks";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToggleTaskComplete, useUpdateTask, useDeleteTask } from "@/hooks/useTaskMutations";
+import { useToggleTaskComplete, useUpdateTask, useDeleteTask, useCreateTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, MessageSquare, Clock, Plus, Flag, List, ChevronDown, ChevronRight, Trash2, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, CalendarDays } from "lucide-react";
+import { CalendarIcon, MessageSquare, Clock, Plus, Flag, List, ChevronDown, ChevronRight, Trash2, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, CalendarDays, Lock, MoreVertical, Copy } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
 import { useTaskLists } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,8 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
     const [isAddListOpen, setIsAddListOpen] = useState(false);
     const [newListName, setNewListName] = useState("");
     const [newListColor, setNewListColor] = useState("#3b82f6");
+    const [newListPrivate, setNewListPrivate] = useState(false);
+    const [newListAllowedUsers, setNewListAllowedUsers] = useState<string[]>([]);
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
     const [listSearch, setListSearch] = useState("");
 
@@ -110,12 +112,16 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
         const { error } = await supabase.from("task_lists").insert({
             name: newListName.trim(),
             color: newListColor,
-            position: taskLists.length
+            position: taskLists.length,
+            is_locked: newListPrivate,
+            allowed_user_ids: newListPrivate ? newListAllowedUsers : []
         });
         if (!error) {
             queryClient.invalidateQueries({ queryKey: taskKeys.taskLists() });
             setIsAddListOpen(false);
             setNewListName("");
+            setNewListPrivate(false);
+            setNewListAllowedUsers([]);
         }
     };
 
@@ -171,12 +177,12 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
 
     // Combine taskLists and a "Sem Lista" column
     const columns = [
-        ...taskLists.map(l => ({ id: l.id, title: l.name, color: l.color })),
-        { id: "none", title: "Sem Lista", color: "#94a3b8" }
+        ...taskLists.map(l => ({ id: l.id, title: l.name, color: l.color, is_locked: l.is_locked })),
+        { id: "none", title: "Sem Lista", color: "#94a3b8", is_locked: false }
     ].sort((a, b) => getTasksByList(b.id).length - getTasksByList(a.id).length);
 
     const filteredColumns = columns.filter(col =>
-        col.title.toLowerCase().includes(listSearch.toLowerCase())
+        (col.title || "").toLowerCase().includes(listSearch.toLowerCase())
     );
 
     if (isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando listas...</div>;
@@ -264,7 +270,10 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                         />
                                     </div>
                                     <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: col.color }} />
-                                    <h3 className="font-semibold text-[15px]">{col.title}</h3>
+                                    <h3 className="font-semibold text-[15px] flex items-center gap-2">
+                                        {col.title}
+                                        {col.is_locked && <Lock className="w-3.5 h-3.5 text-muted-foreground" title="Lista Privada" />}
+                                    </h3>
                                     <button
                                         className="w-5 h-5 rounded-full bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-colors ml-1"
                                         onClick={(e) => {
@@ -332,7 +341,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                                                 <img src={colab.avatar_url} alt={task.assignee} className="w-4 h-4 rounded-full object-cover border" title={task.assignee} />
                                                                             ) : (
                                                                                 <span className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[8px] font-bold" title={task.assignee}>
-                                                                                    {task.assignee.charAt(0).toUpperCase()}
+                                                                                    {(task.assignee || "?").charAt(0).toUpperCase()}
                                                                                 </span>
                                                                             );
                                                                         })()}
@@ -373,7 +382,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                                                             <img src={colab.avatar_url} alt={task.assignee} className="w-5 h-5 rounded-full object-cover border" title={task.assignee} />
                                                                                         ) : (
                                                                                             <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold" title={task.assignee}>
-                                                                                                {task.assignee.charAt(0).toUpperCase()}
+                                                                                                {(task.assignee || "?").charAt(0).toUpperCase()}
                                                                                             </span>
                                                                                         );
                                                                                     })()}
@@ -491,6 +500,57 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                 ))}
                             </div>
                         </div>
+                        {isAdmin && (
+                            <div className="flex flex-col gap-3 rounded-lg border p-4">
+                                <div className="flex flex-row items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-base flex items-center gap-2">
+                                            <Lock className="w-4 h-4" />
+                                            Lista Privada
+                                        </Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Somente administradores e pessoas selecionadas verão esta lista.
+                                        </p>
+                                    </div>
+                                    <Checkbox
+                                        checked={newListPrivate}
+                                        onCheckedChange={(c) => setNewListPrivate(!!c)}
+                                    />
+                                </div>
+                                {newListPrivate && colaboradores.length > 0 && (
+                                    <div className="pt-3 border-t mt-1">
+                                        <Label className="mb-3 block text-sm font-medium">Permitir visualização para:</Label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                                            {colaboradores.map(c => (
+                                                <div key={c.user_id} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`colab-${c.user_id}`}
+                                                        checked={newListAllowedUsers.includes(c.user_id)}
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
+                                                                setNewListAllowedUsers(prev => [...prev, c.user_id]);
+                                                            } else {
+                                                                setNewListAllowedUsers(prev => prev.filter(id => id !== c.user_id));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <Label htmlFor={`colab-${c.user_id}`} className="text-sm font-normal cursor-pointer flex items-center gap-2 truncate">
+                                                        {c.avatar_url ? (
+                                                            <img src={c.avatar_url} alt={c.nome} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                                                        ) : (
+                                                            <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                                                                {(c.nome || "?").charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <span className="truncate" title={c.nome || ""}>{c.nome || "Sem Nome"}</span>
+                                                    </Label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsAddListOpen(false)}>Cancelar</Button>
