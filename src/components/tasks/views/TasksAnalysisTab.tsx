@@ -35,8 +35,6 @@ export function TasksAnalysisTab() {
     const [selectedUserLine, setSelectedUserLine] = useState<string>("all");
     const [dateRangeFilter, setDateRangeFilter] = useState<string>("30"); // "30", "60", "90", "all"
 
-    const { data: rawSessions } = useTaskSessions("all", 5000); // Fetch all sessions up to 5000 to cover analytics
-
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
 
     useEffect(() => {
@@ -289,7 +287,7 @@ export function TasksAnalysisTab() {
         const today = startOfDay(new Date());
         let startDateLimit: Date | null = null;
         if (dateRangeFilter !== "all") {
-            startDateLimit = subDays(today, parseInt(dateRangeFilter, 10));
+            startDateLimit = dateRangeFilter === "1" ? today : subDays(today, parseInt(dateRangeFilter, 10));
         }
 
         allTasks.forEach(task => {
@@ -315,7 +313,7 @@ export function TasksAnalysisTab() {
 
     // Data para o gráfico de Ponto (Horas Trabalhadas no Dia)
     const trackedTimeData = useMemo(() => {
-        if (!rawSessions || rawSessions.length === 0) return [];
+        if (allTasks.length === 0) return [];
 
         let daysToTrack = dateRangeFilter === "all" ? 30 : parseInt(dateRangeFilter, 10);
         if (daysToTrack > 90) daysToTrack = 90;
@@ -332,29 +330,20 @@ export function TasksAnalysisTab() {
 
         let startDateLimit: Date | null = null;
         if (dateRangeFilter !== "all") {
-            startDateLimit = subDays(today, parseInt(dateRangeFilter, 10));
+            startDateLimit = dateRangeFilter === "1" ? today : subDays(today, parseInt(dateRangeFilter, 10));
         }
 
-        rawSessions.forEach((session: any) => {
-            if (!session.start_time) return;
-            const sDate = new Date(session.start_time);
+        allTasks.forEach(task => {
+            if (task.completed && task.completed_at && task.time_tracked) {
+                const compDate = new Date(task.completed_at);
 
-            if (startDateLimit && sDate < startDateLimit) return;
+                if (startDateLimit && compDate < startDateLimit) return;
 
-            // Aqui filtramos pelo usuário através do email interno do tasks (assignee)
-            // Se o assignee da sessão bate com selectedUserLine
-            let isUserMatch = true;
-            if (selectedUserLine !== "all") {
-                // A session possui um object tasks!inner
-                const taskAssignee = allTasks.find(t => t.id === session.task_id)?.assignee;
-                // Ou alternativamente podemos buscar o user_id real... mas para ficar simples e igual aos outros gráficos:
-                if (taskAssignee !== selectedUserLine) isUserMatch = false;
-            }
-
-            if (isUserMatch) {
-                const dKey = format(sDate, 'yyyy-MM-dd');
-                if (sessionMap[dKey] !== undefined) {
-                    sessionMap[dKey] += session.duration_seconds || 0;
+                if (selectedUserLine === "all" || task.assignee === selectedUserLine) {
+                    const dKey = format(compDate, 'yyyy-MM-dd');
+                    if (sessionMap[dKey] !== undefined) {
+                        sessionMap[dKey] += task.time_tracked;
+                    }
                 }
             }
         });
@@ -366,7 +355,7 @@ export function TasksAnalysisTab() {
             horas: Number((totalSeconds / 3600).toFixed(2)),
             segundos: totalSeconds
         }));
-    }, [rawSessions, allTasks, selectedUserLine, dateRangeFilter]);
+    }, [allTasks, selectedUserLine, dateRangeFilter]);
 
     // Format Helper for Time (seconds to HH:MM:SS)
     const formatTime = (seconds: number) => {

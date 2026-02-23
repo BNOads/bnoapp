@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export function ResumosSistemaTab() {
     const [clientes, setClientes] = useState<any[]>([]);
@@ -186,11 +187,21 @@ export function ResumosSistemaTab() {
 
             const formataResumos = clientesParaGerar.map(cliente => {
                 const m = (resMensagens.data || []).filter(x => x.cliente_id === cliente.id);
+                // Extract primary_cs safely
+                const primary_cs_obj = Array.isArray(cliente.primary_cs) ? cliente.primary_cs[0] : cliente.primary_cs;
+                cliente.primary_cs = primary_cs_obj;
+
                 const d = (resDiario.data || []).filter(x => x.cliente_id === cliente.id);
                 const r = (resReunioes.data || []).filter(x => x.cliente_id === cliente.id);
                 const g = (resGravacoes.data || []).filter(x => x.cliente_id === cliente.id);
                 const l = (resLancamentos.data || []).filter(x => x.cliente_id === cliente.id);
                 const o = (resOrcamentos.data || []).filter(x => x.cliente_id === cliente.id);
+
+                let alocacao = (resAlocacoes.data || []).find(x => x.cliente_id === cliente.id);
+                if (alocacao) {
+                    alocacao.gestor = Array.isArray(alocacao.gestor) ? alocacao.gestor[0] : alocacao.gestor;
+                    alocacao.cs = Array.isArray(alocacao.cs) ? alocacao.cs[0] : alocacao.cs;
+                }
 
                 const nomeMatch = (cliente.nome || "").toLowerCase();
                 const slugMatch = (cliente.slug || "").toLowerCase();
@@ -209,7 +220,6 @@ export function ResumosSistemaTab() {
 
                 const t = (tarefas || []).filter(filterTaskFunction);
                 const tp = (tarefasAbertas || []).filter(filterTaskFunction);
-                const alocacao = (resAlocacoes.data || []).find(x => x.cliente_id === cliente.id);
 
                 return {
                     cliente,
