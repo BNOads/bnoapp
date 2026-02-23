@@ -223,8 +223,8 @@ export const TreinamentosView = () => {
           <div className="inline-flex items-center justify-center p-2 bg-primary/10 rounded-xl mb-2 text-primary">
             <GraduationCap className="h-6 w-6" />
           </div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Treinamentos BNO</h2>
-          <p className="text-slate-500 max-w-2xl text-base">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Treinamentos BNO</h2>
+          <p className="text-muted-foreground max-w-2xl text-base">
             Desenvolva suas habilidades com nossos cursos completos, tutoriais e procedimentos passo-a-passo.
           </p>
         </div>

@@ -1028,7 +1028,7 @@ export const ClientesView = () => {
                                   });
                                 }
                                 // Para ctrl+click ou cmd+click, deixar o comportamento padrão do navegador
-                              }} className="font-bold text-slate-800 hover:text-blue-600 transition-colors uppercase tracking-tight text-[13px]">
+                              }} className="font-bold text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors uppercase tracking-tight text-[13px]">
                                 {cliente.nome}
                               </a>
                               <Button

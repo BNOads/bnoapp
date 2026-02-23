@@ -194,7 +194,7 @@ export function TestesProximosVencer() {
   };
 
   return (
-    <Card className="border-2 border-violet-100 bg-gradient-to-br from-violet-50/50 to-background shadow-lg overflow-hidden">
+    <Card className="border-2 border-violet-100 dark:border-violet-900/30 bg-gradient-to-br from-violet-50/50 to-background dark:bg-none dark:bg-card shadow-lg overflow-hidden">
       <CardHeader
         className="pb-3 cursor-pointer transition-colors hover:opacity-80"
         onClick={() => navigate("/laboratorio-testes")}

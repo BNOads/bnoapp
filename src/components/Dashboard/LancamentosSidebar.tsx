@@ -188,14 +188,16 @@ export function LancamentosSidebar() {
 
     return (
         <Card>
-            <CardHeader className="pb-1.5 pt-3 px-3">
+            <CardHeader className="pb-3 px-4 pt-4">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                        <Rocket className="h-3.5 w-3.5 text-primary" />
-                        Lançamentos Ativos
+                    <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                        <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
+                            <Rocket className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <span>Lançamentos Ativos</span>
                     </CardTitle>
-                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => navigate('/ferramentas/lancamentos')}>
-                        <ArrowRight className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-muted" onClick={() => navigate('/ferramentas/lancamentos')}>
+                        <ArrowRight className="h-4 w-4" />
                     </Button>
                 </div>
             </CardHeader>
