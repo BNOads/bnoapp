@@ -32,6 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useNavigate } from "react-router-dom";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
@@ -112,9 +113,12 @@ const SortableTableHead = ({ id, children, onClick, className }: SortableTableHe
 };
 
 export const ClientesView = () => {
+  const { userData: currentUser } = useCurrentUser();
   const {
-    canCreateContent
+    canCreateContent,
+    isAdmin
   } = useUserPermissions();
+  const [modoEu, setModoEu] = useState(false);
   const [activeTab, setActiveTab] = useState<'ativos' | 'desativados'>('ativos');
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -467,7 +471,14 @@ export const ClientesView = () => {
     const matchesSituacao = situacaoFilter === 'all' || !situacaoFilter || cliente.situacao_cliente === situacaoFilter;
     const matchesEtapaOnboarding = etapaOnboardingFilter === 'all' || !etapaOnboardingFilter || cliente.etapa_onboarding === etapaOnboardingFilter;
     const matchesEtapaTrafego = etapaTrafegoFilter === 'all' || !etapaTrafegoFilter || (cliente.funis_trabalhando && cliente.funis_trabalhando.includes(etapaTrafegoFilter));
-    return matchesSearch && matchesCategoria && matchesSerie && matchesSituacao && matchesEtapaOnboarding && matchesEtapaTrafego;
+
+    const matchesModoEu = !modoEu || (currentUser && (
+      (cliente.primary_gestor?.user_id === currentUser.user_id || cliente.primary_gestor_user_id === currentUser.user_id) ||
+      (cliente.primary_cs?.user_id === currentUser.user_id || cliente.primary_cs_user_id === currentUser.user_id) ||
+      (cliente.client_roles && cliente.client_roles.some((r: any) => r.user_id === currentUser.user_id))
+    ));
+
+    return matchesSearch && matchesCategoria && matchesSerie && matchesSituacao && matchesEtapaOnboarding && matchesEtapaTrafego && matchesModoEu;
   });
 
   // Funções de seleção múltipla
@@ -680,6 +691,24 @@ export const ClientesView = () => {
               Desativados
             </TabsTrigger>
           </TabsList>
+
+          {/* Modo Eu Toggle */}
+          {!isAdmin && (
+            <button
+              onClick={() => setModoEu(!modoEu)}
+              className={`h-9 pr-4 pl-1.5 rounded-full flex items-center justify-center gap-2 border transition-colors ${modoEu ? 'bg-indigo-50 border-indigo-400 text-indigo-900 pointer-events-none' : 'bg-background border-border text-indigo-900 hover:bg-slate-50'}`}
+            >
+              {currentUser && (
+                <Avatar className="h-6 w-6 border border-indigo-200 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                  <AvatarImage src={currentUser.avatar_url || ''} />
+                  <AvatarFallback className="text-[10px] font-bold text-foreground bg-white">
+                    {currentUser.nome?.substring(0, 2).toUpperCase() || 'EU'}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              <span className="text-[13px] font-semibold tracking-tight">Modo eu</span>
+            </button>
+          )}
 
           {/* Toggle de visualização */}
           <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'table' | 'grouped')} className="bg-blue-50 border border-blue-100 rounded-lg p-1">
