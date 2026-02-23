@@ -22,6 +22,7 @@ export interface TaskFilters {
     assignee?: string;
     recurrence?: string;
     date?: string;
+    created_by_id?: string;
 }
 
 export function useTasks(filters?: TaskFilters) {
@@ -60,6 +61,9 @@ export function useTasks(filters?: TaskFilters) {
                 } else if (filters.recurrence !== "all") {
                     query = query.eq("recurrence", filters.recurrence);
                 }
+            }
+            if (filters?.created_by_id) {
+                query = query.eq("created_by_id", filters.created_by_id);
             }
 
             const { data, error } = await query;

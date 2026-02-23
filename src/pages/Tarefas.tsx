@@ -42,6 +42,7 @@ export default function Tarefas() {
     const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "listas" | "automacoes">("minhas");
     const [timeViewType, setTimeViewType] = useState<"tabela" | "kanban">("tabela");
     const [minhasViewType, setMinhasViewType] = useState<"tabela" | "kanban">("tabela");
+    const [minhasAba, setMinhasAba] = useState<"atribuidas" | "criadas">("atribuidas");
     const [hideCompleted, setHideCompleted] = useState(false);
 
     // Selection for ByPerson view mainly, but could be global
@@ -73,7 +74,13 @@ export default function Tarefas() {
     // Prepare payload dynamically for useTasks to route "Minhas" cleanly
     const appliedFilters = { ...filters };
     if (activeMainTab === "minhas") {
-        appliedFilters.assignee = currentUser?.nome || currentUser?.email || "";
+        if (minhasAba === "atribuidas") {
+            appliedFilters.assignee = currentUser?.nome || currentUser?.email || "";
+            delete appliedFilters.created_by_id;
+        } else if (minhasAba === "criadas") {
+            appliedFilters.created_by_id = currentUser?.user_id || currentUser?.id || "";
+            delete appliedFilters.assignee;
+        }
     } else if (filters.assignee && filters.assignee !== "all") {
         // use specific assignee if selected
     } else {
@@ -136,25 +143,41 @@ export default function Tarefas() {
             return (
                 <div className="space-y-6 w-full max-w-[1400px] mx-auto xl:px-4">
                     <div className="mt-4">
-                        <div className="flex items-center justify-between xl:justify-start gap-4 mb-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between xl:justify-start gap-4 mb-4">
                             <h2 className="text-xl font-bold flex items-center gap-2 mr-4">
                                 <List className="w-5 h-5 hidden sm:block" /> Minhas Tarefas
                             </h2>
-                            <div className="flex items-center bg-muted/50 p-1 rounded-md border text-sm font-medium">
-                                <button
-                                    onClick={() => setMinhasViewType("tabela")}
-                                    className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${minhasViewType === "tabela" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
-                                >
-                                    <List className="w-4 h-4" />
-                                    Lista
-                                </button>
-                                <button
-                                    onClick={() => setMinhasViewType("kanban")}
-                                    className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${minhasViewType === "kanban" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
-                                >
-                                    <Grid2X2 className="w-4 h-4" />
-                                    Kanban
-                                </button>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex items-center bg-muted/50 p-1 rounded-md border text-sm font-medium">
+                                    <button
+                                        onClick={() => setMinhasAba("atribuidas")}
+                                        className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${minhasAba === "atribuidas" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                    >
+                                        Atribuídas a mim
+                                    </button>
+                                    <button
+                                        onClick={() => setMinhasAba("criadas")}
+                                        className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${minhasAba === "criadas" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                    >
+                                        Criadas por mim
+                                    </button>
+                                </div>
+                                <div className="flex items-center bg-muted/50 p-1 rounded-md border text-sm font-medium">
+                                    <button
+                                        onClick={() => setMinhasViewType("tabela")}
+                                        className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${minhasViewType === "tabela" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                    >
+                                        <List className="w-4 h-4" />
+                                        Lista
+                                    </button>
+                                    <button
+                                        onClick={() => setMinhasViewType("kanban")}
+                                        className={`px-3 py-1.5 rounded-sm flex items-center gap-2 transition-colors ${minhasViewType === "kanban" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+                                    >
+                                        <Grid2X2 className="w-4 h-4" />
+                                        Kanban
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         {selectedTasks.length > 0 && minhasViewType === "tabela" && (
