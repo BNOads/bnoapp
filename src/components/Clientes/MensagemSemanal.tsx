@@ -9,13 +9,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
 interface MensagemSemanalProps {
   clienteId: string;
+  clienteNome?: string;
   gestorId?: string;
   csId?: string;
 }
+
 export function MensagemSemanal({
   clienteId,
+  clienteNome,
   gestorId,
   csId
 }: MensagemSemanalProps) {
@@ -51,6 +55,51 @@ export function MensagemSemanal({
     };
     carregarMensagem();
   }, [clienteId, semanaReferencia]);
+
+
+
+  const gerarVersaoIABackground = async (mensagemId: string, textoBase: string) => {
+    try {
+      console.log("Iniciando geração de versão IA em background para mensagem:", mensagemId);
+
+      const nomeParaIA = clienteNome || "Cliente";
+
+      const { data, error } = await supabase.functions.invoke('formatar-mensagem-semanal', {
+        body: {
+          cliente_nome: nomeParaIA,
+          rascunho: textoBase
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.mensagemFormato) {
+        // Atualizar o registro com a versão gerada pela IA
+        const { error: updateError } = await supabase
+          .from("mensagens_semanais")
+          .update({ mensagem_ia: data.mensagemFormato })
+          .eq("id", mensagemId);
+
+        if (updateError) throw updateError;
+        console.log("Versão IA gerada e salva com sucesso em background.");
+
+        // Se a mensagem que estamos visualizando for a mesma que acabou de ser atualizada,
+        // vamos recarregá-la silenciosamente
+        const { data: updatedMsg } = await supabase
+          .from("mensagens_semanais")
+          .select("*")
+          .eq("id", mensagemId)
+          .maybeSingle();
+
+        if (updatedMsg) {
+          setMensagemExistente(updatedMsg);
+        }
+      }
+    } catch (error) {
+      console.error("Erro na geração da IA em background:", error);
+    }
+  };
+
   const handleSalvar = async () => {
     if (!mensagem.trim()) {
       toast({
@@ -98,6 +147,8 @@ export function MensagemSemanal({
         historico_envios: mensagemExistente ? [...(mensagemExistente.historico_envios || []), novoHistorico] : [novoHistorico]
       };
       let result;
+      let mensagemSalvaId;
+
       if (mensagemExistente) {
         // Atualizar mensagem existente
         result = await supabase.from("mensagens_semanais").update({
@@ -105,11 +156,14 @@ export function MensagemSemanal({
           updated_at: agora,
           enviado_gestor_em: agora,
           historico_envios: dadosMensagem.historico_envios
-        }).eq("id", mensagemExistente.id);
+        }).eq("id", mensagemExistente.id).select('id').single();
+        if (!result.error && result.data) mensagemSalvaId = result.data.id;
       } else {
         // Criar nova mensagem
-        result = await supabase.from("mensagens_semanais").insert(dadosMensagem);
+        result = await supabase.from("mensagens_semanais").insert(dadosMensagem).select('id').single();
+        if (!result.error && result.data) mensagemSalvaId = result.data.id;
       }
+
       if (result.error) {
         throw result.error;
       }
@@ -117,6 +171,11 @@ export function MensagemSemanal({
         title: "Sucesso",
         description: mensagemExistente ? "Mensagem atualizada com sucesso!" : "Mensagem salva com sucesso!"
       });
+
+      // Disparar a IA em background
+      if (mensagemSalvaId) {
+        gerarVersaoIABackground(mensagemSalvaId, mensagem.trim());
+      }
 
       // Recarregar dados
       const {
@@ -136,7 +195,7 @@ export function MensagemSemanal({
       setLoading(false);
     }
   };
-  
+
   return (
     <Card>
       <CardHeader>
@@ -156,19 +215,23 @@ export function MensagemSemanal({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="mensagem">Mensagem</Label>
+        <div className="space-y-2 relative">
+          <Label htmlFor="mensagem">Mensagem / Rascunho</Label>
           <Textarea
             id="mensagem"
             value={mensagem}
             onChange={(e) => setMensagem(e.target.value)}
-            placeholder="Digite a mensagem semanal para o cliente..."
-            rows={6}
+            placeholder="Digite os dados brutos ou a mensagem semanal para o cliente..."
+            rows={10}
+            className="resize-y min-h-[150px]"
           />
+          <p className="text-xs text-muted-foreground mt-1">
+            Dica: Jogue os números soltos aqui e clique em "Salvar". Uma versão aprimorada por Inteligência Artificial será gerada nos bastidores para uso da equipe de CS.
+          </p>
         </div>
 
-        <Button 
-          onClick={handleSalvar} 
+        <Button
+          onClick={handleSalvar}
           disabled={loading}
           className="w-full"
         >
