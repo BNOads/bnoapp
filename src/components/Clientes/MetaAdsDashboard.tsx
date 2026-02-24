@@ -39,6 +39,8 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
     const [metrics, setMetrics] = useState<any>(null);
     const [visibleMetrics, setVisibleMetrics] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState("last_30d");
+    const [customStartDate, setCustomStartDate] = useState(() => format(subDays(new Date(), 6), 'yyyy-MM-dd'));
+    const [customEndDate, setCustomEndDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
     const [accounts, setAccounts] = useState<any[]>([]);
     const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
     const [syncing, setSyncing] = useState(false);
@@ -73,10 +75,17 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
     const adsPerPage = adsViewMode === 'grid' ? 3 : 10;
 
     const { toast } = useToast();
+    const isCustomRangeValid =
+        Boolean(customStartDate) &&
+        Boolean(customEndDate) &&
+        compareAsc(parseISO(customStartDate), parseISO(customEndDate)) <= 0;
 
     useEffect(() => {
+        if (dateRange === 'custom' && !isCustomRangeValid) {
+            return;
+        }
         loadSettingsAndData();
-    }, [clientId, dateRange, selectedAccountId]);
+    }, [clientId, dateRange, selectedAccountId, customStartDate, customEndDate, isCustomRangeValid]);
 
     // Reset pagination when filter/search changes
     useEffect(() => {
@@ -95,9 +104,15 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
             const lastMonth = subMonths(now, 1);
             startDate = startOfMonth(lastMonth);
             endDate = endOfMonth(lastMonth);
+        } else if (dateRange === 'last_7d') {
+            startDate = subDays(now, 6);
+            endDate = now;
         } else if (dateRange === 'today') {
             startDate = now;
             endDate = now;
+        } else if (dateRange === 'custom' && isCustomRangeValid) {
+            startDate = parseISO(customStartDate);
+            endDate = parseISO(customEndDate);
         }
 
         return { startDate, endDate };
@@ -621,6 +636,15 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
 
 
     const handleSync = async () => {
+        if (dateRange === 'custom' && !isCustomRangeValid) {
+            toast({
+                title: "Período inválido",
+                description: "Defina um intervalo válido para buscar dados na API da Meta.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         setSyncing(true);
         try {
             const { startDate, endDate } = getDateRange();
@@ -956,9 +980,11 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="today">Hoje</SelectItem>
+                            <SelectItem value="last_7d">Últimos 7 dias</SelectItem>
                             <SelectItem value="last_30d">Últimos 30 dias</SelectItem>
                             <SelectItem value="this_month">Este Mês</SelectItem>
                             <SelectItem value="last_month">Mês Passado</SelectItem>
+                            <SelectItem value="custom">Personalizar</SelectItem>
                         </SelectContent>
                     </Select>
 
@@ -974,6 +1000,40 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                     )}
                 </div>
             </div>
+
+            {dateRange === 'custom' && (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        className="w-full sm:w-[170px]"
+                        aria-label="Data inicial do período personalizado"
+                    />
+                    <Input
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        className="w-full sm:w-[170px]"
+                        aria-label="Data final do período personalizado"
+                    />
+                    {!isPublicView && (
+                        <Button
+                            variant="default"
+                            onClick={handleSync}
+                            disabled={syncing || accounts.length === 0 || !isCustomRangeValid}
+                        >
+                            {syncing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Buscar API Meta
+                        </Button>
+                    )}
+                    {!isCustomRangeValid && (
+                        <p className="w-full text-right text-xs text-destructive">
+                            Selecione um intervalo válido (início menor ou igual ao fim).
+                        </p>
+                    )}
+                </div>
+            )}
 
 
             <div className="space-y-6">
