@@ -679,13 +679,17 @@ export function ArquivoReuniaoView() {
     // Injeta pauta no final do editor
     const editorElement = document.querySelector('.ProseMirror') as any;
     if (editorElement && editorElement.editor) {
+      const dataHoje = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
+      let content = `<h1>${dataHoje}</h1><h2>${event.titulo}</h2><p></p>`;
+
       editorElement.editor
         .chain()
-        .focus()
-        .insertContent(`<h2>${event.titulo}</h2><p></p>`)
+        .focus('end')
+        .insertContent(content)
         .run();
 
       if (handleAddToIndex) {
+        handleAddToIndex(`${dataHoje}`);
         handleAddToIndex(event.titulo);
       }
     }
@@ -704,13 +708,20 @@ export function ArquivoReuniaoView() {
     if (editorElement && editorElement.editor) {
       const editor = editorElement.editor;
 
-      // Construir o conteúdo HTML para todas as pautas de uma vez
-      const content = calendarEvents.map(event => `<h2>${event.titulo}</h2><p></p>`).join('');
+      // Hoje formatado (ex: 24/02/2026)
+      const dataHoje = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
 
-      editor.chain().focus().insertContent(content).run();
+      // Conteúdo HTML a ser injetado (Título principal com a data)
+      let content = `<h1>${dataHoje}</h1>`;
+
+      // Construir o conteúdo HTML para todas as pautas de uma vez
+      content += calendarEvents.map(event => `<h2>${event.titulo}</h2><p></p>`).join('');
+
+      editor.chain().focus('end').insertContent(content).run();
 
       // Adiciona todos ao índice
       if (handleAddToIndex) {
+        handleAddToIndex(`${dataHoje}`);
         calendarEvents.forEach(event => handleAddToIndex(event.titulo));
       }
     }

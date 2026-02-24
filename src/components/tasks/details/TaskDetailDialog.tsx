@@ -54,6 +54,9 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
     const [title, setTitle] = useState("");
     const [isEditingTitle, setIsEditingTitle] = useState(false);
 
+    const [commentTarget, setCommentTarget] = useState<"comentário" | "diario_bordo">("comentário");
+    const [isPostingToDiario, setIsPostingToDiario] = useState(false);
+
     // Time tracking state
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -183,8 +186,35 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
         setIsEditingTitle(false);
     };
 
-    const handleAddComment = () => {
+    const handleAddComment = async () => {
         if (!newComment.trim() || !currentUser || !task) return;
+
+        if (commentTarget === "diario_bordo") {
+            if (!task.cliente_id || task.cliente_id === "none") {
+                toast.error("Tarefa precisa ter um cliente vinculado para adicionar ao Diário de Bordo.");
+                return;
+            }
+
+            setIsPostingToDiario(true);
+            try {
+                const { error: dbError } = await supabase
+                    .from('diario_bordo')
+                    .insert({
+                        cliente_id: task.cliente_id,
+                        autor_id: currentUser.user_id || currentUser.id,
+                        texto: newComment.trim(),
+                    });
+
+                if (dbError) throw dbError;
+
+                toast.success("Adicionado ao Diário de Bordo do cliente!");
+            } catch (err) {
+                console.error("Erro ao adicionar ao Diário de Bordo:", err);
+                toast.error("Erro ao registrar no Diário de Bordo.");
+            } finally {
+                setIsPostingToDiario(false);
+            }
+        }
 
         addComment({
             task_id: task.id,
@@ -748,15 +778,21 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                     />
                                     <div className="flex items-center justify-between px-2 pb-2">
                                         <div className="flex flex-wrap items-center gap-1.5 xl:gap-2">
-                                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs bg-slate-100 dark:bg-slate-800 hidden xl:flex text-muted-foreground">
-                                                Comentário <span className="ml-1 opacity-50 text-[10px]">▼</span>
-                                            </Button>
+                                            <Select value={commentTarget} onValueChange={(val: any) => setCommentTarget(val)}>
+                                                <SelectTrigger className="h-7 px-2 text-xs bg-slate-100 dark:bg-slate-800 border-0 hidden xl:flex text-muted-foreground w-auto gap-1 focus:ring-0">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="comentário" className="text-xs">Comentário</SelectItem>
+                                                    <SelectItem value="diario_bordo" className="text-xs">Diário de Bordo</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                         <Button
                                             size="sm"
                                             className="h-7 rounded-md ml-auto shrink-0 px-2 xl:px-4"
                                             onClick={handleAddComment}
-                                            disabled={!newComment.trim() || isAddingComment || !currentUser}
+                                            disabled={!newComment.trim() || isAddingComment || isPostingToDiario || !currentUser}
                                         >
                                             <span className="hidden xl:inline">Enviar</span>
                                             <Play className="h-3.5 w-3.5 fill-current xl:ml-1" />

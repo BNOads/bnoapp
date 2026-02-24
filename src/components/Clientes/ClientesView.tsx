@@ -693,22 +693,20 @@ export const ClientesView = () => {
           </TabsList>
 
           {/* Modo Eu Toggle */}
-          {!isAdmin && (
-            <button
-              onClick={() => setModoEu(!modoEu)}
-              className={`h-9 pr-4 pl-1.5 rounded-full flex items-center justify-center gap-2 border transition-colors ${modoEu ? 'bg-indigo-50 border-indigo-400 text-indigo-900 pointer-events-none' : 'bg-background border-border text-indigo-900 hover:bg-slate-50'}`}
-            >
-              {currentUser && (
-                <Avatar className="h-6 w-6 border border-indigo-200 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                  <AvatarImage src={currentUser.avatar_url || ''} />
-                  <AvatarFallback className="text-[10px] font-bold text-foreground bg-white">
-                    {currentUser.nome?.substring(0, 2).toUpperCase() || 'EU'}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <span className="text-[13px] font-semibold tracking-tight">Modo eu</span>
-            </button>
-          )}
+          <button
+            onClick={() => setModoEu(!modoEu)}
+            className={`h-9 pr-4 pl-1.5 rounded-full flex items-center justify-center gap-2 border transition-colors ${modoEu ? 'bg-indigo-50 border-indigo-400 text-indigo-900' : 'bg-background border-border text-indigo-900 hover:bg-slate-50'}`}
+          >
+            {currentUser && (
+              <Avatar className="h-6 w-6 border border-indigo-200 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                <AvatarImage src={currentUser.avatar_url || ''} />
+                <AvatarFallback className="text-[10px] font-bold text-foreground bg-white">
+                  {currentUser.nome?.substring(0, 2).toUpperCase() || 'EU'}
+                </AvatarFallback>
+              </Avatar>
+            )}
+            <span className="text-[13px] font-semibold tracking-tight">Modo eu</span>
+          </button>
 
           {/* Toggle de visualização */}
           <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'table' | 'grouped')} className="bg-blue-50 border border-blue-100 rounded-lg p-1">

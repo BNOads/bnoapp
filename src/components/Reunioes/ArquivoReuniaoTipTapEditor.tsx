@@ -562,7 +562,7 @@ export function ArquivoReuniaoTipTapEditor({
           editor
             .chain()
             .focus()
-            .insertContent(`<span data-type="mention" class="mention" data-id="${taskPayload.id}" data-url="/tarefas/${taskPayload.id}">@${taskPayload.title}</span> `)
+            .insertContent(`<span data-type="mention" class="mention" data-id="${taskPayload.id}" data-label="${taskPayload.title}" data-url="/tarefas/${taskPayload.id}" data-mention-type="tarefa">@${taskPayload.title}</span> `)
             .run();
         }}
       />
