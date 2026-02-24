@@ -196,6 +196,58 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         return payload.due_date_var;
     };
 
+    const handleSaveDraft = async () => {
+        if (!name.trim()) return;
+
+        const actionPayloads = actions.filter(a => a.type !== "").map(a => ({
+            type: a.type,
+            payload: a.type === "create_task"
+                ? {
+                    title: a.payload?.title || "",
+                    description: a.payload?.description || "",
+                    assignee: a.payload?.assignee || "unassigned",
+                    due_date_var: getDueDateVar(a.payload) || null,
+                    recurrence: a.payload?.recurrence && a.payload.recurrence !== "none" ? a.payload.recurrence : null,
+                    recurrence_start_type: a.payload?.recurrence && a.payload.recurrence !== "none" ? (a.payload.recurrence_start_type || null) : null,
+                    recurrence_start: a.payload?.recurrence && a.payload.recurrence !== "none" ? (a.payload.recurrence_start || null) : null,
+                    list_id: a.payload?.list_id || null,
+                    priority: a.payload?.priority || null,
+                }
+                : a.type === "notify_team"
+                    ? { message: a.payload?.message || "" }
+                    : a.payload || {}
+        }));
+
+        const validConditions = conditions.filter(c => c.field).map(c => ({
+            field: c.field, operator: c.operator || "==", value: c.value || ""
+        }));
+
+        try {
+            if (mode === "edit" && initialData?.id) {
+                await updateMutation.mutateAsync({
+                    id: initialData.id,
+                    name,
+                    trigger_type: triggerType || "new_client",
+                    trigger_conditions: validConditions,
+                    actions: actionPayloads,
+                    is_active: false,
+                });
+            } else {
+                await createMutation.mutateAsync({
+                    name,
+                    trigger_type: triggerType || "new_client",
+                    trigger_conditions: validConditions,
+                    actions: actionPayloads,
+                    is_active: false,
+                });
+            }
+            onOpenChange(false);
+            resetForm();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     const handleCreate = async () => {
         if (!name || !triggerType || actions.length === 0) return;
 
@@ -257,40 +309,43 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         setConditions([]);
     };
 
-    const isFormValid = React.useMemo(() => {
-        if (name.trim().length === 0) return false;
-        if (!triggerType) return false;
-        if (actions.length === 0) return false;
-
-        const hasInvalidConditions = conditions.some(c => !c.field || !c.operator || !c.value);
-        if (hasInvalidConditions) return false;
-
-        const hasInvalidActions = actions.some(a => {
-            if (!a.type) return true;
-            if (a.type === "create_task") {
-                if (!a.payload?.title || a.payload.title.trim().length === 0) return true;
-                // If custom days, require a valid number
-                if (a.payload.due_date_var === "custom_days") {
-                    const days = parseInt(a.payload.custom_days_value || "0", 10);
-                    if (isNaN(days) || days < 1) return true;
+    const validationErrors = React.useMemo(() => {
+        const errors: string[] = [];
+        if (name.trim().length === 0) errors.push("Nome da automação");
+        if (!triggerType) errors.push("Gatilho");
+        if (actions.length === 0) {
+            errors.push("Adicione ao menos 1 ação");
+        } else {
+            actions.forEach((a, idx) => {
+                const label = `Ação ${idx + 1}`;
+                if (!a.type) {
+                    errors.push(`${label}: Tipo`);
+                    return;
                 }
-                // If recurrence is set, require recurrence_start_type (and fixed_date value if type is fixed_date)
-                if (a.payload.recurrence && a.payload.recurrence !== "none") {
-                    const startType = a.payload.recurrence_start_type;
-                    if (!startType) return true;
-                    if (startType === "fixed_date" && !a.payload.recurrence_start_fixed) return true;
+                if (a.type === "create_task") {
+                    if (!a.payload?.title || a.payload.title.trim().length === 0) errors.push(`${label}: Título da tarefa`);
+                    if (a.payload.due_date_var === "custom_days") {
+                        const days = parseInt(a.payload.custom_days_value || "0", 10);
+                        if (isNaN(days) || days < 1) errors.push(`${label}: Dias personalizados`);
+                    }
+                    if (a.payload.recurrence && a.payload.recurrence !== "none") {
+                        const startType = a.payload.recurrence_start_type;
+                        if (!startType) errors.push(`${label}: Início da recorrência`);
+                        if (startType === "fixed_date" && !a.payload.recurrence_start_fixed) errors.push(`${label}: Data fixa da recorrência`);
+                    }
                 }
-            }
-            if (a.type === "notify_team") {
-                if (!a.payload?.message || a.payload.message.trim().length === 0) return true;
-            }
-            return false;
+                if (a.type === "notify_team") {
+                    if (!a.payload?.message || a.payload.message.trim().length === 0) errors.push(`${label}: Mensagem`);
+                }
+            });
+        }
+        conditions.forEach((c, idx) => {
+            if (!c.field || !c.operator || !c.value) errors.push(`Condição ${idx + 1}: campos incompletos`);
         });
-
-        if (hasInvalidActions) return false;
-
-        return true;
+        return errors;
     }, [name, triggerType, actions, conditions]);
+
+    const isFormValid = validationErrors.length === 0;
 
     return (
         <Dialog open={open} onOpenChange={(val) => {
@@ -649,27 +704,42 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                     </div>
                 </div>
 
-                <DialogFooter className="p-4 sm:p-5 bg-white border-t shrink-0 flex items-center w-full relative z-20">
-                    <div className="flex-1 flex items-center">
-                        <div className="flex items-center text-sm text-slate-500 bg-slate-50 border px-3 py-2 rounded-lg font-medium">
-                            Quando <span className="mx-1.5 text-slate-900 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200">{TRIGGERS.find(t => t.id === triggerType)?.label || "..."}</span>
-                            então <span className="mx-1.5 text-slate-900 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200">{actions.filter(a => a.type).length} ação(ões)</span>
+                <DialogFooter className="p-4 sm:p-5 bg-white border-t shrink-0 flex flex-col gap-2 w-full relative z-20">
+                    {!isFormValid && validationErrors.length > 0 && (
+                        <div className="w-full text-xs text-rose-500 font-medium bg-rose-50 px-3 py-2 rounded-lg border border-rose-100 flex flex-wrap gap-1.5 items-center">
+                            <span className="font-semibold mr-1">Campos pendentes:</span>
+                            {validationErrors.map((err, i) => (
+                                <span key={i} className="bg-white px-2 py-0.5 rounded shadow-sm border border-rose-200">{err}</span>
+                            ))}
                         </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {!isFormValid && (
-                            <span className="text-xs text-rose-500 font-medium bg-rose-50 px-2 py-1 rounded border border-rose-100 hidden sm:inline-block">
-                                Preencha todos os campos
-                            </span>
-                        )}
-                        <Button variant="ghost" className="text-slate-500 hover:text-slate-800 font-medium" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                        <Button
-                            onClick={handleCreate}
-                            disabled={!isFormValid || createMutation.isPending || updateMutation.isPending}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 font-medium h-10"
-                        >
-                            {createMutation.isPending || updateMutation.isPending ? "Salvando..." : mode === "edit" ? "Salvar Alterações" : "Criar Automação"}
-                        </Button>
+                    )}
+                    <div className="flex items-center w-full">
+                        <div className="flex-1 flex items-center">
+                            <div className="flex items-center text-sm text-slate-500 bg-slate-50 border px-3 py-2 rounded-lg font-medium">
+                                Quando <span className="mx-1.5 text-slate-900 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200">{TRIGGERS.find(t => t.id === triggerType)?.label || "..."}</span>
+                                então <span className="mx-1.5 text-slate-900 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200">{actions.filter(a => a.type).length} ação(ões)</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Button variant="ghost" className="text-slate-500 hover:text-slate-800 font-medium" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                            {!isFormValid && name.trim().length > 0 && (
+                                <Button
+                                    variant="outline"
+                                    onClick={handleSaveDraft}
+                                    disabled={createMutation.isPending || updateMutation.isPending}
+                                    className="border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800 font-medium h-10"
+                                >
+                                    {createMutation.isPending || updateMutation.isPending ? "Salvando..." : "Salvar Rascunho"}
+                                </Button>
+                            )}
+                            <Button
+                                onClick={handleCreate}
+                                disabled={!isFormValid || createMutation.isPending || updateMutation.isPending}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 font-medium h-10"
+                            >
+                                {createMutation.isPending || updateMutation.isPending ? "Salvando..." : mode === "edit" ? "Salvar Alterações" : "Criar Automação"}
+                            </Button>
+                        </div>
                     </div>
                 </DialogFooter>
             </DialogContent>

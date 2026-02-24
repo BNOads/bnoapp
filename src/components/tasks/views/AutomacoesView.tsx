@@ -109,12 +109,22 @@ export function AutomacoesView() {
                 </div>
             ) : (
                 <div className="grid gap-4">
-                    {automations.map((auto) => (
-                        <div key={auto.id} className={`bg-white border ${!auto.is_active ? 'border-slate-200 opacity-70' : 'border-indigo-100'} rounded-xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-all`}>
+                    {automations.map((auto) => {
+                        const isDraft = !auto.is_active && (
+                            !auto.trigger_type ||
+                            !auto.actions?.length ||
+                            auto.actions.some((a: any) => !a.type || (a.type === "create_task" && (!a.payload?.title || !a.payload.title.trim())) || (a.type === "notify_team" && (!a.payload?.message || !a.payload.message.trim())))
+                        );
+                        return (
+                        <div key={auto.id} className={`bg-white border ${isDraft ? 'border-amber-200 border-dashed opacity-80' : !auto.is_active ? 'border-slate-200 opacity-70' : 'border-indigo-100'} rounded-xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-all`}>
                             <div className="space-y-2.5">
                                 <div className="flex items-center gap-3">
                                     <h3 className="font-semibold text-lg text-slate-800">{auto.name}</h3>
-                                    {!auto.is_active && (
+                                    {isDraft ? (
+                                        <Badge variant="secondary" className="bg-amber-50 text-amber-600 hover:bg-amber-50 font-medium border border-amber-200">
+                                            Rascunho
+                                        </Badge>
+                                    ) : !auto.is_active && (
                                         <Badge variant="secondary" className="bg-slate-100 text-slate-500 hover:bg-slate-100 font-medium">
                                             Pausada
                                         </Badge>
@@ -177,7 +187,8 @@ export function AutomacoesView() {
                                 </DropdownMenu>
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
