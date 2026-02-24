@@ -1,9 +1,10 @@
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useTaskAutomationLogs } from "@/hooks/useTaskAutomations";
+import { useTaskAutomationLogs, useReExecuteTaskAutomationLog, TaskAutomationLogWithAutomation } from "@/hooks/useTaskAutomations";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Activity, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
+import { Loader2, Activity, CheckCircle, AlertTriangle, XCircle, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface AutomationLogsModalProps {
     open: boolean;
@@ -12,6 +13,17 @@ interface AutomationLogsModalProps {
 
 export function AutomationLogsModal({ open, onOpenChange }: AutomationLogsModalProps) {
     const { data: logs, isLoading } = useTaskAutomationLogs();
+    const reExecuteMutation = useReExecuteTaskAutomationLog();
+    const [retryingLogId, setRetryingLogId] = React.useState<string | null>(null);
+
+    const handleRetryLog = async (log: TaskAutomationLogWithAutomation) => {
+        setRetryingLogId(log.id);
+        try {
+            await reExecuteMutation.mutateAsync(log);
+        } finally {
+            setRetryingLogId(null);
+        }
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -48,6 +60,18 @@ export function AutomationLogsModal({ open, onOpenChange }: AutomationLogsModalP
                                         <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-md border border-slate-100 font-mono text-xs">
                                             {log.message}
                                         </div>
+                                        {log.status === "error" && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 mt-2 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                disabled={retryingLogId === log.id || reExecuteMutation.isPending}
+                                                onClick={() => handleRetryLog(log)}
+                                            >
+                                                <RotateCcw className={`w-3 h-3 mr-1.5 ${retryingLogId === log.id ? "animate-spin" : ""}`} />
+                                                {retryingLogId === log.id ? "Reexecutando..." : "Reexecutar"}
+                                            </Button>
+                                        )}
                                     </div>
                                 ))}
                             </div>

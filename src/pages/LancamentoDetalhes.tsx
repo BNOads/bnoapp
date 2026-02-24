@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock, Info, Target, AlertTriangle, Folder, TrendingUp, Trash2 } from "lucide-react";
+import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock, Info, Target, AlertTriangle, Folder, TrendingUp, Trash2, CheckSquare, Plus, User, X, Loader2, ListChecks } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -139,6 +140,135 @@ export default function LancamentoDetalhes() {
   const [linkCriativosModalOpen, setLinkCriativosModalOpen] = useState(false);
   const [availableClients, setAvailableClients] = useState<any[]>([]);
   const [catalogoUrl, setCatalogoUrl] = useState<string | null>(null);
+  const [persistedStatusLancamento, setPersistedStatusLancamento] = useState<string | null>(null);
+
+  // Checklist → Tarefa
+  const [colaboradores, setColaboradores] = useState<{ nome: string; user_id: string }[]>([]);
+  const [taskCreationItem, setTaskCreationItem] = useState<string | null>(null);
+  const [taskForm, setTaskForm] = useState<{ assignee: string; due_date: string }>({ assignee: '', due_date: '' });
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [showBulkTaskForm, setShowBulkTaskForm] = useState(false);
+  const [bulkTaskForm, setBulkTaskForm] = useState<{ assignee: string; due_date: string }>({ assignee: '', due_date: '' });
+  const [creatingBulkTasks, setCreatingBulkTasks] = useState(false);
+
+  // Fetch colaboradores when checklist tab opens
+  useEffect(() => {
+    if (activeView === 'checklist' && colaboradores.length === 0) {
+      supabase.from('colaboradores').select('nome, user_id').eq('ativo', true).order('nome').then(({ data }) => {
+        if (data) setColaboradores(data);
+      });
+    }
+  }, [activeView]);
+
+  // Sync task statuses → checklist when entering checklist tab
+  useEffect(() => {
+    if (activeView !== 'checklist' || !lancamento) return;
+    const checklist = (lancamento.checklist_configuracao || {}) as Record<string, any>;
+    const CHECKLIST_ITEMS = ['pixel_api', 'pagina_obrigado', 'planilha_leads', 'planilha_vendas', 'pesquisa', 'email_boas_vindas', 'cpl_aulas', 'etapas_lancamento', 'checklist_criativos', 'utms_organicas'];
+    const taskIds: { key: string; taskId: string }[] = [];
+    for (const key of CHECKLIST_ITEMS) {
+      const taskId = checklist[`${key}_task_id`];
+      if (taskId && !checklist[key]) taskIds.push({ key, taskId });
+    }
+    if (taskIds.length === 0) return;
+    const ids = taskIds.map(t => t.taskId);
+    supabase.from('tasks').select('id, completed').in('id', ids).then(({ data }) => {
+      if (!data) return;
+      const completedIds = new Set(data.filter(t => t.completed).map(t => t.id));
+      const updates: Record<string, any> = {};
+      let hasUpdates = false;
+      for (const { key, taskId } of taskIds) {
+        if (completedIds.has(taskId)) {
+          updates[key] = true;
+          hasUpdates = true;
+        }
+      }
+      if (hasUpdates) {
+        const newChecklist = { ...checklist, ...updates };
+        setLancamento(prev => prev ? { ...prev, checklist_configuracao: newChecklist } : null);
+        supabase.from('lancamentos').update({ checklist_configuracao: newChecklist }).eq('id', lancamento.id);
+      }
+    });
+  }, [activeView, lancamento?.id]);
+
+  const handleCreateChecklistTask = async (itemKey: string, itemLabel: string) => {
+    if (!lancamento || !taskForm.assignee || !taskForm.due_date) return;
+    setCreatingTask(true);
+    try {
+      const colabData = colaboradores.find(c => c.user_id === taskForm.assignee);
+      const { data: task, error } = await supabase.from('tasks').insert({
+        title: itemLabel,
+        assignee: colabData?.nome || taskForm.assignee,
+        assigned_to_id: taskForm.assignee,
+        due_date: taskForm.due_date,
+        cliente_id: lancamento.cliente_id || null,
+        priority: 'media',
+        completed: false,
+      }).select('id').single();
+      if (error) throw error;
+      const checklist = (lancamento.checklist_configuracao || {}) as Record<string, any>;
+      const newChecklist = { ...checklist, [`${itemKey}_task_id`]: task.id };
+      const { error: err2 } = await supabase.from('lancamentos').update({ checklist_configuracao: newChecklist }).eq('id', lancamento.id);
+      if (err2) throw err2;
+      setLancamento(prev => prev ? { ...prev, checklist_configuracao: newChecklist } : null);
+      setTaskCreationItem(null);
+      setTaskForm({ assignee: '', due_date: '' });
+      toast.success('Tarefa criada com sucesso!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Erro ao criar tarefa');
+    } finally {
+      setCreatingTask(false);
+    }
+  };
+
+  const handleCreateBulkChecklistTasks = async () => {
+    if (!lancamento || !bulkTaskForm.assignee || !bulkTaskForm.due_date) return;
+    setCreatingBulkTasks(true);
+    const CHECKLIST_ITEMS = [
+      { key: 'pixel_api', label: 'Configurar Pixel e API' },
+      { key: 'pagina_obrigado', label: 'Testar página de obrigado' },
+      { key: 'planilha_leads', label: 'Criar planilha de leads UTM' },
+      { key: 'planilha_vendas', label: 'Criar planilha de vendas' },
+      { key: 'pesquisa', label: 'Criar pesquisa para o lançamento' },
+      { key: 'email_boas_vindas', label: 'Conferir email de boas-vindas' },
+      { key: 'cpl_aulas', label: 'Conferir CPL das aulas' },
+      { key: 'etapas_lancamento', label: 'Conferir quais etapas do lançamento terá' },
+      { key: 'checklist_criativos', label: 'Enviar pro cliente Checklist de criativos' },
+      { key: 'utms_organicas', label: 'Criar UTMs orgânicas para o lançamento' },
+    ];
+    try {
+      const checklist = (lancamento.checklist_configuracao || {}) as Record<string, any>;
+      const pending = CHECKLIST_ITEMS.filter(item => !checklist[item.key] && !checklist[`${item.key}_task_id`]);
+      if (pending.length === 0) { toast.info('Todos os itens já têm tarefas ou estão concluídos'); setCreatingBulkTasks(false); return; }
+      const colabData = colaboradores.find(c => c.user_id === bulkTaskForm.assignee);
+      const tasksToInsert = pending.map(item => ({
+        title: item.label,
+        assignee: colabData?.nome || bulkTaskForm.assignee,
+        assigned_to_id: bulkTaskForm.assignee,
+        due_date: bulkTaskForm.due_date,
+        cliente_id: lancamento.cliente_id || null,
+        priority: 'media',
+        completed: false,
+      }));
+      const { data: createdTasks, error } = await supabase.from('tasks').insert(tasksToInsert).select('id, title');
+      if (error) throw error;
+      const newChecklist = { ...checklist };
+      createdTasks.forEach((task, idx) => {
+        newChecklist[`${pending[idx].key}_task_id`] = task.id;
+      });
+      await supabase.from('lancamentos').update({ checklist_configuracao: newChecklist }).eq('id', lancamento.id);
+      setLancamento(prev => prev ? { ...prev, checklist_configuracao: newChecklist } : null);
+      setShowBulkTaskForm(false);
+      setBulkTaskForm({ assignee: '', due_date: '' });
+      toast.success(`${createdTasks.length} tarefas criadas com sucesso!`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Erro ao criar tarefas');
+    } finally {
+      setCreatingBulkTasks(false);
+    }
+  };
 
   const handleTogglePublicLink = async () => {
     if (!lancamento) return;
@@ -368,6 +498,7 @@ export default function LancamentoDetalhes() {
         return;
       }
       setLancamento(data as any);
+      setPersistedStatusLancamento((data as any).status_lancamento || null);
     } catch (error) {
       console.error('Erro ao buscar lançamento:', error);
       toast.error('Erro ao carregar lançamento');
@@ -384,6 +515,8 @@ export default function LancamentoDetalhes() {
         error
       } = await supabase.from('lancamentos').update({
         nome_lancamento: lancamento.nome_lancamento,
+        status_lancamento: lancamento.status_lancamento,
+        tipo_lancamento: lancamento.tipo_lancamento,
         promessa: lancamento.promessa,
         ticket_produto: lancamento.ticket_produto,
         leads_desejados: lancamento.leads_desejados,
@@ -407,6 +540,57 @@ export default function LancamentoDetalhes() {
         updated_at: new Date().toISOString()
       }).eq('id', id);
       if (error) throw error;
+
+      if (persistedStatusLancamento && persistedStatusLancamento !== lancamento.status_lancamento) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          const actorUserId = authData.user?.id || null;
+          let clienteAutomacao: {
+            id: string;
+            nome: string;
+            traffic_manager_id: string | null;
+            cs_id: string | null;
+            primary_gestor_user_id: string | null;
+            primary_cs_user_id: string | null;
+          } | null = null;
+
+          if (lancamento.cliente_id) {
+            const { data: clienteData, error: clienteError } = await supabase
+              .from('clientes')
+              .select('id, nome, traffic_manager_id, cs_id, primary_gestor_user_id, primary_cs_user_id')
+              .eq('id', lancamento.cliente_id)
+              .maybeSingle();
+
+            if (clienteError) {
+              console.error('Erro ao buscar cliente para automação de status do funil:', clienteError);
+            } else {
+              clienteAutomacao = clienteData;
+            }
+          }
+
+          await supabase.functions.invoke('evaluate-automations', {
+            body: {
+              trigger_type: 'funnel_changed',
+              data: {
+                lancamento: {
+                  id: lancamento.id,
+                  nome_lancamento: lancamento.nome_lancamento,
+                  status_lancamento: lancamento.status_lancamento,
+                  cliente_id: lancamento.cliente_id,
+                },
+                cliente: clienteAutomacao,
+                status_anterior: persistedStatusLancamento,
+                status_novo: lancamento.status_lancamento,
+                user_id: actorUserId,
+              },
+            },
+          });
+        } catch (automationError) {
+          console.error('Erro ao disparar automações de status do lançamento:', automationError);
+        }
+      }
+
+      setPersistedStatusLancamento(lancamento.status_lancamento);
       toast.success('Lançamento salvo com sucesso');
       setEditing(false);
       setEditingTab(null);
@@ -1498,126 +1682,219 @@ export default function LancamentoDetalhes() {
       </TabsContent>
 
       <TabsContent value="checklist" className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Checklist de Configuração</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Marque os itens conforme forem sendo concluídos
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { key: 'pixel_api', label: 'Configurar Pixel e API', description: 'Configurar pixels de rastreamento e integrações de API' },
-                { key: 'pagina_obrigado', label: 'Testar página de obrigado', description: 'Verificar se a página de agradecimento está funcionando corretamente' },
-                { key: 'planilha_leads', label: 'Criar planilha de leads UTM', description: 'Configurar planilha para rastreamento de leads com parâmetros UTM' },
-                { key: 'planilha_vendas', label: 'Criar planilha de vendas', description: 'Configurar planilha para controle de vendas' },
-                { key: 'pesquisa', label: 'Criar pesquisa para o lançamento', description: 'Criar formulário de pesquisa para coletar feedback' },
-                { key: 'email_boas_vindas', label: 'Conferir email de boas-vindas', description: 'Revisar e testar email automático de boas-vindas' },
-                { key: 'cpl_aulas', label: 'Conferir CPL das aulas', description: 'Verificar e validar o custo por lead de cada aula do lançamento' },
-                { key: 'etapas_lancamento', label: 'Conferir quais etapas do lançamento terá', description: 'Definir se terá Aquecimento, Lembrete e Remarketing' },
-                { key: 'checklist_criativos', label: 'Enviar pro cliente Checklist de criativos', description: 'Compartilhar o checklist de criativos com o cliente' },
-                { key: 'utms_organicas', label: 'Criar UTMs orgânicas para o lançamento', description: 'Configurar UTMs para rastreamento de tráfego orgânico' }
-              ].map((item) => {
-                const checklist = (lancamento.checklist_configuracao || {}) as Record<string, boolean>;
-                const isChecked = checklist[item.key] || false;
+        {(() => {
+          const CHECKLIST_ITEMS = [
+            { key: 'pixel_api', label: 'Configurar Pixel e API', description: 'Configurar pixels de rastreamento e integrações de API' },
+            { key: 'pagina_obrigado', label: 'Testar página de obrigado', description: 'Verificar se a página de agradecimento está funcionando corretamente' },
+            { key: 'planilha_leads', label: 'Criar planilha de leads UTM', description: 'Configurar planilha para rastreamento de leads com parâmetros UTM' },
+            { key: 'planilha_vendas', label: 'Criar planilha de vendas', description: 'Configurar planilha para controle de vendas' },
+            { key: 'pesquisa', label: 'Criar pesquisa para o lançamento', description: 'Criar formulário de pesquisa para coletar feedback' },
+            { key: 'email_boas_vindas', label: 'Conferir email de boas-vindas', description: 'Revisar e testar email automático de boas-vindas' },
+            { key: 'cpl_aulas', label: 'Conferir CPL das aulas', description: 'Verificar e validar o custo por lead de cada aula do lançamento' },
+            { key: 'etapas_lancamento', label: 'Conferir quais etapas do lançamento terá', description: 'Definir se terá Aquecimento, Lembrete e Remarketing' },
+            { key: 'checklist_criativos', label: 'Enviar pro cliente Checklist de criativos', description: 'Compartilhar o checklist de criativos com o cliente' },
+            { key: 'utms_organicas', label: 'Criar UTMs orgânicas para o lançamento', description: 'Configurar UTMs para rastreamento de tráfego orgânico' },
+          ];
+          const checklist = (lancamento.checklist_configuracao || {}) as Record<string, any>;
+          const completedCount = CHECKLIST_ITEMS.filter(i => checklist[i.key]).length;
+          const pendingWithoutTask = CHECKLIST_ITEMS.filter(i => !checklist[i.key] && !checklist[`${i.key}_task_id`]);
 
-                return (
-                  <div key={item.key} className="flex items-start gap-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                    <input
-                      type="checkbox"
-                      id={item.key}
-                      checked={isChecked}
-                      onChange={async (e) => {
-                        const checked = e.target.checked;
-
-                        try {
-                          // Atualizar estado localmente primeiro
-                          const newChecklist = {
-                            ...(checklist || {}),
-                            [item.key]: checked
-                          };
-
-                          setLancamento(prev => prev ? {
-                            ...prev,
-                            checklist_configuracao: newChecklist
-                          } : null);
-
-                          // Fazer update no banco
-                          const { error } = await supabase
-                            .from('lancamentos')
-                            .update({
-                              checklist_configuracao: newChecklist,
-                              updated_at: new Date().toISOString()
-                            })
-                            .eq('id', lancamento.id)
-                            .select()
-                            .single();
-
-                          if (error) {
-                            console.error('Erro ao atualizar checklist:', error);
-                            // Reverter estado local em caso de erro
-                            setLancamento(prev => prev ? {
-                              ...prev,
-                              checklist_configuracao: checklist
-                            } : null);
-                            toast.error('Erro ao atualizar checklist');
-                            return;
-                          }
-
-                          toast.success(checked ? 'Item marcado como concluído' : 'Item desmarcado');
-                        } catch (err) {
-                          console.error('Erro inesperado:', err);
-                          // Reverter estado local em caso de erro
-                          setLancamento(prev => prev ? {
-                            ...prev,
-                            checklist_configuracao: checklist
-                          } : null);
-                          toast.error('Erro ao atualizar checklist');
-                        }
-                      }}
-                      className="mt-1 h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                    />
-                    <div className="flex-1">
-                      <label htmlFor={item.key} className="font-medium cursor-pointer">
-                        {item.label}
-                      </label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {item.description}
-                      </p>
-                    </div>
+          return (
+            <Card>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <ListChecks className="h-5 w-5" />
+                      Checklist de Configuração
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Marque os itens conforme forem sendo concluídos. Crie tarefas para delegar itens.
+                    </p>
                   </div>
-                );
-              })}
-            </div>
+                  {pendingWithoutTask.length > 0 && (
+                    <div className="flex-shrink-0">
+                      {!showBulkTaskForm ? (
+                        <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={() => setShowBulkTaskForm(true)}>
+                          <Plus className="h-4 w-4" />
+                          Criar tarefas para todos pendentes
+                        </Button>
+                      ) : (
+                        <div className="flex items-end gap-2 p-3 border rounded-lg bg-muted/40 min-w-[360px]">
+                          <div className="flex-1 space-y-2">
+                            <div>
+                              <Label className="text-xs">Responsável</Label>
+                              <Select value={bulkTaskForm.assignee} onValueChange={v => setBulkTaskForm(f => ({ ...f, assignee: v }))}>
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {colaboradores.map(c => (
+                                    <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Data de entrega</Label>
+                              <Input type="date" className="h-8 text-xs" value={bulkTaskForm.due_date} onChange={e => setBulkTaskForm(f => ({ ...f, due_date: e.target.value }))} />
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button size="sm" disabled={!bulkTaskForm.assignee || !bulkTaskForm.due_date || creatingBulkTasks} onClick={handleCreateBulkChecklistTasks}>
+                              {creatingBulkTasks ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckSquare className="h-4 w-4" />}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => { setShowBulkTaskForm(false); setBulkTaskForm({ assignee: '', due_date: '' }); }}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {CHECKLIST_ITEMS.map((item) => {
+                    const isChecked = !!checklist[item.key];
+                    const taskId = checklist[`${item.key}_task_id`] as string | undefined;
+                    const isCreatingThis = taskCreationItem === item.key;
 
-            <div className="mt-6 pt-6 border-t">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Progresso</span>
-                <span className="text-sm text-muted-foreground">
-                  {(() => {
-                    const checklist = (lancamento.checklist_configuracao || {}) as Record<string, boolean>;
-                    const completed = Object.values(checklist).filter(Boolean).length;
-                    const total = 10;
-                    return `${completed}/${total} concluídos`;
-                  })()}
-                </span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2 mt-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${(() => {
-                      const checklist = (lancamento.checklist_configuracao || {}) as Record<string, boolean>;
-                      const completed = Object.values(checklist).filter(Boolean).length;
-                      return (completed / 10) * 100;
-                    })()}%`
-                  }}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    const handleToggle = async (checked: boolean) => {
+                      try {
+                        const newChecklist = { ...checklist, [item.key]: checked };
+                        setLancamento(prev => prev ? { ...prev, checklist_configuracao: newChecklist } : null);
+                        const { error } = await supabase.from('lancamentos').update({ checklist_configuracao: newChecklist, updated_at: new Date().toISOString() }).eq('id', lancamento.id).select().single();
+                        if (error) {
+                          setLancamento(prev => prev ? { ...prev, checklist_configuracao: checklist } : null);
+                          toast.error('Erro ao atualizar checklist');
+                        } else {
+                          toast.success(checked ? 'Item marcado como concluído' : 'Item desmarcado');
+                        }
+                      } catch { toast.error('Erro ao atualizar checklist'); }
+                    };
+
+                    return (
+                      <div
+                        key={item.key}
+                        className={`flex flex-col gap-2 p-4 border rounded-lg transition-colors ${isChecked ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : 'hover:bg-accent/50'
+                          }`}
+                      >
+                        {/* Row 1: Checkbox + Label */}
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            id={item.key}
+                            checked={isChecked}
+                            onChange={e => handleToggle(e.target.checked)}
+                            className="mt-1 h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-green-600"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <label htmlFor={item.key} className={`font-medium cursor-pointer text-sm ${isChecked ? 'line-through text-muted-foreground' : ''
+                              }`}>
+                              {item.label}
+                            </label>
+                            <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+                          </div>
+                          {/* Task action button */}
+                          {!isChecked && !taskId && !isCreatingThis && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs flex-shrink-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => { setTaskCreationItem(item.key); setTaskForm({ assignee: '', due_date: '' }); }}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Tarefa
+                            </Button>
+                          )}
+                          {taskId && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 flex-shrink-0"
+                              title="Ver tarefa"
+                              onClick={() => { }}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Row 2: Linked task badge */}
+                        {taskId && !isChecked && (
+                          <div className="flex items-center gap-1.5 ml-8 px-2 py-1 rounded bg-blue-50 dark:bg-blue-950/30 text-xs text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900">
+                            <CheckSquare className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">Tarefa vinculada — aguardando conclusão</span>
+                          </div>
+                        )}
+
+                        {/* Row 3: Inline task creation form */}
+                        {isCreatingThis && (
+                          <div className="ml-8 flex flex-col gap-2 p-2 border rounded bg-muted/40">
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <Label className="text-xs mb-1 block">Responsável</Label>
+                                <Select value={taskForm.assignee} onValueChange={v => setTaskForm(f => ({ ...f, assignee: v }))}>
+                                  <SelectTrigger className="h-7 text-xs">
+                                    <SelectValue placeholder="Selecione..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {colaboradores.map(c => (
+                                      <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex-1">
+                                <Label className="text-xs mb-1 block">Data</Label>
+                                <Input type="date" className="h-7 text-xs" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))} />
+                              </div>
+                            </div>
+                            <div className="flex gap-1 justify-end">
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={!taskForm.assignee || !taskForm.due_date || creatingTask}
+                                onClick={() => handleCreateChecklistTask(item.key, item.label)}
+                              >
+                                {creatingTask ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckSquare className="h-3 w-3 mr-1" />}
+                                Criar Tarefa
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setTaskCreationItem(null)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Progress bar */}
+                <div className="mt-6 pt-6 border-t">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Progresso</span>
+                    <span className="text-sm text-muted-foreground">{completedCount}/10 concluídos</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2 mt-2">
+                    <div
+                      className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${(completedCount / 10) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
       </TabsContent>
 
       <TabsContent value="criativos">

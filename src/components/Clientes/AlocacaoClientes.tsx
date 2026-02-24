@@ -96,6 +96,12 @@ export function AlocacaoClientes() {
   };
 
   const handleSave = async (clienteId: string) => {
+    const clienteAtual = clientes.find((cliente) => cliente.id === clienteId);
+    const previousTrafficManagerId = clienteAtual?.traffic_manager_id || null;
+    const previousCsId = clienteAtual?.cs_id || null;
+    const nextTrafficManagerId = editData.traffic_manager_id || null;
+    const nextCsId = editData.cs_id || null;
+
     try {
       console.log('Salvando alocação para cliente:', clienteId, editData);
       
@@ -103,8 +109,8 @@ export function AlocacaoClientes() {
         method: 'PATCH',
         body: {
           client_id: clienteId,
-          traffic_manager_id: editData.traffic_manager_id || null,
-          cs_id: editData.cs_id || null
+          traffic_manager_id: nextTrafficManagerId,
+          cs_id: nextCsId
         }
       });
 
@@ -119,6 +125,54 @@ export function AlocacaoClientes() {
       }
 
       console.log('Alocação salva com sucesso:', data);
+
+      // Trigger automations for new assignments
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const actorUserId = authData.user?.id || null;
+        const clientePayload = {
+          id: clienteId,
+          nome: data?.data?.nome || clienteAtual?.nome || 'Cliente',
+          traffic_manager_id: nextTrafficManagerId,
+          cs_id: nextCsId,
+        };
+
+        if (previousTrafficManagerId !== nextTrafficManagerId && nextTrafficManagerId) {
+          const trafficManager = colaboradores.find((c) => c.id === nextTrafficManagerId);
+          await supabase.functions.invoke('evaluate-automations', {
+            body: {
+              trigger_type: 'new_traffic_manager',
+              data: {
+                cliente: clientePayload,
+                traffic_manager: {
+                  id: nextTrafficManagerId,
+                  nome: trafficManager?.nome || null,
+                },
+                user_id: actorUserId,
+              },
+            },
+          });
+        }
+
+        if (previousCsId !== nextCsId && nextCsId) {
+          const csManager = colaboradores.find((c) => c.id === nextCsId);
+          await supabase.functions.invoke('evaluate-automations', {
+            body: {
+              trigger_type: 'new_cs',
+              data: {
+                cliente: clientePayload,
+                cs: {
+                  id: nextCsId,
+                  nome: csManager?.nome || null,
+                },
+                user_id: actorUserId,
+              },
+            },
+          });
+        }
+      } catch (automationError) {
+        console.error('Erro ao disparar automações de alocação:', automationError);
+      }
 
       toast({
         title: "Sucesso",

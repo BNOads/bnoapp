@@ -301,6 +301,44 @@ const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({
         console.error('Erro ao criar notificação:', notifyError);
       }
 
+      // Execute Automations
+      try {
+        let clienteAutomacao: {
+          id: string;
+          nome: string;
+          traffic_manager_id: string | null;
+          cs_id: string | null;
+          primary_gestor_user_id: string | null;
+          primary_cs_user_id: string | null;
+        } | null = null;
+        if (novoLancamento.cliente_id) {
+          const { data: clienteData, error: clienteError } = await supabase
+            .from('clientes')
+            .select('id, nome, traffic_manager_id, cs_id, primary_gestor_user_id, primary_cs_user_id')
+            .eq('id', novoLancamento.cliente_id)
+            .maybeSingle();
+
+          if (clienteError) {
+            console.error('Erro ao buscar cliente para automação:', clienteError);
+          } else {
+            clienteAutomacao = clienteData;
+          }
+        }
+
+        await supabase.functions.invoke('evaluate-automations', {
+          body: {
+            trigger_type: 'new_launch',
+            data: {
+              lancamento: novoLancamento,
+              cliente: clienteAutomacao,
+              user_id: userData.user.id,
+            },
+          },
+        });
+      } catch (autoErr) {
+        console.error('Erro ao avaliar automações do lançamento', autoErr);
+      }
+
       onLancamentoCriado();
       resetForm();
 

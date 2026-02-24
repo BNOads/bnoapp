@@ -9,7 +9,6 @@ export interface TaskAutomation {
     trigger_conditions: any;
     actions: { type: string; payload: any }[];
     is_active: boolean;
-    is_active: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -132,13 +131,17 @@ export function useDeleteTaskAutomation() {
 
 export interface TaskAutomationLog {
     id: string;
-    automation_id: string;
+    automation_id: string | null;
     trigger_event: string;
     status: 'success' | 'error' | 'skipped';
-    message: string;
+    message: string | null;
     details: any;
     created_at: string;
 }
+
+export type TaskAutomationLogWithAutomation = TaskAutomationLog & {
+    automations?: { name: string } | null;
+};
 
 export const automationLogKeys = {
     all: ["task_automation_logs"] as const,
@@ -149,14 +152,115 @@ export function useTaskAutomationLogs() {
     return useQuery({
         queryKey: automationLogKeys.list(),
         queryFn: async () => {
-            const { data, error } = await supabase
+            const { data: logsData, error: logsError } = await supabase
                 .from("task_automation_logs")
-                .select("*, automations:task_automations(name)")
+                .select("*")
                 .order("created_at", { ascending: false })
                 .limit(50);
 
+            if (logsError) throw logsError;
+
+            const logs = (logsData || []) as TaskAutomationLog[];
+            const automationIds = Array.from(
+                new Set(
+                    logs
+                        .map((log) => log.automation_id)
+                        .filter((id): id is string => Boolean(id))
+                )
+            );
+
+            if (automationIds.length === 0) {
+                return logs.map((log) => ({ ...log, automations: null }));
+            }
+
+            const { data: automationsData, error: automationsError } = await supabase
+                .from("task_automations")
+                .select("id, name")
+                .in("id", automationIds);
+
+            if (automationsError) {
+                console.error("Erro ao carregar nomes das automações para logs:", automationsError);
+                return logs.map((log) => ({ ...log, automations: null }));
+            }
+
+            const automationNameById = new Map(
+                (automationsData || []).map((auto) => [auto.id, auto.name])
+            );
+
+            return logs.map((log) => ({
+                ...log,
+                automations: log.automation_id && automationNameById.has(log.automation_id)
+                    ? { name: automationNameById.get(log.automation_id)! }
+                    : null,
+            }));
+        },
+    });
+}
+
+const parseLogPayload = (details: any): Record<string, unknown> | null => {
+    if (details && typeof details === "object" && !Array.isArray(details)) {
+        const detailsObj = details as Record<string, unknown>;
+        if (detailsObj.trigger_data && typeof detailsObj.trigger_data === "object" && !Array.isArray(detailsObj.trigger_data)) {
+            return detailsObj.trigger_data as Record<string, unknown>;
+        }
+        return detailsObj;
+    }
+
+    if (typeof details === "string") {
+        try {
+            const parsed = JSON.parse(details);
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                const parsedObj = parsed as Record<string, unknown>;
+                if (parsedObj.trigger_data && typeof parsedObj.trigger_data === "object" && !Array.isArray(parsedObj.trigger_data)) {
+                    return parsedObj.trigger_data as Record<string, unknown>;
+                }
+                return parsedObj;
+            }
+        } catch {
+            return null;
+        }
+    }
+
+    return null;
+};
+
+export function useReExecuteTaskAutomationLog() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async (log: TaskAutomationLogWithAutomation) => {
+            const triggerData = parseLogPayload(log.details);
+            if (!triggerData) {
+                throw new Error("Este log não possui dados válidos para reexecução.");
+            }
+
+            const body: Record<string, unknown> = {
+                trigger_type: log.trigger_event,
+                data: triggerData,
+            };
+
+            if (log.automation_id) {
+                body.automation_id = log.automation_id;
+            }
+
+            const { data, error } = await supabase.functions.invoke("evaluate-automations", { body });
             if (error) throw error;
-            return data as (TaskAutomationLog & { automations?: { name: string } | null })[];
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: automationLogKeys.all });
+            toast({
+                title: "Reexecução concluída",
+                description: "A automação foi reprocessada com sucesso.",
+            });
+        },
+        onError: (error: any) => {
+            toast({
+                title: "Erro ao reexecutar automação",
+                description: error.message,
+                variant: "destructive",
+            });
         },
     });
 }

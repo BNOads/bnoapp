@@ -54,7 +54,7 @@ export const NovoClienteModal = ({
       const linkPainel = formData.link_painel ||
         `https://bnoapp.lovable.app/painel/${formData.nome.toLowerCase().replace(/\s+/g, '-')}`;
 
-      const { error } = await supabase
+      const { data: novoCliente, error } = await supabase
         .from('clientes')
         .insert({
           nome: formData.nome,
@@ -64,7 +64,9 @@ export const NovoClienteModal = ({
           pasta_drive_url: formData.pasta_drive_url || null,
           link_painel: linkPainel,
           created_by: user?.id,
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
         throw error;
@@ -84,7 +86,7 @@ export const NovoClienteModal = ({
         await supabase.functions.invoke('evaluate-automations', {
           body: {
             trigger_type: 'new_client',
-            data: { cliente: { nome: formData.nome, categoria: formData.categoria, user_id: user?.id } }
+            data: { cliente: novoCliente, user_id: user?.id }
           }
         });
       } catch (autoErr) {

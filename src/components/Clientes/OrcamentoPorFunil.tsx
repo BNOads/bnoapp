@@ -899,7 +899,10 @@ export const OrcamentoPorFunil = ({
         setShowEditarModal(false);
       } else {
         // Criar novo - orçamentos são criados ativos por padrão
+        const { data: authData } = await supabase.auth.getUser();
+        const actorUserId = authData.user?.id || null;
         const {
+          data: novoOrcamento,
           error
         } = await supabase.from('orcamentos_funil').insert({
           cliente_id: clienteId,
@@ -909,9 +912,42 @@ export const OrcamentoPorFunil = ({
           etapa_funil: formData.etapa_funil,
           categoria_explicacao: formData.categoria_explicacao || null,
           active: true,
-          created_by: (await supabase.auth.getUser()).data.user?.id
-        });
+          created_by: actorUserId
+        }).select('id, cliente_id, nome_funil, valor_investimento, active, etapa_funil').single();
         if (error) throw error;
+
+        try {
+          const { data: clienteData, error: clienteError } = await supabase
+            .from('clientes')
+            .select('id, nome, traffic_manager_id, cs_id, primary_gestor_user_id, primary_cs_user_id')
+            .eq('id', clienteId)
+            .maybeSingle();
+
+          if (clienteError) {
+            console.error('Erro ao buscar cliente para automação de orçamento:', clienteError);
+          } else {
+            await supabase.functions.invoke('evaluate-automations', {
+              body: {
+                trigger_type: 'new_budget',
+                data: {
+                  cliente: clienteData,
+                  funil: {
+                    id: novoOrcamento.id,
+                    nome: novoOrcamento.nome_funil,
+                    orcamento: novoOrcamento.valor_investimento,
+                    status: novoOrcamento.active ? 'ativo' : 'inativo',
+                    etapa_funil: novoOrcamento.etapa_funil,
+                  },
+                  orcamento: novoOrcamento,
+                  user_id: actorUserId,
+                },
+              },
+            });
+          }
+        } catch (automationError) {
+          console.error('Erro ao disparar automações de novo orçamento:', automationError);
+        }
+
         toast({
           title: "Sucesso",
           description: "Orçamento criado com sucesso!"
@@ -963,6 +999,48 @@ export const OrcamentoPorFunil = ({
 
     // 2. Find the budget to get linked campaigns (use todosItens which has linked_campaigns populated)
     const orcamento = todosItens.find(o => o.id === orcamentoId);
+
+    // 2.1 Trigger automations for funnel status change
+    if (orcamento && !orcamento.isLancamento) {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const actorUserId = authData.user?.id || null;
+        const { data: clienteData, error: clienteError } = await supabase
+          .from('clientes')
+          .select('id, nome, traffic_manager_id, cs_id, primary_gestor_user_id, primary_cs_user_id')
+          .eq('id', clienteId)
+          .maybeSingle();
+
+        if (clienteError) {
+          console.error('Erro ao buscar cliente para automação de funil:', clienteError);
+        } else {
+          await supabase.functions.invoke('evaluate-automations', {
+            body: {
+              trigger_type: 'funnel_changed',
+              data: {
+                cliente: clienteData,
+                funil: {
+                  id: orcamento.id,
+                  nome: orcamento.nome_funil,
+                  status: newStatus ? 'ativo' : 'inativo',
+                  orcamento: orcamento.valor_investimento,
+                  etapa_funil: orcamento.etapa_funil,
+                },
+                orcamento: {
+                  id: orcamento.id,
+                  nome_funil: orcamento.nome_funil,
+                  valor_investimento: orcamento.valor_investimento,
+                  active: newStatus,
+                },
+                user_id: actorUserId,
+              },
+            },
+          });
+        }
+      } catch (automationError) {
+        console.error('Erro ao disparar automações de status do funil:', automationError);
+      }
+    }
 
     if (orcamento && orcamento.linked_campaigns && orcamento.linked_campaigns.length > 0) {
       const statusStr = newStatus ? 'ACTIVE' : 'PAUSED';

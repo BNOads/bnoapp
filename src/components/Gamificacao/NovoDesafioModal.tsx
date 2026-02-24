@@ -66,6 +66,21 @@ export const NovoDesafioModal = ({ open, onOpenChange, onSuccess }: NovoDesafioM
 
       if (notifError) console.error('Erro ao criar notificação:', notifError);
 
+      // Execute Automations
+      try {
+        await supabase.functions.invoke('evaluate-automations', {
+          body: {
+            trigger_type: 'new_challenge',
+            data: {
+              desafio,
+              user_id: user.id,
+            },
+          },
+        });
+      } catch (automationError) {
+        console.error('Erro ao avaliar automações de desafio:', automationError);
+      }
+
       toast({
         title: "Desafio criado com sucesso!",
         description: "Todos os colaboradores foram notificados.",

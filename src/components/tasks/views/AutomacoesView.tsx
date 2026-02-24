@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { useTaskAutomations, useUpdateTaskAutomation, useDeleteTaskAutomation, useTaskAutomationLogs } from "@/hooks/useTaskAutomations";
+import { useTaskAutomations, useUpdateTaskAutomation, useDeleteTaskAutomation, useTaskAutomationLogs, useReExecuteTaskAutomationLog, TaskAutomationLogWithAutomation } from "@/hooks/useTaskAutomations";
 import { Button } from "@/components/ui/button";
-import { Plus, Zap, Trash2, Power, PowerOff, Bell, CheckCircle, MoreVertical, Edit, Copy, Activity, XCircle, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Zap, Trash2, Power, PowerOff, Bell, CheckCircle, MoreVertical, Edit, Copy, Activity, XCircle, AlertTriangle, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { AutomationBuilderModal } from "../modals/AutomationBuilderModal";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -12,11 +12,13 @@ export function AutomacoesView() {
     const { data: logs = [], isLoading: logsLoading } = useTaskAutomationLogs();
     const updateMutation = useUpdateTaskAutomation();
     const deleteMutation = useDeleteTaskAutomation();
+    const reExecuteMutation = useReExecuteTaskAutomationLog();
     const [isBuilderOpen, setIsBuilderOpen] = useState(false);
     const [selectedAutomation, setSelectedAutomation] = useState<TaskAutomation | null>(null);
     const [builderMode, setBuilderMode] = useState<"create" | "edit" | "duplicate">("create");
     const [logsExpanded, setLogsExpanded] = useState(true);
     const [logsFilter, setLogsFilter] = useState<"all" | "success" | "error" | "skipped">("all");
+    const [retryingLogId, setRetryingLogId] = useState<string | null>(null);
 
     if (isLoading) {
         return <div className="flex items-center justify-center p-12 text-muted-foreground">Carregando automações...</div>;
@@ -36,6 +38,15 @@ export function AutomacoesView() {
         setBuilderMode(mode);
         setSelectedAutomation(auto || null);
         setIsBuilderOpen(true);
+    };
+
+    const handleRetryLog = async (log: TaskAutomationLogWithAutomation) => {
+        setRetryingLogId(log.id);
+        try {
+            await reExecuteMutation.mutateAsync(log);
+        } finally {
+            setRetryingLogId(null);
+        }
     };
 
     const getActionLabel = (type: string) => {
@@ -257,6 +268,23 @@ export function AutomacoesView() {
                                                 <p className="text-xs text-slate-500 font-mono leading-relaxed break-words">
                                                     {log.message}
                                                 </p>
+                                                {log.status === "error" && (
+                                                    <div>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 mt-1 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                            disabled={retryingLogId === log.id || reExecuteMutation.isPending}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRetryLog(log);
+                                                            }}
+                                                        >
+                                                            <RotateCcw className={`w-3 h-3 mr-1.5 ${retryingLogId === log.id ? "animate-spin" : ""}`} />
+                                                            {retryingLogId === log.id ? "Reexecutando..." : "Reexecutar"}
+                                                        </Button>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Timestamp */}
