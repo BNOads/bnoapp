@@ -36,7 +36,7 @@ export function useTasks(filters?: TaskFilters) {
                 .order("completed", { ascending: true })
                 .order("completed_at", { ascending: false, nullsFirst: true })
                 .order("due_date", { ascending: true })
-                .limit(300);
+                .limit(2000);
 
             if (filters?.search) {
                 query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
