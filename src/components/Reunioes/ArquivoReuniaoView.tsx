@@ -657,39 +657,42 @@ export function ArquivoReuniaoView() {
   return (
     <div className="flex h-screen bg-background">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex min-h-0 relative">
-        <div className="flex-1 flex flex-col">
-          <div className="border-b border-border bg-card">
-            <div className="flex items-center justify-between h-16 px-4 md:px-6">
-              {/* Left Side: Back Button, Title, Year Select, Tabs */}
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground shrink-0"
-                  onClick={() => window.history.back()}
-                  title="Voltar às Ferramentas"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="bg-background pt-6 px-6 pb-4 border-b border-border">
+            {/* Back Button */}
+            <Button
+              variant="ghost"
+              className="w-fit text-muted-foreground hover:text-foreground p-0 h-auto font-medium mb-6"
+              onClick={() => window.history.back()}
+              title="Voltar às Ferramentas"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar às Ferramentas
+            </Button>
 
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-3 rounded-xl border border-primary/20 shadow-sm">
-                    <BookOpen className="h-7 w-7 text-primary" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h1 className="text-2xl font-bold tracking-tight hidden md:block text-foreground">Arquivo de Reuniões</h1>
-                      <Badge variant="secondary" className="hidden sm:flex text-[10px] uppercase font-semibold text-muted-foreground border-border/50 bg-background/50 hover:bg-background/80 transition-colors shadow-sm">
-                        Wordlet Central
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
+            {/* Title Card */}
+            <div className="border border-border/60 bg-card rounded-xl p-5 flex items-center shadow-sm mb-6">
+              <div className="bg-blue-50 dark:bg-blue-500/10 p-3.5 rounded-xl mr-5">
+                <BookOpen className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">Arquivo de Reuniões</h1>
+                <p className="text-[15px] text-muted-foreground mt-1">Registre, acompanhe e guarde suas notas de reuniões de forma inteligente.</p>
+              </div>
+            </div>
 
-                <div className="h-6 w-px bg-border mx-2 hidden sm:block"></div>
+            {/* Controls Row */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                <TabsList className="h-10 bg-muted/40 border border-border/50 shrink-0">
+                  <TabsTrigger value="arquivo" className="text-sm px-4 h-8 data-[state=active]:shadow-sm">Editor</TabsTrigger>
+                  <TabsTrigger value="analises" className="text-sm px-4 h-8 data-[state=active]:shadow-sm">Análises</TabsTrigger>
+                </TabsList>
+
+                <div className="h-6 w-px bg-border hidden sm:block"></div>
 
                 <Select value={anoSelecionado.toString()} onValueChange={(val) => setAnoSelecionado(parseInt(val))}>
-                  <SelectTrigger className="w-[110px] h-9 bg-background">
+                  <SelectTrigger className="w-[120px] h-10 bg-background text-sm">
                     <SelectValue placeholder="Ano" />
                   </SelectTrigger>
                   <SelectContent>
@@ -700,27 +703,19 @@ export function ArquivoReuniaoView() {
                     ))}
                   </SelectContent>
                 </Select>
-
-                <div className="h-6 w-px bg-border mx-2 hidden sm:block"></div>
-
-                <TabsList className="h-9 bg-muted/40 border border-border/50 shrink-0">
-                  <TabsTrigger value="arquivo" className="text-sm px-4 h-7 data-[state=active]:shadow-sm">Editor</TabsTrigger>
-                  <TabsTrigger value="analises" className="text-sm px-4 h-7 data-[state=active]:shadow-sm">Análises</TabsTrigger>
-                </TabsList>
               </div>
 
-              {/* Right Side: Status, Online Users, Actions */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 shrink-0">
                 {/* Save Status */}
-                <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground mr-2">
-                  <div className={`px-2 py-1 rounded text-xs flex items-center gap-1.5 ${saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
-                    saveStatus === 'saved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
-                      saveStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
-                        'bg-muted text-muted-foreground'
+                <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className={`px-2.5 py-1.5 rounded-md text-xs flex items-center gap-1.5 font-medium ${saveStatus === 'saving' ? 'bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' :
+                    saveStatus === 'saved' ? 'bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
+                      saveStatus === 'error' ? 'bg-red-500/10 text-red-700 dark:bg-red-500/20 dark:text-red-400' :
+                        'bg-muted/50 text-muted-foreground'
                     }`}>
                     {saveStatus === 'saving' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     {saveStatus === 'saved' && <Save className="w-3.5 h-3.5" />}
-                    {saveStatus === 'error' && <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
+                    {saveStatus === 'error' && <AlertCircle className="w-3.5 h-3.5" />}
                     {saveStatus === 'idle' && <Save className="w-3.5 h-3.5" />}
 
                     {saveStatus === 'saving' && 'Salvando...'}
@@ -733,9 +728,11 @@ export function ArquivoReuniaoView() {
                   )}
                 </div>
 
+                <div className="h-6 w-px bg-border hidden lg:block"></div>
+
                 {/* Online Users */}
                 {onlineUsers.length > 0 && (
-                  <div className="hidden sm:flex items-center gap-2 mr-2">
+                  <div className="hidden sm:flex items-center">
                     <div className="flex -space-x-2">
                       {onlineUsers.slice(0, 3).map((u) => (
                         <div
@@ -773,24 +770,22 @@ export function ArquivoReuniaoView() {
                   </div>
                 )}
 
-                {/* Actions */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={handleManualSave}
-                    disabled={saveStatus === 'saving'}
-                    variant={saveStatus === 'error' ? 'destructive' : 'default'}
-                    size="sm"
-                    className="h-9"
-                  >
-                    {saveStatus === 'saving' ? <Loader2 className="h-4 w-4 md:mr-2 animate-spin" /> : <Save className="h-4 w-4 md:mr-2" />}
-                    <span className="hidden md:inline">Salvar</span>
-                  </Button>
-                </div>
+                {/* Save Button */}
+                <Button
+                  onClick={handleManualSave}
+                  disabled={saveStatus === 'saving'}
+                  variant={saveStatus === 'error' ? 'destructive' : 'default'}
+                  className="h-10 px-4"
+                >
+                  {saveStatus === 'saving' ? <Loader2 className="h-4 w-4 md:mr-2 animate-spin" /> : <Save className="h-4 w-4 md:mr-2" />}
+                  <span className="hidden md:inline font-medium">Salvar</span>
+                </Button>
               </div>
             </div>
 
+            {/* Search Bar */}
             {activeTab === 'arquivo' && (
-              <div className="relative mb-6">
+              <div className="relative mt-4">
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -861,99 +856,100 @@ export function ArquivoReuniaoView() {
                 )}
               </div>
             )}
-
           </div>
 
-          <div className="flex-1 overflow-auto" ref={scrollContainerRef}>
+          <div className="flex-1 min-h-0 overflow-auto" ref={scrollContainerRef}>
             <TabsContent value="arquivo" className="mt-0 h-full">
-              <div className="max-w-4xl mx-auto py-8">
-                <ArquivoReuniaoTipTapEditor
-                  arquivoId={arquivoId || ''}
-                  ano={anoSelecionado}
-                  initialContent={conteudo}
-                  onContentChange={handleContentChange}
-                  onHeadingsChange={handleHeadingsChange}
-                  onAddToIndex={handleAddToIndex}
-                  onReady={handleEditorReady}
-                  userName={userData?.nome || 'Usuario'}
-                  userId={user?.id || ''}
-                  userAvatarUrl={userData?.avatar_url}
-                  userColor={getUserColor(user?.id)}
+              <div className="max-w-4xl mx-auto py-8 px-6">
+                  <ArquivoReuniaoTipTapEditor
+                    arquivoId={arquivoId || ''}
+                    ano={anoSelecionado}
+                    initialContent={conteudo}
+                    onContentChange={handleContentChange}
+                    onHeadingsChange={handleHeadingsChange}
+                    onAddToIndex={handleAddToIndex}
+                    onReady={handleEditorReady}
+                    userName={userData?.nome || 'Usuario'}
+                    userId={user?.id || ''}
+                    userAvatarUrl={userData?.avatar_url}
+                    userColor={getUserColor(user?.id)}
+                  />
+                </div>
+              </TabsContent>
+              <TabsContent value="analises" className="mt-0 h-full">
+                <ArquivoReuniaoAnalytics
+                  clientes={clientes}
+                  indicesTitulos={indicesTitulos}
+                  anoSelecionado={anoSelecionado}
                 />
-              </div>
-            </TabsContent>
-            <TabsContent value="analises" className="mt-0 h-full">
-              <ArquivoReuniaoAnalytics
-                clientes={clientes}
-                indicesTitulos={indicesTitulos}
-                anoSelecionado={anoSelecionado}
-              />
-            </TabsContent>
+              </TabsContent>
           </div>
         </div>
 
-        {activeTab === 'arquivo' && (
-          <div className="w-72 border-l border-border bg-card overflow-y-auto">
-            <div className="p-4">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
-                Índice de Títulos
-              </h3>
-              {indicesTitulos.length > 0 ? (
-                <div className="space-y-1">
-                  {indicesTitulos.map((heading, index) => {
-                    const associatedClient = detectClient(heading.text);
+        {
+          activeTab === 'arquivo' && (
+            <div className="w-72 border-l border-border bg-card overflow-y-auto">
+              <div className="p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Índice de Títulos
+                </h3>
+                {indicesTitulos.length > 0 ? (
+                  <div className="space-y-1">
+                    {indicesTitulos.map((heading, index) => {
+                      const associatedClient = detectClient(heading.text);
 
-                    return (
-                      <button
-                        key={`${heading.id}-${index}`}
-                        className={`w-full group text-left px-3 py-2 rounded-lg text-sm hover:bg-accent hover:text-accent-foreground transition-all duration-200 border border-transparent hover:border-border/50 ${heading.tag === 'h1' ? 'font-semibold text-lg mt-4 mb-2 bg-muted/30 border-border/30' :
-                          heading.tag === 'h2' ? 'font-medium' :
-                            'ml-6 text-muted-foreground text-xs hover:text-foreground'
-                          }`}
-                        onClick={() => {
-                          const editorElement = document.querySelector('.prose');
-                          if (editorElement) {
-                            const headings = editorElement.querySelectorAll('h1, h2, h3');
-                            const targetHeading = Array.from(headings).find(
-                              h => h.textContent?.trim() === heading.text
-                            );
-                            if (targetHeading) {
-                              targetHeading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      return (
+                        <button
+                          key={`${heading.id}-${index}`}
+                          className={`w-full group text-left px-3 py-2 rounded-lg text-sm hover:bg-accent hover:text-accent-foreground transition-all duration-200 border border-transparent hover:border-border/50 ${heading.tag === 'h1' ? 'font-semibold text-lg mt-4 mb-2 bg-muted/30 border-border/30' :
+                            heading.tag === 'h2' ? 'font-medium' :
+                              'ml-6 text-muted-foreground text-xs hover:text-foreground'
+                            }`}
+                          onClick={() => {
+                            const editorElement = document.querySelector('.prose');
+                            if (editorElement) {
+                              const headings = editorElement.querySelectorAll('h1, h2, h3');
+                              const targetHeading = Array.from(headings).find(
+                                h => h.textContent?.trim() === heading.text
+                              );
+                              if (targetHeading) {
+                                targetHeading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }
                             }
-                          }
-                        }}
-                      >
-                        <div className="flex flex-col gap-1">
-                          <span>{heading.text}</span>
-                          {associatedClient && (
-                            <div className="flex items-center gap-1.5 mt-1 text-[10px] font-medium text-muted-foreground bg-muted/60 w-fit px-2 py-0.5 rounded-md border border-border/50 shadow-sm">
-                              {associatedClient.branding_logo_url ? (
-                                <img src={associatedClient.branding_logo_url} alt={associatedClient.nome} className="w-3.5 h-3.5 rounded-sm object-cover" />
-                              ) : (
-                                <Building2 className="w-3 h-3 text-primary/70" />
-                              )}
-                              <span className="truncate max-w-[150px] text-primary/90 group-hover:text-primary transition-colors">
-                                {associatedClient.nome}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Use ## para criar títulos H2 que aparecerão aqui
-                </p>
-              )}
+                          }}
+                        >
+                          <div className="flex flex-col gap-1">
+                            <span>{heading.text}</span>
+                            {associatedClient && (
+                              <div className="flex items-center gap-1.5 mt-1 text-[10px] font-medium text-muted-foreground bg-muted/60 w-fit px-2 py-0.5 rounded-md border border-border/50 shadow-sm">
+                                {associatedClient.branding_logo_url ? (
+                                  <img src={associatedClient.branding_logo_url} alt={associatedClient.nome} className="w-3.5 h-3.5 rounded-sm object-cover" />
+                                ) : (
+                                  <Building2 className="w-3 h-3 text-primary/70" />
+                                )}
+                                <span className="truncate max-w-[150px] text-primary/90 group-hover:text-primary transition-colors">
+                                  {associatedClient.nome}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Use ## para criar títulos H2 que aparecerão aqui
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
 
-      </Tabs>
+      </Tabs >
     </div >
   );
 }
