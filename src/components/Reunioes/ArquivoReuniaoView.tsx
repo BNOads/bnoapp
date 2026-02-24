@@ -13,7 +13,9 @@ import {
   X,
   ChevronUp,
   ChevronDown as ChevronDownIcon,
-  ArrowLeft
+  ArrowLeft,
+  Building2,
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +38,13 @@ import {
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArquivoReuniaoAnalytics } from './ArquivoReuniaoAnalytics';
+
+interface Cliente {
+  id: string;
+  nome: string;
+  aliases?: string[];
+  branding_logo_url?: string;
+}
 
 interface UserPresence {
   userId: string;
@@ -162,6 +171,47 @@ export function ArquivoReuniaoView() {
     setShowSearchResults(results.length > 0);
     setCurrentResultIndex(0);
   }, [searchQuery, indicesTitulos]);
+
+  // Buscar clientes ativos
+  useEffect(() => {
+    const fetchClientes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('clientes')
+          .select('id, nome, aliases, branding_logo_url')
+          .eq('ativo', true);
+
+        if (error) throw error;
+        setClientes(data || []);
+      } catch (error) {
+        console.error('Erro ao buscar clientes:', error);
+      }
+    };
+
+    fetchClientes();
+  }, []);
+
+  const detectClient = useCallback((text: string) => {
+    if (!text || clientes.length === 0) return null;
+
+    const lowerText = text.toLowerCase();
+    const normalizedText = lowerText.replace(/\s+/g, '');
+    for (const cliente of clientes) {
+      const normalizedNome = cliente.nome.toLowerCase().replace(/\s+/g, '');
+      if (lowerText.includes(cliente.nome.toLowerCase()) || normalizedText.includes(normalizedNome)) {
+        return cliente;
+      }
+      if (cliente.aliases && cliente.aliases.length > 0) {
+        if (cliente.aliases.some(alias => {
+          const normalizedAlias = alias.toLowerCase().replace(/\s+/g, '');
+          return lowerText.includes(alias.toLowerCase()) || normalizedText.includes(normalizedAlias);
+        })) {
+          return cliente;
+        }
+      }
+    }
+    return null;
+  }, [clientes]);
 
   // Ref para controlar se já restaurou o scroll
   const scrollRestoredRef = useRef(false);
@@ -843,29 +893,47 @@ export function ArquivoReuniaoView() {
               </h3>
               {indicesTitulos.length > 0 ? (
                 <div className="space-y-1">
-                  {indicesTitulos.map((heading, index) => (
-                    <button
-                      key={`${heading.id}-${index}`}
-                      className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors ${heading.tag === 'h1' ? 'font-semibold' :
-                        heading.tag === 'h2' ? 'ml-3 font-medium' :
-                          'ml-6 text-muted-foreground'
-                        }`}
-                      onClick={() => {
-                        const editorElement = document.querySelector('.prose');
-                        if (editorElement) {
-                          const headings = editorElement.querySelectorAll('h1, h2, h3');
-                          const targetHeading = Array.from(headings).find(
-                            h => h.textContent?.trim() === heading.text
-                          );
-                          if (targetHeading) {
-                            targetHeading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  {indicesTitulos.map((heading, index) => {
+                    const associatedClient = detectClient(heading.text);
+
+                    return (
+                      <button
+                        key={`${heading.id}-${index}`}
+                        className={`w-full group text-left px-3 py-2 rounded-lg text-sm hover:bg-accent hover:text-accent-foreground transition-all duration-200 border border-transparent hover:border-border/50 ${heading.tag === 'h1' ? 'font-semibold text-lg mt-4 mb-2 bg-muted/30 border-border/30' :
+                          heading.tag === 'h2' ? 'font-medium' :
+                            'ml-6 text-muted-foreground text-xs hover:text-foreground'
+                          }`}
+                        onClick={() => {
+                          const editorElement = document.querySelector('.prose');
+                          if (editorElement) {
+                            const headings = editorElement.querySelectorAll('h1, h2, h3');
+                            const targetHeading = Array.from(headings).find(
+                              h => h.textContent?.trim() === heading.text
+                            );
+                            if (targetHeading) {
+                              targetHeading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
                           }
-                        }
-                      }}
-                    >
-                      {heading.text}
-                    </button>
-                  ))}
+                        }}
+                      >
+                        <div className="flex flex-col gap-1">
+                          <span>{heading.text}</span>
+                          {associatedClient && (
+                            <div className="flex items-center gap-1.5 mt-1 text-[10px] font-medium text-muted-foreground bg-muted/60 w-fit px-2 py-0.5 rounded-md border border-border/50 shadow-sm">
+                              {associatedClient.branding_logo_url ? (
+                                <img src={associatedClient.branding_logo_url} alt={associatedClient.nome} className="w-3.5 h-3.5 rounded-sm object-cover" />
+                              ) : (
+                                <Building2 className="w-3 h-3 text-primary/70" />
+                              )}
+                              <span className="truncate max-w-[150px] text-primary/90 group-hover:text-primary transition-colors">
+                                {associatedClient.nome}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">

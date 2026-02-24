@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell
 } from 'recharts';
 import {
-    Clock, Calendar, AlertCircle, Building2, TrendingUp, History, Search, FileText, CheckCircle2
+    Clock, Calendar, AlertCircle, Building2, TrendingUp, History, Search, FileText, CheckCircle2, Users
 } from 'lucide-react';
 import { format, differenceInDays, parse, isValid, startOfWeek, endOfWeek, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -34,38 +34,56 @@ interface AnalyticsProps {
 export function ArquivoReuniaoAnalytics({ clientes, indicesTitulos, anoSelecionado }: AnalyticsProps) {
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Detecta cliente a partir do texto do heading (mesmo padrão do sidebar/tarefas)
+    const detectClient = useCallback((text: string) => {
+        if (!text || clientes.length === 0) return null;
+        const lowerText = text.toLowerCase();
+        const normalizedText = lowerText.replace(/\s+/g, '');
+        for (const cliente of clientes) {
+            const normalizedNome = cliente.nome.toLowerCase().replace(/\s+/g, '');
+            if (lowerText.includes(cliente.nome.toLowerCase()) || normalizedText.includes(normalizedNome)) return cliente;
+            if (cliente.aliases && cliente.aliases.length > 0) {
+                if (cliente.aliases.some((alias: string) => {
+                    const normalizedAlias = alias.toLowerCase().replace(/\s+/g, '');
+                    return lowerText.includes(alias.toLowerCase()) || normalizedText.includes(normalizedAlias);
+                })) return cliente;
+            }
+        }
+        return null;
+    }, [clientes]);
+
     // Processa os dados brutos do índice para extrair estatísticas por cliente
     const stats: ClientStats[] = useMemo(() => {
         const clientMap = new Map<string, ClientStats>();
 
         // Inicializa o mapa com todos os clientes ativos
         clientes.forEach(c => {
-            if (c.ativo) {
-                clientMap.set(c.id, {
-                    id: c.id,
-                    nome: c.nome,
-                    avatar_url: c.avatar_url,
-                    totalReunioes: 0,
-                    ultimaReuniao: null,
-                    diasSemReuniao: null,
-                    reunioesPorMes: {}
-                });
-            }
+            clientMap.set(c.id, {
+                id: c.id,
+                nome: c.nome,
+                avatar_url: c.branding_logo_url,
+                totalReunioes: 0,
+                ultimaReuniao: null,
+                diasSemReuniao: null,
+                reunioesPorMes: {}
+            });
         });
 
         const today = new Date();
 
         // Processa cada H2 do índice (que representa uma pauta de reunião)
         indicesTitulos.forEach(heading => {
-            if (heading.tag === 'h2' && heading.client) {
-                const clientId = heading.client.id;
-                const stats = clientMap.get(clientId);
+            if (heading.tag === 'h2') {
+                const matchedClient = detectClient(heading.text);
+                if (!matchedClient) return;
 
-                if (stats) {
-                    stats.totalReunioes += 1;
+                const clientId = matchedClient.id;
+                const s = clientMap.get(clientId);
 
-                    // Tenta extrair a data do texto do heading. Formato esperado costuma ser "DD/MM/YYYY | Cliente" ou começos em "DD/MM".
-                    // Vamos tentar uma extração simples de regex para pegar a data DD/MM/YYYY
+                if (s) {
+                    s.totalReunioes += 1;
+
+                    // Tenta extrair a data do texto do heading (DD/MM/YYYY ou DD/MM)
                     const dateMatch = heading.text.match(/(\d{2})\/(\d{2})(?:\/(\d{4}))?/);
                     if (dateMatch) {
                         const day = parseInt(dateMatch[1]);
@@ -75,18 +93,14 @@ export function ArquivoReuniaoAnalytics({ clientes, indicesTitulos, anoSeleciona
                         const reuniaoDate = new Date(year, month, day);
 
                         if (isValid(reuniaoDate)) {
-                            // Atualiza última reunião
-                            if (!stats.ultimaReuniao || reuniaoDate > stats.ultimaReuniao) {
-                                stats.ultimaReuniao = reuniaoDate;
-                                stats.diasSemReuniao = differenceInDays(today, reuniaoDate);
+                            if (!s.ultimaReuniao || reuniaoDate > s.ultimaReuniao) {
+                                s.ultimaReuniao = reuniaoDate;
+                                s.diasSemReuniao = differenceInDays(today, reuniaoDate);
                             }
 
-                            // Contabiliza por mês
                             const mesKey = format(reuniaoDate, 'MMM', { locale: ptBR });
-                            stats.reunioesPorMes[mesKey] = (stats.reunioesPorMes[mesKey] || 0) + 1;
+                            s.reunioesPorMes[mesKey] = (s.reunioesPorMes[mesKey] || 0) + 1;
                         }
-                    } else {
-                        // Fallback se não achar data exata, não computa data mas soma no total
                     }
                 }
             }
