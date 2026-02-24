@@ -45,13 +45,22 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
   const { isAdmin } = useUserPermissions();
   const [formData, setFormData] = useState({
     nome: '',
-    categoria: 'negocio_local' as 'negocio_local' | 'infoproduto',
+    categoria: 'negocio_local' as string,
     nicho: '',
     etapa_atual: '',
     pasta_drive_url: '',
     link_painel: '',
     observacoes: '',
     status_cliente: 'ativo',
+    // Informações (onboarding form fields)
+    descricao_breve: '',
+    serie: '',
+    investimento_mensal: '',
+    promessas_cliente: '',
+    whatsapp_cliente: '',
+    instagram_cliente: '',
+    localizacao: 'Brasil',
+    prometeu_pagina: '',
   });
   const [categories, setCategories] = useState<any[]>([]);
 
@@ -71,6 +80,15 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
         link_painel: cliente.link_painel || '',
         observacoes: cliente.observacoes || '',
         status_cliente: cliente.status_cliente || 'ativo',
+        // Informações
+        descricao_breve: cliente.descricao_breve || '',
+        serie: cliente.serie || '',
+        investimento_mensal: cliente.investimento_mensal || '',
+        promessas_cliente: cliente.promessas_cliente || '',
+        whatsapp_cliente: cliente.whatsapp_cliente || '',
+        instagram_cliente: cliente.instagram_cliente || '',
+        localizacao: cliente.localizacao || 'Brasil',
+        prometeu_pagina: cliente.prometeu_pagina || '',
       });
       loadTeamMembers();
     }
@@ -165,6 +183,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
           <Tabs defaultValue="geral" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="geral">Geral</TabsTrigger>
+              <TabsTrigger value="informacoes">Informações</TabsTrigger>
               <TabsTrigger value="equipe">Equipe</TabsTrigger>
               <TabsTrigger value="integracoes">Integrações</TabsTrigger>
             </TabsList>
@@ -291,6 +310,116 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
                   placeholder="Observações gerais sobre o cliente"
                   rows={3}
                 />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="informacoes" className="space-y-4 pt-4">
+              {/* Row 1: Descrição breve + Série */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="descricao_breve">Detalhes do cliente</Label>
+                  <Input
+                    id="descricao_breve"
+                    value={formData.descricao_breve}
+                    onChange={(e) => handleInputChange('descricao_breve', e.target.value)}
+                    placeholder="Breve descrição do cliente"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="serie">Classificação de série</Label>
+                  <Select
+                    value={formData.serie}
+                    onValueChange={(value) => handleInputChange('serie', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar opção..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Serie A">Serie A</SelectItem>
+                      <SelectItem value="Serie B">Serie B</SelectItem>
+                      <SelectItem value="Serie C">Serie C</SelectItem>
+                      <SelectItem value="Serie D">Serie D</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Row 2: Investimento + Promessas */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="investimento_mensal">Investimento Mensal</Label>
+                  <Input
+                    id="investimento_mensal"
+                    value={formData.investimento_mensal}
+                    onChange={(e) => handleInputChange('investimento_mensal', e.target.value)}
+                    placeholder="Ex: R$ 3.000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="promessas_cliente">Promessas realizadas</Label>
+                  <Input
+                    id="promessas_cliente"
+                    value={formData.promessas_cliente}
+                    onChange={(e) => handleInputChange('promessas_cliente', e.target.value)}
+                    placeholder="Promessas ao cliente"
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: WhatsApp + Instagram */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="whatsapp_cliente">WhatsApp do cliente</Label>
+                  <div className="flex">
+                    <div className="flex items-center px-3 border border-r-0 rounded-l-md bg-muted text-sm select-none">
+                      🇧🇷
+                    </div>
+                    <Input
+                      id="whatsapp_cliente"
+                      value={formData.whatsapp_cliente}
+                      onChange={(e) => handleInputChange('whatsapp_cliente', e.target.value)}
+                      placeholder="Inserir telefone"
+                      className="rounded-l-none"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instagram_cliente">Instagram do cliente</Label>
+                  <Input
+                    id="instagram_cliente"
+                    value={formData.instagram_cliente}
+                    onChange={(e) => handleInputChange('instagram_cliente', e.target.value)}
+                    placeholder="URL do Instagram"
+                  />
+                </div>
+              </div>
+
+              {/* Row 4: Localização + Prometeu página */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="localizacao">Localização</Label>
+                  <Input
+                    id="localizacao"
+                    value={formData.localizacao}
+                    onChange={(e) => handleInputChange('localizacao', e.target.value)}
+                    placeholder="Brasil"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="prometeu_pagina">Prometeu página?</Label>
+                  <Select
+                    value={formData.prometeu_pagina}
+                    onValueChange={(value) => handleInputChange('prometeu_pagina', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar opção..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sim">Sim</SelectItem>
+                      <SelectItem value="nao">Não</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </TabsContent>
 

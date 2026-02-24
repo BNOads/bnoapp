@@ -894,7 +894,7 @@ export const ClientesView = () => {
                 </DropdownMenu>
               )}
               {canCreateContent && (
-                <Button className="h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md text-sm font-semibold px-6 w-full lg:w-auto transition-all hover:shadow-lg" onClick={() => window.open('https://forms.clickup.com/36694061/f/12zu1d-44913/5SA3APCY8WF3WVCL8N', '_blank')}>
+                <Button className="h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md text-sm font-semibold px-6 w-full lg:w-auto transition-all hover:shadow-lg" onClick={() => setModalOpen(true)}>
                   <Plus className="h-5 w-5 mr-2" />
                   Criar Novo Cliente
                 </Button>
