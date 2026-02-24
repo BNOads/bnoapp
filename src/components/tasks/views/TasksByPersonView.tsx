@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToggleTaskComplete, useDeleteTask, useCreateTask, useUpdateTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, UserCircle, Plus, ChevronDown, ChevronRight, Trash2, Flag, Users, ArrowUpDown, ArrowUp, ArrowDown, Building2 } from "lucide-react";
+import { CalendarIcon, UserCircle, Plus, ChevronDown, ChevronRight, Trash2, Flag, Users, ArrowUpDown, ArrowUp, ArrowDown, Building2, FileText } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -470,6 +470,9 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                             <span className={`text-sm truncate font-medium ${task.completed ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"}`}>
                                                                 {task.title}
                                                             </span>
+                                                            {task.description && task.description.trim() && (
+                                                                <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" title="Possui descrição" />
+                                                            )}
                                                             {task.cliente_id && (
                                                                 <Badge variant="outline" className="text-[9px] h-4 px-1 gap-1 shrink-0 font-normal">
                                                                     <Building2 className="w-2.5 h-2.5" />
@@ -676,6 +679,9 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                                     <p className={`text-[13px] font-medium hover:underline truncate ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                                                                         {task.title}
                                                                     </p>
+                                                                    {task.description && task.description.trim() && (
+                                                                        <FileText className="w-3 h-3 text-muted-foreground shrink-0" title="Possui descrição" />
+                                                                    )}
                                                                     {task.cliente_id && (
                                                                         <Badge variant="outline" className="text-[10px] h-4 px-1 gap-1 shrink-0 font-normal">
                                                                             <Building2 className="w-2.5 h-2.5" />

@@ -13,7 +13,8 @@ import {
   ChevronDown as ChevronDownIcon,
   ArrowLeft,
   Building2,
-  AlertCircle
+  AlertCircle,
+  Calendar
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -23,8 +24,11 @@ import { useAuth } from '@/components/Auth/AuthContext';
 import { useArquivoVersioning } from '@/hooks/useArquivoVersioning';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { ArquivoReuniaoAnalytics } from './ArquivoReuniaoAnalytics';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -87,6 +91,10 @@ export function ArquivoReuniaoView() {
   const [showSaveVersionModal, setShowSaveVersionModal] = useState(false);
   const [saveVersionObservation, setSaveVersionObservation] = useState('');
   const [selectedVersion, setSelectedVersion] = useState<any>(null);
+
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+  const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+  const [loadingCalendar, setLoadingCalendar] = useState(false);
 
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -618,6 +626,102 @@ export function ArquivoReuniaoView() {
     setIndicesTitulos(prev => [...prev, newHeading]);
   }, []);
 
+  const loadCalendarEvents = async () => {
+    try {
+      setLoadingCalendar(true);
+      const selectedDate = new Date();
+      const startDate = new Date(selectedDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      const endDate = new Date(selectedDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      const { data: calendarData, error: calendarError } = await supabase.functions.invoke('google-calendar', {
+        body: {
+          calendarId: 'contato@bnoads.com.br',
+          timeMin: startDate.toISOString(),
+          timeMax: endDate.toISOString()
+        }
+      });
+
+      if (calendarError) throw calendarError;
+
+      const events = calendarData?.items || [];
+      const reunioesDoCalendar = events
+        .filter((event: any) => event.start?.dateTime)
+        .map((event: any) => {
+          return {
+            id: event.id,
+            titulo: event.summary || 'Reunião sem título',
+            data_hora: event.start.dateTime,
+          };
+        });
+
+      setCalendarEvents(reunioesDoCalendar);
+    } catch (error) {
+      console.error('Erro ao carregar eventos do calendário:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar eventos do calendário",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingCalendar(false);
+    }
+  };
+
+  const handleOpenCalendar = () => {
+    setCalendarModalOpen(true);
+    loadCalendarEvents();
+  };
+
+  const handleInsertCalendarEvent = (event: any) => {
+    // Injeta pauta no final do editor
+    const editorElement = document.querySelector('.ProseMirror') as any;
+    if (editorElement && editorElement.editor) {
+      editorElement.editor
+        .chain()
+        .focus()
+        .insertContent(`<h2>${event.titulo}</h2><p></p>`)
+        .run();
+
+      if (handleAddToIndex) {
+        handleAddToIndex(event.titulo);
+      }
+    }
+
+    setCalendarModalOpen(false);
+    toast({
+      title: "Pauta adicionada",
+      description: "Pauta importada com sucesso",
+    });
+  };
+
+  const handleInsertAllCalendarEvents = () => {
+    if (calendarEvents.length === 0) return;
+
+    const editorElement = document.querySelector('.ProseMirror') as any;
+    if (editorElement && editorElement.editor) {
+      const editor = editorElement.editor;
+
+      // Construir o conteúdo HTML para todas as pautas de uma vez
+      const content = calendarEvents.map(event => `<h2>${event.titulo}</h2><p></p>`).join('');
+
+      editor.chain().focus().insertContent(content).run();
+
+      // Adiciona todos ao índice
+      if (handleAddToIndex) {
+        calendarEvents.forEach(event => handleAddToIndex(event.titulo));
+      }
+    }
+
+    setCalendarModalOpen(false);
+    toast({
+      title: "Pautas adicionadas",
+      description: `${calendarEvents.length} pautas importadas com sucesso`,
+    });
+  };
+
   useEffect(() => {
     return () => {
       versioning.cleanup();
@@ -857,33 +961,47 @@ export function ArquivoReuniaoView() {
                 )}
               </div>
             )}
+
+            {activeTab === 'arquivo' && (
+              <div className="flex justify-end mt-4">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleOpenCalendar}
+                  className="gap-2 shrink-0 shadow-sm"
+                >
+                  <Calendar className="h-4 w-4 text-blue-500" />
+                  Importar do Calendário
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="flex-1 min-h-0 overflow-auto" ref={scrollContainerRef}>
             <TabsContent value="arquivo" className="mt-0 h-full">
               <div className="max-w-4xl mx-auto py-8 px-6">
-                  <ArquivoReuniaoTipTapEditor
-                    arquivoId={arquivoId || ''}
-                    ano={anoSelecionado}
-                    initialContent={conteudo}
-                    onContentChange={handleContentChange}
-                    onHeadingsChange={handleHeadingsChange}
-                    onAddToIndex={handleAddToIndex}
-                    onReady={handleEditorReady}
-                    userName={userData?.nome || 'Usuario'}
-                    userId={user?.id || ''}
-                    userAvatarUrl={userData?.avatar_url}
-                    userColor={getUserColor(user?.id)}
-                  />
-                </div>
-              </TabsContent>
-              <TabsContent value="analises" className="mt-0 h-full">
-                <ArquivoReuniaoAnalytics
-                  clientes={clientes}
-                  indicesTitulos={indicesTitulos}
-                  anoSelecionado={anoSelecionado}
+                <ArquivoReuniaoTipTapEditor
+                  arquivoId={arquivoId || ''}
+                  ano={anoSelecionado}
+                  initialContent={conteudo}
+                  onContentChange={handleContentChange}
+                  onHeadingsChange={handleHeadingsChange}
+                  onAddToIndex={handleAddToIndex}
+                  onReady={handleEditorReady}
+                  userName={userData?.nome || 'Usuario'}
+                  userId={user?.id || ''}
+                  userAvatarUrl={userData?.avatar_url}
+                  userColor={getUserColor(user?.id)}
                 />
-              </TabsContent>
+              </div>
+            </TabsContent>
+            <TabsContent value="analises" className="mt-0 h-full">
+              <ArquivoReuniaoAnalytics
+                clientes={clientes}
+                indicesTitulos={indicesTitulos}
+                anoSelecionado={anoSelecionado}
+              />
+            </TabsContent>
           </div>
         </div>
 
@@ -948,9 +1066,56 @@ export function ArquivoReuniaoView() {
             </div>
           )
         }
-
-
       </Tabs >
+
+      {/* Modal Importar Calendário */}
+      <Dialog open={calendarModalOpen} onOpenChange={setCalendarModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="flex flex-row items-center justify-between">
+            <div className="space-y-1">
+              <DialogTitle>Importar Pauta do Calendário</DialogTitle>
+              <DialogDescription>
+                Selecione uma reunião de hoje para adicionar como pauta.
+              </DialogDescription>
+            </div>
+            {calendarEvents.length > 1 && !loadingCalendar && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleInsertAllCalendarEvents}
+                className="mt-0"
+              >
+                Adicionar Todas
+              </Button>
+            )}
+          </DialogHeader>
+          <div className="max-h-[300px] overflow-y-auto space-y-2 py-4">
+            {loadingCalendar ? (
+              <div className="flex justify-center p-4">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : calendarEvents.length === 0 ? (
+              <p className="text-center text-muted-foreground text-sm">Nenhuma reunião encontrada para hoje.</p>
+            ) : (
+              calendarEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                  onClick={() => handleInsertCalendarEvent(event)}
+                >
+                  <div>
+                    <h4 className="font-medium text-sm">{event.titulo}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(event.data_hora), "HH:mm", { locale: ptBR })}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm">Inserir</Button>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div >
   );
 }

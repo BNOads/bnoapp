@@ -3,7 +3,7 @@ import { Task, PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS,
 import { isOverdue, isToday, isRecurringDate } from "@/lib/dateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, CalendarIcon, AlertCircle, User, RepeatIcon, Clock, CircleUserIcon, ChevronDownIcon, MessageSquare, CheckCircleIcon, List, Trash2, Copy, MoreVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, CalendarIcon, AlertCircle, User, RepeatIcon, Clock, CircleUserIcon, ChevronDownIcon, MessageSquare, CheckCircleIcon, List, Trash2, Copy, MoreVertical, FileText } from "lucide-react";
 import { useToggleTaskComplete, useUpdateTask, useDeleteTask, useCreateTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -320,6 +320,12 @@ export function TarefasList({ tasks, onTaskClick, selectedTasks = [], onToggleSe
                                                     <span className="flex items-center gap-1.5 truncate max-w-[150px] border px-2 py-1 rounded-md bg-muted/50 text-sm text-muted-foreground ml-2">
                                                         <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: taskLists?.find(l => l.id === task.list_id)?.color || '#ccc' }} />
                                                         <span className="truncate">{taskLists?.find(l => l.id === task.list_id)?.name || 'Lista'}</span>
+                                                    </span>
+                                                )}
+
+                                                {task.description && task.description.trim() && (
+                                                    <span className="flex items-center gap-1.5 text-sm text-muted-foreground ml-2" title="Possui descrição">
+                                                        <FileText className="w-4 h-4" />
                                                     </span>
                                                 )}
 

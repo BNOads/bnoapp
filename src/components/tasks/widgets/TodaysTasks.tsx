@@ -152,13 +152,18 @@ export function TodaysTasks() {
                                     className="h-8 w-full max-w-sm font-semibold text-lg border-primary -ml-2 bg-background p-1"
                                 />
                             ) : (
-                                <span
-                                    className={`text-lg font-semibold hover:border-border border border-transparent hover:bg-muted/50 transition-colors w-fit px-1 -ml-1 rounded truncate inline-block max-w-[80%] ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}
-                                    onClick={(e) => startEditing(task, e)}
-                                    title="Clique para editar"
-                                >
-                                    {task.title}
-                                </span>
+                                <>
+                                    <span
+                                        className={`text-lg font-semibold hover:border-border border border-transparent hover:bg-muted/50 transition-colors w-fit px-1 -ml-1 rounded truncate inline-block max-w-[80%] ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}
+                                        onClick={(e) => startEditing(task, e)}
+                                        title="Clique para editar"
+                                    >
+                                        {task.title}
+                                    </span>
+                                    {task.description && task.description.trim() && (
+                                        <FileText className="w-4 h-4 text-muted-foreground shrink-0 mt-1" title="Possui descrição" />
+                                    )}
+                                </>
                             )}
                         </div>
 

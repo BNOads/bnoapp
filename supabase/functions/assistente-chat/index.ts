@@ -88,8 +88,12 @@ serve(async (req) => {
       }
     }
 
+    // Create service role client for Meta Ads queries (tables may lack RLS policies for authenticated users)
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+
     // Buscar informações do sistema para contexto (agora com permissões por cliente)
-    const systemContext = await getSystemContext(supabase, user.id, isAdmin, userClientId);
+    const systemContext = await getSystemContext(supabase, supabaseAdmin, user.id, isAdmin, userClientId);
     
     // Verificar se a mensagem solicita informações específicas sobre reuniões/transcrições
     const isTranscriptionQuery = detectTranscriptionQuery(message);
@@ -170,6 +174,15 @@ IMPORTANTE: Use estas transcrições para responder sobre decisões, tarefas, pr
 - Identifique compromissos não cumpridos comparando com tarefas atuais
 - Use o conteúdo completo das anotações para responder perguntas detalhadas
 - Cite a data específica da reunião ao referenciar informações
+
+**Para Meta Ads / Performance de Anúncios**:
+- Analise métricas de campanhas e anúncios (spend, CPC, CPM, CTR, conversões, ROAS)
+- Compare períodos (últimos 30d vs 30d anteriores) e identifique tendências
+- Alerte sobre campanhas com performance abaixo da média (CTR < 1%, CPA alto)
+- Cruze dados de orçamento planejado vs gasto real na Meta
+- Sugira otimizações baseadas nos dados (pausar anúncios ruins, escalar bons)
+- Identifique os melhores e piores anúncios por métricas
+- Calcule e compare ROAS entre campanhas e clientes
 
 **Para Financeiro**:
 - Calcule métricas consolidadas (faturamento, despesas, lucro)
@@ -288,7 +301,7 @@ IMPORTANTE: Use estas transcrições para responder sobre decisões, tarefas, pr
   }
 });
 
-async function getSystemContext(supabase: any, userId: string, isAdmin: boolean, userClientId: string | null = null) {
+async function getSystemContext(supabase: any, supabaseAdmin: any, userId: string, isAdmin: boolean, userClientId: string | null = null) {
   try {
     let context = "🎯 SISTEMA BNOADS - COPILOTO INTELIGENTE\n\n";
 
@@ -394,6 +407,12 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
         });
         context += `\n`;
       }
+    }
+
+    // 📊 META ADS - Performance real dos anúncios
+    const metaContext = await getMetaInsightsContext(supabaseAdmin, clientes, isAdmin, userClientId);
+    if (metaContext) {
+      context += metaContext;
     }
 
     // 📨 MENSAGENS SEMANAIS - Histórico de performance com métricas
@@ -765,7 +784,8 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
     context += `├── 📨 Mensagens semanais: ${mensagens?.length || 0}\n`;
     context += `├── ✅ Tarefas ativas: ${tarefas?.length || 0}\n`;
     context += `├── 🚀 Kickoffs: ${kickoffs?.length || 0}\n`;
-    context += `└── 🎯 PDIs: ${pdis?.length || 0}\n\n`;
+    context += `├── 🎯 PDIs: ${pdis?.length || 0}\n`;
+    context += `└── 📊 Meta Ads: ${metaContext ? 'Dados disponíveis' : 'Sem dados'}\n\n`;
 
     if (userClientId && !isAdmin) {
       context += `🔒 NOTA: Dados filtrados para o seu cliente específico.\n`;
@@ -778,6 +798,293 @@ async function getSystemContext(supabase: any, userId: string, isAdmin: boolean,
   } catch (error) {
     console.error('Erro ao buscar contexto do sistema:', error);
     return "❌ Erro ao carregar informações do sistema. Dados filtrados por permissões de usuário.";
+  }
+}
+
+// Função para buscar insights da Meta Ads e formatar para o contexto da IA
+async function getMetaInsightsContext(supabase: any, clientes: any[] | null, isAdmin: boolean, userClientId: string | null) {
+  try {
+    if (!clientes || clientes.length === 0) return '';
+
+    // Buscar todas as contas vinculadas a clientes
+    let accountsQuery = supabase
+      .from('meta_client_ad_accounts')
+      .select('id, cliente_id, account_name, account_status, currency');
+
+    if (userClientId && !isAdmin) {
+      accountsQuery = accountsQuery.eq('cliente_id', userClientId);
+    }
+
+    const { data: adAccounts, error: accountsError } = await accountsQuery;
+    if (accountsError || !adAccounts || adAccounts.length === 0) return '';
+
+    // Datas: últimos 30 dias e 30 dias anteriores para comparação
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+    // Agrupar contas por cliente
+    const accountsByClient: Record<string, any[]> = {};
+    adAccounts.forEach((acc: any) => {
+      if (!accountsByClient[acc.cliente_id]) {
+        accountsByClient[acc.cliente_id] = [];
+      }
+      accountsByClient[acc.cliente_id].push(acc);
+    });
+
+    // Buscar insights de campanha dos últimos 30 dias (período atual)
+    const accountIds = adAccounts.map((a: any) => a.id);
+
+    const { data: currentInsights } = await supabase
+      .from('meta_campaign_insights')
+      .select('ad_account_id, campaign_id, campaign_name, spend, impressions, clicks, reach, actions, action_values, date_start')
+      .in('ad_account_id', accountIds)
+      .gte('date_start', formatDate(thirtyDaysAgo))
+      .lte('date_start', formatDate(now))
+      .order('date_start', { ascending: false });
+
+    // Buscar insights do período anterior para comparação
+    const { data: previousInsights } = await supabase
+      .from('meta_campaign_insights')
+      .select('ad_account_id, spend, impressions, clicks, reach, actions')
+      .in('ad_account_id', accountIds)
+      .gte('date_start', formatDate(sixtyDaysAgo))
+      .lt('date_start', formatDate(thirtyDaysAgo));
+
+    // Buscar top ads dos últimos 7 dias
+    const { data: recentAds } = await supabase
+      .from('meta_ad_insights')
+      .select('ad_account_id, ad_name, campaign_name, spend, impressions, clicks, ctr, cpc, actions, status, effective_status, date_start')
+      .in('ad_account_id', accountIds)
+      .gte('date_start', formatDate(sevenDaysAgo))
+      .lte('date_start', formatDate(now))
+      .order('spend', { ascending: false })
+      .limit(100);
+
+    // Buscar orçamentos planejados para cruzar com gasto real
+    const clienteIds = Object.keys(accountsByClient);
+    const { data: orcamentos } = await supabase
+      .from('orcamentos_funil')
+      .select('cliente_id, nome_funil, valor_investimento')
+      .in('cliente_id', clienteIds)
+      .eq('ativo', true)
+      .eq('active', true);
+
+    // Tipos de conversão para extrair das actions
+    const conversionTypes = [
+      'purchase', 'lead', 'contact', 'schedule', 'submit_application',
+      'complete_registration', 'onsite_conversion.messaging_conversation_started_7d',
+      'omn_level_complete', 'start_trial'
+    ];
+
+    const getConversions = (actions: any[] | null) => {
+      if (!Array.isArray(actions)) return 0;
+      return actions.reduce((total: number, act: any) => {
+        const actionType = act?.action_type;
+        if (typeof actionType !== 'string') return total;
+        const isConversion = conversionTypes.some(t => actionType === t || actionType.includes(t));
+        return isConversion ? total + (Number(act?.value) || 0) : total;
+      }, 0);
+    };
+
+    const getConversionValue = (actionValues: any[] | null) => {
+      if (!Array.isArray(actionValues)) return 0;
+      return actionValues.reduce((total: number, act: any) => {
+        const actionType = act?.action_type;
+        if (typeof actionType !== 'string') return total;
+        const isConversion = conversionTypes.some(t => actionType === t || actionType.includes(t));
+        return isConversion ? total + (Number(act?.value) || 0) : total;
+      }, 0);
+    };
+
+    const formatBRL = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formatPercent = (v: number) => `${v.toFixed(2)}%`;
+    const trendArrow = (current: number, previous: number) => {
+      if (previous === 0) return '';
+      const change = ((current - previous) / previous) * 100;
+      if (Math.abs(change) < 1) return ' (estável)';
+      return change > 0 ? ` (↑${change.toFixed(0)}%)` : ` (↓${Math.abs(change).toFixed(0)}%)`;
+    };
+
+    let context = `📊 META ADS - PERFORMANCE EM TEMPO REAL (dados sincronizados diariamente)\n\n`;
+    let totalGeralSpend = 0;
+    let totalGeralConversions = 0;
+    let clientesComDados = 0;
+
+    for (const cliente of clientes) {
+      const clientAccounts = accountsByClient[cliente.id];
+      if (!clientAccounts || clientAccounts.length === 0) continue;
+
+      const clientAccountIds = clientAccounts.map((a: any) => a.id);
+
+      // Agregar métricas do período atual
+      const clientCurrentInsights = (currentInsights || []).filter((i: any) => clientAccountIds.includes(i.ad_account_id));
+      if (clientCurrentInsights.length === 0) continue;
+
+      clientesComDados++;
+
+      let spend = 0, impressions = 0, clicks = 0, reach = 0, conversions = 0, conversionValue = 0;
+      const campaignStats: Record<string, { spend: number; impressions: number; clicks: number; conversions: number; conversionValue: number }> = {};
+
+      clientCurrentInsights.forEach((i: any) => {
+        const s = Number(i.spend) || 0;
+        const imp = Number(i.impressions) || 0;
+        const cl = Number(i.clicks) || 0;
+        const r = Number(i.reach) || 0;
+        const conv = getConversions(i.actions);
+        const convVal = getConversionValue(i.action_values);
+
+        spend += s;
+        impressions += imp;
+        clicks += cl;
+        reach += r;
+        conversions += conv;
+        conversionValue += convVal;
+
+        // Agregar por campanha
+        const cName = i.campaign_name || 'Sem nome';
+        if (!campaignStats[cName]) {
+          campaignStats[cName] = { spend: 0, impressions: 0, clicks: 0, conversions: 0, conversionValue: 0 };
+        }
+        campaignStats[cName].spend += s;
+        campaignStats[cName].impressions += imp;
+        campaignStats[cName].clicks += cl;
+        campaignStats[cName].conversions += conv;
+        campaignStats[cName].conversionValue += convVal;
+      });
+
+      totalGeralSpend += spend;
+      totalGeralConversions += conversions;
+
+      // Métricas do período anterior para comparação
+      const clientPreviousInsights = (previousInsights || []).filter((i: any) => clientAccountIds.includes(i.ad_account_id));
+      let prevSpend = 0, prevImpressions = 0, prevClicks = 0, prevConversions = 0;
+      clientPreviousInsights.forEach((i: any) => {
+        prevSpend += Number(i.spend) || 0;
+        prevImpressions += Number(i.impressions) || 0;
+        prevClicks += Number(i.clicks) || 0;
+        prevConversions += getConversions(i.actions);
+      });
+
+      // Orçamento planejado
+      const clientOrcamentos = (orcamentos || []).filter((o: any) => o.cliente_id === cliente.id);
+      const orcamentoTotal = clientOrcamentos.reduce((sum: number, o: any) => sum + (parseFloat(o.valor_investimento) || 0), 0);
+
+      const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+      const cpc = clicks > 0 ? spend / clicks : 0;
+      const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+      const cpa = conversions > 0 ? spend / conversions : 0;
+
+      const accountNames = clientAccounts.map((a: any) => a.account_name).join(', ');
+      context += `📌 **${cliente.nome}** (${accountNames})\n`;
+      context += `   💰 Gasto (30d): ${formatBRL(spend)}${trendArrow(spend, prevSpend)}\n`;
+      context += `   👁️ Impressões: ${impressions.toLocaleString('pt-BR')} | 🖱️ Cliques: ${clicks.toLocaleString('pt-BR')} | 📊 CTR: ${formatPercent(ctr)}\n`;
+      context += `   💵 CPC: ${formatBRL(cpc)} | CPM: ${formatBRL(cpm)}\n`;
+
+      if (conversions > 0) {
+        context += `   🎯 Conversões: ${conversions}${trendArrow(conversions, prevConversions)} | CPA: ${formatBRL(cpa)}\n`;
+      }
+      if (conversionValue > 0) {
+        const roas = spend > 0 ? conversionValue / spend : 0;
+        context += `   💎 Valor conversões: ${formatBRL(conversionValue)} | ROAS: ${roas.toFixed(2)}x\n`;
+      }
+
+      // Comparar gasto real vs orçamento planejado
+      if (orcamentoTotal > 0) {
+        const usagePercent = (spend / orcamentoTotal) * 100;
+        context += `   📋 Orçamento planejado: ${formatBRL(orcamentoTotal)} | Uso: ${usagePercent.toFixed(0)}%\n`;
+      }
+
+      // Top campanhas (até 5)
+      const sortedCampaigns = Object.entries(campaignStats)
+        .sort((a, b) => b[1].spend - a[1].spend)
+        .slice(0, 5);
+
+      if (sortedCampaigns.length > 0) {
+        context += `   🏆 Top Campanhas (30d):\n`;
+        sortedCampaigns.forEach(([name, stats]) => {
+          const campCtr = stats.impressions > 0 ? (stats.clicks / stats.impressions) * 100 : 0;
+          context += `      • ${name}: ${formatBRL(stats.spend)}`;
+          if (stats.conversions > 0) {
+            const campCpa = stats.spend / stats.conversions;
+            context += ` | ${stats.conversions} conv. | CPA: ${formatBRL(campCpa)}`;
+          }
+          context += ` | CTR: ${formatPercent(campCtr)}\n`;
+        });
+      }
+
+      // Top ads recentes (últimos 7 dias, até 3 por cliente)
+      const clientRecentAds = (recentAds || []).filter((a: any) => clientAccountIds.includes(a.ad_account_id));
+
+      // Agregar ads por nome (podem ter várias linhas por dia)
+      const adAgg: Record<string, { spend: number; impressions: number; clicks: number; conversions: number; status: string }> = {};
+      clientRecentAds.forEach((ad: any) => {
+        const key = ad.ad_name || 'Sem nome';
+        if (!adAgg[key]) {
+          adAgg[key] = { spend: 0, impressions: 0, clicks: 0, conversions: 0, status: ad.effective_status || ad.status || '' };
+        }
+        adAgg[key].spend += Number(ad.spend) || 0;
+        adAgg[key].impressions += Number(ad.impressions) || 0;
+        adAgg[key].clicks += Number(ad.clicks) || 0;
+        adAgg[key].conversions += getConversions(ad.actions);
+      });
+
+      const topAds = Object.entries(adAgg)
+        .sort((a, b) => b[1].spend - a[1].spend)
+        .slice(0, 3);
+
+      if (topAds.length > 0) {
+        context += `   📢 Top Anúncios (7d):\n`;
+        topAds.forEach(([name, stats]) => {
+          const adCtr = stats.impressions > 0 ? (stats.clicks / stats.impressions) * 100 : 0;
+          context += `      • ${name.substring(0, 60)}: ${formatBRL(stats.spend)} | CTR: ${formatPercent(adCtr)}`;
+          if (stats.conversions > 0) context += ` | ${stats.conversions} conv.`;
+          context += ` [${stats.status}]\n`;
+        });
+      }
+
+      // Alertas automáticos
+      const alerts: string[] = [];
+      if (ctr < 1 && impressions > 1000) {
+        alerts.push(`CTR geral baixo (${formatPercent(ctr)})`);
+      }
+      if (orcamentoTotal > 0 && spend > orcamentoTotal * 1.1) {
+        alerts.push(`Gasto ${formatPercent((spend / orcamentoTotal) * 100)} do orçamento planejado`);
+      }
+      if (orcamentoTotal > 0 && spend < orcamentoTotal * 0.5) {
+        alerts.push(`Apenas ${formatPercent((spend / orcamentoTotal) * 100)} do orçamento utilizado`);
+      }
+      // Campanhas com CTR muito baixo
+      sortedCampaigns.forEach(([name, stats]) => {
+        const campCtr = stats.impressions > 0 ? (stats.clicks / stats.impressions) * 100 : 0;
+        if (campCtr < 0.5 && stats.impressions > 500) {
+          alerts.push(`Campanha "${name.substring(0, 30)}" com CTR ${formatPercent(campCtr)}`);
+        }
+      });
+
+      if (alerts.length > 0) {
+        context += `   ⚠️ Alertas:\n`;
+        alerts.slice(0, 3).forEach(alert => {
+          context += `      • ${alert}\n`;
+        });
+      }
+
+      context += `\n`;
+    }
+
+    // Resumo geral
+    if (clientesComDados > 0) {
+      context += `📊 RESUMO META ADS: ${clientesComDados} clientes com anúncios ativos | Gasto total (30d): ${formatBRL(totalGeralSpend)} | Conversões totais: ${totalGeralConversions}\n\n`;
+    }
+
+    return context;
+
+  } catch (error) {
+    console.error('Erro ao buscar insights Meta Ads:', error);
+    return '';
   }
 }
 
@@ -829,7 +1136,11 @@ function detectTranscriptionQuery(message: string): boolean {
     'qual foi a', 'quando foi', 'anotações', 'anotacoes', 'documento',
     'tratado', 'mencionado', 'falado', 'discutido', 'conversamos',
     // Nomes de clientes comuns para detectar perguntas específicas
-    'cliente', 'jucinones', 'paloma', 'gislene', 'isquierdo', 'mateco'
+    'cliente', 'jucinones', 'paloma', 'gislene', 'isquierdo', 'mateco',
+    // Meta Ads / Performance
+    'campanha', 'anúncio', 'anuncio', 'meta ads', 'facebook ads',
+    'cpl', 'cpa', 'roas', 'ctr', 'cpc', 'cpm', 'gasto', 'investimento',
+    'performance', 'conversão', 'conversao', 'leads', 'verba'
   ];
   
   const messageLower = message.toLowerCase();

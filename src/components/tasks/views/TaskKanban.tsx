@@ -6,7 +6,7 @@ import { useToggleTaskComplete, useUpdateTask } from "@/hooks/useTaskMutations";
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, MessageSquare, Clock, Building2 } from "lucide-react";
+import { CalendarIcon, MessageSquare, Clock, Building2, FileText } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -114,6 +114,11 @@ export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
                 )}
 
                 <div className="flex gap-2">
+                    {task.description && task.description.trim() && (
+                        <span className="flex items-center" title="Possui descrição">
+                            <FileText className="w-3.5 h-3.5" />
+                        </span>
+                    )}
                     {task.task_comments && task.task_comments.length > 0 && (
                         <span className="flex items-center gap-1">
                             <MessageSquare className="w-3.5 h-3.5" />
