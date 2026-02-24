@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ChevronUp, ChevronDown, ChevronsUpDown, BarChart3, Share2, Copy, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Calendar, DollarSign, User, Building, X, Edit, ChevronUp, ChevronDown, ChevronsUpDown, BarChart3, Share2, Copy, Eye, EyeOff, CheckCircle2, AlertTriangle, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -237,6 +237,35 @@ export const LancamentosTable = ({
       console.error('Erro ao finalizar lançamento:', error);
       toast({
         title: "Erro ao finalizar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExcluirLancamento = async (lancamento: any) => {
+    try {
+      const { error } = await supabase
+        .from('lancamentos')
+        .delete()
+        .eq('id', lancamento.id);
+
+      if (error) throw error;
+
+      if (selectedIds.includes(lancamento.id)) {
+        onSelectionChange(selectedIds.filter((id) => id !== lancamento.id));
+      }
+
+      toast({
+        title: "Lançamento excluído",
+        description: "O lançamento foi apagado definitivamente.",
+      });
+
+      onRefresh();
+    } catch (error: any) {
+      console.error('Erro ao excluir lançamento:', error);
+      toast({
+        title: "Erro ao excluir lançamento",
         description: error.message,
         variant: "destructive",
       });
@@ -584,6 +613,29 @@ export const LancamentosTable = ({
                             Finalizar Lançamento
                           </DropdownMenuItem>
                         )}
+
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const firstConfirm = window.confirm(`A exclusão do lançamento "${lancamento.nome_lancamento}" é definitiva. Deseja continuar?`);
+                            if (!firstConfirm) return;
+                            const confirmationText = window.prompt('Digite EXCLUIR para confirmar a exclusão definitiva:');
+                            if (confirmationText !== 'EXCLUIR') {
+                              toast({
+                                title: "Exclusão cancelada",
+                                description: "Confirmação inválida. Digite EXCLUIR para apagar definitivamente.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            if (window.confirm('Confirma apagar definitivamente este lançamento? Esta ação não pode ser desfeita.')) {
+                              handleExcluirLancamento(lancamento);
+                            }
+                          }}
+                          className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer mt-1 border-t border-border/50 pt-2"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+                          Excluir Lançamento
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

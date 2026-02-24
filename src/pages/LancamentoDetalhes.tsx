@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock, Info, Target, AlertTriangle, Folder, TrendingUp } from "lucide-react";
+import { Calendar, CalendarClock, ArrowLeft, Save, Edit, Download, BarChart3, Calculator, Share2, Copy, Eye, EyeOff, ExternalLink, Clock, Info, Target, AlertTriangle, Folder, TrendingUp, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -132,6 +132,7 @@ export default function LancamentoDetalhes() {
   const [editing, setEditing] = useState(false);
   const [editingTab, setEditingTab] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [activeView, setActiveView] = useState<'calendario' | 'informacoes' | 'verbas' | 'checklist' | 'criativos' | 'resultados'>('calendario');
   const [ganttView, setGanttView] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -415,6 +416,40 @@ export default function LancamentoDetalhes() {
       toast.error('Erro ao salvar lançamento');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteLancamento = async () => {
+    if (!lancamento) return;
+    const firstConfirm = window.confirm(`A exclusão do lançamento "${lancamento.nome_lancamento}" é definitiva. Deseja continuar?`);
+    if (!firstConfirm) return;
+
+    const confirmationText = window.prompt('Digite EXCLUIR para confirmar a exclusão definitiva:');
+    if (confirmationText !== 'EXCLUIR') {
+      toast.error('Exclusão cancelada: confirmação inválida.');
+      return;
+    }
+
+    const finalConfirm = window.confirm('Confirma apagar definitivamente este lançamento? Esta ação não pode ser desfeita.');
+    if (!finalConfirm) return;
+
+    try {
+      setDeleting(true);
+
+      const { error } = await supabase
+        .from('lancamentos')
+        .delete()
+        .eq('id', lancamento.id);
+
+      if (error) throw error;
+
+      toast.success('Lançamento apagado definitivamente');
+      navigate('/lancamentos');
+    } catch (error: any) {
+      console.error('Erro ao excluir lançamento:', error);
+      toast.error('Erro ao excluir lançamento: ' + error.message);
+    } finally {
+      setDeleting(false);
     }
   };
   const formatDate = (date: string | null) => {
@@ -830,6 +865,17 @@ export default function LancamentoDetalhes() {
       </div>
 
       <div className="flex gap-2">
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={handleDeleteLancamento}
+          disabled={deleting || saving}
+          className="flex items-center gap-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          {deleting ? 'Excluindo...' : 'Excluir'}
+        </Button>
+
         {lancamento.link_publico_ativo && lancamento.link_publico && (
           <Button
             variant="outline"

@@ -6,8 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useCreateTaskAutomation, TaskAutomation, useUpdateTaskAutomation } from "@/hooks/useTaskAutomations";
+import { useTaskLists } from "@/hooks/useTasks";
 import { supabase } from "@/integrations/supabase/client";
-import { Zap, ArrowRight, Activity, PlusCircle, CheckCircle, Bell, ArrowLeft, Trash2 } from "lucide-react";
+import { Zap, ArrowRight, Activity, PlusCircle, CheckCircle, Bell, ArrowLeft, Trash2, Calendar, RefreshCw, ListTodo, Star } from "lucide-react";
 
 interface AutomationBuilderModalProps {
     open: boolean;
@@ -32,6 +33,7 @@ interface ConditionDef {
 export function AutomationBuilderModal({ open, onOpenChange, initialData, mode = "create" }: AutomationBuilderModalProps) {
     const createMutation = useCreateTaskAutomation();
     const updateMutation = useUpdateTaskAutomation();
+    const { data: taskLists = [] } = useTaskLists();
 
     const [users, setUsers] = useState<any[]>([]);
     const [name, setName] = useState("");
@@ -90,6 +92,20 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "7_days", label: "7 dias após (1 semana)" },
         { id: "15_days", label: "15 dias após" },
         { id: "30_days", label: "30 dias após (1 mês)" },
+        { id: "custom_days", label: "Personalizado (X dias após)..." },
+    ];
+
+    const RECURRENCE_OPTIONS = [
+        { id: "none", label: "Sem recorrência" },
+        { id: "daily", label: "Diária" },
+        { id: "weekly", label: "Semanal" },
+        { id: "monthly", label: "Mensal" },
+    ];
+
+    const PRIORITY_OPTIONS = [
+        { id: "alta", label: "Alta", color: "text-red-600" },
+        { id: "media", label: "Média", color: "text-amber-600" },
+        { id: "baixa", label: "Baixa", color: "text-blue-500" },
     ];
 
     const TRIGGER_CONDITION_FIELDS = [
@@ -152,6 +168,16 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         setActions(actions.map(a => a.id === id ? { ...a, ...updates } : a));
     };
 
+    // Helper: get the current effective due_date_var value for storage
+    const getDueDateVar = (payload: any): string | null => {
+        if (!payload?.due_date_var || payload.due_date_var === "none") return null;
+        if (payload.due_date_var === "custom_days") {
+            const days = parseInt(payload.custom_days_value || "1", 10);
+            return `custom_${days}`;
+        }
+        return payload.due_date_var;
+    };
+
     const handleCreate = async () => {
         if (!name || !triggerType || actions.length === 0) return;
 
@@ -165,7 +191,11 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                     title: a.payload.title || "Nova Tarefa Automática",
                     description: a.payload.description || "",
                     assignee: a.payload.assignee || "unassigned",
-                    due_date_var: a.payload.due_date_var || null
+                    due_date_var: getDueDateVar(a.payload),
+                    recurrence: a.payload.recurrence && a.payload.recurrence !== "none" ? a.payload.recurrence : null,
+                    recurrence_start: a.payload.recurrence && a.payload.recurrence !== "none" ? a.payload.recurrence_start || null : null,
+                    list_id: a.payload.list_id || null,
+                    priority: a.payload.priority || null,
                 }
                 : a.type === "notify_team"
                     ? { message: a.payload.message || "Nova notificação da automação." }
@@ -213,15 +243,22 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         if (!triggerType) return false;
         if (actions.length === 0) return false;
 
-        // Validate all conditions
         const hasInvalidConditions = conditions.some(c => !c.field || !c.operator || !c.value);
         if (hasInvalidConditions) return false;
 
-        // Validate all actions
         const hasInvalidActions = actions.some(a => {
-            if (!a.type) return true; // Missing type
+            if (!a.type) return true;
             if (a.type === "create_task") {
                 if (!a.payload?.title || a.payload.title.trim().length === 0) return true;
+                // If custom days, require a valid number
+                if (a.payload.due_date_var === "custom_days") {
+                    const days = parseInt(a.payload.custom_days_value || "0", 10);
+                    if (isNaN(days) || days < 1) return true;
+                }
+                // If recurrence is set, require recurrence_start
+                if (a.payload.recurrence && a.payload.recurrence !== "none" && !a.payload.recurrence_start) {
+                    return true;
+                }
             }
             if (a.type === "notify_team") {
                 if (!a.payload?.message || a.payload.message.trim().length === 0) return true;
@@ -380,6 +417,7 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
 
                                                 {act.type === "create_task" && (
                                                     <div className="space-y-3 pt-2 border-t border-slate-100">
+                                                        {/* Title */}
                                                         <div className="space-y-1.5">
                                                             <div className="flex items-center justify-between">
                                                                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Título da Tarefa Gerada</label>
@@ -392,6 +430,8 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                                                 onChange={(e) => updateAction(act.id, { payload: { ...act.payload, title: e.target.value } })}
                                                             />
                                                         </div>
+
+                                                        {/* Description */}
                                                         <div className="space-y-1.5">
                                                             <div className="flex items-center justify-between">
                                                                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Descrição</label>
@@ -404,6 +444,8 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                                                 onChange={(e) => updateAction(act.id, { payload: { ...act.payload, description: e.target.value } })}
                                                             />
                                                         </div>
+
+                                                        {/* Assignee */}
                                                         <div className="space-y-1.5">
                                                             <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Responsável</label>
                                                             <Select value={act.payload?.assignee || "unassigned"} onValueChange={(val) => updateAction(act.id, { payload: { ...act.payload, assignee: val } })}>
@@ -420,9 +462,54 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                                                 </SelectContent>
                                                             </Select>
                                                         </div>
+
+                                                        {/* Lista */}
                                                         <div className="space-y-1.5">
-                                                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Prazo Dinâmico</label>
-                                                            <Select value={act.payload?.due_date_var || "none"} onValueChange={(val) => updateAction(act.id, { payload: { ...act.payload, due_date_var: val === "none" ? null : val } })}>
+                                                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                                <ListTodo className="w-3 h-3" /> Lista
+                                                            </label>
+                                                            <Select value={act.payload?.list_id || "none"} onValueChange={(val) => updateAction(act.id, { payload: { ...act.payload, list_id: val === "none" ? null : val } })}>
+                                                                <SelectTrigger className="w-full h-10 bg-white border-slate-200">
+                                                                    <SelectValue placeholder="Sem lista..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="none">Sem lista</SelectItem>
+                                                                    {taskLists.map((list: any) => (
+                                                                        <SelectItem key={list.id} value={list.id}>{list.name}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+
+                                                        {/* Prioridade */}
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                                <Star className="w-3 h-3" /> Prioridade
+                                                            </label>
+                                                            <Select value={act.payload?.priority || "none"} onValueChange={(val) => updateAction(act.id, { payload: { ...act.payload, priority: val === "none" ? null : val } })}>
+                                                                <SelectTrigger className="w-full h-10 bg-white border-slate-200">
+                                                                    <SelectValue placeholder="Sem prioridade..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="none">Sem prioridade</SelectItem>
+                                                                    {PRIORITY_OPTIONS.map(p => (
+                                                                        <SelectItem key={p.id} value={p.id}>
+                                                                            <span className={p.color}>{p.label}</span>
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+
+                                                        {/* Prazo Dinâmico */}
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                                <Calendar className="w-3 h-3" /> Prazo Dinâmico
+                                                            </label>
+                                                            <Select
+                                                                value={act.payload?.due_date_var || "none"}
+                                                                onValueChange={(val) => updateAction(act.id, { payload: { ...act.payload, due_date_var: val === "none" ? null : val, custom_days_value: val === "custom_days" ? (act.payload?.custom_days_value || "7") : undefined } })}
+                                                            >
                                                                 <SelectTrigger className="w-full h-10 bg-white border-slate-200">
                                                                     <SelectValue placeholder="Prazo Dinâmico..." />
                                                                 </SelectTrigger>
@@ -433,9 +520,58 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                                                     ))}
                                                                 </SelectContent>
                                                             </Select>
+                                                            {/* Custom days input */}
+                                                            {act.payload?.due_date_var === "custom_days" && (
+                                                                <div className="flex items-center gap-2 mt-1.5">
+                                                                    <Input
+                                                                        type="number"
+                                                                        min={1}
+                                                                        max={365}
+                                                                        className="bg-white h-9 border-slate-200 w-24 text-center font-semibold"
+                                                                        placeholder="7"
+                                                                        value={act.payload?.custom_days_value || ""}
+                                                                        onChange={(e) => updateAction(act.id, { payload: { ...act.payload, custom_days_value: e.target.value } })}
+                                                                    />
+                                                                    <span className="text-sm text-slate-500">dias após o gatilho</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Recorrência */}
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                                <RefreshCw className="w-3 h-3" /> Recorrência
+                                                            </label>
+                                                            <Select
+                                                                value={act.payload?.recurrence || "none"}
+                                                                onValueChange={(val) => updateAction(act.id, { payload: { ...act.payload, recurrence: val, recurrence_start: val === "none" ? null : act.payload?.recurrence_start } })}
+                                                            >
+                                                                <SelectTrigger className="w-full h-10 bg-white border-slate-200">
+                                                                    <SelectValue placeholder="Sem recorrência..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {RECURRENCE_OPTIONS.map(r => (
+                                                                        <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            {/* Recurrence start date — required when recurrence is active */}
+                                                            {act.payload?.recurrence && act.payload.recurrence !== "none" && (
+                                                                <div className="space-y-1 mt-1.5">
+                                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Início da Recorrência *</label>
+                                                                    <Input
+                                                                        type="date"
+                                                                        className="bg-white h-9 border-slate-200 text-sm"
+                                                                        value={act.payload?.recurrence_start || ""}
+                                                                        onChange={(e) => updateAction(act.id, { payload: { ...act.payload, recurrence_start: e.target.value } })}
+                                                                    />
+                                                                    <p className="text-[10px] text-slate-400">Define a data de início da série recorrente, independente do prazo.</p>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
+
                                                 {act.type === "notify_team" && (
                                                     <div className="space-y-1.5 pt-2 border-t border-slate-100">
                                                         <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Mensagem da Notificação</label>
