@@ -16,6 +16,7 @@ interface AnalyticsData {
     tasksCompletedMonth: number;
 
     rankingByAssignee: { name: string; completed: number; avgTimeTracked: number; totalTimeTracked: number }[];
+    rankingByClient: { name: string; completed: number; pending: number; totalTimeTracked: number }[];
 
     priorityDistribution: { name: string; value: number }[];
     priorityColors: Record<string, string>;
@@ -111,6 +112,7 @@ export function TasksAnalysisTab() {
         let tMonth = 0;
 
         const assigneeStats: Record<string, { completed: number; totalTime: number; tasksWithTime: number }> = {};
+        const clientStats: Record<string, { completed: number; pending: number; totalTime: number }> = {};
         const priorityCounts: Record<string, number> = {};
         Object.values(PRIORITY_LABELS).forEach(label => {
             priorityCounts[label] = 0;
@@ -148,6 +150,16 @@ export function TasksAnalysisTab() {
                 }
             }
 
+            // Tracking Client Stats for Pending
+            if (task.cliente_id) {
+                if (!clientStats[task.cliente_id]) {
+                    clientStats[task.cliente_id] = { completed: 0, pending: 0, totalTime: 0 };
+                }
+                if (!task.completed) {
+                    clientStats[task.cliente_id].pending++;
+                }
+            }
+
             if (task.completed && compDate) {
                 if (compDate >= today) tToday++;
                 if (compDate >= thisWeek) tWeek++;
@@ -160,7 +172,6 @@ export function TasksAnalysisTab() {
                     dailyMap[dKey]++;
                 }
 
-                // Tracking Assignee Stats
                 if (task.assignee) {
                     if (!assigneeStats[task.assignee]) {
                         assigneeStats[task.assignee] = { completed: 0, totalTime: 0, tasksWithTime: 0 };
@@ -170,6 +181,14 @@ export function TasksAnalysisTab() {
                     if (task.time_tracked && task.time_tracked > 0) {
                         assigneeStats[task.assignee].totalTime += task.time_tracked;
                         assigneeStats[task.assignee].tasksWithTime++;
+                    }
+                }
+
+                // Tracking Client Stats for Completed
+                if (task.cliente_id) {
+                    clientStats[task.cliente_id].completed++;
+                    if (task.time_tracked && task.time_tracked > 0) {
+                        clientStats[task.cliente_id].totalTime += task.time_tracked;
                     }
                 }
 
@@ -206,6 +225,18 @@ export function TasksAnalysisTab() {
                 totalTimeTracked: stats.totalTime
             }))
             .sort((a, b) => b.completed - a.completed);
+
+        const rankingClientArr = Object.entries(clientStats)
+            .map(([clientId, stats]) => {
+                const clientObj = clientes.find(c => c.id === clientId);
+                return {
+                    name: clientObj ? clientObj.nome : "Cliente Desconhecido",
+                    completed: stats.completed,
+                    pending: stats.pending,
+                    totalTimeTracked: stats.totalTime
+                };
+            })
+            .sort((a, b) => b.totalTimeTracked - a.totalTimeTracked);
 
         const pdData = Object.entries(priorityCounts)
             .map(([name, value]) => ({ name, value }))
@@ -244,10 +275,11 @@ export function TasksAnalysisTab() {
             },
             completedPerDay: compPerDayArr,
             averageTimeOverall: globalTasksWithTime > 0 ? globalTotalTime / globalTasksWithTime : 0,
-            averageTimeByList: avgByListArr
+            averageTimeByList: avgByListArr,
+            rankingByClient: rankingClientArr
         });
 
-    }, [allTasks, taskLists, selectedUserLine, selectedClientLine, dateRangeFilter]);
+    }, [allTasks, taskLists, clientes, selectedUserLine, selectedClientLine, dateRangeFilter]);
 
     const userTimelineData = useMemo(() => {
         if (allTasks.length === 0) return [];
@@ -410,6 +442,11 @@ export function TasksAnalysisTab() {
             </div>
         );
     }
+
+    const pendingClientsChartData = [...analytics.rankingByClient]
+        .filter(c => c.pending > 0)
+        .sort((a, b) => b.pending - a.pending)
+        .slice(0, 10);
 
     return (
         <div className="space-y-6 max-w-[1600px] mx-auto animate-in fade-in pt-2">
@@ -656,7 +693,79 @@ export function TasksAnalysisTab() {
 
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* Tabela de Clientes */}
+                <Card className="lg:col-span-1 border-border/50 bg-card shadow-sm flex flex-col h-[400px]">
+                    <CardHeader className="pb-2 flex-shrink-0">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <Building2 className="w-4 h-4" />
+                            Ranking de Clientes
+                        </CardTitle>
+                        <CardDescription>Baseado nas tarefas e tempo gasto</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-auto flex-1 p-0">
+                        <div className="w-full text-sm">
+                            <div className="grid grid-cols-4 px-4 py-3 bg-muted/40 font-semibold sticky top-0 border-y border-border/50 text-xs">
+                                <div className="col-span-2">Cliente</div>
+                                <div className="text-center text-blue-500">Concluídas</div>
+                                <div className="text-right">Tempo Total</div>
+                            </div>
+                            <div className="divide-y divide-border/30">
+                                {analytics.rankingByClient.map((rank, i) => (
+                                    <div key={rank.name + i} className="grid grid-cols-4 px-4 py-3 hover:bg-muted/30 transition-colors">
+                                        <div className="col-span-2 flex items-center gap-2 font-medium truncate">
+                                            {i < 3 ? <span className={`text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold ${i === 0 ? 'bg-yellow-500 text-yellow-950' : i === 1 ? 'bg-slate-300 text-slate-800' : 'bg-orange-400 text-orange-950'
+                                                }`}>{i + 1}</span> : <span className="text-[10px] w-4 h-4 flex items-center justify-center text-muted-foreground">{i + 1}</span>}
+                                            <span className="truncate">{rank.name}</span>
+                                        </div>
+                                        <div className="text-center font-bold">{rank.completed}</div>
+                                        <div className="text-right text-muted-foreground font-mono text-[11px] flex items-center justify-end">
+                                            {formatTime(rank.totalTimeTracked)}
+                                        </div>
+                                    </div>
+                                ))}
+                                {analytics.rankingByClient.length === 0 && (
+                                    <div className="p-8 text-center text-muted-foreground">Nenhum dado encontrado</div>
+                                )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Gráfico de Horas Trabalhadas por Dia que foi movido pra cá */}
+                <Card className="lg:col-span-2 border-border/50 bg-card shadow-sm h-[400px] flex flex-col">
+                    <CardHeader className="pb-2 pt-4 flex flex-row items-center justify-between flex-shrink-0">
+                        <div>
+                            <CardTitle className="text-base font-semibold text-blue-500">Horas Trabalhadas (Ponto Diário)</CardTitle>
+                            <CardDescription>Soma de todos os tempos rastreados em tarefas por dia ({selectedUserLine === 'all' ? 'Equipe Toda' : selectedUserLine})</CardDescription>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0 pt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={trackedTimeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="opacity-10" />
+                                <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                                <RechartsTooltip
+                                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                    contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: 'none', color: 'white', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    formatter={(value: any, name: any, props: any) => {
+                                        const sec = props.payload.segundos;
+                                        const hr = Math.floor(sec / 3600);
+                                        const min = Math.floor((sec % 3600) / 60);
+                                        return [`${hr}h ${min}m`, 'Tempo'];
+                                    }}
+                                />
+                                <Bar dataKey="horas" name="Horas" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
+
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {/* Horários / Conclusões por Hora */}
                 <Card className="border-border/50 bg-card shadow-sm h-[320px] flex flex-col">
@@ -682,31 +791,25 @@ export function TasksAnalysisTab() {
                     </CardContent>
                 </Card>
 
-                {/* Gráfico de Horas Trabalhadas por Dia */}
+                {/* Tarefas Pendentes por Cliente */}
                 <Card className="border-border/50 bg-card shadow-sm h-[320px] flex flex-col">
                     <CardHeader className="pb-2 pt-4 flex flex-row items-center justify-between flex-shrink-0">
                         <div>
-                            <CardTitle className="text-base font-semibold text-blue-500">Horas Trabalhadas (Ponto Diário)</CardTitle>
-                            <CardDescription>Soma de todos os tempos rastreados em tarefas por dia ({selectedUserLine === 'all' ? 'Equipe Toda' : selectedUserLine})</CardDescription>
+                            <CardTitle className="text-base font-semibold text-orange-500">Tarefas a Fazer (Top 10 Clientes)</CardTitle>
+                            <CardDescription>Clientes com a maior demanda atual pendente</CardDescription>
                         </div>
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0 pt-4">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={trackedTimeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <BarChart data={pendingClientsChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="opacity-10" />
-                                <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} dy={10} />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} dy={10} angle={-30} textAnchor="end" height={60} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
                                 <RechartsTooltip
                                     cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                                     contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: 'none', color: 'white', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                    formatter={(value: any, name: any, props: any) => {
-                                        const sec = props.payload.segundos;
-                                        const hr = Math.floor(sec / 3600);
-                                        const min = Math.floor((sec % 3600) / 60);
-                                        return [`${hr}h ${min}m`, 'Tempo'];
-                                    }}
                                 />
-                                <Bar dataKey="horas" name="Horas" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                <Bar dataKey="pending" name="Tarefas a Fazer" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={40} />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
