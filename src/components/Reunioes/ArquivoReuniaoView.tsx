@@ -169,6 +169,7 @@ export function ArquivoReuniaoView() {
           .from('clientes')
           .select('id, nome, aliases, branding_logo_url, ativo')
           .eq('ativo', true)
+          .eq('is_active', true)
           .is('deleted_at', null);
 
         if (error) throw error;
