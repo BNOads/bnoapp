@@ -205,7 +205,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     placeholder="Nome da Tarefa"
-                                    className="text-4xl md:text-5xl py-2 font-bold tracking-tight border-0 px-0 h-auto focus-visible:ring-0 shadow-none placeholder:text-muted-foreground/60"
+                                    className="text-[1.575rem] md:text-[2.1rem] py-2 font-bold tracking-tight border-0 px-0 h-auto focus-visible:ring-0 shadow-none placeholder:text-muted-foreground/60"
                                     autoFocus
                                 />
 
