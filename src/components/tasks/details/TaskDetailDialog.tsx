@@ -630,25 +630,66 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                         </Select>
                                     </div>
                                     {/* Recorrência */}
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
-                                            <RefreshCw className="h-3.5 w-3.5" />
-                                            Recorrência
+                                    <div className="flex items-start gap-3 min-w-0 flex-col">
+                                        <div className="flex items-center gap-3 min-w-0 w-full">
+                                            <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
+                                                <RefreshCw className="h-3.5 w-3.5" />
+                                                Recorrência
+                                            </div>
+                                            <RecurrenceSelect
+                                                value={pendingRecurrence || task.recurrence || "none"}
+                                                onValueChange={handleRecurrenceChange}
+                                            >
+                                                <SelectTrigger className="w-auto h-7 px-2 border-0 hover:bg-muted shadow-none bg-transparent -ml-2 min-w-0 flex-1">
+                                                    {pendingRecurrence ? (
+                                                        <span className="text-xs font-medium text-orange-500">
+                                                            {getRecurrenceLabel(pendingRecurrence)} (pendente — defina a data abaixo)
+                                                        </span>
+                                                    ) : task.recurrence && task.recurrence !== "none" ? (
+                                                        <span className="text-xs font-medium text-foreground">
+                                                            {getRecurrenceLabel(task.recurrence)}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">-</span>
+                                                    )}
+                                                </SelectTrigger>
+                                            </RecurrenceSelect>
                                         </div>
-                                        <RecurrenceSelect
-                                            value={task.recurrence || "none"}
-                                            onValueChange={(val) => handleUpdateField("recurrence", val === "none" ? null : val)}
-                                        >
-                                            <SelectTrigger className="w-auto h-7 px-2 border-0 hover:bg-muted shadow-none bg-transparent -ml-2 min-w-0 flex-1">
-                                                {task.recurrence && task.recurrence !== "none" ? (
-                                                    <span className="text-xs font-medium text-foreground">
-                                                        {getRecurrenceLabel(task.recurrence)}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">-</span>
-                                                )}
-                                            </SelectTrigger>
-                                        </RecurrenceSelect>
+                                        {/* Inline prompt when recurrence is pending and task has no due_date */}
+                                        {pendingRecurrence && !task.due_date && (
+                                            <div className="ml-[calc(6rem+12px)] sm:ml-[calc(7rem+12px)] w-full p-3 rounded-lg bg-orange-50 border border-orange-200 space-y-2.5">
+                                                <p className="text-xs font-semibold text-orange-700 flex items-center gap-1.5">
+                                                    <AlertCircle className="w-3.5 h-3.5" />
+                                                    Defina a data da 1ª ocorrência para ativar a recorrência
+                                                </p>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="outline" size="sm" className={`h-8 text-xs justify-start font-normal w-full border-orange-200 ${!pendingRecurrenceDueDate ? 'text-muted-foreground' : ''}`}>
+                                                            <CalendarIcon className="mr-2 h-3.5 w-3.5 text-orange-500" />
+                                                            {pendingRecurrenceDueDate
+                                                                ? format(new Date(`${pendingRecurrenceDueDate}T12:00:00`), "dd MMM, yyyy", { locale: ptBR })
+                                                                : "Selecione a data da 1ª ocorrência..."}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="start">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={pendingRecurrenceDueDate ? new Date(`${pendingRecurrenceDueDate}T12:00:00`) : undefined}
+                                                            onSelect={(date) => setPendingRecurrenceDueDate(date ? format(date, "yyyy-MM-dd") : "")}
+                                                            initialFocus
+                                                        />
+                                                    </PopoverContent>
+                                                </Popover>
+                                                <div className="flex items-center gap-2">
+                                                    <Button size="sm" className="h-7 text-xs flex-1 bg-orange-600 hover:bg-orange-700 text-white" onClick={handleConfirmRecurrenceWithDate} disabled={!pendingRecurrenceDueDate}>
+                                                        Confirmar
+                                                    </Button>
+                                                    <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={handleCancelPendingRecurrence}>
+                                                        Cancelar
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Criativos */}
