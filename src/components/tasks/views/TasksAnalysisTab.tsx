@@ -3,14 +3,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTaskSessions } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, Cell, AreaChart, Area } from 'recharts';
 import { Loader2, TrendingUp, Filter, Clock, Users, Timer, Target, CheckCircle2, Calendar, Building2, AlertCircle, Flag } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { PRIORITY_LABELS, Task } from '@/types/tasks';
 import { isOverdue } from '@/lib/dateUtils';
 import { startOfDay, startOfWeek, startOfMonth, subDays, format, parseISO, isSameDay, isAfter, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { DateRange } from "react-day-picker";
 import { TarefasList } from './TarefasList';
+import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { TaskDetailDialog } from '@/components/tasks/details/TaskDetailDialog';
 
 interface AnalyticsData {
@@ -44,6 +48,9 @@ export function TasksAnalysisTab() {
     const [clientes, setClientes] = useState<{ id: string, nome: string }[]>([]);
 
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+
+    // Custom Date Range State
+    const [dateRangeObj, setDateRangeObj] = useState<DateRange | undefined>(undefined);
 
     // KPI popup state
     const [kpiPopupFilter, setKpiPopupFilter] = useState<{ title: string; filterFn: (t: any) => boolean } | null>(null);
@@ -111,12 +118,23 @@ export function TasksAnalysisTab() {
         // Calcula limite de data de acurdo com o DateRangeFilter (1, 30, 60, 90 dias, ou tudo)
         let startDateLimit: Date | null = null;
         let daysToTrack = 30; // default for graphs
-        if (dateRangeFilter !== "all") {
+        let endDateLimit: Date | null = null;
+        if (dateRangeFilter === "ontem") {
+            startDateLimit = subDays(today, 1);
+            endDateLimit = today; // up to today (exclusive)
+        } else if (dateRangeFilter === "1") {
+            startDateLimit = today;
+        } else if (dateRangeFilter !== "all" && !dateRangeFilter.includes("~")) {
             daysToTrack = parseInt(dateRangeFilter, 10);
-            startDateLimit = dateRangeFilter === "1" ? today : subDays(today, daysToTrack);
+            startDateLimit = subDays(today, daysToTrack);
+        } else if (dateRangeFilter.includes("~")) {
+            const [startStr, endStr] = dateRangeFilter.split("~");
+            if (startStr && endStr) {
+                startDateLimit = parseISO(startStr);
+                endDateLimit = startOfDay(new Date(new Date(parseISO(endStr)).getTime() + 86400000)); // +1 day for inclusive end date
+            }
         }
 
-        // KPIs iguais aos da aba Time: Pendentes, Concluídas, Atrasadas, Alta Prioridade
         const todayStr = format(today, 'yyyy-MM-dd');
         let kpiPending = 0;
         let kpiCompleted = 0;
@@ -126,6 +144,20 @@ export function TasksAnalysisTab() {
         allTasks.forEach(task => {
             if (selectedUserLine !== "all" && task.assignee !== selectedUserLine) return;
             if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return;
+
+            // Apply date filters to KPIs
+            let isWithinDateRange = true;
+            if (startDateLimit) {
+                const targetDateStr = task.completed ? task.completed_at : task.created_at;
+                if (targetDateStr) {
+                    const targetDate = new Date(targetDateStr);
+                    if (targetDate < startDateLimit || (endDateLimit && targetDate >= endDateLimit)) {
+                        isWithinDateRange = false;
+                    }
+                }
+            }
+
+            if (!isWithinDateRange) return;
 
             if (task.completed) {
                 kpiCompleted++;
@@ -175,9 +207,12 @@ export function TasksAnalysisTab() {
             let compDate: Date | null = null;
             if (task.completed && task.completed_at) {
                 compDate = new Date(task.completed_at);
-                if (startDateLimit && compDate < startDateLimit) {
-                    return; // Skip if it's older than the selected date range
-                }
+                if (startDateLimit && compDate < startDateLimit) return;
+                if (endDateLimit && compDate >= endDateLimit) return;
+            } else if (!task.completed && task.created_at) {
+                const createdDate = new Date(task.created_at);
+                if (startDateLimit && createdDate < startDateLimit) return;
+                if (endDateLimit && createdDate >= endDateLimit) return;
             }
 
             // Tracking Client Stats for Pending
@@ -322,19 +357,31 @@ export function TasksAnalysisTab() {
             dailyMap[k] = 0;
         }
 
-        // Calculate startDateLimit for filtering
+        // Calculate startDateLimit and endDateLimit for filtering
         let startDateLimit: Date | null = null;
-        if (dateRangeFilter !== "all") {
-            startDateLimit = dateRangeFilter === "1" ? today : subDays(today, parseInt(dateRangeFilter, 10));
+        let endDateLimit: Date | null = null;
+
+        if (dateRangeFilter === "ontem") {
+            startDateLimit = subDays(today, 1);
+            endDateLimit = today;
+        } else if (dateRangeFilter === "1") {
+            startDateLimit = today;
+        } else if (dateRangeFilter !== "all" && !dateRangeFilter.includes("~")) {
+            startDateLimit = subDays(today, parseInt(dateRangeFilter, 10));
+        } else if (dateRangeFilter.includes("~")) {
+            const [startStr, endStr] = dateRangeFilter.split("~");
+            if (startStr && endStr) {
+                startDateLimit = parseISO(startStr);
+                endDateLimit = startOfDay(new Date(new Date(parseISO(endStr)).getTime() + 86400000));
+            }
         }
 
         allTasks.forEach(task => {
             if (task.completed && task.completed_at) {
                 const compDate = new Date(task.completed_at);
                 // Apply date range filter
-                if (startDateLimit && compDate < startDateLimit) {
-                    return;
-                }
+                if (startDateLimit && compDate < startDateLimit) return;
+                if (endDateLimit && compDate >= endDateLimit) return;
 
                 if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) {
                     return;
@@ -364,17 +411,29 @@ export function TasksAnalysisTab() {
 
         const today = startOfDay(new Date());
         let startDateLimit: Date | null = null;
-        if (dateRangeFilter !== "all") {
-            startDateLimit = dateRangeFilter === "1" ? today : subDays(today, parseInt(dateRangeFilter, 10));
+        let endDateLimit: Date | null = null;
+
+        if (dateRangeFilter === "ontem") {
+            startDateLimit = subDays(today, 1);
+            endDateLimit = today;
+        } else if (dateRangeFilter === "1") {
+            startDateLimit = today;
+        } else if (dateRangeFilter !== "all" && !dateRangeFilter.includes("~")) {
+            startDateLimit = subDays(today, parseInt(dateRangeFilter, 10));
+        } else if (dateRangeFilter.includes("~")) {
+            const [startStr, endStr] = dateRangeFilter.split("~");
+            if (startStr && endStr) {
+                startDateLimit = parseISO(startStr);
+                endDateLimit = startOfDay(new Date(new Date(parseISO(endStr)).getTime() + 86400000));
+            }
         }
 
         allTasks.forEach(task => {
             if (task.completed && task.completed_at) {
                 const compDate = new Date(task.completed_at);
                 // Apply date range filter
-                if (startDateLimit && compDate < startDateLimit) {
-                    return;
-                }
+                if (startDateLimit && compDate < startDateLimit) return;
+                if (endDateLimit && compDate >= endDateLimit) return;
 
                 if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) {
                     return;
@@ -411,8 +470,21 @@ export function TasksAnalysisTab() {
         }
 
         let startDateLimit: Date | null = null;
-        if (dateRangeFilter !== "all") {
-            startDateLimit = dateRangeFilter === "1" ? today : subDays(today, parseInt(dateRangeFilter, 10));
+        let endDateLimit: Date | null = null;
+
+        if (dateRangeFilter === "ontem") {
+            startDateLimit = subDays(today, 1);
+            endDateLimit = today;
+        } else if (dateRangeFilter === "1") {
+            startDateLimit = today;
+        } else if (dateRangeFilter !== "all" && !dateRangeFilter.includes("~")) {
+            startDateLimit = subDays(today, parseInt(dateRangeFilter, 10));
+        } else if (dateRangeFilter.includes("~")) {
+            const [startStr, endStr] = dateRangeFilter.split("~");
+            if (startStr && endStr) {
+                startDateLimit = parseISO(startStr);
+                endDateLimit = startOfDay(new Date(new Date(parseISO(endStr)).getTime() + 86400000));
+            }
         }
 
         allTasks.forEach(task => {
@@ -420,6 +492,7 @@ export function TasksAnalysisTab() {
                 const compDate = new Date(task.completed_at);
 
                 if (startDateLimit && compDate < startDateLimit) return;
+                if (endDateLimit && compDate >= endDateLimit) return;
 
                 if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return;
 
@@ -497,17 +570,53 @@ export function TasksAnalysisTab() {
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                     <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-md border border-border/50">
                         <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <Select value={dateRangeFilter} onValueChange={setDateRangeFilter}>
+                        <Select value={dateRangeFilter.includes("~") ? "custom" : dateRangeFilter} onValueChange={(val) => {
+                            if (val !== "custom") setDateRangeFilter(val);
+                        }}>
                             <SelectTrigger className="h-8 border-0 bg-transparent focus:ring-0 shadow-none text-sm w-[150px] px-0">
                                 <SelectValue placeholder="Período" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="1">Hoje</SelectItem>
+                                <SelectItem value="ontem">Ontem</SelectItem>
                                 <SelectItem value="7">Últimos 7 Dias</SelectItem>
                                 <SelectItem value="30">Últimos 30 Dias</SelectItem>
                                 <SelectItem value="60">Últimos 60 Dias</SelectItem>
                                 <SelectItem value="90">Últimos 90 Dias</SelectItem>
                                 <SelectItem value="all">Todo o Histórico</SelectItem>
+                                <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Personalizado</div>
+                                <div className="px-2 pb-2">
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" size="sm" className="w-full justify-start text-left font-normal bg-card">
+                                                <Calendar className="mr-2 h-4 w-4" />
+                                                {dateRangeFilter.includes("~") ? (
+                                                    <span className="truncate">{format(parseISO(dateRangeFilter.split("~")[0]), "dd/MM/yy")} - {format(parseISO(dateRangeFilter.split("~")[1]), "dd/MM/yy")}</span>
+                                                ) : (
+                                                    <span>Escolher datas</span>
+                                                )}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <CalendarUI
+                                                initialFocus
+                                                mode="range"
+                                                defaultMonth={dateRangeObj?.from || new Date()}
+                                                selected={dateRangeObj}
+                                                onSelect={(range) => {
+                                                    setDateRangeObj(range);
+                                                    if (range?.from && range?.to) {
+                                                        const fromStr = format(range.from, "yyyy-MM-dd");
+                                                        const toStr = format(range.to, "yyyy-MM-dd");
+                                                        setDateRangeFilter(`${fromStr}~${toStr}`);
+                                                    }
+                                                }}
+                                                numberOfMonths={2}
+                                                locale={ptBR}
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
                             </SelectContent>
                         </Select>
                     </div>
