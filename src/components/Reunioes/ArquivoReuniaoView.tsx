@@ -7,8 +7,6 @@ import {
   Clock,
   Loader2,
   BookOpen,
-  History,
-  Bookmark,
   Search,
   X,
   ChevronUp,
@@ -24,20 +22,11 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuth } from '@/components/Auth/AuthContext';
 import { useArquivoVersioning } from '@/hooks/useArquivoVersioning';
 import { Input } from '@/components/ui/input';
-import { ArquivoHistoricoVersoes } from './ArquivoHistoricoVersoes';
-import { ArquivoVisualizarVersao } from './ArquivoVisualizarVersao';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArquivoReuniaoAnalytics } from './ArquivoReuniaoAnalytics';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Cliente {
   id: string;
@@ -178,8 +167,9 @@ export function ArquivoReuniaoView() {
       try {
         const { data, error } = await supabase
           .from('clientes')
-          .select('id, nome, aliases, branding_logo_url')
-          .eq('ativo', true);
+          .select('id, nome, aliases, branding_logo_url, ativo')
+          .eq('ativo', true)
+          .is('deleted_at', null);
 
         if (error) throw error;
         setClientes(data || []);
@@ -668,54 +658,70 @@ export function ArquivoReuniaoView() {
     <div className="flex h-screen bg-background">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex min-h-0 relative">
         <div className="flex-1 flex flex-col">
-          <div className="border-b border-border bg-card p-4">
-            <div className="flex flex-col gap-4 mb-3">
-              <Button
-                variant="ghost"
-                className="w-fit text-muted-foreground hover:text-foreground p-0 h-auto font-medium"
-                onClick={() => {
-                  // If there's an onClose prop passed from the wrapper we would use that,
-                  // but usually the tools views dispatch a custom event or check history
-                  window.history.back();
-                }}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Voltar às Ferramentas
-              </Button>
+          <div className="border-b border-border bg-card">
+            <div className="flex items-center justify-between h-16 px-4 md:px-6">
+              {/* Left Side: Back Button, Title, Year Select, Tabs */}
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  onClick={() => window.history.back()}
+                  title="Voltar às Ferramentas"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <TabsList className="h-9 bg-muted/40 border border-border/50 shrink-0">
-                    <TabsTrigger value="arquivo" className="text-sm px-4 h-7 data-[state=active]:shadow-sm">Editor</TabsTrigger>
-                    <TabsTrigger value="analises" className="text-sm px-4 h-7 data-[state=active]:shadow-sm">Análises</TabsTrigger>
-                  </TabsList>
-
-                  <div className="flex items-center gap-2">
-                    {[2025, anoAtual].filter((v, i, a) => a.indexOf(v) === i).map((ano) => (
-                      <Button
-                        key={ano}
-                        variant={anoSelecionado === ano ? "default" : "outline"}
-                        size="default"
-                        onClick={() => setAnoSelecionado(ano)}
-                        className="h-9 px-4 gap-2"
-                      >
-                        {ano < anoAtual && <Clock className="w-4 h-4" />}
-                        {ano}
-                        {ano === anoAtual && " ✅"}
-                      </Button>
-                    ))}
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-3 rounded-xl border border-primary/20 shadow-sm">
+                    <BookOpen className="h-7 w-7 text-primary" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-2xl font-bold tracking-tight hidden md:block text-foreground">Arquivo de Reuniões</h1>
+                      <Badge variant="secondary" className="hidden sm:flex text-[10px] uppercase font-semibold text-muted-foreground border-border/50 bg-background/50 hover:bg-background/80 transition-colors shadow-sm">
+                        Wordlet Central
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                  <div className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
+
+                <div className="h-6 w-px bg-border mx-2 hidden sm:block"></div>
+
+                <Select value={anoSelecionado.toString()} onValueChange={(val) => setAnoSelecionado(parseInt(val))}>
+                  <SelectTrigger className="w-[110px] h-9 bg-background">
+                    <SelectValue placeholder="Ano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[2025, anoAtual].filter((v, i, a) => a.indexOf(v) === i).map((ano) => (
+                      <SelectItem key={ano} value={ano.toString()}>
+                        {ano} {ano === anoAtual && "✅"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className="h-6 w-px bg-border mx-2 hidden sm:block"></div>
+
+                <TabsList className="h-9 bg-muted/40 border border-border/50 shrink-0">
+                  <TabsTrigger value="arquivo" className="text-sm px-4 h-7 data-[state=active]:shadow-sm">Editor</TabsTrigger>
+                  <TabsTrigger value="analises" className="text-sm px-4 h-7 data-[state=active]:shadow-sm">Análises</TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* Right Side: Status, Online Users, Actions */}
+              <div className="flex items-center gap-4">
+                {/* Save Status */}
+                <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground mr-2">
+                  <div className={`px-2 py-1 rounded text-xs flex items-center gap-1.5 ${saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-400' :
                     saveStatus === 'saved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-400' :
                       saveStatus === 'error' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-400' :
                         'bg-muted text-muted-foreground'
                     }`}>
-                    {saveStatus === 'saving' && <Loader2 className="w-3 h-3 animate-spin" />}
-                    {saveStatus === 'saved' && <Save className="w-3 h-3" />}
-                    {saveStatus === 'error' && <AlertCircle className="w-3 h-3 text-red-500" />}
-                    {saveStatus === 'idle' && <Save className="w-3 h-3" />}
+                    {saveStatus === 'saving' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {saveStatus === 'saved' && <Save className="w-3.5 h-3.5" />}
+                    {saveStatus === 'error' && <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
+                    {saveStatus === 'idle' && <Save className="w-3.5 h-3.5" />}
 
                     {saveStatus === 'saving' && 'Salvando...'}
                     {saveStatus === 'saved' && 'Salvo'}
@@ -723,20 +729,15 @@ export function ArquivoReuniaoView() {
                     {saveStatus === 'idle' && 'Alterações locais'}
                   </div>
                   {lastSaved && (
-                    <span className="hidden sm:inline">Última alteração hoje às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="text-xs">Hoje às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                   )}
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3">
+                {/* Online Users */}
                 {onlineUsers.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      {onlineUsers.length === 1 ? '1 pessoa' : `${onlineUsers.length} pessoas`}
-                    </span>
+                  <div className="hidden sm:flex items-center gap-2 mr-2">
                     <div className="flex -space-x-2">
-                      {onlineUsers.slice(0, 5).map((u) => (
+                      {onlineUsers.slice(0, 3).map((u) => (
                         <div
                           key={u.userId}
                           className="w-8 h-8 rounded-full border-2 border-background overflow-hidden"
@@ -763,97 +764,104 @@ export function ArquivoReuniaoView() {
                           )}
                         </div>
                       ))}
-                      {onlineUsers.length > 5 && (
+                      {onlineUsers.length > 3 && (
                         <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs">
-                          +{onlineUsers.length - 5}
+                          +{onlineUsers.length - 3}
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                <Button onClick={handleOpenHistory} variant="outline" size="sm">
-                  <History className="h-4 w-4 mr-2" />
-                  Histórico
-                </Button>
-
-                <Button onClick={() => setShowSaveVersionModal(true)} variant="outline" size="sm">
-                  <Bookmark className="h-4 w-4 mr-2" />
-                  Salvar Versão
-                </Button>
-
-                <Button
-                  onClick={handleManualSave}
-                  disabled={saveStatus === 'saving'}
-                  variant={saveStatus === 'error' ? 'destructive' : 'default'}
-                  size="sm"
-                >
-                  {saveStatus === 'saving' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  Salvar
-                </Button>
+                {/* Actions */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handleManualSave}
+                    disabled={saveStatus === 'saving'}
+                    variant={saveStatus === 'error' ? 'destructive' : 'default'}
+                    size="sm"
+                    className="h-9"
+                  >
+                    {saveStatus === 'saving' ? <Loader2 className="h-4 w-4 md:mr-2 animate-spin" /> : <Save className="h-4 w-4 md:mr-2" />}
+                    <span className="hidden md:inline">Salvar</span>
+                  </Button>
+                </div>
               </div>
             </div>
 
-            <div className="relative">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Buscar no texto ou no índice..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-10"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={clearSearch}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+            {activeTab === 'arquivo' && (
+              <div className="relative mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Buscar no texto ou no índice..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 pr-10 shadow-sm transition-all focus-visible:ring-1"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={clearSearch}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  {showSearchResults && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground whitespace-nowrap hidden sm:inline">
+                        {searchResults.length > 0 ? `${currentResultIndex + 1} de ${searchResults.length}` : 'Nenhum resultado'}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handlePrevResult}
+                          disabled={searchResults.length === 0}
+                          className="h-9 w-9"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleNextResult}
+                          disabled={searchResults.length === 0}
+                          className="h-9 w-9"
+                        >
+                          <ChevronDownIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
-
-                {searchResults.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {currentResultIndex + 1} de {searchResults.length}
-                    </Badge>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={handlePrevResult}>
-                        <ChevronUp className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={handleNextResult}>
-                        <ChevronDownIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
+                {showSearchResults && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-60 overflow-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md">
+                    {searchResults.map((result, index) => (
+                      <button
+                        key={index}
+                        onClick={() => navigateToResult(index)}
+                        className={`w-full text-left px-4 py-3 hover:bg-accent transition-colors border-b border-border/50 last:border-0 ${index === currentResultIndex ? 'bg-accent/50' : ''
+                          }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant={result.type === 'index' ? 'default' : 'secondary'} className="text-xs">
+                            {result.type === 'index' ? 'Índice' : 'Texto'}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {result.context}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
+            )}
 
-              {showSearchResults && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
-                  {searchResults.map((result, index) => (
-                    <button
-                      key={index}
-                      onClick={() => navigateToResult(index)}
-                      className={`w-full text-left px-4 py-2 hover:bg-accent transition-colors border-b border-border last:border-b-0 ${index === currentResultIndex ? 'bg-accent' : ''
-                        }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant={result.type === 'index' ? 'default' : 'secondary'} className="text-xs">
-                          {result.type === 'index' ? 'Índice' : 'Texto'}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground truncate">
-                          {result.context}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
           <div className="flex-1 overflow-auto" ref={scrollContainerRef}>
@@ -944,49 +952,7 @@ export function ArquivoReuniaoView() {
           </div>
         )}
 
-        <ArquivoHistoricoVersoes
-          open={showHistoryModal}
-          onOpenChange={setShowHistoryModal}
-          versions={versioning.versions}
-          loading={versioning.loading}
-          onRestore={handleRestoreVersion}
-          onView={handleViewVersion}
-          currentVersionNumber={currentVersionNumber}
-        />
 
-        <ArquivoVisualizarVersao
-          open={showViewModal}
-          onOpenChange={setShowViewModal}
-          version={selectedVersion}
-          onRestore={handleRestoreVersion}
-          isCurrentVersion={selectedVersion?.versao === currentVersionNumber}
-        />
-
-        <Dialog open={showSaveVersionModal} onOpenChange={setShowSaveVersionModal}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Salvar Versão Manual</DialogTitle>
-              <DialogDescription>
-                Adicione uma descrição para esta versão (opcional)
-              </DialogDescription>
-            </DialogHeader>
-            <Textarea
-              placeholder="Ex: Concluída revisão da seção X..."
-              value={saveVersionObservation}
-              onChange={(e) => setSaveVersionObservation(e.target.value)}
-              rows={3}
-            />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowSaveVersionModal(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSaveVersion}>
-                <Bookmark className="h-4 w-4 mr-2" />
-                Salvar Versão
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </Tabs>
     </div >
   );

@@ -9,7 +9,7 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell
 } from 'recharts';
 import {
-    Clock, Calendar, AlertCircle, Building2, TrendingUp, History, Search, FileText, CheckCircle2, Users
+    Clock, Calendar, AlertCircle, Building2, TrendingUp, History, Search, FileText, CheckCircle2, Users, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { format, differenceInDays, parse, isValid, startOfWeek, endOfWeek, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -33,6 +33,24 @@ interface AnalyticsProps {
 
 export function ArquivoReuniaoAnalytics({ clientes, indicesTitulos, anoSelecionado }: AnalyticsProps) {
     const [searchTerm, setSearchTerm] = useState('');
+    const [sortColumn, setSortColumn] = useState<'nome' | 'reunioes' | 'ultima' | 'gap'>('gap');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+    const handleSort = (column: typeof sortColumn) => {
+        if (sortColumn === column) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortColumn(column);
+            setSortDirection(column === 'nome' ? 'asc' : 'desc');
+        }
+    };
+
+    const SortIcon = ({ column }: { column: typeof sortColumn }) => {
+        if (sortColumn !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-40" />;
+        return sortDirection === 'asc'
+            ? <ArrowUp className="w-3 h-3 ml-1" />
+            : <ArrowDown className="w-3 h-3 ml-1" />;
+    };
 
     // Detecta cliente a partir do texto do heading (mesmo padrão do sidebar/tarefas)
     const detectClient = useCallback((text: string) => {
@@ -174,10 +192,29 @@ export function ArquivoReuniaoAnalytics({ clientes, indicesTitulos, anoSeleciona
 
 
     const filteredStats = useMemo(() => {
-        if (!searchTerm) return stats;
-        const lowerTerm = searchTerm.toLowerCase();
-        return stats.filter(s => s.nome.toLowerCase().includes(lowerTerm));
-    }, [stats, searchTerm]);
+        let result = stats;
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            result = result.filter(s => s.nome.toLowerCase().includes(lowerTerm));
+        }
+        const dir = sortDirection === 'asc' ? 1 : -1;
+        return [...result].sort((a, b) => {
+            switch (sortColumn) {
+                case 'nome':
+                    return dir * a.nome.localeCompare(b.nome);
+                case 'reunioes':
+                    return dir * (a.totalReunioes - b.totalReunioes);
+                case 'ultima':
+                    const aTime = a.ultimaReuniao?.getTime() ?? 0;
+                    const bTime = b.ultimaReuniao?.getTime() ?? 0;
+                    return dir * (aTime - bTime);
+                case 'gap':
+                    return dir * ((a.diasSemReuniao || 999) - (b.diasSemReuniao || 999));
+                default:
+                    return 0;
+            }
+        });
+    }, [stats, searchTerm, sortColumn, sortDirection]);
 
 
     return (
@@ -240,6 +277,78 @@ export function ArquivoReuniaoAnalytics({ clientes, indicesTitulos, anoSeleciona
                 </Card>
             </div>
 
+            {/* Tabela Completa - Primeiro */}
+            <Card className="shadow-sm border-border/60">
+                <CardHeader className="pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-primary" />
+                            Relatório Geral de Clientes Ativos
+                        </CardTitle>
+                    </div>
+                    <div className="relative w-full sm:w-64 shrink-0">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar cliente..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 h-8 text-xs"
+                        />
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="text-xs text-muted-foreground bg-muted/40 uppercase">
+                                <tr>
+                                    <th className="px-4 py-3 font-medium rounded-tl-lg cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('nome')}>
+                                        <span className="inline-flex items-center">Cliente <SortIcon column="nome" /></span>
+                                    </th>
+                                    <th className="px-4 py-3 font-medium cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('reunioes')}>
+                                        <span className="inline-flex items-center">Reuniões em {anoSelecionado} <SortIcon column="reunioes" /></span>
+                                    </th>
+                                    <th className="px-4 py-3 font-medium cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('ultima')}>
+                                        <span className="inline-flex items-center">Última Reunião <SortIcon column="ultima" /></span>
+                                    </th>
+                                    <th className="px-4 py-3 font-medium rounded-tr-lg cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('gap')}>
+                                        <span className="inline-flex items-center">Status (Gap) <SortIcon column="gap" /></span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/40">
+                                {filteredStats.map(cliente => (
+                                        <tr key={cliente.id} className="hover:bg-muted/20 transition-colors">
+                                            <td className="px-4 py-3 font-medium dark:text-slate-200">
+                                                {cliente.nome}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <Badge variant="secondary" className="font-mono text-xs shadow-none">
+                                                    {cliente.totalReunioes}
+                                                </Badge>
+                                            </td>
+                                            <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
+                                                {cliente.ultimaReuniao ? format(cliente.ultimaReuniao, "dd 'de' MMMM", { locale: ptBR }) : '-'}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <Badge variant="outline" className={`text-xs font-medium ${getStatusColor(cliente.diasSemReuniao)}`}>
+                                                    {getStatusText(cliente.diasSemReuniao)}
+                                                </Badge>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                {filteredStats.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                            Nenhum cliente encontrado.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Ranking Chart */}
                 <Card className="col-span-1 lg:col-span-2 shadow-sm border-border/60 flex flex-col">
@@ -252,7 +361,7 @@ export function ArquivoReuniaoAnalytics({ clientes, indicesTitulos, anoSeleciona
                             Volume absoluto de pautas registradas em {anoSelecionado}
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="flex-1 min-h-[300px]">
+                    <CardContent className="h-[220px]">
                         {chartData.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -314,7 +423,7 @@ export function ArquivoReuniaoAnalytics({ clientes, indicesTitulos, anoSeleciona
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
-                        <ScrollArea className="flex-1 h-[300px]">
+                        <ScrollArea className="flex-1 h-[220px]">
                             <div className="divide-y divide-border/40">
                                 {clientesNecessitamAtencao.length > 0 ? (
                                     clientesNecessitamAtencao.map(cliente => (
@@ -353,72 +462,6 @@ export function ArquivoReuniaoAnalytics({ clientes, indicesTitulos, anoSeleciona
                     </CardContent>
                 </Card>
             </div>
-
-            {/* Tabela Completa */}
-            <Card className="shadow-sm border-border/60">
-                <CardHeader className="pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-primary" />
-                            Relatório Geral de Clientes Ativos
-                        </CardTitle>
-                    </div>
-                    <div className="relative w-full sm:w-64 shrink-0">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar cliente..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 h-8 text-xs"
-                        />
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-muted-foreground bg-muted/40 uppercase">
-                                <tr>
-                                    <th className="px-4 py-3 font-medium rounded-tl-lg">Cliente</th>
-                                    <th className="px-4 py-3 font-medium">Reuniões em {anoSelecionado}</th>
-                                    <th className="px-4 py-3 font-medium">Última Reunião</th>
-                                    <th className="px-4 py-3 font-medium rounded-tr-lg">Status (Gap)</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border/40">
-                                {filteredStats
-                                    .sort((a, b) => (a.diasSemReuniao || 999) - (b.diasSemReuniao || 999))
-                                    .map(cliente => (
-                                        <tr key={cliente.id} className="hover:bg-muted/20 transition-colors">
-                                            <td className="px-4 py-3 font-medium dark:text-slate-200">
-                                                {cliente.nome}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Badge variant="secondary" className="font-mono text-xs shadow-none">
-                                                    {cliente.totalReunioes}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
-                                                {cliente.ultimaReuniao ? format(cliente.ultimaReuniao, "dd 'de' MMMM", { locale: ptBR }) : '-'}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Badge variant="outline" className={`text-xs font-medium ${getStatusColor(cliente.diasSemReuniao)}`}>
-                                                    {getStatusText(cliente.diasSemReuniao)}
-                                                </Badge>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                {filteredStats.length === 0 && (
-                                    <tr>
-                                        <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                                            Nenhum cliente encontrado.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     );
 }
