@@ -4,6 +4,7 @@ import { EscalaReunioes } from "@/components/Atendimento/EscalaReunioes";
 import { ClientesEmAlerta } from "@/components/Atendimento/ClientesEmAlerta";
 import { AnaliseReunioes } from "@/components/Atendimento/AnaliseReunioes";
 import { LiveMeetingBanner } from "@/components/Atendimento/LiveMeetingBanner";
+import { AtendimentoKPIs } from "@/components/Atendimento/AtendimentoKPIs";
 
 function SectionCard({
     icon: Icon,
@@ -42,6 +43,9 @@ export default function Atendimento() {
 
             {/* Clientes em Alerta — horizontal strip at the top */}
             <ClientesEmAlerta />
+
+            {/* Today's meeting KPIs */}
+            <AtendimentoKPIs />
 
             {/* Live Meeting Banner */}
             <LiveMeetingBanner />
