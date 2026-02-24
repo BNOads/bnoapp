@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { TaskInsert, TaskUpdate } from "@/types/tasks";
 import { taskKeys } from "./useTasks";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { addDays, addWeeks, addMonths, addYears, parseISO, format, endOfWeek, startOfWeek } from "date-fns";
 
 // Helper to calculate next due date based on recurrence type
@@ -200,9 +201,28 @@ export function useCreateTask() {
 
             return data;
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: taskKeys.all });
-            toast({ title: "Tarefa criada com sucesso" });
+
+            const taskUrl = `${window.location.origin}/tarefas/${data.id}`;
+            const assigneeName = data.assignee ? `${data.assignee} | ` : "";
+
+            toast({
+                title: "✅ Tarefa criada",
+                description: `Sua tarefa ${assigneeName}${data.title} foi criada.`,
+                duration: 8000,
+                className: "p-6 sm:p-8 text-base shadow-xl",
+                action: (
+                    <div className="flex items-center gap-2">
+                        <ToastAction altText="Copiar URL" onClick={() => navigator.clipboard.writeText(taskUrl)}>
+                            Copiar URL
+                        </ToastAction>
+                        <ToastAction altText="Abrir" onClick={() => window.open(`/tarefas/${data.id}`, "_blank")} className="bg-purple-500 text-white hover:bg-purple-600 border-none">
+                            Abrir
+                        </ToastAction>
+                    </div>
+                )
+            });
         },
         onError: (error) => {
             toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" });
@@ -232,7 +252,7 @@ export function useUpdateTask() {
                     const doingSince = new Date(currentTask.timer_started_at);
                     const sessionSeconds = Math.floor((now.getTime() - doingSince.getTime()) / 1000);
                     updates.time_tracked = (currentTask.time_tracked || 0) + sessionSeconds;
-                    
+
                     // Salvar a sessão de timer no log
                     await supabase.from("task_sessions").insert({
                         task_id: id,
@@ -256,12 +276,12 @@ export function useUpdateTask() {
                     .select("timer_started_at")
                     .eq("id", id)
                     .single();
-                
+
                 if (currentTask && currentTask.timer_started_at) {
                     const now = new Date();
                     const startDate = new Date(currentTask.timer_started_at);
                     const sessionSeconds = Math.floor((now.getTime() - startDate.getTime()) / 1000);
-                    
+
                     if (sessionSeconds > 0) {
                         await supabase.from("task_sessions").insert({
                             task_id: id,

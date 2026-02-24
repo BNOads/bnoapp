@@ -1,0 +1,1 @@
+ALTER TABLE tasks ADD COLUMN cliente_id UUID REFERENCES clientes(id) ON DELETE SET NULL;

@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
     Check, Clock, CalendarIcon, AlertCircle, Share2, MoreHorizontal,
-    Maximize2, Link as LinkIcon, User, Tag, Flag, Search, Bell, Pin, Play, Square, Users, RefreshCw, RepeatIcon, List
+    Maximize2, Link as LinkIcon, User, Tag, Flag, Search, Bell, Pin, Play, Square, Users, RefreshCw, RepeatIcon, List, Building2
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -56,11 +56,15 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
+    const [clientes, setClientes] = useState<{ id: string, nome: string, branding_logo_url?: string }[]>([]);
 
     useEffect(() => {
         if (open) {
             supabase.from("colaboradores").select("nome, user_id, avatar_url").order("nome").then(({ data }) => {
                 if (data) setColaboradores(data);
+            });
+            supabase.from("clientes").select("id, nome, branding_logo_url").eq("ativo", true).order("nome").then(({ data }) => {
+                if (data) setClientes(data);
             });
         }
     }, [open]);
@@ -311,6 +315,50 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                             {task.completed ? "CONCLUÍDO" : "A FAZER"}
                                             <Check className={`h-3 w-3 transition-transform duration-200 ${task.completed ? 'scale-100' : 'scale-0 opacity-0 w-0'}`} />
                                         </Button>
+                                    </div>
+
+                                    {/* Cliente */}
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
+                                            <Building2 className="h-3.5 w-3.5" />
+                                            Cliente
+                                        </div>
+                                        <Select
+                                            value={task.cliente_id || "none"}
+                                            onValueChange={(val) => handleUpdateField("cliente_id", val === "none" ? null : val)}
+                                        >
+                                            <SelectTrigger className="w-auto h-7 px-2 py-0 border-0 hover:bg-muted shadow-none bg-transparent gap-2 -ml-2">
+                                                <div className="flex items-center gap-2 max-w-[140px]">
+                                                    {task.cliente_id && clientes.find(c => c.id === task.cliente_id) ? (
+                                                        <>
+                                                            {clientes.find(c => c.id === task.cliente_id)?.branding_logo_url ? (
+                                                                <img src={clientes.find(c => c.id === task.cliente_id)?.branding_logo_url} alt="Logo" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                                            ) : (
+                                                                <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                                            )}
+                                                            <span className="truncate text-xs font-medium">{clientes.find(c => c.id === task.cliente_id)?.nome}</span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-muted-foreground text-xs">Vazio</span>
+                                                    )}
+                                                </div>
+                                            </SelectTrigger>
+                                            <SelectContent className="max-h-[300px]">
+                                                <SelectItem value="none">Sem cliente</SelectItem>
+                                                {clientes.map(c => (
+                                                    <SelectItem key={c.id} value={c.id}>
+                                                        <div className="flex items-center gap-2">
+                                                            {c.branding_logo_url ? (
+                                                                <img src={c.branding_logo_url} alt="Logo" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                                            ) : (
+                                                                <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                                            )}
+                                                            {c.nome}
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     {/* Responsáveis */}

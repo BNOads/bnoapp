@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTaskSessions } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, Cell, AreaChart, Area } from 'recharts';
-import { Loader2, TrendingUp, Filter, Clock, Users, Timer, Target, CheckCircle2, Calendar } from 'lucide-react';
+import { Loader2, TrendingUp, Filter, Clock, Users, Timer, Target, CheckCircle2, Calendar, Building2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRIORITY_LABELS, Task } from '@/types/tasks';
 import { startOfDay, startOfWeek, startOfMonth, subDays, format, parseISO, isSameDay, isAfter, isBefore } from 'date-fns';
@@ -33,7 +33,10 @@ export function TasksAnalysisTab() {
 
     // Opções de Filtro Global
     const [selectedUserLine, setSelectedUserLine] = useState<string>("all");
+    const [selectedClientLine, setSelectedClientLine] = useState<string>("all");
     const [dateRangeFilter, setDateRangeFilter] = useState<string>("30"); // "30", "60", "90", "all"
+
+    const [clientes, setClientes] = useState<{ id: string, nome: string }[]>([]);
 
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
 
@@ -62,6 +65,7 @@ export function TasksAnalysisTab() {
           completed_at,
           time_tracked,
           list_id,
+          cliente_id,
           created_at
         `)
                 .order('created_at', { ascending: false })
@@ -75,6 +79,13 @@ export function TasksAnalysisTab() {
         } finally {
             setLoading(false);
         }
+
+        supabase.from("clientes")
+            .select("id, nome")
+            .eq("ativo", true)
+            .then(({ data }) => {
+                if (data) setClientes(data);
+            });
     };
 
     useEffect(() => {
@@ -120,6 +131,11 @@ export function TasksAnalysisTab() {
         allTasks.forEach(task => {
             // Apply Global User Filter
             if (selectedUserLine !== "all" && task.assignee !== selectedUserLine) {
+                return;
+            }
+
+            // Apply Global Client Filter
+            if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) {
                 return;
             }
 
@@ -231,7 +247,7 @@ export function TasksAnalysisTab() {
             averageTimeByList: avgByListArr
         });
 
-    }, [allTasks, taskLists, selectedUserLine, dateRangeFilter]);
+    }, [allTasks, taskLists, selectedUserLine, selectedClientLine, dateRangeFilter]);
 
     const userTimelineData = useMemo(() => {
         if (allTasks.length === 0) return [];
@@ -262,6 +278,10 @@ export function TasksAnalysisTab() {
                     return;
                 }
 
+                if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) {
+                    return;
+                }
+
                 if (selectedUserLine === "all" || task.assignee === selectedUserLine) {
                     const dKey = format(compDate, 'yyyy-MM-dd');
                     if (dailyMap[dKey] !== undefined) {
@@ -276,7 +296,7 @@ export function TasksAnalysisTab() {
             displayDate: format(parseISO(dateStr), 'd MMM', { locale: ptBR }),
             count
         }));
-    }, [allTasks, selectedUserLine, dateRangeFilter]);
+    }, [allTasks, selectedUserLine, selectedClientLine, dateRangeFilter]);
 
     const hourlyCompletionData = useMemo(() => {
         if (allTasks.length === 0) return [];
@@ -298,6 +318,10 @@ export function TasksAnalysisTab() {
                     return;
                 }
 
+                if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) {
+                    return;
+                }
+
                 if (selectedUserLine === "all" || task.assignee === selectedUserLine) {
                     const hr = compDate.getHours();
                     hourlyMap[hr]++;
@@ -309,7 +333,7 @@ export function TasksAnalysisTab() {
             hour: `${hrStr.padStart(2, '0')}:00`,
             count
         }));
-    }, [allTasks, selectedUserLine, dateRangeFilter]);
+    }, [allTasks, selectedUserLine, selectedClientLine, dateRangeFilter]);
 
     // Data para o gráfico de Ponto (Horas Trabalhadas no Dia)
     const trackedTimeData = useMemo(() => {
@@ -339,6 +363,8 @@ export function TasksAnalysisTab() {
 
                 if (startDateLimit && compDate < startDateLimit) return;
 
+                if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return;
+
                 if (selectedUserLine === "all" || task.assignee === selectedUserLine) {
                     const dKey = format(compDate, 'yyyy-MM-dd');
                     if (sessionMap[dKey] !== undefined) {
@@ -355,7 +381,7 @@ export function TasksAnalysisTab() {
             horas: Number((totalSeconds / 3600).toFixed(2)),
             segundos: totalSeconds
         }));
-    }, [allTasks, selectedUserLine, dateRangeFilter]);
+    }, [allTasks, selectedUserLine, selectedClientLine, dateRangeFilter]);
 
     // Format Helper for Time (seconds to HH:MM:SS)
     const formatTime = (seconds: number) => {
@@ -423,6 +449,21 @@ export function TasksAnalysisTab() {
                                 {/* We use a unique list of assignees dynamically from the data */}
                                 {Array.from(new Set(allTasks.filter(t => t.assignee).map(t => t.assignee))).map(name => (
                                     <SelectItem key={name as string} value={name as string}>{name as string}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-md border border-border/50">
+                        <Building2 className="w-4 h-4 text-muted-foreground" />
+                        <Select value={selectedClientLine} onValueChange={setSelectedClientLine}>
+                            <SelectTrigger className="h-8 border-0 bg-transparent focus:ring-0 shadow-none text-sm w-[150px] px-0">
+                                <SelectValue placeholder="Cliente" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos os Clientes</SelectItem>
+                                {clientes.map(c => (
+                                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>

@@ -37,6 +37,12 @@ export const Header = ({ }: HeaderProps) => {
   };
   const tabs = [
     {
+      id: 'tarefas',
+      label: 'Tarefas',
+      icon: CheckSquare,
+      path: '/tarefas'
+    },
+    {
       id: 'clientes',
       label: 'Clientes',
       icon: Calendar,
@@ -58,6 +64,10 @@ export const Header = ({ }: HeaderProps) => {
 
   const getActiveTab = () => {
     const currentPath = location.pathname;
+
+    if (currentPath.startsWith('/tarefas')) {
+      return 'tarefas';
+    }
 
     // Check for ferramentas sub-routes
     if (currentPath.startsWith('/ferramentas/projecoes')) {

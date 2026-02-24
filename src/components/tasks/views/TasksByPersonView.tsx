@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToggleTaskComplete, useDeleteTask, useCreateTask, useUpdateTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, UserCircle, Plus, ChevronDown, ChevronRight, Trash2, Flag, Users, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { CalendarIcon, UserCircle, Plus, ChevronDown, ChevronRight, Trash2, Flag, Users, ArrowUpDown, ArrowUp, ArrowDown, Building2 } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +51,7 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
 
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
     const [colaboradores, setColaboradores] = useState<{ nome: string, avatar_url: string | null, user_id: string }[]>([]);
+    const [clientes, setClientes] = useState<{ id: string, nome: string }[]>([]);
     const [inlineCreatePerson, setInlineCreatePerson] = useState<string | null>(null);
     const [inlineTaskTitle, setInlineTaskTitle] = useState("");
 
@@ -119,6 +120,12 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
             .order("nome")
             .then(({ data }) => {
                 if (data) setColaboradores(data);
+            });
+        supabase.from("clientes")
+            .select("id, nome")
+            .eq("ativo", true)
+            .then(({ data }) => {
+                if (data) setClientes(data);
             });
     }, []);
 
@@ -463,6 +470,12 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                             <span className={`text-sm truncate font-medium ${task.completed ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"}`}>
                                                                 {task.title}
                                                             </span>
+                                                            {task.cliente_id && (
+                                                                <Badge variant="outline" className="text-[9px] h-4 px-1 gap-1 shrink-0 font-normal">
+                                                                    <Building2 className="w-2.5 h-2.5" />
+                                                                    <span className="truncate max-w-[80px]">{clientes.find(c => c.id === task.cliente_id)?.nome || "Cliente"}</span>
+                                                                </Badge>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-1 shrink-0 ml-2">
@@ -663,6 +676,12 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                                     <p className={`text-[13px] font-medium hover:underline truncate ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                                                                         {task.title}
                                                                     </p>
+                                                                    {task.cliente_id && (
+                                                                        <Badge variant="outline" className="text-[10px] h-4 px-1 gap-1 shrink-0 font-normal">
+                                                                            <Building2 className="w-2.5 h-2.5" />
+                                                                            <span className="truncate max-w-[80px]">{clientes.find(c => c.id === task.cliente_id)?.nome || "Cliente"}</span>
+                                                                        </Badge>
+                                                                    )}
                                                                 </div>
                                                                 {task.list_id && (
                                                                     <p className="flex items-center gap-1 text-[10px] text-muted-foreground truncate tracking-widest mt-0.5">

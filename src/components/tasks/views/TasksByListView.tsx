@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToggleTaskComplete, useUpdateTask, useDeleteTask, useCreateTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, MessageSquare, Clock, Plus, Flag, List, ChevronDown, ChevronRight, Trash2, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, CalendarDays, Lock, MoreVertical, Copy } from "lucide-react";
+import { CalendarIcon, MessageSquare, Clock, Plus, Flag, List, ChevronDown, ChevronRight, Trash2, Search, ArrowUpDown, ArrowUp, ArrowDown, Layers, CalendarDays, Lock, MoreVertical, Copy, Building2 } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
 import { useTaskLists } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
@@ -58,12 +58,19 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
     const [lastSelectedTaskId, setLastSelectedTaskId] = useState<string | null>(null);
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, avatar_url: string | null, user_id: string }[]>([]);
+    const [clientes, setClientes] = useState<{ id: string, nome: string, branding_logo_url?: string }[]>([]);
 
     useEffect(() => {
         supabase.from("colaboradores")
             .select("nome, avatar_url, user_id")
             .then(({ data }) => {
                 if (data) setColaboradores(data);
+            });
+        supabase.from("clientes")
+            .select("id, nome, branding_logo_url")
+            .eq("ativo", true)
+            .then(({ data }) => {
+                if (data) setClientes(data);
             });
     }, []);
 
@@ -332,6 +339,12 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                                     <p className={`text-[13px] font-medium hover:underline truncate ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                                                                         {task.title}
                                                                     </p>
+                                                                    {task.cliente_id && (
+                                                                        <Badge variant="outline" className="text-[10px] h-4 px-1 gap-1 shrink-0 font-normal">
+                                                                            <Building2 className="w-2.5 h-2.5" />
+                                                                            <span className="truncate max-w-[80px]">{clientes.find(c => c.id === task.cliente_id)?.nome || "Cliente"}</span>
+                                                                        </Badge>
+                                                                    )}
                                                                 </div>
                                                                 {task.assignee && (
                                                                     <div className="flex items-center gap-1.5 mt-1.5">

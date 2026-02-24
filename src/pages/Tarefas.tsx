@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag, Filter, ChevronDown, Zap } from "lucide-react";
+import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag, Filter, ChevronDown, Zap, Building2 } from "lucide-react";
 
 import { useTasks, TaskFilters } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -38,7 +38,8 @@ export default function Tarefas() {
         assignee: "all",
         recurrence: "all",
         status: "all",
-        date: "all"
+        date: "all",
+        cliente_id: "all"
     });
     const [activeMainTab, setActiveMainTab] = useState<"minhas" | "time" | "listas" | "automacoes" | "analise">("minhas");
     const [timeViewType, setTimeViewType] = useState<"tabela" | "kanban">("tabela");
@@ -58,6 +59,7 @@ export default function Tarefas() {
     const [kpiPopupFilter, setKpiPopupFilter] = useState<{ title: string; filterFn: (t: Task) => boolean } | null>(null);
 
     const [colaboradores, setColaboradores] = useState<{ nome: string }[]>([]);
+    const [clientes, setClientes] = useState<{ id: string, nome: string }[]>([]);
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
 
     // Detail Dialog state
@@ -69,6 +71,12 @@ export default function Tarefas() {
             .select("nome")
             .then(({ data }) => {
                 if (data) setColaboradores(data);
+            });
+        supabase.from("clientes")
+            .select("id, nome")
+            .eq("ativo", true)
+            .then(({ data }) => {
+                if (data) setClientes(data);
             });
     }, []);
 
@@ -387,7 +395,7 @@ export default function Tarefas() {
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between pb-2 border-b">
                                             <h4 className="font-semibold text-sm">Filtros de Tarefas</h4>
-                                            <Button variant="ghost" size="sm" onClick={() => setFilters({ search: filters.search, priority: "all", category: "all", assignee: "all", recurrence: "all", status: "all", date: "all" })} className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+                                            <Button variant="ghost" size="sm" onClick={() => setFilters({ search: filters.search, priority: "all", category: "all", assignee: "all", recurrence: "all", status: "all", date: "all", cliente_id: "all" })} className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground">
                                                 Limpar Filtros
                                             </Button>
                                         </div>
@@ -437,6 +445,21 @@ export default function Tarefas() {
                                                     </Select>
                                                 </div>
                                             )}
+
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-medium text-muted-foreground">Cliente</label>
+                                                <Select value={filters.cliente_id} onValueChange={(v) => setFilters(f => ({ ...f, cliente_id: v }))}>
+                                                    <SelectTrigger className="w-full h-9 bg-background border-border/50 rounded-lg shadow-sm text-sm font-medium gap-2">
+                                                        <SelectValue placeholder="Cliente" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Todos</SelectItem>
+                                                        {clientes.map(c => (
+                                                            <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
 
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-medium text-muted-foreground">Recorrência</label>

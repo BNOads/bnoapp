@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Task } from "@/types/tasks";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -6,8 +6,9 @@ import { useToggleTaskComplete, useUpdateTask } from "@/hooks/useTaskMutations";
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, MessageSquare, Clock } from "lucide-react";
+import { CalendarIcon, MessageSquare, Clock, Building2 } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TaskKanbanProps {
     tasks: Task[];
@@ -17,6 +18,16 @@ interface TaskKanbanProps {
 export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: updateTask } = useUpdateTask();
+    const [clientes, setClientes] = useState<{ id: string, nome: string }[]>([]);
+
+    useEffect(() => {
+        supabase.from("clientes")
+            .select("id, nome")
+            .eq("ativo", true)
+            .then(({ data }) => {
+                if (data) setClientes(data);
+            });
+    }, []);
 
     const columns = [
         { id: "baixa", title: "Baixa Prioridade", color: "bg-blue-500/10 text-blue-700 border-blue-200" },
@@ -80,6 +91,15 @@ export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
                     {task.title}
                 </span>
             </div>
+
+            {task.cliente_id && (
+                <div className="mb-2 ml-6">
+                    <Badge variant="outline" className="text-[10px] h-4 px-1 gap-1 shrink-0 font-normal border-primary/20 text-primary/80">
+                        <Building2 className="w-2.5 h-2.5" />
+                        <span className="truncate max-w-[120px]">{clientes.find(c => c.id === task.cliente_id)?.nome || "Cliente"}</span>
+                    </Badge>
+                </div>
+            )}
 
             <div className="flex items-center justify-between text-xs text-muted-foreground mt-3">
                 {task.assignee ? (

@@ -9,7 +9,7 @@ import { useTaskLists } from "@/hooks/useTasks";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskPriority, RecurrenceType, RECURRENCE_LABELS, PRIORITY_LABELS } from "@/types/tasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { CalendarIcon, Flag, RefreshCw, Sparkles, Tag, Users, List } from "lucide-react";
+import { CalendarIcon, Flag, RefreshCw, Sparkles, Tag, Users, List, Building2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -18,6 +18,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { isRecurringDate } from "@/lib/dateUtils";
 import { RecurrenceSelect } from "../details/RecurrenceSelect";
 import { getRecurrenceLabel } from "@/types/tasks";
+import { useDraftTasksStore, DraftTask } from "@/store/useDraftTasksStore";
+import { Minus } from "lucide-react";
 
 interface CreateTaskModalProps {
     open: boolean;
@@ -26,23 +28,33 @@ interface CreateTaskModalProps {
     defaultListId?: string;
     defaultTitle?: string;
     defaultDescription?: string;
+    draftData?: DraftTask;
 }
 
-export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultListId, defaultTitle, defaultDescription }: CreateTaskModalProps) {
+export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultListId, defaultTitle, defaultDescription, draftData }: CreateTaskModalProps) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [assignee, setAssignee] = useState<string>(defaultAssignee || "unassigned");
+    const [assignee, setAssignee] = useState<string>("unassigned");
     const [priority, setPriority] = useState<TaskPriority>("media");
     const [recurrence, setRecurrence] = useState<RecurrenceType>("none");
-    const [listId, setListId] = useState<string>(defaultListId || "none");
+    const [listId, setListId] = useState<string>("none");
     const [dueDate, setDueDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+    const [clienteId, setClienteId] = useState<string>("none");
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
+    const [clientes, setClientes] = useState<{ id: string, nome: string, branding_logo_url?: string, aliases?: string[] }[]>([]);
+    const [autoSelectedClientIndicator, setAutoSelectedClientIndicator] = useState(false);
     const { userData: currentUser } = useCurrentUser();
     const { mutate: createTask, isPending } = useCreateTask();
     const { data: taskLists } = useTaskLists();
 
+    // Draft store actions
+    const addDraft = useDraftTasksStore((state) => state.addDraft);
+    const updateDraft = useDraftTasksStore((state) => state.updateDraft);
+    const removeDraft = useDraftTasksStore((state) => state.removeDraft);
+
     const getAssignedTo = () => {
+        if (draftData?.assignee) return draftData.assignee;
         if (defaultAssignee) return defaultAssignee;
         return currentUser ? (currentUser.nome || currentUser.email || "unassigned") : "unassigned";
     };
@@ -58,16 +70,40 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
             supabase.from("colaboradores").select("nome, user_id, avatar_url").order("nome").then(({ data }) => {
                 if (data) setColaboradores(data);
             });
+            supabase.from("clientes").select("id, nome, branding_logo_url, aliases").eq("ativo", true).order("nome").then(({ data }) => {
+                if (data) setClientes(data);
+            });
             // Reset values when opened
-            setTitle(defaultTitle || "");
-            setDescription(defaultDescription || "");
+            setTitle(draftData?.title || defaultTitle || "");
+            setDescription(draftData?.description || defaultDescription || "");
             setAssignee(getAssignedTo());
-            setPriority("media");
-            setRecurrence("none");
-            setListId(defaultListId || "none");
-            setDueDate(format(new Date(), "yyyy-MM-dd"));
+            setPriority((draftData?.priority as TaskPriority) || "media");
+            setRecurrence((draftData?.recurrence as RecurrenceType) || "none");
+            setListId(draftData?.list_id || defaultListId || "none");
+            setClienteId(draftData?.cliente_id || "none");
+            setAutoSelectedClientIndicator(false);
+            setDueDate(draftData?.due_date || format(new Date(), "yyyy-MM-dd"));
         }
-    }, [open, defaultAssignee, defaultListId, defaultTitle, defaultDescription]);
+    }, [open, defaultAssignee, defaultListId, defaultTitle, defaultDescription, draftData]);
+
+    // Auto-recommendation logic for client based on title
+    useEffect(() => {
+        if (!title || clientes.length === 0 || clienteId !== "none") return;
+
+        const lowerTitleParts = title.toLowerCase().split(/\\s+/);
+
+        for (const client of clientes) {
+            const matchName = lowerTitleParts.some(part => client.nome.toLowerCase().includes(part) && part.length > 3);
+            const matchAlias = client.aliases?.some(alias => lowerTitleParts.some(part => alias.toLowerCase() === part));
+
+            if (matchName || matchAlias) {
+                setClienteId(client.id);
+                setAutoSelectedClientIndicator(true);
+                setTimeout(() => setAutoSelectedClientIndicator(false), 3000); // Hide indicator after 3s
+                break;
+            }
+        }
+    }, [title, clientes]);
 
     const handleSave = () => {
         if (!title.trim() || !dueDate) return;
@@ -79,25 +115,71 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                 assignee: assignee !== "unassigned" ? assignee : null,
                 priority,
                 list_id: listId !== "none" ? listId : null,
+                cliente_id: clienteId !== "none" ? clienteId : null,
                 recurrence: recurrence !== "none" ? recurrence : null,
                 due_date: dueDate || null,
             },
             {
                 onSuccess: () => {
+                    if (draftData?.id) {
+                        removeDraft(draftData.id);
+                    }
                     onOpenChange(false);
                 }
             }
         );
     };
 
+    const handleMinimize = () => {
+        if (!title.trim()) {
+            onOpenChange(false);
+            return;
+        }
+
+        const draftPayload = {
+            title,
+            description,
+            assignee: assignee !== "unassigned" ? assignee : null,
+            priority,
+            list_id: listId !== "none" ? listId : null,
+            cliente_id: clienteId !== "none" ? clienteId : null,
+            recurrence: recurrence !== "none" ? recurrence : null,
+            due_date: dueDate || null,
+        };
+
+        if (draftData?.id) {
+            updateDraft(draftData.id, draftPayload);
+        } else {
+            addDraft(draftPayload);
+        }
+
+        onOpenChange(false);
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden bg-background border rounded-xl shadow-lg">
+            <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden bg-background border rounded-xl shadow-lg [&>button]:hidden">
                 <div className="flex flex-col h-full w-full">
                     {/* Header Controls (Optional top bar) */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-muted/20">
                         <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground">
-                            <span className="text-primary cursor-pointer border-b-2 border-primary pb-[10px] -mb-[13px]">Tarefa</span>
+                            <span className="text-primary cursor-pointer border-b-2 border-primary pb-[10px] -mb-[13px]">{draftData ? "Rascunho" : "Tarefa"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleMinimize}
+                                className="inline-flex items-center justify-center p-2 rounded-md hover:bg-muted/80 text-muted-foreground transition-colors"
+                                title="Minimizar para rascunho"
+                            >
+                                <Minus className="h-4 w-4" />
+                            </button>
+                            <button
+                                onClick={() => onOpenChange(false)}
+                                className="inline-flex items-center justify-center p-2 rounded-md hover:bg-muted/80 text-muted-foreground transition-colors group-hover:text-destructive"
+                                title="Descartar rascunho"
+                            >
+                                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4"><path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+                            </button>
                         </div>
                     </div>
 
@@ -108,7 +190,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder="Nome da Tarefa"
-                                className="text-3xl py-1 font-semibold border-0 px-0 h-auto focus-visible:ring-0 shadow-none placeholder:text-muted-foreground"
+                                className="text-4xl md:text-5xl py-2 font-bold tracking-tight border-0 px-0 h-auto focus-visible:ring-0 shadow-none placeholder:text-muted-foreground/60"
                                 autoFocus
                             />
 
@@ -256,9 +338,44 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                                 </SelectTrigger>
                             </RecurrenceSelect>
 
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border shadow-none bg-transparent text-muted-foreground hover:bg-muted/50">
-                                <Tag className="w-3.5 h-3.5" />
-                            </Button>
+                            {/* Client Pill */}
+                            <Select value={clienteId} onValueChange={(val) => { setClienteId(val); setAutoSelectedClientIndicator(false); }}>
+                                <SelectTrigger className={"w-auto h-8 px-3 rounded-full border text-xs font-medium hover:bg-muted/50 transition-colors shadow-none bg-transparent " + (autoSelectedClientIndicator ? "ring-2 ring-indigo-500/50" : "")}>
+                                    <div className="flex items-center gap-2">
+                                        {clienteId !== "none" && clientes.find(c => c.id === clienteId) ? (
+                                            <>
+                                                {clientes.find(c => c.id === clienteId)?.branding_logo_url ? (
+                                                    <img src={clientes.find(c => c.id === clienteId)?.branding_logo_url} alt="Logo" className="w-4 h-4 rounded-full object-cover" />
+                                                ) : (
+                                                    <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                                                )}
+                                                <span className="truncate max-w-[100px]">{clientes.find(c => c.id === clienteId)?.nome}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                                                <span className="text-muted-foreground">Cliente</span>
+                                            </>
+                                        )}
+                                        {autoSelectedClientIndicator && <Sparkles className="w-3 h-3 text-indigo-500 ml-1" />}
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[300px]">
+                                    <SelectItem value="none">Sem cliente</SelectItem>
+                                    {clientes.map(c => (
+                                        <SelectItem key={c.id} value={c.id}>
+                                            <div className="flex items-center gap-2">
+                                                {c.branding_logo_url ? (
+                                                    <img src={c.branding_logo_url} alt="Logo" className="w-4 h-4 rounded-full object-cover" />
+                                                ) : (
+                                                    <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                                                )}
+                                                {c.nome}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
@@ -275,6 +392,6 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
                     </div>
                 </div>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }
