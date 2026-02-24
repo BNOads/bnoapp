@@ -141,11 +141,27 @@ const normalizeRecurrence = (value: unknown): string | null => {
   return allowed.has(recurrence) ? recurrence : null;
 };
 
-const resolveDueDateFromVar = (payload: JsonRecord): string | null => {
+const resolveDueDateFromVar = (payload: JsonRecord, triggerData?: JsonRecord): string | null => {
   const now = new Date();
   const dueDateVar = asString(payload.due_date_var);
 
   if (!dueDateVar) return null;
+
+  // Launch date variables
+  if (dueDateVar === "data_inicio_captacao" || dueDateVar === "data_fim_captacao") {
+    if (triggerData) {
+      const lancamento = asObject(triggerData.lancamento);
+      const raw = asString(lancamento[dueDateVar]);
+      if (isDateString(raw)) return raw;
+      // Fallback: fetch from lancamentos table
+      const lancId = asString(lancamento.id);
+      if (lancId && isUuid(lancId)) {
+        // Return null here; async resolution handled at call site
+        return null;
+      }
+    }
+    return null;
+  }
 
   const fixedOffsets: Record<string, number> = {
     today: 0,
@@ -415,6 +431,10 @@ serve(async (req) => {
           "",
         "{nome_lancamento}":
           firstPresentString(lancamento.nome_lancamento, data.nome_lancamento) || "",
+        "{data_inicio_captacao}":
+          firstPresentString(lancamento.data_inicio_captacao, data.data_inicio_captacao) || "",
+        "{data_fim_captacao}":
+          firstPresentString(lancamento.data_fim_captacao, data.data_fim_captacao) || "",
         "{data_atual}": new Date().toLocaleDateString("pt-BR", {
           timeZone: "America/Sao_Paulo",
         }),
@@ -673,10 +693,50 @@ serve(async (req) => {
               );
 
               const recurrence = normalizeRecurrence(actionPayload.recurrence);
-              const recurrenceStart = isDateString(actionPayload.recurrence_start)
-                ? actionPayload.recurrence_start
-                : null;
-              const dueDateVar = resolveDueDateFromVar(actionPayload);
+
+              // Resolve recurrence_start_type → actual ISO date
+              const recurrenceStartType = asString(actionPayload.recurrence_start_type);
+              let recurrenceStart: string | null = null;
+
+              if (recurrenceStartType === "data_inicio_captacao" || recurrenceStartType === "data_fim_captacao") {
+                const lancamentoCtx = asObject(payloadData.lancamento);
+                const raw = asString(lancamentoCtx[recurrenceStartType]);
+                recurrenceStart = isDateString(raw) ? raw : null;
+                if (!recurrenceStart) {
+                  // Optionally fall back to lancamentos table fetch
+                  const lancId = asString(lancamentoCtx.id);
+                  if (lancId && isUuid(lancId)) {
+                    const { data: lancRow } = await supabase
+                      .from("lancamentos")
+                      .select(`${recurrenceStartType}`)
+                      .eq("id", lancId)
+                      .maybeSingle();
+                    const fetched = asString((lancRow as Record<string, unknown> | null)?.[recurrenceStartType]);
+                    recurrenceStart = isDateString(fetched) ? fetched : null;
+                  }
+                }
+              } else {
+                recurrenceStart = isDateString(actionPayload.recurrence_start)
+                  ? actionPayload.recurrence_start
+                  : null;
+              }
+
+              let dueDateVar = resolveDueDateFromVar(actionPayload, payloadData);
+              // Async fallback for launch date variables
+              const dueDateVarName = asString(actionPayload.due_date_var);
+              if (!dueDateVar && (dueDateVarName === "data_inicio_captacao" || dueDateVarName === "data_fim_captacao")) {
+                const lancamento = asObject(payloadData.lancamento);
+                const lancId = asString(lancamento.id);
+                if (lancId && isUuid(lancId)) {
+                  const { data: lancRow } = await supabase
+                    .from("lancamentos")
+                    .select(dueDateVarName)
+                    .eq("id", lancId)
+                    .maybeSingle();
+                  const fetched = asString((lancRow as Record<string, unknown> | null)?.[dueDateVarName]);
+                  dueDateVar = isDateString(fetched) ? fetched : null;
+                }
+              }
               const dueDate = recurrenceStart || dueDateVar;
 
               const priorityRaw = asString(actionPayload.priority);

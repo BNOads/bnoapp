@@ -93,6 +93,10 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "15_days", label: "15 dias após" },
         { id: "30_days", label: "30 dias após (1 mês)" },
         { id: "custom_days", label: "Personalizado (X dias após)..." },
+        ...(triggerType === "new_launch" ? [
+            { id: "data_inicio_captacao", label: "📅 Início da Captação (do Lançamento)" },
+            { id: "data_fim_captacao", label: "📅 Fim da Captação (do Lançamento)" },
+        ] : []),
     ];
 
     const RECURRENCE_OPTIONS = [
@@ -109,6 +113,8 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "trigger_+7", label: "7 dias após o Gatilho" },
         { id: "trigger_+14", label: "14 dias após o Gatilho" },
         { id: "trigger_+30", label: "30 dias após o Gatilho" },
+        { id: "data_inicio_captacao", label: "Início da Captação (Lançamento)" },
+        { id: "data_fim_captacao", label: "Fim da Captação (Lançamento)" },
         { id: "fixed_date", label: "Data fixa..." },
     ];
 
@@ -134,6 +140,8 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "{status_funil}", label: "Status do Funil" },
         { id: "{orcamento_funil}", label: "Orçamento do Funil" },
         { id: "{nome_lancamento}", label: "Nome do Lançamento" },
+        { id: "{data_inicio_captacao}", label: "Data Início da Captação" },
+        { id: "{data_fim_captacao}", label: "Data Fim da Captação" },
         { id: "{data_atual}", label: "Data Atual" },
     ];
 
@@ -203,7 +211,7 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                     assignee: a.payload.assignee || "unassigned",
                     due_date_var: getDueDateVar(a.payload),
                     recurrence: a.payload.recurrence && a.payload.recurrence !== "none" ? a.payload.recurrence : null,
-                    // recurrence_start stores the resolved value (trigger_date, trigger_+N, or a fixed date)
+                    recurrence_start_type: a.payload.recurrence && a.payload.recurrence !== "none" ? (a.payload.recurrence_start_type || null) : null,
                     recurrence_start: a.payload.recurrence && a.payload.recurrence !== "none" ? (a.payload.recurrence_start || null) : null,
                     list_id: a.payload.list_id || null,
                     priority: a.payload.priority || null,
