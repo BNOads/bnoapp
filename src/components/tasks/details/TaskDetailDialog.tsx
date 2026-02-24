@@ -57,6 +57,10 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
     const [commentTarget, setCommentTarget] = useState<"comentário" | "diario_bordo">("comentário");
     const [isPostingToDiario, setIsPostingToDiario] = useState(false);
 
+    // Pending recurrence: when recurrence is set but task has no due_date
+    const [pendingRecurrence, setPendingRecurrence] = useState<string | null>(null);
+    const [pendingRecurrenceDueDate, setPendingRecurrenceDueDate] = useState<string>("");
+
     // Time tracking state
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -165,6 +169,34 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
     const handleUpdateField = (field: string, value: any) => {
         if (!task) return;
         updateTask({ id: task.id, updates: { [field]: value } });
+    };
+
+    // When user sets recurrence but task has no due_date, prompt for the first occurrence date
+    const handleRecurrenceChange = (val: string | null) => {
+        if (!task) return;
+        const newRecurrence = val === "none" ? null : val;
+        if (newRecurrence && !task.due_date) {
+            // Store pending state — show inline prompt
+            setPendingRecurrence(newRecurrence);
+            setPendingRecurrenceDueDate("");
+            return;
+        }
+        handleUpdateField("recurrence", newRecurrence);
+    };
+
+    const handleConfirmRecurrenceWithDate = () => {
+        if (!task || !pendingRecurrence || !pendingRecurrenceDueDate) return;
+        updateTask({
+            id: task.id,
+            updates: { recurrence: pendingRecurrence, due_date: pendingRecurrenceDueDate }
+        });
+        setPendingRecurrence(null);
+        setPendingRecurrenceDueDate("");
+    };
+
+    const handleCancelPendingRecurrence = () => {
+        setPendingRecurrence(null);
+        setPendingRecurrenceDueDate("");
     };
 
     const handleSaveDescription = () => {

@@ -102,6 +102,16 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "monthly", label: "Mensal" },
     ];
 
+    const RECURRENCE_START_OPTIONS = [
+        { id: "trigger_date", label: "Data do Gatilho (Hoje)" },
+        { id: "trigger_+1", label: "1 dia após o Gatilho" },
+        { id: "trigger_+3", label: "3 dias após o Gatilho" },
+        { id: "trigger_+7", label: "7 dias após o Gatilho" },
+        { id: "trigger_+14", label: "14 dias após o Gatilho" },
+        { id: "trigger_+30", label: "30 dias após o Gatilho" },
+        { id: "fixed_date", label: "Data fixa..." },
+    ];
+
     const PRIORITY_OPTIONS = [
         { id: "alta", label: "Alta", color: "text-red-600" },
         { id: "media", label: "Média", color: "text-amber-600" },
@@ -193,7 +203,8 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                     assignee: a.payload.assignee || "unassigned",
                     due_date_var: getDueDateVar(a.payload),
                     recurrence: a.payload.recurrence && a.payload.recurrence !== "none" ? a.payload.recurrence : null,
-                    recurrence_start: a.payload.recurrence && a.payload.recurrence !== "none" ? a.payload.recurrence_start || null : null,
+                    // recurrence_start stores the resolved value (trigger_date, trigger_+N, or a fixed date)
+                    recurrence_start: a.payload.recurrence && a.payload.recurrence !== "none" ? (a.payload.recurrence_start || null) : null,
                     list_id: a.payload.list_id || null,
                     priority: a.payload.priority || null,
                 }
@@ -255,9 +266,11 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                     const days = parseInt(a.payload.custom_days_value || "0", 10);
                     if (isNaN(days) || days < 1) return true;
                 }
-                // If recurrence is set, require recurrence_start
-                if (a.payload.recurrence && a.payload.recurrence !== "none" && !a.payload.recurrence_start) {
-                    return true;
+                // If recurrence is set, require recurrence_start_type (and fixed_date value if type is fixed_date)
+                if (a.payload.recurrence && a.payload.recurrence !== "none") {
+                    const startType = a.payload.recurrence_start_type;
+                    if (!startType) return true;
+                    if (startType === "fixed_date" && !a.payload.recurrence_start_fixed) return true;
                 }
             }
             if (a.type === "notify_team") {
@@ -558,14 +571,45 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                                             {/* Recurrence start date — required when recurrence is active */}
                                                             {act.payload?.recurrence && act.payload.recurrence !== "none" && (
                                                                 <div className="space-y-1 mt-1.5">
-                                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Início da Recorrência *</label>
-                                                                    <Input
-                                                                        type="date"
-                                                                        className="bg-white h-9 border-slate-200 text-sm"
-                                                                        value={act.payload?.recurrence_start || ""}
-                                                                        onChange={(e) => updateAction(act.id, { payload: { ...act.payload, recurrence_start: e.target.value } })}
-                                                                    />
-                                                                    <p className="text-[10px] text-slate-400">Define a data de início da série recorrente, independente do prazo.</p>
+                                                                    <label className="text-[10px] font-semibold text-orange-500 uppercase tracking-wider flex items-center gap-1">
+                                                                        Base da 1ª Ocorrência *
+                                                                    </label>
+                                                                    <Select
+                                                                        value={act.payload?.recurrence_start_type || ""}
+                                                                        onValueChange={(val) => updateAction(act.id, {
+                                                                            payload: {
+                                                                                ...act.payload,
+                                                                                recurrence_start_type: val,
+                                                                                recurrence_start: val === "fixed_date" ? (act.payload?.recurrence_start_fixed || "") : val,
+                                                                            }
+                                                                        })}
+                                                                    >
+                                                                        <SelectTrigger className="w-full h-9 bg-white border-slate-200 text-sm">
+                                                                            <SelectValue placeholder="Selecione a base da 1ª ocorrência..." />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {RECURRENCE_START_OPTIONS.map(opt => (
+                                                                                <SelectItem key={opt.id} value={opt.id} className="text-xs">{opt.label}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                    {act.payload?.recurrence_start_type === "fixed_date" && (
+                                                                        <Input
+                                                                            type="date"
+                                                                            className="bg-white h-9 border-slate-200 text-sm mt-1"
+                                                                            value={act.payload?.recurrence_start_fixed || ""}
+                                                                            onChange={(e) => updateAction(act.id, {
+                                                                                payload: {
+                                                                                    ...act.payload,
+                                                                                    recurrence_start_fixed: e.target.value,
+                                                                                    recurrence_start: e.target.value,
+                                                                                }
+                                                                            })}
+                                                                        />
+                                                                    )}
+                                                                    <p className="text-[10px] text-slate-400">
+                                                                        Define o due_date da 1ª tarefa e o início da série de recorrências.
+                                                                    </p>
                                                                 </div>
                                                             )}
                                                         </div>

@@ -8,13 +8,50 @@ import { useTaskLists } from "@/hooks/useTasks";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskPriority, RecurrenceType, RECURRENCE_LABELS, PRIORITY_LABELS } from "@/types/tasks";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
+import { AlertCircle, CalendarIcon } from "lucide-react";
 import { RecurrenceSelect } from "../details/RecurrenceSelect";
 import { getRecurrenceLabel } from "@/types/tasks";
+
+/**
+ * Given a date string and a recurrence value, adjust to the next valid day.
+ * Returns { adjusted: string | null, wasAdjusted: boolean }
+ */
+function adjustToNextValidDay(dateStr: string, recurrence: string): { adjusted: string; wasAdjusted: boolean } {
+    const date = parseISO(dateStr);
+    const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+
+    let targetDays: number[] | null = null;
+
+    if (recurrence.startsWith("custom_week_")) {
+        // format: custom_week_N_d1,d2,...
+        const parts = recurrence.split("_");
+        if (parts.length >= 4 && parts[3]) {
+            targetDays = parts[3].split(",").map(Number);
+        }
+    } else if (recurrence.startsWith("custom_weekly_")) {
+        // Legacy format
+        targetDays = recurrence.replace("custom_weekly_", "").split(",").map(Number);
+    }
+
+    if (targetDays && targetDays.length > 0) {
+        if (targetDays.includes(dayOfWeek)) {
+            return { adjusted: dateStr, wasAdjusted: false };
+        }
+        // Find next valid day
+        for (let i = 1; i <= 7; i++) {
+            const candidate = addDays(date, i);
+            if (targetDays.includes(candidate.getDay())) {
+                return { adjusted: format(candidate, "yyyy-MM-dd"), wasAdjusted: true };
+            }
+        }
+    }
+
+    return { adjusted: dateStr, wasAdjusted: false };
+}
 
 interface BulkTaskModalProps {
     open: boolean;
@@ -59,6 +96,14 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
             return;
         }
 
+        if (recurrence !== "none" && !dueDate) {
+            toast({
+                title: "Defina a data da 1ª ocorrência para criar recorrência",
+                variant: "destructive",
+            });
+            return;
+        }
+
         const tasksToCreate = titles.map(title => ({
             title,
             assignee: assignee !== "unassigned" ? assignee : null,
@@ -76,6 +121,26 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
                 }
             }
         );
+    };
+
+    const handleDateSelect = (date: Date | undefined) => {
+        if (!date) {
+            setDueDate("");
+            return;
+        }
+        const raw = format(date, "yyyy-MM-dd");
+        if (recurrence && recurrence !== "none") {
+            const { adjusted, wasAdjusted } = adjustToNextValidDay(raw, recurrence);
+            setDueDate(adjusted);
+            if (wasAdjusted) {
+                toast({
+                    title: "Data ajustada automaticamente",
+                    description: `A data foi avançada para ${format(parseISO(adjusted), "dd MMM, yyyy", { locale: ptBR })}, o próximo dia válido da recorrência.`,
+                });
+            }
+        } else {
+            setDueDate(raw);
+        }
     };
 
     return (
@@ -156,25 +221,34 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
                         <div className={`space-y-2 ${recurrence !== "none" ? "col-span-2" : ""}`}>
                             <label className="text-sm font-medium">
                                 {recurrence !== "none" ? (
-                                    <span className="text-blue-600 font-semibold">Data do Primeiro Gatilho (Obrigatório)</span>
+                                    <span className="flex items-center gap-1.5 text-blue-600 font-semibold">
+                                        <AlertCircle className="w-3.5 h-3.5" />
+                                        Início da Recorrência — 1ª Ocorrência (Obrigatório)
+                                    </span>
                                 ) : "Data de Conclusão (Opcional)"}
                             </label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className={`w-full justify-start text-left font-normal ${!dueDate && 'text-muted-foreground'} ${recurrence !== 'none' && !dueDate ? 'border-destructive/50 ring-1 ring-destructive/30 bg-destructive/5 hover:bg-destructive/10 text-destructive' : ''}`}>
                                         <CalendarIcon className={`mr-2 h-4 w-4 ${recurrence !== 'none' && !dueDate ? 'text-destructive' : ''}`} />
-                                        {dueDate ? format(new Date(`${dueDate}T12:00:00`), "dd MMM, yyyy", { locale: ptBR }) : <span>Selecione a data inicial</span>}
+                                        {dueDate ? format(new Date(`${dueDate}T12:00:00`), "dd MMM, yyyy", { locale: ptBR }) : <span>Selecione a data da 1ª ocorrência</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
                                     <Calendar
                                         mode="single"
                                         selected={dueDate ? new Date(`${dueDate}T12:00:00`) : undefined}
-                                        onSelect={(date) => setDueDate(date ? format(date, "yyyy-MM-dd") : "")}
+                                        onSelect={handleDateSelect}
                                         initialFocus
                                     />
                                 </PopoverContent>
                             </Popover>
+                            {recurrence !== "none" && !dueDate && (
+                                <p className="text-xs text-destructive flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    Defina a data da 1ª ocorrência para criar recorrência.
+                                </p>
+                            )}
                         </div>
 
                         <div className="space-y-2 col-span-2">

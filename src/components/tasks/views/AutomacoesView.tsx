@@ -1,21 +1,22 @@
 import React, { useState } from "react";
-import { useTaskAutomations, useUpdateTaskAutomation, useDeleteTaskAutomation } from "@/hooks/useTaskAutomations";
+import { useTaskAutomations, useUpdateTaskAutomation, useDeleteTaskAutomation, useTaskAutomationLogs } from "@/hooks/useTaskAutomations";
 import { Button } from "@/components/ui/button";
-import { Plus, Zap, Trash2, Power, PowerOff, Bell, CheckCircle, MoreVertical, Edit, Copy, Activity } from "lucide-react";
+import { Plus, Zap, Trash2, Power, PowerOff, Bell, CheckCircle, MoreVertical, Edit, Copy, Activity, XCircle, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { AutomationBuilderModal } from "../modals/AutomationBuilderModal";
-import { AutomationLogsModal } from "../modals/AutomationLogsModal";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TaskAutomation } from "@/hooks/useTaskAutomations";
 
 export function AutomacoesView() {
     const { data: automations = [], isLoading } = useTaskAutomations();
+    const { data: logs = [], isLoading: logsLoading } = useTaskAutomationLogs();
     const updateMutation = useUpdateTaskAutomation();
     const deleteMutation = useDeleteTaskAutomation();
     const [isBuilderOpen, setIsBuilderOpen] = useState(false);
-    const [isLogsOpen, setIsLogsOpen] = useState(false);
     const [selectedAutomation, setSelectedAutomation] = useState<TaskAutomation | null>(null);
     const [builderMode, setBuilderMode] = useState<"create" | "edit" | "duplicate">("create");
+    const [logsExpanded, setLogsExpanded] = useState(true);
+    const [logsFilter, setLogsFilter] = useState<"all" | "success" | "error" | "skipped">("all");
 
     if (isLoading) {
         return <div className="flex items-center justify-center p-12 text-muted-foreground">Carregando automações...</div>;
@@ -51,8 +52,17 @@ export function AutomacoesView() {
         return null;
     };
 
+    const filteredLogs = logs.filter(log => logsFilter === "all" || log.status === logsFilter);
+
+    const statusConfig = {
+        success: { icon: <CheckCircle className="w-3.5 h-3.5" />, label: "Sucesso", className: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+        error: { icon: <XCircle className="w-3.5 h-3.5" />, label: "Erro", className: "bg-red-50 text-red-700 border-red-100" },
+        skipped: { icon: <AlertTriangle className="w-3.5 h-3.5" />, label: "Ignorada", className: "bg-amber-50 text-amber-700 border-amber-100" },
+    };
+
     return (
         <div className="space-y-6 max-w-5xl mx-auto w-full">
+            {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800">
@@ -65,18 +75,13 @@ export function AutomacoesView() {
                         Crie regras para gerar ou atualizar tarefas e avisos automaticamente conforme eventos no sistema.
                     </p>
                 </div>
-                <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => setIsLogsOpen(true)} className="gap-2 font-medium bg-white">
-                        <Activity className="w-4 h-4 text-slate-500" />
-                        Ver Logs
-                    </Button>
-                    <Button onClick={() => handleOpenBuilder("create")} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 font-medium">
-                        <Zap className="w-4 h-4 fill-white text-white" />
-                        Nova Regra
-                    </Button>
-                </div>
+                <Button onClick={() => handleOpenBuilder("create")} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 font-medium">
+                    <Zap className="w-4 h-4 fill-white text-white" />
+                    Nova Regra
+                </Button>
             </div>
 
+            {/* Automations list */}
             {automations.length === 0 ? (
                 <div className="text-center py-20 bg-white border border-slate-200 rounded-2xl shadow-sm">
                     <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
@@ -165,15 +170,116 @@ export function AutomacoesView() {
                 </div>
             )}
 
+            {/* ── Inline Logs Panel ── */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                {/* Panel header */}
+                <button
+                    className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors"
+                    onClick={() => setLogsExpanded(!logsExpanded)}
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center">
+                            <Activity className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                            <span className="font-semibold text-slate-800 text-sm">Histórico de Execuções</span>
+                            <span className="ml-2 text-xs text-slate-400 font-normal">
+                                {logsLoading ? "Carregando..." : `${logs.length} registros`}
+                            </span>
+                        </div>
+                        {!logsLoading && logs.filter(l => l.status === "error").length > 0 && (
+                            <Badge className="bg-red-50 text-red-600 border border-red-100 text-[10px] px-1.5 py-0.5 font-semibold">
+                                {logs.filter(l => l.status === "error").length} erro(s)
+                            </Badge>
+                        )}
+                    </div>
+                    {logsExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </button>
+
+                {logsExpanded && (
+                    <>
+                        {/* Filter tabs */}
+                        <div className="flex gap-1 px-6 pb-3 border-b border-slate-100">
+                            {(["all", "success", "error", "skipped"] as const).map(f => (
+                                <button
+                                    key={f}
+                                    onClick={() => setLogsFilter(f)}
+                                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${logsFilter === f
+                                            ? "bg-slate-800 text-white"
+                                            : "text-slate-500 hover:bg-slate-100"
+                                        }`}
+                                >
+                                    {f === "all" ? "Todos" : f === "success" ? "Sucesso" : f === "error" ? "Erros" : "Ignoradas"}
+                                    {f !== "all" && (
+                                        <span className="ml-1.5 opacity-70">{logs.filter(l => l.status === f).length}</span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Log entries */}
+                        <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+                            {logsLoading ? (
+                                <div className="flex items-center justify-center py-12 text-slate-400 text-sm gap-2">
+                                    <Activity className="w-4 h-4 animate-pulse" />
+                                    Carregando logs...
+                                </div>
+                            ) : filteredLogs.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                                    <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                                        <Activity className="w-5 h-5 text-slate-300" />
+                                    </div>
+                                    <p className="text-slate-400 text-sm">
+                                        {logsFilter === "all" ? "Nenhuma execução registrada ainda." : `Nenhum registro com status "${logsFilter}".`}
+                                    </p>
+                                </div>
+                            ) : (
+                                filteredLogs.map((log) => {
+                                    const cfg = statusConfig[log.status as keyof typeof statusConfig];
+                                    return (
+                                        <div key={log.id} className="flex items-start gap-4 px-6 py-4 hover:bg-slate-50/70 transition-colors">
+                                            {/* Status indicator */}
+                                            <div className={`mt-0.5 flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full border shrink-0 ${cfg?.className}`}>
+                                                {cfg?.icon}
+                                                {cfg?.label}
+                                            </div>
+
+                                            {/* Content */}
+                                            <div className="flex-1 min-w-0 space-y-1">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="font-semibold text-slate-800 text-sm truncate">
+                                                        {log.automations?.name || "Automação Apagada"}
+                                                    </span>
+                                                    <span className="text-[11px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
+                                                        {log.trigger_event}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 font-mono leading-relaxed break-words">
+                                                    {log.message}
+                                                </p>
+                                            </div>
+
+                                            {/* Timestamp */}
+                                            <div className="text-[11px] text-slate-400 shrink-0 whitespace-nowrap pt-0.5">
+                                                {new Date(log.created_at).toLocaleString("pt-BR", {
+                                                    day: "2-digit", month: "2-digit", year: "2-digit",
+                                                    hour: "2-digit", minute: "2-digit"
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </>
+                )}
+            </div>
+
             <AutomationBuilderModal
                 open={isBuilderOpen}
                 onOpenChange={setIsBuilderOpen}
                 initialData={selectedAutomation}
                 mode={builderMode}
-            />
-            <AutomationLogsModal
-                open={isLogsOpen}
-                onOpenChange={setIsLogsOpen}
             />
         </div>
     );
