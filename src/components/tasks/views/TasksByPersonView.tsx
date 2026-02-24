@@ -708,7 +708,7 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                                 value={task.priority || "media"}
                                                                 onValueChange={(val) => updateTask({ id: task.id, updates: { priority: val as TaskPriority } })}
                                                             >
-                                                                <SelectTrigger className={`h-[22px] px-2 border-0 shadow-sm rounded-full text-[10px] font-medium justify-center focus:ring-0 ${task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 text-white' : task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-transparent border border-muted hover:bg-muted text-foreground'}`}>
+                                                                <SelectTrigger className={`h-[22px] px-2 border-0 shadow-sm rounded-full text-[10px] font-medium justify-center focus:ring-0 ${task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 text-white' : task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white' : task.priority === 'baixa' ? 'bg-blue-500 hover:bg-blue-600 text-white border-transparent' : 'bg-transparent border border-muted hover:bg-muted text-foreground'}`}>
                                                                     <SelectValue>
                                                                         {task.priority ? PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] : "Média"}
                                                                     </SelectValue>

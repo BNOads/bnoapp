@@ -290,7 +290,7 @@ export function TodaysTasks() {
                             >
                                 <SelectTrigger className="h-auto py-0 px-0 border-none bg-transparent shadow-none hover:bg-transparent focus:ring-0 cursor-pointer">
                                     {task.priority ? (
-                                        <Badge variant={task.priority === "alta" ? "destructive" : task.priority === "media" ? "secondary" : "outline"} className={`font-normal text-sm px-4 py-2 flex items-center h-10 rounded-md ${task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' : task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 border-transparent text-white' : ''}`}>
+                                        <Badge variant={task.priority === "alta" ? "destructive" : task.priority === "media" ? "secondary" : "outline"} className={`font-normal text-sm px-4 py-2 flex items-center h-10 rounded-md ${task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' : task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600 border-transparent text-white' : task.priority === 'baixa' ? 'bg-blue-500 hover:bg-blue-600 text-white border-transparent' : ''}`}>
                                             {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
                                         </Badge>
                                     ) : (
