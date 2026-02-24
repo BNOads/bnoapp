@@ -77,6 +77,114 @@ const getCampaignTemperature = (name: string) => {
     return 'cold';
 };
 
+const isHttpUrl = (value: unknown): value is string => {
+    return typeof value === 'string' && /^https?:\/\//i.test(value);
+};
+
+const isLikelyImageUrl = (value: unknown): boolean => {
+    if (!isHttpUrl(value)) return false;
+    const lower = value.toLowerCase();
+    const path = lower.split('?')[0];
+    return (
+        /\.(jpg|jpeg|png|gif|webp|bmp|avif|svg)$/i.test(path) ||
+        lower.includes('thumbnail') ||
+        lower.includes('image') ||
+        lower.includes('/picture') ||
+        lower.includes('scontent')
+    );
+};
+
+const isLikelyIframePreviewUrl = (value: unknown): boolean => {
+    if (!isHttpUrl(value)) return false;
+    const lower = value.toLowerCase();
+    return (
+        lower.includes('/ads/iframe') ||
+        lower.includes('facebook.com/ads') ||
+        lower.includes('instagram.com/p/')
+    );
+};
+
+const getCreativeAccessUrl = (creative: any): string | null => {
+    if (isHttpUrl(creative?.url)) return creative.url;
+    if (isHttpUrl(creative?.thumbnail) && !isLikelyImageUrl(creative.thumbnail)) return creative.thumbnail;
+    return null;
+};
+
+const PAGINATION_PAGE_SIZE = 1000;
+const LAUNCH_START_DATE_FIELDS = ['data_inicio_aquecimento', 'data_inicio_captacao', 'data_inicio_cpl', 'data_inicio_lembrete', 'data_inicio_carrinho'];
+const LAUNCH_END_DATE_FIELDS = ['data_fechamento', 'data_fim_carrinho', 'data_fim_lembrete', 'data_fim_cpl', 'data_fim_aquecimento', 'data_fim_captacao'];
+
+const parseLocalDateOnly = (value: unknown): Date | undefined => {
+    if (typeof value !== 'string' || value.trim().length === 0) return undefined;
+    const [yearStr, monthStr, dayStr] = value.split('-');
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return undefined;
+    return new Date(year, month - 1, day);
+};
+
+const normalizeDateRange = (range?: DateRange): DateRange | undefined => {
+    if (!range?.from && !range?.to) return undefined;
+    const from = range?.from || range?.to;
+    const to = range?.to || range?.from;
+    if (!from && !to) return undefined;
+    if (from && to && from.getTime() > to.getTime()) {
+        return { from: to, to: from };
+    }
+    return { from, to };
+};
+
+const getLaunchDateRange = (lancamento: any): DateRange | undefined => {
+    const startDates = LAUNCH_START_DATE_FIELDS
+        .map((field) => parseLocalDateOnly(lancamento?.[field]))
+        .filter((date): date is Date => Boolean(date));
+
+    const endDates = LAUNCH_END_DATE_FIELDS
+        .map((field) => parseLocalDateOnly(lancamento?.[field]))
+        .filter((date): date is Date => Boolean(date));
+
+    const allDates = [...startDates, ...endDates];
+    if (allDates.length === 0) return undefined;
+
+    const from = startDates.length > 0
+        ? new Date(Math.min(...startDates.map((date) => date.getTime())))
+        : new Date(Math.min(...allDates.map((date) => date.getTime())));
+
+    const to = endDates.length > 0
+        ? new Date(Math.max(...endDates.map((date) => date.getTime())))
+        : new Date(Math.max(...allDates.map((date) => date.getTime())));
+
+    return normalizeDateRange({ from, to });
+};
+
+const resolveInsightsDateRange = (selectedRange: DateRange | undefined): DateRange | undefined => {
+    return normalizeDateRange(selectedRange);
+};
+
+const fetchAllPages = async <T,>(
+    fetchPage: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>
+): Promise<T[]> => {
+    const rows: T[] = [];
+    let from = 0;
+
+    while (true) {
+        const to = from + PAGINATION_PAGE_SIZE - 1;
+        const { data, error } = await fetchPage(from, to);
+        if (error) throw error;
+
+        const page = data || [];
+        rows.push(...page);
+
+        if (page.length < PAGINATION_PAGE_SIZE) {
+            break;
+        }
+        from += PAGINATION_PAGE_SIZE;
+    }
+
+    return rows;
+};
+
 export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabProps) => {
     const [loading, setLoading] = useState(true);
     const [metrics, setMetrics] = useState<any>({
@@ -127,6 +235,10 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
     };
 
     useEffect(() => {
+        setDateRange(getLaunchDateRange(lancamento));
+    }, [lancamento?.id]);
+
+    useEffect(() => {
         fetchData();
     }, [lancamento, dateRange]);
 
@@ -137,9 +249,15 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             setSyncing(true);
             toast.info("Iniciando sincronização com Meta Ads...");
 
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - 90);
-            const endDate = new Date();
+            const resolvedRange = resolveInsightsDateRange(dateRange) || getLaunchDateRange(lancamento);
+            const fallbackStart = new Date();
+            fallbackStart.setDate(fallbackStart.getDate() - 90);
+
+            let startDate = resolvedRange?.from ? new Date(resolvedRange.from) : fallbackStart;
+            let endDate = resolvedRange?.to ? new Date(resolvedRange.to) : new Date();
+            if (startDate.getTime() > endDate.getTime()) {
+                [startDate, endDate] = [endDate, startDate];
+            }
 
             const currentCampaignIds = manualCampaignIds.length > 0 ? manualCampaignIds : autoLinkedIds;
 
@@ -182,18 +300,31 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             const accountIds = accounts?.map(a => a.id) || [];
             if (accountIds.length === 0) return;
 
-            const { data, error } = await supabase
-                .from('meta_campaign_insights')
-                .select('campaign_id, campaign_name, date_start')
-                .in('ad_account_id', accountIds)
-                .order('date_start', { ascending: false })
-                .limit(10000);
+            const effectiveRange = resolveInsightsDateRange(dateRange);
+            const rangeStart = effectiveRange?.from ? format(effectiveRange.from, 'yyyy-MM-dd') : undefined;
+            const rangeEnd = effectiveRange?.to ? format(effectiveRange.to, 'yyyy-MM-dd') : undefined;
 
-            if (error) throw error;
+            const data = await fetchAllPages<any>(async (from, to) => {
+                let query = supabase
+                    .from('meta_campaign_insights')
+                    .select('campaign_id, campaign_name, date_start')
+                    .in('ad_account_id', accountIds)
+                    .order('date_start', { ascending: false })
+                    .order('campaign_id', { ascending: true })
+                    .range(from, to);
+
+                if (rangeStart) {
+                    query = query.gte('date_start', rangeStart);
+                }
+                if (rangeEnd) {
+                    query = query.lte('date_start', rangeEnd);
+                }
+                return query;
+            });
 
             // Deduplicate by ID
             const unique = new Map();
-            data?.forEach((c: any) => {
+            data.forEach((c: any) => {
                 if (!unique.has(c.campaign_id)) {
                     unique.set(c.campaign_id, c);
                 }
@@ -292,32 +423,29 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             }
 
             // 2. Fetch Campaign Insights
-            // We need to fetch all campaigns for these accounts and then filter by name in JS
-            // because we want fuzzy matching with the launch name.
-            // OPTIMIZATION: Filter by date if launch has start date.
+            // Default period: launch timeline. If user selected dateRange, use it.
+            const effectiveRange = resolveInsightsDateRange(dateRange);
+            const rangeStart = effectiveRange?.from ? format(effectiveRange.from, 'yyyy-MM-dd') : undefined;
+            const rangeEnd = effectiveRange?.to ? format(effectiveRange.to, 'yyyy-MM-dd') : undefined;
 
-            let query = supabase
-                .from('meta_campaign_insights')
-                .select('*')
-                .in('ad_account_id', accountIds)
-                .order('date_start', { ascending: true })
-                .limit(10000);
+            const allCampaignsData = await fetchAllPages<any>(async (from, to) => {
+                let query = supabase
+                    .from('meta_campaign_insights')
+                    .select('*')
+                    .in('ad_account_id', accountIds)
+                    .order('date_start', { ascending: true })
+                    .order('campaign_id', { ascending: true })
+                    .range(from, to);
 
-            // Removing strict date filter to ensure we catch campaigns that might have started slightly earlier
-            // or if the launch start date is set to a future date but ads are already running.
-            // if (lancamento.data_inicio_captacao) {
-            //      query = query.gte('date_start', lancamento.data_inicio_captacao);
-            // }
-            if (dateRange?.from) {
-                query = query.gte('date_start', format(dateRange.from, 'yyyy-MM-dd'));
-            }
-            if (dateRange?.to) {
-                query = query.lte('date_start', format(dateRange.to, 'yyyy-MM-dd'));
-            }
+                if (rangeStart) {
+                    query = query.gte('date_start', rangeStart);
+                }
+                if (rangeEnd) {
+                    query = query.lte('date_start', rangeEnd);
+                }
 
-            const { data: allCampaignsData, error: campaignError } = await query;
-
-            if (campaignError) throw campaignError;
+                return query;
+            });
 
             // If manual_campaign_ids has values, use it as SOURCE OF TRUTH
             // Otherwise, fall back to auto-linking by name
@@ -489,33 +617,38 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             // But typically a launch has < 50 campaigns
             const campaignsIdArray = Array.from(campaignIds);
 
-            let adQuery = supabase
-                .from('meta_ad_insights')
-                .select('*')
-                .in('campaign_id', campaignsIdArray)
-                .order('spend', { ascending: false })
-                .limit(20000);
+            const adInsights = await fetchAllPages<any>(async (from, to) => {
+                let query = supabase
+                    .from('meta_ad_insights')
+                    .select('*')
+                    .in('campaign_id', campaignsIdArray)
+                    .order('date_start', { ascending: true })
+                    .order('ad_id', { ascending: true })
+                    .range(from, to);
 
-            // if (lancamento.data_inicio_captacao) {
-            //    adQuery = adQuery.gte('date_start', lancamento.data_inicio_captacao);
-            // }
-            if (dateRange?.from) {
-                adQuery = adQuery.gte('date_start', format(dateRange.from, 'yyyy-MM-dd'));
-            }
-            if (dateRange?.to) {
-                adQuery = adQuery.lte('date_start', format(dateRange.to, 'yyyy-MM-dd'));
-            }
+                if (rangeStart) {
+                    query = query.gte('date_start', rangeStart);
+                }
+                if (rangeEnd) {
+                    query = query.lte('date_start', rangeEnd);
+                }
+                return query;
+            });
 
-            const { data: adInsights, error: adError } = await adQuery;
-
-            if (!adError && adInsights) {
-                const adMap = new Map();
+            if (adInsights.length > 0) {
+                const adMap = new Map<string, any>();
 
                 adInsights.forEach((ad: any) => {
-                    if (!adMap.has(ad.ad_id)) {
-                        adMap.set(ad.ad_id, {
+                    const rawName = typeof ad.ad_name === 'string' ? ad.ad_name.trim() : '';
+                    const groupKey = rawName.length > 0
+                        ? `name:${rawName.toLowerCase()}`
+                        : `id:${ad.ad_id}`;
+
+                    if (!adMap.has(groupKey)) {
+                        adMap.set(groupKey, {
+                            group_key: groupKey,
                             ad_id: ad.ad_id,
-                            ad_name: ad.ad_name,
+                            ad_name: rawName || 'Criativo sem nome',
                             thumbnail: ad.creative_thumbnail_url,
                             url: ad.creative_url,
                             spend: 0,
@@ -526,9 +659,21 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                         });
                     }
 
-                    const item = adMap.get(ad.ad_id);
+                    const item = adMap.get(groupKey);
                     const spend = Number(ad.spend || 0);
                     const leads = getLeadsFromActions(ad.actions);
+
+                    if (ad.creative_thumbnail_url) {
+                        if (!item.thumbnail) {
+                            item.thumbnail = ad.creative_thumbnail_url;
+                        } else if (!isLikelyImageUrl(item.thumbnail) && isLikelyImageUrl(ad.creative_thumbnail_url)) {
+                            // Prefer image-like preview when available.
+                            item.thumbnail = ad.creative_thumbnail_url;
+                        }
+                    }
+                    if (!item.url && ad.creative_url) {
+                        item.url = ad.creative_url;
+                    }
 
                     item.spend += spend;
                     item.leads += leads;
@@ -540,6 +685,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 const sortedAds = Array.from(adMap.values())
                     .map((ad: any) => ({
                         ...ad,
+                        access_url: getCreativeAccessUrl(ad),
                         cpl: ad.leads > 0 ? ad.spend / ad.leads : 0,
                         ctr: ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0,
                         hook_rate: ad.impressions > 0 ? (ad.video_3s_views / ad.impressions) * 100 : 0
@@ -1158,13 +1304,26 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                                         topCreatives.filter(c => normalizeText(c.ad_name).includes(normalizeText(creativeSearch))),
                                                         creativeSortConfig
                                                     ).map((creative) => (
-                                                        <TableRow key={creative.ad_id}>
+                                                        <TableRow key={creative.group_key || creative.ad_id}>
                                                             <TableCell className="flex items-center gap-2">
                                                                 {creative.thumbnail ? (
                                                                     <div className="h-10 w-10 relative overflow-hidden rounded group cursor-pointer">
-                                                                        <img src={creative.thumbnail} alt="" className="h-full w-full object-cover" />
-                                                                        {creative.url && (
-                                                                            <a href={creative.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                                        {isLikelyImageUrl(creative.thumbnail) ? (
+                                                                            <img src={creative.thumbnail} alt={creative.ad_name} className="h-full w-full object-cover" />
+                                                                        ) : isLikelyIframePreviewUrl(creative.thumbnail) ? (
+                                                                            <iframe
+                                                                                src={creative.thumbnail}
+                                                                                title={`Prévia de ${creative.ad_name}`}
+                                                                                className="h-full w-full border-0"
+                                                                                loading="lazy"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="h-full w-full bg-muted flex items-center justify-center">
+                                                                                <Target className="h-4 w-4 text-muted-foreground" />
+                                                                            </div>
+                                                                        )}
+                                                                        {creative.access_url && (
+                                                                            <a href={creative.access_url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                                                                                 <Eye className="h-4 w-4 text-white" />
                                                                             </a>
                                                                         )}
@@ -1174,8 +1333,21 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                                                         <Target className="h-4 w-4 text-muted-foreground" />
                                                                     </div>
                                                                 )}
-                                                                <div className="flex flex-col max-w-[140px]">
-                                                                    <span className="text-xs font-medium truncate" title={creative.ad_name}>{creative.ad_name}</span>
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className="text-xs font-medium whitespace-normal break-words leading-4">{creative.ad_name}</span>
+                                                                    {creative.access_url ? (
+                                                                        <a
+                                                                            href={creative.access_url}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-[11px] text-primary hover:underline mt-1 inline-flex items-center gap-1"
+                                                                        >
+                                                                            <LinkIcon className="h-3 w-3" />
+                                                                            Abrir criativo
+                                                                        </a>
+                                                                    ) : (
+                                                                        <span className="text-[11px] text-muted-foreground mt-1">Link indisponível</span>
+                                                                    )}
                                                                 </div>
                                                             </TableCell>
                                                             <TableCell className="text-right text-xs">

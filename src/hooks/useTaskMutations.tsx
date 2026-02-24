@@ -155,10 +155,98 @@ export const handleRecurringTaskCreation = async (taskId: string) => {
 
         if (newInst) {
             const user = (await supabase.auth.getUser()).data.user;
+
+            // 1. Copiar subtasks (resetando completed)
+            const { data: oldSubtasks } = await supabase
+                .from("subtasks")
+                .select("title, position, parent_subtask_id")
+                .eq("task_id", taskId)
+                .order("position", { ascending: true });
+
+            if (oldSubtasks && oldSubtasks.length > 0) {
+                // Primeiro inserir subtasks raiz (sem parent_subtask_id)
+                const rootSubtasks = oldSubtasks.filter(s => !s.parent_subtask_id);
+                const childSubtasks = oldSubtasks.filter(s => s.parent_subtask_id);
+
+                // Map old subtask positions to new IDs for parent reference
+                const oldToNewMap: Record<number, string> = {};
+
+                for (const sub of rootSubtasks) {
+                    const { data: newSub } = await supabase
+                        .from("subtasks")
+                        .insert({
+                            task_id: newInst.id,
+                            title: sub.title,
+                            position: sub.position,
+                            completed: false,
+                        })
+                        .select("id, position")
+                        .single();
+                    if (newSub) {
+                        oldToNewMap[sub.position] = newSub.id;
+                    }
+                }
+
+                // Then insert child subtasks with mapped parent IDs
+                for (const sub of childSubtasks) {
+                    // Find the parent by matching position from the old parent
+                    const parentOldSubtask = oldSubtasks.find(s => !s.parent_subtask_id && s.position < sub.position);
+                    const parentNewId = parentOldSubtask ? oldToNewMap[parentOldSubtask.position] : null;
+
+                    await supabase.from("subtasks").insert({
+                        task_id: newInst.id,
+                        title: sub.title,
+                        position: sub.position,
+                        completed: false,
+                        parent_subtask_id: parentNewId || null,
+                    });
+                }
+            }
+
+            // 2. Copiar comentários
+            const { data: oldComments } = await supabase
+                .from("task_comments")
+                .select("content, author_name, created_at")
+                .eq("task_id", taskId)
+                .order("created_at", { ascending: true });
+
+            if (oldComments && oldComments.length > 0) {
+                const commentInserts = oldComments.map(c => ({
+                    task_id: newInst.id,
+                    content: c.content,
+                    author_name: c.author_name,
+                    created_at: c.created_at,
+                }));
+                await supabase.from("task_comments").insert(commentInserts);
+            }
+
+            // 3. Copiar histórico
+            const { data: oldHistory } = await supabase
+                .from("task_history")
+                .select("action, field_changed, old_value, new_value, changed_by, created_at")
+                .eq("task_id", taskId)
+                .order("created_at", { ascending: true });
+
+            if (oldHistory && oldHistory.length > 0) {
+                const historyInserts = oldHistory.map(h => ({
+                    task_id: newInst.id,
+                    action: h.action,
+                    field_changed: h.field_changed,
+                    old_value: h.old_value,
+                    new_value: h.new_value,
+                    changed_by: h.changed_by,
+                    created_at: h.created_at,
+                }));
+                await supabase.from("task_history").insert(historyInserts);
+            }
+
+            // Entry de criação da nova recorrência
             await supabase.from("task_history").insert({
                 task_id: newInst.id,
                 action: "created",
                 changed_by: user?.email || "Sistema",
+                field_changed: "recurrence",
+                new_value: `Recorrência automática de ${task.due_date}`,
             });
         }
     }

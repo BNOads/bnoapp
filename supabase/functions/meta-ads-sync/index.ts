@@ -7,6 +7,50 @@ const corsHeaders = {
 }
 
 const LOW_BALANCE_THRESHOLD = 10; // R$ 10,00
+const META_MAX_DAILY_WINDOW_DAYS = 35;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const parseISODateOnlyUTC = (value: string): Date => {
+    const [yearStr, monthStr, dayStr] = value.split('-');
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+        throw new Error(`Invalid ISO date: ${value}`);
+    }
+
+    return new Date(Date.UTC(year, month - 1, day));
+};
+
+const toISODateOnlyUTC = (value: Date): string => value.toISOString().split('T')[0];
+
+const buildDateWindows = (start: string, end: string, maxWindowDays: number): Array<{ since: string; until: string }> => {
+    const windows: Array<{ since: string; until: string }> = [];
+    const maxDays = Math.max(1, maxWindowDays);
+    const maxWindowMs = (maxDays - 1) * MS_PER_DAY;
+
+    let cursor = parseISODateOnlyUTC(start);
+    const finalDate = parseISODateOnlyUTC(end);
+
+    if (cursor.getTime() > finalDate.getTime()) {
+        return windows;
+    }
+
+    while (cursor.getTime() <= finalDate.getTime()) {
+        const maxUntil = new Date(cursor.getTime() + maxWindowMs);
+        const until = maxUntil.getTime() < finalDate.getTime() ? maxUntil : finalDate;
+
+        windows.push({
+            since: toISODateOnlyUTC(cursor),
+            until: toISODateOnlyUTC(until),
+        });
+
+        cursor = new Date(until.getTime() + MS_PER_DAY);
+    }
+
+    return windows;
+};
 
 const parseMetaMoney = (value: unknown): number => {
     if (value === null || value === undefined || value === '') return 0;
@@ -242,18 +286,18 @@ serve(async (req) => {
                 console.log(`[Manual Sync] Using provided range ${effectiveStart} to ${effectiveEnd}`);
             }
 
-            // SAFETY CHECK: Meta API throws (#100) if time_range > 37 days with time_increment=1
-            // So we forcefully clamp effectiveStart so the distance is <= 35 days from effectiveEnd.
-            const dStart = new Date(effectiveStart);
-            const dEnd = new Date(effectiveEnd);
-            const diffDays = Math.ceil((dEnd.getTime() - dStart.getTime()) / (1000 * 3600 * 24));
-
-            if (diffDays > 35) {
-                console.log(`[Warning] clamping date range from ${diffDays} to 35 days due to Meta limitations`);
-                const clampedStart = new Date(dEnd);
-                clampedStart.setDate(clampedStart.getDate() - 35);
-                effectiveStart = clampedStart.toISOString().split('T')[0];
+            const dateWindows = buildDateWindows(effectiveStart, effectiveEnd, META_MAX_DAILY_WINDOW_DAYS);
+            if (dateWindows.length === 0) {
+                const rangeError = `Invalid date range for sync: ${effectiveStart} to ${effectiveEnd}`;
+                console.error(rangeError);
+                accountSummary.status = 'error';
+                accountSummary.campaign = { status: 'error', count: 0, error: rangeError };
+                accountSummary.ad = { status: 'error', count: 0, error: rangeError };
+                accountDetails.push(accountSummary);
+                results.push({ accountId: account.id, type: 'account', status: 'error', error: rangeError });
+                continue;
             }
+            console.log(`[Sync Windows] ${dateWindows.length} window(s) for ${metaId}: ${effectiveStart} to ${effectiveEnd}`);
 
             accountSummary.date_start = effectiveStart;
             accountSummary.date_stop = effectiveEnd;
@@ -408,71 +452,72 @@ serve(async (req) => {
                 console.error(`Error syncing account details for ${metaId}:`, e);
             }
 
-
             // --- A. Campaign Insights ---
-            const urlCampaign = new URL(`https://graph.facebook.com/v24.0/${metaId}/insights`)
-            urlCampaign.searchParams.append('level', 'campaign')
-            urlCampaign.searchParams.append('fields', campaignFields)
-            urlCampaign.searchParams.append('access_token', META_ACCESS_TOKEN)
-            urlCampaign.searchParams.append('time_increment', '1')
-            urlCampaign.searchParams.append('limit', '200')
-            urlCampaign.searchParams.append('time_range', JSON.stringify({ since: effectiveStart, until: effectiveEnd }))
-            if (campaign_ids && Array.isArray(campaign_ids) && campaign_ids.length > 0) {
-                // Determine valid filtering for campaigns. 
-                // Meta API allows filtering by campaign.id.
-                urlCampaign.searchParams.append('filtering', JSON.stringify([{ field: 'campaign.id', operator: 'IN', value: campaign_ids }]))
-            }
-
             let totalCampaignsSynced = 0;
 
             try {
-                let currentUrl = urlCampaign.toString();
-
-                while (currentUrl) {
-                    console.log(`Fetching campaigns: ${currentUrl}`);
-                    const response = await fetch(currentUrl)
-                    const json = await response.json() // Parse JSON once
-
-                    if (json.error) {
-                        // Throw specific error to be caught
-                        throw new Error(json.error.message);
+                for (const dateWindow of dateWindows) {
+                    const urlCampaign = new URL(`https://graph.facebook.com/v24.0/${metaId}/insights`);
+                    urlCampaign.searchParams.append('level', 'campaign');
+                    urlCampaign.searchParams.append('fields', campaignFields);
+                    urlCampaign.searchParams.append('access_token', META_ACCESS_TOKEN);
+                    urlCampaign.searchParams.append('time_increment', '1');
+                    urlCampaign.searchParams.append('limit', '200');
+                    urlCampaign.searchParams.append('time_range', JSON.stringify({ since: dateWindow.since, until: dateWindow.until }));
+                    if (campaign_ids && Array.isArray(campaign_ids) && campaign_ids.length > 0) {
+                        // Determine valid filtering for campaigns.
+                        // Meta API allows filtering by campaign.id.
+                        urlCampaign.searchParams.append('filtering', JSON.stringify([{ field: 'campaign.id', operator: 'IN', value: campaign_ids }]));
                     }
 
-                    if (!json.data) {
-                        // Safely handle cases where data is missing but no error field
-                        throw new Error("Invalid response from Meta API");
+                    let currentUrl = urlCampaign.toString();
+
+                    while (currentUrl) {
+                        console.log(`Fetching campaigns (${dateWindow.since}..${dateWindow.until}): ${currentUrl}`);
+                        const response = await fetch(currentUrl);
+                        const json = await response.json(); // Parse JSON once
+
+                        if (json.error) {
+                            // Throw specific error to be caught
+                            throw new Error(json.error.message);
+                        }
+
+                        if (!json.data) {
+                            // Safely handle cases where data is missing but no error field
+                            throw new Error("Invalid response from Meta API");
+                        }
+
+                        const insights = json.data || []; // Access data from parsed JSON
+
+                        if (insights.length > 0) {
+                            const upsertData = insights.map((item: any) => ({
+                                ad_account_id: account.id,
+                                campaign_id: item.campaign_id,
+                                campaign_name: item.campaign_name,
+                                date_start: item.date_start,
+                                date_stop: item.date_stop,
+                                spend: item.spend,
+                                impressions: item.impressions,
+                                clicks: item.clicks,
+                                reach: item.reach,
+                                cpc: item.cpc,
+                                cpm: item.cpm,
+                                ctr: item.ctr,
+                                frequency: item.frequency,
+                                actions: item.actions || [],
+                                action_values: item.action_values || []
+                            }));
+
+                            const { error } = await supabase
+                                .from('meta_campaign_insights')
+                                .upsert(upsertData, { onConflict: 'ad_account_id,campaign_id,date_start' });
+
+                            if (error) throw error;
+                            totalCampaignsSynced += upsertData.length;
+                        }
+
+                        currentUrl = json.paging?.next || null;
                     }
-
-                    const insights = json.data || [] // Access data from parsed JSON
-
-                    if (insights.length > 0) {
-                        const upsertData = insights.map((item: any) => ({
-                            ad_account_id: account.id,
-                            campaign_id: item.campaign_id,
-                            campaign_name: item.campaign_name,
-                            date_start: item.date_start,
-                            date_stop: item.date_stop,
-                            spend: item.spend,
-                            impressions: item.impressions,
-                            clicks: item.clicks,
-                            reach: item.reach,
-                            cpc: item.cpc,
-                            cpm: item.cpm,
-                            ctr: item.ctr,
-                            frequency: item.frequency,
-                            actions: item.actions || [],
-                            action_values: item.action_values || []
-                        }))
-
-                        const { error } = await supabase
-                            .from('meta_campaign_insights')
-                            .upsert(upsertData, { onConflict: 'ad_account_id,campaign_id,date_start' })
-
-                        if (error) throw error;
-                        totalCampaignsSynced += upsertData.length;
-                    }
-
-                    currentUrl = json.paging?.next || null;
                 }
 
                 accountSummary.campaign = { status: 'success', count: totalCampaignsSynced, error: null };
@@ -485,25 +530,26 @@ serve(async (req) => {
             }
 
             // --- B. Ad Insights ---
-            const urlAd = new URL(`https://graph.facebook.com/v24.0/${metaId}/insights`)
-            urlAd.searchParams.append('level', 'ad')
-            urlAd.searchParams.append('fields', adFields)
-            urlAd.searchParams.append('access_token', META_ACCESS_TOKEN)
-            urlAd.searchParams.append('time_increment', '1')
-            urlAd.searchParams.append('limit', '200')
-            urlAd.searchParams.append('time_range', JSON.stringify({ since: effectiveStart, until: effectiveEnd }))
-            if (campaign_ids && Array.isArray(campaign_ids) && campaign_ids.length > 0) {
-                urlAd.searchParams.append('filtering', JSON.stringify([{ field: 'campaign.id', operator: 'IN', value: campaign_ids }]))
-            }
-
             let totalAdsSynced = 0;
             let adDebugInfo: any = null;
 
             try {
-                let currentUrl = urlAd.toString();
+                for (const dateWindow of dateWindows) {
+                    const urlAd = new URL(`https://graph.facebook.com/v24.0/${metaId}/insights`);
+                    urlAd.searchParams.append('level', 'ad');
+                    urlAd.searchParams.append('fields', adFields);
+                    urlAd.searchParams.append('access_token', META_ACCESS_TOKEN);
+                    urlAd.searchParams.append('time_increment', '1');
+                    urlAd.searchParams.append('limit', '200');
+                    urlAd.searchParams.append('time_range', JSON.stringify({ since: dateWindow.since, until: dateWindow.until }));
+                    if (campaign_ids && Array.isArray(campaign_ids) && campaign_ids.length > 0) {
+                        urlAd.searchParams.append('filtering', JSON.stringify([{ field: 'campaign.id', operator: 'IN', value: campaign_ids }]));
+                    }
 
-                while (currentUrl) {
-                    console.log(`Fetching ads: ${currentUrl}`);
+                    let currentUrl = urlAd.toString();
+
+                    while (currentUrl) {
+                        console.log(`Fetching ads (${dateWindow.since}..${dateWindow.until}): ${currentUrl}`);
                     const responseAd = await fetch(currentUrl)
                     const jsonAd = await responseAd.json()
 
@@ -776,8 +822,9 @@ serve(async (req) => {
                         totalAdsSynced += upsertAdData.length;
                     }
 
-                    // Pagination
-                    currentUrl = jsonAd.paging?.next || null;
+                        // Pagination
+                        currentUrl = jsonAd.paging?.next || null;
+                    }
                 }
 
                 accountSummary.ad = {

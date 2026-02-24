@@ -2,18 +2,22 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTaskSessions } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, Cell, AreaChart, Area } from 'recharts';
-import { Loader2, TrendingUp, Filter, Clock, Users, Timer, Target, CheckCircle2, Calendar, Building2 } from 'lucide-react';
+import { Loader2, TrendingUp, Filter, Clock, Users, Timer, Target, CheckCircle2, Calendar, Building2, AlertCircle, Flag } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRIORITY_LABELS, Task } from '@/types/tasks';
+import { isOverdue } from '@/lib/dateUtils';
 import { startOfDay, startOfWeek, startOfMonth, subDays, format, parseISO, isSameDay, isAfter, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { TarefasList } from './TarefasList';
+import { TaskDetailDialog } from '@/components/tasks/details/TaskDetailDialog';
 
 interface AnalyticsData {
-    tasksToday: number;
-    tasksCompletedTotal: number;
-    tasksCompletedWeek: number;
-    tasksCompletedMonth: number;
+    tasksPending: number;
+    tasksCompleted: number;
+    tasksOverdue: number;
+    tasksHighPriority: number;
 
     rankingByAssignee: { name: string; completed: number; avgTimeTracked: number; totalTimeTracked: number }[];
     rankingByClient: { name: string; completed: number; pending: number; totalTimeTracked: number }[];
@@ -41,6 +45,11 @@ export function TasksAnalysisTab() {
 
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
 
+    // KPI popup state
+    const [kpiPopupFilter, setKpiPopupFilter] = useState<{ title: string; filterFn: (t: any) => boolean } | null>(null);
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
+
     useEffect(() => {
         fetchAnalyticsData();
     }, []);
@@ -64,6 +73,7 @@ export function TasksAnalysisTab() {
           priority,
           completed,
           completed_at,
+          due_date,
           time_tracked,
           list_id,
           cliente_id,
@@ -106,10 +116,29 @@ export function TasksAnalysisTab() {
             startDateLimit = dateRangeFilter === "1" ? today : subDays(today, daysToTrack);
         }
 
-        let tToday = 0;
-        let tTotal = 0;
-        let tWeek = 0;
-        let tMonth = 0;
+        // KPIs iguais aos da aba Time: Pendentes, Concluídas, Atrasadas, Alta Prioridade
+        const todayStr = format(today, 'yyyy-MM-dd');
+        let kpiPending = 0;
+        let kpiCompleted = 0;
+        let kpiOverdue = 0;
+        let kpiHighPriority = 0;
+
+        allTasks.forEach(task => {
+            if (selectedUserLine !== "all" && task.assignee !== selectedUserLine) return;
+            if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return;
+
+            if (task.completed) {
+                kpiCompleted++;
+            } else {
+                kpiPending++;
+                if (task.due_date && task.due_date < todayStr) {
+                    kpiOverdue++;
+                }
+                if (task.priority === "alta") {
+                    kpiHighPriority++;
+                }
+            }
+        });
 
         const assigneeStats: Record<string, { completed: number; totalTime: number; tasksWithTime: number }> = {};
         const clientStats: Record<string, { completed: number; pending: number; totalTime: number }> = {};
@@ -130,6 +159,7 @@ export function TasksAnalysisTab() {
         let globalTotalTime = 0;
         let globalTasksWithTime = 0;
 
+        // Segundo passo: calcular rankings/gráficos com filtro de período
         allTasks.forEach(task => {
             // Apply Global User Filter
             if (selectedUserLine !== "all" && task.assignee !== selectedUserLine) {
@@ -161,10 +191,6 @@ export function TasksAnalysisTab() {
             }
 
             if (task.completed && compDate) {
-                if (compDate >= today) tToday++;
-                if (compDate >= thisWeek) tWeek++;
-                if (compDate >= thisMonth) tMonth++;
-                tTotal++;
 
                 // Tracking daily chart (last 30 days)
                 const dKey = format(compDate, 'yyyy-MM-dd');
@@ -261,10 +287,10 @@ export function TasksAnalysisTab() {
             .slice(0, 10); // Top 10 longest lists
 
         setAnalytics({
-            tasksToday: tToday,
-            tasksCompletedTotal: tTotal,
-            tasksCompletedWeek: tWeek,
-            tasksCompletedMonth: tMonth,
+            tasksPending: kpiPending,
+            tasksCompleted: kpiCompleted,
+            tasksOverdue: kpiOverdue,
+            tasksHighPriority: kpiHighPriority,
             rankingByAssignee: rankingArr,
             priorityDistribution: pdData,
             priorityColors: {
@@ -434,6 +460,17 @@ export function TasksAnalysisTab() {
         }
     };
 
+    // Tasks filtradas por user/client para o popup de KPI
+    const filteredTasksForPopup = useMemo(() => {
+        return allTasks.filter(task => {
+            if (selectedUserLine !== "all" && task.assignee !== selectedUserLine) return false;
+            if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return false;
+            return true;
+        });
+    }, [allTasks, selectedUserLine, selectedClientLine]);
+
+    const todayStrForPopup = format(startOfDay(new Date()), 'yyyy-MM-dd');
+
     if (loading || !analytics) {
         return (
             <div className="flex flex-col items-center justify-center p-20 text-muted-foreground w-full h-[600px]">
@@ -508,63 +545,51 @@ export function TasksAnalysisTab() {
                 </div>
             </div>
 
-            {/* KPI Cards Header */}
+            {/* KPI Cards Header - mesmos KPIs da aba Time, clicáveis */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="bg-card text-card-foreground shadow-sm border-border/60">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                    <Target className="w-4 h-4" />
-                                    Concluídas Hoje
-                                </p>
-                                <p className="text-4xl font-bold">{analytics.tasksToday}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <button
+                    onClick={() => setKpiPopupFilter({ title: 'Tarefas Pendentes', filterFn: (t) => !t.completed })}
+                    className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden text-left hover:border-primary/50 transition-colors cursor-pointer text-foreground"
+                >
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <span className="w-2 h-2 rounded-full border border-current opacity-50"></span>
+                        <span className="text-sm font-medium">Pendentes</span>
+                    </div>
+                    <span className="text-4xl font-bold">{analytics.tasksPending}</span>
+                </button>
 
-                <Card className="bg-card text-card-foreground shadow-sm border-border/60">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                    <TrendingUp className="w-4 h-4" />
-                                    Concluídas (Semana)
-                                </p>
-                                <p className="text-4xl font-bold">{analytics.tasksCompletedWeek}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <button
+                    onClick={() => setKpiPopupFilter({ title: 'Tarefas Concluídas', filterFn: (t) => t.completed })}
+                    className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden text-left hover:border-primary/50 transition-colors cursor-pointer text-foreground"
+                >
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <CheckCircle2 className="w-4 h-4 text-muted-foreground opacity-50" />
+                        <span className="text-sm font-medium">Concluídas</span>
+                    </div>
+                    <span className="text-4xl font-bold">{analytics.tasksCompleted}</span>
+                </button>
 
-                <Card className="bg-card text-card-foreground shadow-sm border-border/60">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                    <TrendingUp className="w-4 h-4" />
-                                    Concluídas (Mês)
-                                </p>
-                                <p className="text-4xl font-bold">{analytics.tasksCompletedMonth}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <button
+                    onClick={() => setKpiPopupFilter({ title: 'Tarefas Atrasadas', filterFn: (t) => !t.completed && !!t.due_date && t.due_date < todayStrForPopup })}
+                    className="p-4 rounded-xl border flex py-6 flex-col justify-center relative overflow-hidden border-rose-100 dark:border-rose-900 bg-rose-50/30 dark:bg-rose-950/20 text-left hover:border-rose-300 dark:hover:border-rose-700 transition-colors cursor-pointer"
+                >
+                    <div className="flex items-center gap-2 text-destructive mb-1">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">Atrasadas</span>
+                    </div>
+                    <span className="text-4xl font-bold text-foreground">{analytics.tasksOverdue}</span>
+                </button>
 
-                <Card className="bg-card text-card-foreground shadow-sm border-border/60">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    Total Histórico
-                                </p>
-                                <p className="text-4xl font-bold">{analytics.tasksCompletedTotal}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <button
+                    onClick={() => setKpiPopupFilter({ title: 'Alta Prioridade', filterFn: (t) => !t.completed && t.priority === 'alta' })}
+                    className="p-4 rounded-xl border bg-card flex py-6 flex-col justify-center relative overflow-hidden text-left hover:border-primary/50 transition-colors cursor-pointer text-foreground"
+                >
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <Flag className="w-4 h-4 text-rose-500 opacity-60" />
+                        <span className="text-sm font-medium">Alta prioridade</span>
+                    </div>
+                    <span className="text-4xl font-bold">{analytics.tasksHighPriority}</span>
+                </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -816,6 +841,38 @@ export function TasksAnalysisTab() {
                 </Card>
 
             </div>
+
+            {/* KPI Popup Dialog */}
+            <Dialog open={!!kpiPopupFilter} onOpenChange={(open) => !open && setKpiPopupFilter(null)}>
+                <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-6">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl">{kpiPopupFilter?.title}</DialogTitle>
+                        <DialogDescription>Tarefas correspondentes a este indicador baseadas nos filtros atuais.</DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-auto mt-2 -mx-2 px-2 pb-4">
+                        {kpiPopupFilter && (
+                            <div className="bg-slate-50/30 dark:bg-background rounded-md">
+                                <TarefasList
+                                    tasks={filteredTasksForPopup.filter(kpiPopupFilter.filterFn) as Task[]}
+                                    onTaskClick={(id) => {
+                                        setSelectedTaskId(id);
+                                        setIsDetailOpen(true);
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <TaskDetailDialog
+                taskId={selectedTaskId}
+                open={isDetailOpen}
+                onOpenChange={(open) => {
+                    setIsDetailOpen(open);
+                    if (!open) setSelectedTaskId(null);
+                }}
+            />
 
         </div>
     );

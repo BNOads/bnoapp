@@ -548,7 +548,7 @@ export default function Tarefas() {
                     </div>
                 </div>
 
-                {activeMainTab !== "automacoes" && activeMainTab !== "analise" && (
+                {(activeMainTab === "minhas" || activeMainTab === "listas") && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                         <button
                             onClick={() => setKpiPopupFilter({ title: 'Tarefas Pendentes', filterFn: (t) => !t.completed })}

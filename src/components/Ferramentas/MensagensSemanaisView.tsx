@@ -217,8 +217,10 @@ export function MensagensSemanaisView() {
 
         if (filtroCS && filtroCS !== "all") {
           const csColab = colaboradores.find(c => c.id === filtroCS);
-          if (csColab?.user_id) {
-            queryClientes = queryClientes.eq("cs_id", csColab.user_id);
+          if (csColab) {
+            const userId = csColab.user_id || "no-has";
+            const colabId = csColab.id;
+            queryClientes = queryClientes.or(`cs_id.eq.${colabId},cs_id.eq.${userId},primary_cs_user_id.eq.${colabId},primary_cs_user_id.eq.${userId}`);
           }
         }
 
@@ -232,27 +234,10 @@ export function MensagensSemanaisView() {
         const weekEndDate = endOfWeek(weekStartDate, { weekStartsOn: 1 });
         const weekEnd = format(weekEndDate, "yyyy-MM-dd");
 
-        let queryMensagens = supabase.from("mensagens_semanais")
+        const { data: mensagensNaSemana } = await supabase.from("mensagens_semanais")
           .select("cliente_id, enviado, historico_envios")
           .gte("semana_referencia", filtroWeekStart)
           .lte("semana_referencia", weekEnd);
-        // Nao limito por enviado = true AQUI, pego todos. 
-
-        if (filtroGestor && filtroGestor !== "all") {
-          const gestorColab = colaboradores.find(c => c.id === filtroGestor);
-          if (gestorColab) {
-            queryMensagens = queryMensagens.eq("gestor_id", gestorColab.id);
-          }
-        }
-
-        if (filtroCS && filtroCS !== "all") {
-          const csColab = colaboradores.find(c => c.id === filtroCS);
-          if (csColab) {
-            queryMensagens = queryMensagens.eq("cs_id", csColab.id);
-          }
-        }
-
-        const { data: mensagensNaSemana } = await queryMensagens;
 
         const mensagensTrafego = (mensagensNaSemana || []).filter(m => {
           const historico = Array.isArray(m.historico_envios) ? m.historico_envios : (typeof m.historico_envios === 'string' && m.historico_envios ? JSON.parse(m.historico_envios) : []);
@@ -336,9 +321,6 @@ export function MensagensSemanaisView() {
       if (filtroGestor && filtroGestor !== "all") {
         query = query.eq("gestor_id", filtroGestor);
       }
-      if (filtroCS && filtroCS !== "all") {
-        query = query.eq("cs_id", filtroCS);
-      }
       if (filtroCliente && filtroCliente !== "all") {
         query = query.eq("cliente_id", filtroCliente);
       }
@@ -401,9 +383,16 @@ export function MensagensSemanaisView() {
       }) || [];
 
       // Filtrar apenas mensagens de tráfego (não 'sistema_gerado')
-      const mensagensTrafego = mensagensFormatadas.filter(m =>
+      let mensagensTrafego = mensagensFormatadas.filter(m =>
         !m.historico_envios.some((h: any) => h.tipo === 'sistema_gerado')
       );
+
+      if (filtroCS && filtroCS !== "all") {
+        const csColab = colaboradores.find(c => c.id === filtroCS);
+        if (csColab) {
+          mensagensTrafego = mensagensTrafego.filter((m: any) => m.cs_nome === csColab.nome);
+        }
+      }
 
       let filtradasBusca = mensagensTrafego;
       if (filtroBusca.trim()) {
@@ -428,6 +417,10 @@ export function MensagensSemanaisView() {
           case "gestor_nome":
             valorA = a.gestor_nome.toLowerCase();
             valorB = b.gestor_nome.toLowerCase();
+            break;
+          case "cs_nome":
+            valorA = a.cs_nome.toLowerCase();
+            valorB = b.cs_nome.toLowerCase();
             break;
           case "enviado":
             valorA = a.enviado ? 1 : 0;
