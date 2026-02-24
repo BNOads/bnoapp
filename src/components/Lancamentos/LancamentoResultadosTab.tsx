@@ -13,7 +13,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { RefreshCw, Search, Pencil, Check, Plus, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet, Link as LinkIcon, AlertCircle, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
@@ -48,6 +47,117 @@ const safeCampaignName = (value: unknown): string => {
     return typeof value === 'string' && value.trim().length > 0
         ? value
         : 'Campanha sem nome';
+};
+
+const normalizeForMatch = (value: unknown): string => {
+    if (typeof value !== 'string') return '';
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+};
+
+const tokenizeForMatch = (value: unknown): string[] => {
+    const normalized = normalizeForMatch(value);
+    if (!normalized) return [];
+    return normalized.split(' ').filter(Boolean);
+};
+
+const uniqueStrings = (values: string[]): string[] => Array.from(new Set(values.filter(Boolean)));
+
+const extractStringArray = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return [];
+    return value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+};
+
+const getLaunchCodeTokens = (value: unknown): string[] => {
+    return uniqueStrings(
+        tokenizeForMatch(value).filter((token) => token.length >= 3 && /[a-z]/.test(token) && /\d/.test(token))
+    );
+};
+
+type LaunchMatchContext = {
+    launchName: string;
+    launchAliases: string[];
+    launchCodes: string[];
+};
+
+const buildLaunchMatchContext = (lancamento: any, clientData?: any): LaunchMatchContext => {
+    const launchName = typeof lancamento?.nome_lancamento === 'string' ? lancamento.nome_lancamento : '';
+    const clientAliases = extractStringArray(clientData?.aliases);
+    const baseAliases = [
+        launchName,
+        typeof clientData?.slug === 'string' ? clientData.slug : '',
+        typeof clientData?.nome === 'string' ? clientData.nome : '',
+        ...clientAliases,
+    ];
+
+    // Optional future-proof aliases/codes if these fields are added on lancamentos.
+    const optionalLaunchAliases = extractStringArray((lancamento as any)?.aliases_lancamento);
+    const optionalCodes = [
+        (lancamento as any)?.codigo_lancamento,
+        (lancamento as any)?.cod_lancamento,
+        (lancamento as any)?.codigo,
+        (lancamento as any)?.slug,
+    ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+    const launchAliases = uniqueStrings([
+        ...baseAliases,
+        ...optionalLaunchAliases,
+        ...optionalCodes,
+    ])
+        .map((alias) => normalizeForMatch(alias))
+        .filter((alias) => alias.length >= 3);
+
+    const launchCodes = uniqueStrings([
+        ...getLaunchCodeTokens(launchName),
+        ...optionalCodes.flatMap((code) => getLaunchCodeTokens(code)),
+    ]);
+
+    return {
+        launchName: normalizeForMatch(launchName),
+        launchAliases,
+        launchCodes,
+    };
+};
+
+const campaignMatchesLaunch = (campaignName: unknown, context: LaunchMatchContext): boolean => {
+    const campaign = normalizeForMatch(campaignName);
+    if (!campaign) return false;
+
+    const campaignTokens = tokenizeForMatch(campaign);
+    const campaignTokenSet = new Set(campaignTokens);
+
+    if (context.launchName && campaign.includes(context.launchName)) {
+        return true;
+    }
+
+    const longAliases = context.launchAliases.filter((alias) => alias.length >= 4);
+    if (longAliases.some((alias) => campaign.includes(alias))) {
+        return true;
+    }
+
+    if (context.launchCodes.some((code) => campaignTokenSet.has(code))) {
+        return true;
+    }
+
+    const launchTokens = tokenizeForMatch(context.launchName).filter((token) => token.length >= 3);
+    if (launchTokens.length === 0) return false;
+
+    let overlapScore = 0;
+    launchTokens.forEach((token) => {
+        if (campaignTokenSet.has(token)) {
+            overlapScore += token.length >= 6 ? 2 : 1;
+        }
+    });
+
+    const minScore = launchTokens.length >= 4 ? 3 : 2;
+    return overlapScore >= minScore;
 };
 
 // Priority-ordered list: pick the FIRST matching action type to avoid duplicating conversions
@@ -111,6 +221,7 @@ const getCreativeAccessUrl = (creative: any): string | null => {
 };
 
 const PAGINATION_PAGE_SIZE = 1000;
+const CAMPAIGN_CATALOG_SENTINEL_DATE = '1970-01-01';
 const LAUNCH_START_DATE_FIELDS = ['data_inicio_aquecimento', 'data_inicio_captacao', 'data_inicio_cpl', 'data_inicio_lembrete', 'data_inicio_carrinho'];
 const LAUNCH_END_DATE_FIELDS = ['data_fechamento', 'data_fim_carrinho', 'data_fim_lembrete', 'data_fim_cpl', 'data_fim_aquecimento', 'data_fim_captacao'];
 
@@ -216,6 +327,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
         hot: { spend: 0, leads: 0 }
     });
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [lastMetaSyncAt, setLastMetaSyncAt] = useState<string | null>(null);
 
     const handleSort = (key: string, currentConfig: any, setConfig: any) => {
         let direction: 'asc' | 'desc' = 'desc';
@@ -291,6 +403,13 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
 
         try {
             setSelectionLoading(true);
+            const { data: clientData } = await supabase
+                .from('clientes')
+                .select('nome, slug, aliases')
+                .eq('id', lancamento.cliente_id)
+                .maybeSingle();
+            const matchContext = buildLaunchMatchContext(lancamento, clientData);
+
             // Get Ad Accounts
             const { data: accounts } = await supabase
                 .from('meta_client_ad_accounts')
@@ -300,25 +419,14 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             const accountIds = accounts?.map(a => a.id) || [];
             if (accountIds.length === 0) return;
 
-            const effectiveRange = resolveInsightsDateRange(dateRange);
-            const rangeStart = effectiveRange?.from ? format(effectiveRange.from, 'yyyy-MM-dd') : undefined;
-            const rangeEnd = effectiveRange?.to ? format(effectiveRange.to, 'yyyy-MM-dd') : undefined;
-
             const data = await fetchAllPages<any>(async (from, to) => {
-                let query = supabase
+                const query = supabase
                     .from('meta_campaign_insights')
                     .select('campaign_id, campaign_name, date_start')
                     .in('ad_account_id', accountIds)
                     .order('date_start', { ascending: false })
                     .order('campaign_id', { ascending: true })
                     .range(from, to);
-
-                if (rangeStart) {
-                    query = query.gte('date_start', rangeStart);
-                }
-                if (rangeEnd) {
-                    query = query.lte('date_start', rangeEnd);
-                }
                 return query;
             });
 
@@ -338,21 +446,9 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 setManualCampaignIds(autoLinkedIds);
             } else if (manualCampaignIds.length === 0) {
                 // Compute auto-linked on the fly for pre-checking
-                const launchName = normalizeText(lancamento.nome_lancamento).trim();
-                const launchWords = launchName.split(' ').filter((w: string) => w.length > 2);
-                const autoIds: string[] = [];
-                allCamps.forEach(c => {
-                    const cName = normalizeText(c.campaign_name);
-                    if (cName.includes(launchName)) {
-                        autoIds.push(c.campaign_id);
-                        return;
-                    }
-                    let score = 0;
-                    launchWords.forEach((word: string) => {
-                        if (cName.includes(word)) score += word.length;
-                    });
-                    if (score > 2) autoIds.push(c.campaign_id);
-                });
+                const autoIds = allCamps
+                    .filter((campaign) => campaignMatchesLaunch(campaign.campaign_name, matchContext))
+                    .map((campaign) => campaign.campaign_id);
                 if (autoIds.length > 0) {
                     setManualCampaignIds(autoIds);
                 }
@@ -409,30 +505,98 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             const currentManualIds = (lancamentoData?.manual_campaign_ids as string[]) || [];
             setManualCampaignIds(currentManualIds);
 
+            const { data: clientData } = await supabase
+                .from('clientes')
+                .select('nome, slug, aliases')
+                .eq('id', lancamento.cliente_id)
+                .maybeSingle();
+            const matchContext = buildLaunchMatchContext(lancamento, clientData);
+
             // 1. Get Ad Accounts for Client
             const { data: accounts } = await supabase
                 .from('meta_client_ad_accounts')
-                .select('id, ad_account_id')
+                .select('id, ad_account_id, meta_ad_accounts(last_synced_at)')
                 .eq('cliente_id', lancamento.cliente_id);
 
             const accountIds = accounts?.map(a => a.id) || [];
+            const syncDates = (accounts || [])
+                .map((account: any) => {
+                    const raw = Array.isArray(account?.meta_ad_accounts)
+                        ? account.meta_ad_accounts[0]?.last_synced_at
+                        : account?.meta_ad_accounts?.last_synced_at;
+                    return typeof raw === 'string' ? raw : null;
+                })
+                .filter((value: string | null): value is string => Boolean(value));
+
+            if (syncDates.length > 0) {
+                const latest = syncDates.reduce((max, curr) => {
+                    if (!max) return curr;
+                    return new Date(curr).getTime() > new Date(max).getTime() ? curr : max;
+                }, syncDates[0]);
+                setLastMetaSyncAt(latest);
+            } else {
+                setLastMetaSyncAt(null);
+            }
 
             if (accountIds.length === 0) {
+                setLastMetaSyncAt(null);
                 setLoading(false);
                 return;
             }
 
-            // 2. Fetch Campaign Insights
-            // Default period: launch timeline. If user selected dateRange, use it.
+            // 2. Build campaign catalog from all synced rows (no date filter).
+            // This lets us include paused campaigns that may have zero metrics in the selected range.
+            const campaignCatalogRows = await fetchAllPages<any>(async (from, to) => {
+                const query = supabase
+                    .from('meta_campaign_insights')
+                    .select('campaign_id, campaign_name, date_start')
+                    .in('ad_account_id', accountIds)
+                    .order('date_start', { ascending: false })
+                    .order('campaign_id', { ascending: true })
+                    .range(from, to);
+                return query;
+            });
+
+            const campaignCatalogMap = new Map<string, any>();
+            campaignCatalogRows.forEach((campaign: any) => {
+                if (campaign?.campaign_id && !campaignCatalogMap.has(campaign.campaign_id)) {
+                    campaignCatalogMap.set(campaign.campaign_id, campaign);
+                }
+            });
+            const campaignCatalog = Array.from(campaignCatalogMap.values());
+
+            // If manual_campaign_ids has values, use it as SOURCE OF TRUTH.
+            // Otherwise, auto-link using launch name + aliases + code tokens.
+            const relevantCampaignIds = currentManualIds.length > 0
+                ? uniqueStrings(currentManualIds)
+                : campaignCatalog
+                    .filter((campaign) => campaignMatchesLaunch(campaign.campaign_name, matchContext))
+                    .map((campaign) => campaign.campaign_id);
+
+            // Track auto-linked IDs for the edit dialog
+            if (currentManualIds.length === 0) {
+                setAutoLinkedIds(relevantCampaignIds);
+            } else {
+                setAutoLinkedIds([]);
+            }
+
+            if (relevantCampaignIds.length === 0) {
+                setLoading(false);
+                return;
+            }
+
+            // 3. Fetch insights only for relevant campaigns in the selected range.
             const effectiveRange = resolveInsightsDateRange(dateRange);
             const rangeStart = effectiveRange?.from ? format(effectiveRange.from, 'yyyy-MM-dd') : undefined;
             const rangeEnd = effectiveRange?.to ? format(effectiveRange.to, 'yyyy-MM-dd') : undefined;
 
-            const allCampaignsData = await fetchAllPages<any>(async (from, to) => {
+            const relevantCampaigns = await fetchAllPages<any>(async (from, to) => {
                 let query = supabase
                     .from('meta_campaign_insights')
                     .select('*')
                     .in('ad_account_id', accountIds)
+                    .in('campaign_id', relevantCampaignIds)
+                    .gt('date_start', CAMPAIGN_CATALOG_SENTINEL_DATE)
                     .order('date_start', { ascending: true })
                     .order('campaign_id', { ascending: true })
                     .range(from, to);
@@ -443,51 +607,8 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 if (rangeEnd) {
                     query = query.lte('date_start', rangeEnd);
                 }
-
                 return query;
             });
-
-            // If manual_campaign_ids has values, use it as SOURCE OF TRUTH
-            // Otherwise, fall back to auto-linking by name
-            let relevantCampaigns: any[] = [];
-
-            if (currentManualIds.length > 0) {
-                // Source of truth: manual selection
-                relevantCampaigns = allCampaignsData?.filter(c =>
-                    currentManualIds.includes(c.campaign_id)
-                ) || [];
-            } else {
-                // Fallback: auto-link by name matching
-                const launchName = normalizeText(lancamento.nome_lancamento).trim();
-                const launchWords = launchName.split(' ').filter((w: string) => w.length > 2);
-
-                relevantCampaigns = allCampaignsData?.filter(c => {
-                    const cName = normalizeText(c.campaign_name);
-
-                    // 1. Exact Match
-                    if (cName.includes(launchName)) return true;
-
-                    // 2. Fuzzy Score Match
-                    let score = 0;
-                    launchWords.forEach((word: string) => {
-                        if (cName.includes(word)) score += word.length;
-                    });
-
-                    return score > 2;
-                }) || [];
-            }
-
-            // Track auto-linked IDs for the edit dialog
-            const autoIds = new Set<string>();
-            if (currentManualIds.length === 0) {
-                relevantCampaigns.forEach(c => autoIds.add(c.campaign_id));
-            }
-            setAutoLinkedIds(Array.from(autoIds));
-
-            if (relevantCampaigns.length === 0) {
-                setLoading(false);
-                return;
-            }
 
             // Aggregate Metrics
             const totalMetrics = {
@@ -499,17 +620,28 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             };
 
             const dailyMap = new Map();
-            const campaignMap = new Map();
-            const campaignIds = new Set();
+            const campaignMap = new Map<string, any>();
+            const campaignIds = new Set<string>(relevantCampaignIds);
             const tempBreakdown: Record<string, { spend: number; leads: number }> = {
                 cold: { spend: 0, leads: 0 },
                 warm: { spend: 0, leads: 0 },
                 hot: { spend: 0, leads: 0 }
             };
 
-            relevantCampaigns.forEach((item: any) => {
-                campaignIds.add(item.campaign_id);
+            // Initialize campaign list with every relevant campaign (including paused/zero spend).
+            relevantCampaignIds.forEach((campaignId) => {
+                const catalogCampaign = campaignCatalogMap.get(campaignId);
+                campaignMap.set(campaignId, {
+                    id: campaignId,
+                    name: safeCampaignName(catalogCampaign?.campaign_name),
+                    spend: 0,
+                    impressions: 0,
+                    clicks: 0,
+                    leads: 0,
+                });
+            });
 
+            relevantCampaigns.forEach((item: any) => {
                 const spend = Number(item.spend || 0);
                 const impressions = Number(item.impressions || 0);
                 const clicks = Number(item.clicks || 0);
@@ -747,6 +879,11 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
         }));
 
     const hasCampaignData = campaigns.length > 0;
+    const formattedLastMetaSync = (() => {
+        if (!lastMetaSyncAt) return null;
+        const parsed = new Date(lastMetaSyncAt);
+        return Number.isNaN(parsed.getTime()) ? null : parsed.toLocaleString('pt-BR');
+    })();
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -754,8 +891,8 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
             {/* Header Controls */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h3 className="text-lg font-medium hidden sm:block">Resultados do Lançamento</h3>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
                         <MetaDatePicker
                             dateRange={dateRange}
                             onDateRangeChange={setDateRange}
@@ -777,7 +914,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                 Editar Campanhas
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                        <DialogContent className="max-w-2xl h-[80vh] max-h-[80vh] flex flex-col min-h-0">
                             <DialogHeader>
                                 <DialogTitle>Editar Campanhas do Lançamento</DialogTitle>
                             </DialogHeader>
@@ -792,7 +929,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                 />
                             </div>
 
-                            <ScrollArea className="flex-1 border rounded-md p-2 h-[60vh] min-h-[400px]">
+                            <div className="flex-1 min-h-0 overflow-y-auto border rounded-md p-2">
                                 {selectionLoading ? (
                                     <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div>
                                 ) : (
@@ -833,7 +970,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                         <div className="h-1"></div>
                                     </div>
                                 )}
-                            </ScrollArea>
+                            </div>
 
                             <DialogFooter className="mt-4">
                                 <Button variant="outline" onClick={() => setIsSelectionOpen(false)}>Cancelar</Button>
@@ -855,6 +992,9 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                         <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
                         {syncing ? 'Sincronizando...' : 'Sincronizar'}
                     </Button>
+                    <span className="text-xs text-muted-foreground">
+                        Última sincronização com a Meta: {formattedLastMetaSync || 'nunca'}
+                    </span>
                 </div>
             </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy, Calculator, Flag } from "lucide-react";
+import { Users, Calendar, FileText, LayoutDashboard, LogOut, User, Settings, Video, MessageCircle, Palette, Rocket, CheckSquare, Trophy, Calculator, Flag, Headset } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useNavigate, useLocation, Link } from "react-router-dom";
@@ -49,6 +49,12 @@ export const Header = ({ }: HeaderProps) => {
       path: '/clientes'
     },
     {
+      id: 'atendimento',
+      label: 'Atendimento',
+      icon: Headset,
+      path: '/atendimento'
+    },
+    {
       id: 'treinamentos',
       label: 'Treinamentos',
       icon: Video,
@@ -67,6 +73,9 @@ export const Header = ({ }: HeaderProps) => {
 
     if (currentPath.startsWith('/tarefas')) {
       return 'tarefas';
+    }
+    if (currentPath.startsWith('/atendimento')) {
+      return 'atendimento';
     }
 
     // Check for ferramentas sub-routes

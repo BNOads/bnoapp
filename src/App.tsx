@@ -46,6 +46,7 @@ import LaboratorioTesteDetalhes from "./pages/LaboratorioTesteDetalhes";
 import PublicDashboard from "./pages/PublicDashboard";
 import MetaAdsAdmin from "./pages/MetaAdsAdmin";
 import Tarefas from "./pages/Tarefas";
+import Atendimento from "./pages/Atendimento";
 import TarefaDetalhe from "./pages/TarefaDetalhe";
 import { AppLayout } from "@/components/Layout/AppLayout";
 import FerramentaProjecaoView from "@/components/Ferramentas/FerramentaProjecaoView";
@@ -225,6 +226,11 @@ function App() {
                   <Route path="/tarefas/:id" element={
                     <ProtectedRoute>
                       <TarefaDetalhe />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/atendimento" element={
+                    <ProtectedRoute>
+                      <Atendimento />
                     </ProtectedRoute>
                   } />
                   <Route path="/" element={

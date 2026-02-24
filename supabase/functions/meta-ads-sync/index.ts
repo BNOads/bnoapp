@@ -9,6 +9,8 @@ const corsHeaders = {
 const LOW_BALANCE_THRESHOLD = 10; // R$ 10,00
 const META_MAX_DAILY_WINDOW_DAYS = 35;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const CAMPAIGN_CATALOG_SENTINEL_DATE = '1970-01-01';
+const UPSERT_CHUNK_SIZE = 500;
 
 const parseISODateOnlyUTC = (value: string): Date => {
     const [yearStr, monthStr, dayStr] = value.split('-');
@@ -450,6 +452,77 @@ serve(async (req) => {
                 }
             } catch (e: any) {
                 console.error(`Error syncing account details for ${metaId}:`, e);
+            }
+
+            // --- 0.2 Campaign Catalog (includes paused campaigns with zero metrics) ---
+            try {
+                const catalogRows: Array<{ campaign_id: string; campaign_name: string }> = [];
+                const catalogSeen = new Set<string>();
+                const catalogBaseUrl = new URL(`https://graph.facebook.com/v24.0/${metaId}/campaigns`);
+                catalogBaseUrl.searchParams.append('fields', 'id,name,effective_status,status');
+                catalogBaseUrl.searchParams.append('limit', '200');
+                catalogBaseUrl.searchParams.append('access_token', META_ACCESS_TOKEN);
+                if (campaign_ids && Array.isArray(campaign_ids) && campaign_ids.length > 0) {
+                    catalogBaseUrl.searchParams.append('filtering', JSON.stringify([{ field: 'id', operator: 'IN', value: campaign_ids }]));
+                }
+
+                let catalogUrl: string | null = catalogBaseUrl.toString();
+                while (catalogUrl) {
+                    console.log(`Fetching campaign catalog: ${catalogUrl}`);
+                    const catalogRes = await fetch(catalogUrl);
+                    const catalogJson = await catalogRes.json();
+
+                    if (catalogJson.error) {
+                        throw new Error(catalogJson.error.message);
+                    }
+
+                    const campaigns = catalogJson.data || [];
+                    campaigns.forEach((campaign: any) => {
+                        const campaignId = typeof campaign?.id === 'string' ? campaign.id : null;
+                        if (!campaignId || catalogSeen.has(campaignId)) return;
+                        catalogSeen.add(campaignId);
+                        catalogRows.push({
+                            campaign_id: campaignId,
+                            campaign_name: campaign?.name || 'Campanha sem nome',
+                        });
+                    });
+
+                    catalogUrl = catalogJson.paging?.next || null;
+                }
+
+                if (catalogRows.length > 0) {
+                    const catalogUpsertRows = catalogRows.map((campaign) => ({
+                        ad_account_id: account.id,
+                        campaign_id: campaign.campaign_id,
+                        campaign_name: campaign.campaign_name,
+                        date_start: CAMPAIGN_CATALOG_SENTINEL_DATE,
+                        date_stop: CAMPAIGN_CATALOG_SENTINEL_DATE,
+                        spend: 0,
+                        impressions: 0,
+                        clicks: 0,
+                        reach: 0,
+                        cpc: null,
+                        cpm: null,
+                        ctr: null,
+                        frequency: null,
+                        actions: [],
+                        action_values: []
+                    }));
+
+                    for (let i = 0; i < catalogUpsertRows.length; i += UPSERT_CHUNK_SIZE) {
+                        const chunk = catalogUpsertRows.slice(i, i + UPSERT_CHUNK_SIZE);
+                        const { error: catalogUpsertError } = await supabase
+                            .from('meta_campaign_insights')
+                            .upsert(chunk, { onConflict: 'ad_account_id,campaign_id,date_start' });
+
+                        if (catalogUpsertError) {
+                            throw catalogUpsertError;
+                        }
+                    }
+                    console.log(`Campaign catalog synced for ${metaId}: ${catalogRows.length} campaigns`);
+                }
+            } catch (e: any) {
+                console.error(`Error syncing campaign catalog for ${metaId}:`, e);
             }
 
             // --- A. Campaign Insights ---
