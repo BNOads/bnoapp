@@ -9,6 +9,8 @@ import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import Color from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
+import Mention from '@tiptap/extension-mention';
+import { suggestion } from './MentionSuggestion';
 import * as Y from 'yjs';
 import { SupabaseYjsProvider } from '@/lib/SupabaseYjsProvider';
 import { OfflineYjsCache } from '@/lib/offlineYjsCache';
@@ -116,6 +118,34 @@ export function ArquivoReuniaoTipTapEditor({
       }),
       Color,
       TextStyle,
+      Mention.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            url: {
+              default: null,
+              parseHTML: element => element.getAttribute('data-url'),
+              renderHTML: attributes => {
+                if (!attributes.url) return {};
+                return { 'data-url': attributes.url };
+              },
+            },
+            mentionType: {
+              default: null,
+              parseHTML: element => element.getAttribute('data-mention-type'),
+              renderHTML: attributes => {
+                if (!attributes.mentionType) return {};
+                return { 'data-mention-type': attributes.mentionType };
+              },
+            }
+          };
+        }
+      }).configure({
+        HTMLAttributes: {
+          class: 'mention bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-semibold px-1 rounded cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-500/30 transition-colors',
+        },
+        suggestion,
+      }),
     ],
     editorProps: {
       attributes: {
@@ -126,6 +156,18 @@ export function ArquivoReuniaoTipTapEditor({
         if (file) {
           event.preventDefault();
           handleImageFile(file);
+          return true;
+        }
+        return false;
+      },
+      handleClick: (view, pos, event) => {
+        const target = event.target as HTMLElement;
+        const mentionNode = target.closest('.mention');
+        if (mentionNode) {
+          const url = mentionNode.getAttribute('data-url');
+          if (url) {
+            window.open(url, '_blank');
+          }
           return true;
         }
         return false;
@@ -515,6 +557,14 @@ export function ArquivoReuniaoTipTapEditor({
         open={taskModalOpen}
         onOpenChange={setTaskModalOpen}
         defaultTitle={taskSelectedText}
+        onSuccessTask={(taskPayload) => {
+          if (!editor || !taskPayload?.id) return;
+          editor
+            .chain()
+            .focus()
+            .insertContent(`<span data-type="mention" class="mention" data-id="${taskPayload.id}" data-url="/tarefas/${taskPayload.id}">@${taskPayload.title}</span> `)
+            .run();
+        }}
       />
     </div>
   );

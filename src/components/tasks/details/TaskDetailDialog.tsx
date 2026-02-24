@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTask, useTaskLists } from "@/hooks/useTasks";
-import { useUpdateTask, useToggleTaskComplete } from "@/hooks/useTaskMutations";
+import { useUpdateTask, useToggleTaskComplete, useDeleteTask } from "@/hooks/useTaskMutations";
 import { SubtaskList } from "./SubtaskList";
 import { CommentSection } from "./CommentSection";
 import { HistoryTimeline } from "./HistoryTimeline";
 import { RecurrenceSelect } from "./RecurrenceSelect";
+import { CriativoSelector } from "../../Lancamentos/CriativoSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
     Check, Clock, CalendarIcon, AlertCircle, Share2, MoreHorizontal,
-    Maximize2, Link as LinkIcon, User, Tag, Flag, Search, Bell, Pin, Play, Square, Users, RefreshCw, RepeatIcon, List, Building2
+    Maximize2, Link as LinkIcon, User, Tag, Flag, Search, Bell, Pin, Play, Square, Users, RefreshCw, RepeatIcon, List, Building2, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,6 +42,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
     const { data: taskLists } = useTaskLists();
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: updateTask } = useUpdateTask();
+    const { mutate: deleteTask } = useDeleteTask();
 
     const { userData: currentUser } = useCurrentUser();
     const { mutate: addComment, isPending: isAddingComment } = useCreateComment();
@@ -56,18 +58,18 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
-    const [clientes, setClientes] = useState<{ id: string, nome: string, branding_logo_url?: string }[]>([]);
+    const [clientes, setClientes] = useState<{ id: string, nome: string, branding_logo_url?: string, catalogo_criativos_url?: string }[]>([]);
 
     useEffect(() => {
-        if (open) {
+        if (open || asPage) {
             supabase.from("colaboradores").select("nome, user_id, avatar_url").order("nome").then(({ data }) => {
                 if (data) setColaboradores(data);
             });
-            supabase.from("clientes").select("id, nome, branding_logo_url").eq("ativo", true).order("nome").then(({ data }) => {
+            supabase.from("clientes").select("id, nome, branding_logo_url, catalogo_criativos_url").eq("ativo", true).order("nome").then(({ data }) => {
                 if (data) setClientes(data);
             });
         }
-    }, [open]);
+    }, [open, asPage]);
 
     useEffect(() => {
         if (task && !isEditingDescription) {
@@ -142,6 +144,18 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
     const handleToggleComplete = () => {
         if (task) {
             toggleComplete({ id: task.id, completed: !task.completed });
+        }
+    };
+
+    const handleDeleteTask = () => {
+        if (task) {
+            if (window.confirm('Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.')) {
+                deleteTask(task.id, {
+                    onSuccess: () => {
+                        if (onOpenChange) onOpenChange(false);
+                    }
+                });
+            }
         }
     };
 
@@ -242,6 +256,10 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                             <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hidden sm:flex" onClick={handleCopyLink}>
                                 <Share2 className="h-3.5 w-3.5" />
                                 Compartilhar
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 hidden sm:flex" onClick={handleDeleteTask}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Excluir
                             </Button>
                             <div className="flex items-center gap-1 sm:border-l sm:pl-2 sm:ml-1">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground flex" onClick={handleCopyLink}>
@@ -569,6 +587,75 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                                 )}
                                             </SelectTrigger>
                                         </RecurrenceSelect>
+                                    </div>
+
+                                    {/* Criativos */}
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
+                                            <Tag className="h-3.5 w-3.5" />
+                                            Criativos
+                                        </div>
+                                        <div className="flex flex-col gap-1 w-full min-w-0">
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="ghost" size="sm" className="h-auto py-1 px-2 -ml-2 text-left justify-start font-normal text-muted-foreground hover:text-foreground w-fit rounded-lg max-w-full hover:bg-muted/50 transition-colors">
+                                                        <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+                                                            {task.criativos && task.criativos.length > 0 ? (
+                                                                task.criativos.map((c, idx) => (
+                                                                    <Badge key={idx} variant="secondary" className="font-normal text-xs bg-muted/80 text-muted-foreground hover:text-foreground pointer-events-none">
+                                                                        {c}
+                                                                    </Badge>
+                                                                ))
+                                                            ) : (
+                                                                <span className="text-xs text-muted-foreground">Vazio</span>
+                                                            )}
+                                                        </div>
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                {task.cliente_id && task.cliente_id !== "none" ? (
+                                                    <PopoverContent align="start" className="w-[340px] p-0 rounded-xl overflow-hidden shadow-xl" sideOffset={4}>
+                                                        <div className="p-3 bg-muted/30 border-b flex flex-col gap-1.5">
+                                                            <div className="flex items-center gap-2 text-sm font-semibold">
+                                                                <Tag className="w-4 h-4 text-primary" />
+                                                                Criativos Vinculados
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground leading-tight">
+                                                                Selecione e filtre criativos do catálogo deste cliente.
+                                                            </p>
+                                                        </div>
+                                                        <div className="p-1 max-h-[300px] overflow-hidden">
+                                                            <CriativoSelector
+                                                                clienteId={task.cliente_id}
+                                                                selectedIds={task.criativos || []}
+                                                                onSelectionChange={(newSelection) => handleUpdateField("criativos", newSelection.length > 0 ? newSelection : null)}
+                                                            />
+                                                        </div>
+                                                    </PopoverContent>
+                                                ) : (
+                                                    <PopoverContent align="start" className="w-[260px] p-4 rounded-xl shadow-xl space-y-2" sideOffset={4}>
+                                                        <div className="flex items-center gap-2 text-amber-600">
+                                                            <AlertCircle className="w-4 h-4" />
+                                                            <p className="text-sm font-medium">Cliente Necessário</p>
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Selecione um cliente acima para vincular os criativos nesta tarefa.
+                                                        </p>
+                                                    </PopoverContent>
+                                                )}
+                                            </Popover>
+
+                                            {task.cliente_id && clientes.find(c => c.id === task.cliente_id)?.catalogo_criativos_url && (
+                                                <a
+                                                    href={clientes.find(c => c.id === task.cliente_id)?.catalogo_criativos_url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800 hover:underline w-fit mt-0.5 ml-1"
+                                                >
+                                                    <LinkIcon className="w-3 h-3 mr-1" />
+                                                    Abrir Catálogo de Criativos
+                                                </a>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 

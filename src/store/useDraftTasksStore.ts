@@ -10,6 +10,7 @@ export interface DraftTask {
     priority: string;
     list_id: string | null;
     cliente_id: string | null;
+    criativos: string[] | null;
     recurrence: string | null;
     due_date: string | null;
     updated_at: string;

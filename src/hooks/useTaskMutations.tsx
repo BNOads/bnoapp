@@ -217,7 +217,13 @@ export function useCreateTask() {
                         <ToastAction altText="Copiar URL" onClick={() => navigator.clipboard.writeText(taskUrl)}>
                             Copiar URL
                         </ToastAction>
-                        <ToastAction altText="Abrir" onClick={() => window.open(`/tarefas/${data.id}`, "_blank")} className="bg-purple-500 text-white hover:bg-purple-600 border-none">
+                        <ToastAction altText="Abrir" onClick={() => {
+                            if (window.location.pathname.startsWith('/tarefas')) {
+                                window.dispatchEvent(new CustomEvent('open-task-detail', { detail: data.id }));
+                            } else {
+                                window.open(`/tarefas/${data.id}`, "_blank");
+                            }
+                        }} className="bg-purple-500 text-white hover:bg-purple-600 border-none">
                             Abrir
                         </ToastAction>
                     </div>
@@ -303,7 +309,7 @@ export function useUpdateTask() {
 
             if (error) throw error;
 
-            const validFields = ["title", "description", "priority", "status", "due_date", "assignee", "list_id", "category", "recurrence"];
+            const validFields = ["title", "description", "priority", "status", "due_date", "assignee", "list_id", "category", "recurrence", "criativos"];
             const historyInserts = Object.keys(updates)
                 .filter(key => validFields.includes(key))
                 .map((key) => ({

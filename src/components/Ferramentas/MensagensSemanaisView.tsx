@@ -233,7 +233,7 @@ export function MensagensSemanaisView() {
         const weekEnd = format(weekEndDate, "yyyy-MM-dd");
 
         let queryMensagens = supabase.from("mensagens_semanais")
-          .select("cliente_id, enviado")
+          .select("cliente_id, enviado, historico_envios")
           .gte("semana_referencia", filtroWeekStart)
           .lte("semana_referencia", weekEnd);
         // Nao limito por enviado = true AQUI, pego todos. 
@@ -253,8 +253,14 @@ export function MensagensSemanaisView() {
         }
 
         const { data: mensagensNaSemana } = await queryMensagens;
+
+        const mensagensTrafego = (mensagensNaSemana || []).filter(m => {
+          const historico = Array.isArray(m.historico_envios) ? m.historico_envios : (typeof m.historico_envios === 'string' && m.historico_envios ? JSON.parse(m.historico_envios) : []);
+          return !historico.some((h: any) => h.tipo === 'sistema_gerado');
+        });
+
         const clientesComMensagem = new Set(
-          mensagensNaSemana?.map(m => m.cliente_id) || []
+          mensagensTrafego.map(m => m.cliente_id)
         );
 
         const nomesPendentes = clientesDoFiltro
@@ -394,7 +400,12 @@ export function MensagensSemanaisView() {
         };
       }) || [];
 
-      let filtradasBusca = mensagensFormatadas;
+      // Filtrar apenas mensagens de tráfego (não 'sistema_gerado')
+      const mensagensTrafego = mensagensFormatadas.filter(m =>
+        !m.historico_envios.some((h: any) => h.tipo === 'sistema_gerado')
+      );
+
+      let filtradasBusca = mensagensTrafego;
       if (filtroBusca.trim()) {
         const termo = filtroBusca.toLowerCase().trim();
         filtradasBusca = mensagensFormatadas.filter((m: any) =>
@@ -1229,6 +1240,7 @@ ${mensagem.mensagem}`;
                                 className={mensagem.mensagem_ia ? "text-blue-600 border-blue-200 hover:bg-blue-50" : ""}
                               >
                                 <Wand2 className={`h-4 w-4 ${loadingAi ? 'animate-spin' : ''}`} />
+                                {mensagem.mensagem_ia && <span className="ml-2 text-xs">Refazer IA</span>}
                               </Button>
                             </>}
                           </div>
@@ -1461,6 +1473,18 @@ ${mensagem.mensagem}`;
                         </div>
                       </>}
                     </> : mensagemSelecionada.mensagem_ia}
+                    <div className="flex justify-end mt-4 pt-4 border-t border-blue-100 dark:border-blue-900/30">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => gerarVersaoIABackground(mensagemSelecionada.id, mensagemSelecionada.mensagem, mensagemSelecionada.cliente_id)}
+                        disabled={loadingAi}
+                        className="text-blue-600 hover:text-blue-700 bg-white dark:bg-transparent"
+                      >
+                        <Wand2 className={`h-3 w-3 mr-2 ${loadingAi ? 'animate-spin' : ''}`} />
+                        {loadingAi ? "Refazendo..." : "Refazer com IA"}
+                      </Button>
+                    </div>
                   </>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-80 pt-4 pb-2">
@@ -1472,7 +1496,7 @@ ${mensagem.mensagem}`;
                       className="border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
                     >
                       <Wand2 className={`h-4 w-4 mr-2 ${loadingAi ? 'animate-spin' : ''}`} />
-                      {loadingAi ? "Gerando IA..." : "Gerar Versão IA Agora"}
+                      {loadingAi ? "Gerando IA..." : "Gerar com IA"}
                     </Button>
                   </div>
                 )}

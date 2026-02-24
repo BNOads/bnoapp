@@ -186,7 +186,12 @@ export function ResumosSistemaTab() {
                 .eq("completed", false);
 
             const formataResumos = clientesParaGerar.map(cliente => {
-                const m = (resMensagens.data || []).filter(x => x.cliente_id === cliente.id);
+                const m = (resMensagens.data || []).filter(x => {
+                    if (x.cliente_id !== cliente.id) return false;
+                    const hs = Array.isArray(x.historico_envios) ? x.historico_envios : (typeof x.historico_envios === 'string' && x.historico_envios ? JSON.parse(x.historico_envios) : []);
+                    return hs.some((h: any) => h.tipo === 'sistema_gerado');
+                });
+
                 // Extract primary_cs safely
                 const primary_cs_obj = Array.isArray(cliente.primary_cs) ? cliente.primary_cs[0] : cliente.primary_cs;
                 cliente.primary_cs = primary_cs_obj;

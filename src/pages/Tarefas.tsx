@@ -78,6 +78,17 @@ export default function Tarefas() {
             .then(({ data }) => {
                 if (data) setClientes(data);
             });
+
+        const handleOpenTask = (e: Event) => {
+            const customEvent = e as CustomEvent<string>;
+            if (customEvent.detail) {
+                setSelectedTaskId(customEvent.detail);
+                setIsDetailOpen(true);
+            }
+        };
+
+        window.addEventListener('open-task-detail', handleOpenTask);
+        return () => window.removeEventListener('open-task-detail', handleOpenTask);
     }, []);
 
     // Prepare payload dynamically for useTasks to route "Minhas" cleanly

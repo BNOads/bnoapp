@@ -40,14 +40,22 @@ export function MensagemSemanal({
       const {
         data,
         error
-      } = await supabase.from("mensagens_semanais").select("*").eq("cliente_id", clienteId).eq("semana_referencia", semanaReferencia).maybeSingle();
+      } = await supabase.from("mensagens_semanais").select("*").eq("cliente_id", clienteId).eq("semana_referencia", semanaReferencia);
+
       if (error) {
         console.error("Erro ao carregar mensagem:", error);
         return;
       }
-      if (data) {
-        setMensagemExistente(data);
-        setMensagem(data.mensagem);
+
+      // Filtrar a primeira mensagem que não seja do sistema
+      const trafficMessage = data?.find(m => {
+        const historico = Array.isArray(m.historico_envios) ? m.historico_envios : (typeof m.historico_envios === 'string' && m.historico_envios ? JSON.parse(m.historico_envios) : []);
+        return !historico.some((h: any) => h.tipo === 'sistema_gerado');
+      });
+
+      if (trafficMessage) {
+        setMensagemExistente(trafficMessage);
+        setMensagem(trafficMessage.mensagem);
       } else {
         setMensagemExistente(null);
         setMensagem("");
