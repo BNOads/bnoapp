@@ -34,7 +34,7 @@ import {
 import { buildLaunchSheetCrossing, formatSheetColumnLabel, type MatchedPersonRow } from '@/lib/launchSheetCrossing';
 
 interface CruzamentoDadosTabProps {
-  lancamentoId: string;
+  lancamento: any;
 }
 
 interface LancamentoLinkRow {
@@ -109,6 +109,11 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
     key: 'nome',
     direction: 'asc',
   });
+  const [lastSync, setLastSync] = useState<string | null>(null);
+
+  const isPaidLaunch = lancamento?.tipo_lancamento === 'pago';
+  const resultLabel = isPaidLaunch ? 'Vendas' : 'Leads';
+  const singularResultLabel = isPaidLaunch ? 'Venda' : 'Lead';
 
   const fixedColumns = useMemo<TableColumn[]>(
     () => [
@@ -124,7 +129,7 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
   );
 
   const fetchLinks = useCallback(async (forceRefresh = false) => {
-    if (!lancamentoId) return;
+    if (!lancamento?.id) return;
 
     if (forceRefresh) {
       setRefreshing(true);
@@ -138,7 +143,7 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
       const { data, error } = await supabase
         .from('lancamento_links')
         .select('id, nome, url, cached_data, last_sync_at')
-        .eq('lancamento_id', lancamentoId)
+        .eq('lancamento_id', lancamento.id)
         .in('nome', ['Planilha de Leads', 'Planilha de Pesquisa']);
 
       if (error) throw error;
@@ -349,7 +354,7 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Leads únicos</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{resultLabel} únicos</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{crossing.leadsUniqueCount}</p>
@@ -386,7 +391,7 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
         <Card>
           <CardHeader>
             <CardTitle>Taxa de resposta por tema (Campaign + Term)</CardTitle>
-            <p className="text-sm text-muted-foreground">Top 10 temas por volume de leads</p>
+            <p className="text-sm text-muted-foreground">Top 10 temas por volume de {resultLabel.toLowerCase()}</p>
           </CardHeader>
           <CardContent>
             <div className="h-[340px]">
@@ -406,7 +411,7 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
                   />
                   <Legend
                     formatter={(value) => {
-                      if (value === 'leads') return 'Leads';
+                      if (value === 'leads') return resultLabel;
                       if (value === 'responderam') return 'Responderam';
                       return 'Taxa de resposta';
                     }}

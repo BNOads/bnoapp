@@ -162,8 +162,9 @@ const campaignMatchesLaunch = (campaignName: unknown, context: LaunchMatchContex
 
 // Priority-ordered list: pick the FIRST matching action type to avoid duplicating conversions
 const LEAD_ACTION_PRIORITY = ['lead', 'complete_registration', 'fb_mobile_complete_registration', 'submit_application', 'contact', 'schedule', 'd2_leads'];
+const PURCHASE_ACTION_PRIORITY = ['purchase', 'offsite_conversion.fb_pixel_purchase', 'fb_mobile_purchase'];
 
-const getLeadsFromActions = (actions: any): number => {
+const getResultsFromActions = (actions: any, isPaid: boolean = false): number => {
     if (!actions) return 0;
     // Handle JSON string
     let parsed = actions;
@@ -172,8 +173,10 @@ const getLeadsFromActions = (actions: any): number => {
     }
     if (!Array.isArray(parsed)) return 0;
 
+    const priorityList = isPaid ? PURCHASE_ACTION_PRIORITY : LEAD_ACTION_PRIORITY;
+
     // Pick only the highest-priority action type to avoid double counting
-    for (const actionType of LEAD_ACTION_PRIORITY) {
+    for (const actionType of priorityList) {
         const match = parsed.find((a: any) => a.action_type === actionType);
         if (match) return Number(match.value || 0);
     }
@@ -328,6 +331,10 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
     });
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [lastMetaSyncAt, setLastMetaSyncAt] = useState<string | null>(null);
+
+    const isPaidLaunch = lancamento?.tipo_lancamento === 'pago';
+    const resultLabel = isPaidLaunch ? 'Venda de Ingressos' : 'Leads';
+    const costPerResultLabel = isPaidLaunch ? 'CPA' : 'CPL';
 
     const handleSort = (key: string, currentConfig: any, setConfig: any) => {
         let direction: 'asc' | 'desc' = 'desc';
@@ -645,7 +652,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 const spend = Number(item.spend || 0);
                 const impressions = Number(item.impressions || 0);
                 const clicks = Number(item.clicks || 0);
-                const leads = getLeadsFromActions(item.actions);
+                const leads = getResultsFromActions(item.actions, isPaidLaunch);
 
                 // Extract additional metrics
                 const link_clicks = Number(item.actions?.find((a: any) => a.action_type === 'link_click')?.value || 0);
@@ -793,7 +800,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
 
                     const item = adMap.get(groupKey);
                     const spend = Number(ad.spend || 0);
-                    const leads = getLeadsFromActions(ad.actions);
+                    const leads = getResultsFromActions(ad.actions, isPaidLaunch);
 
                     if (ad.creative_thumbnail_url) {
                         if (!item.thumbnail) {
@@ -1041,13 +1048,13 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
 
                                 <Card>
                                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                        <CardTitle className="text-sm font-medium text-muted-foreground">Leads Gerados</CardTitle>
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">{resultLabel} Gerados</CardTitle>
                                         <Users className="h-4 w-4 text-muted-foreground" />
                                     </CardHeader>
                                     <CardContent>
                                         <div className="text-2xl font-bold">{formatNumber(metrics.leads)}</div>
                                         <p className="text-xs text-muted-foreground">
-                                            CPL M&eacute;dio: {formatCurrency(metrics.cpl)}
+                                            {costPerResultLabel} M&eacute;dio: {formatCurrency(metrics.cpl)}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -1167,7 +1174,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                 {/* Leads Pie */}
                                 <Card>
                                     <CardHeader className="pb-2">
-                                        <CardTitle className="text-sm font-medium text-center">Leads por Temperatura</CardTitle>
+                                        <CardTitle className="text-sm font-medium text-center">{resultLabel} por Temperatura</CardTitle>
                                     </CardHeader>
                                     <CardContent className="h-[250px]">
                                         {tempLeadsData.length > 0 ? (
@@ -1227,14 +1234,15 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                                 <Tooltip
                                                     labelFormatter={(date) => format(new Date(date), 'dd/MM/yyyy')}
                                                     formatter={(value: any, name: any) => {
-                                                        if (name === 'Custo por Lead' || name === 'Investimento') return formatCurrency(value);
+                                                        const resultName = isPaidLaunch ? 'Ingresso' : 'Lead';
+                                                        if (name === `Custo por ${resultName}` || name === 'Investimento') return formatCurrency(value);
                                                         return value;
                                                     }}
                                                 />
                                                 <Legend />
-                                                <Bar yAxisId="left" dataKey="leads" name="Leads" fill="#8884d8" radius={[4, 4, 0, 0]} />
+                                                <Bar yAxisId="left" dataKey="leads" name={resultLabel} fill="#8884d8" radius={[4, 4, 0, 0]} />
                                                 <Bar yAxisId="right" dataKey="spend" name="Investimento" fill="#82ca9d" radius={[4, 4, 0, 0]} />
-                                                <Line yAxisId="right" type="monotone" dataKey="cpl" name="Custo por Lead" stroke="#f97316" strokeWidth={2} />
+                                                <Line yAxisId="right" type="monotone" dataKey="cpl" name={`Custo por ${isPaidLaunch ? 'Ingresso' : 'Lead'}`} stroke="#f97316" strokeWidth={2} />
                                             </ComposedChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -1283,7 +1291,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                                                 className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
                                                                 onClick={() => handleSort('leads', sortConfig, setSortConfig)}
                                                             >
-                                                                <span>Leads</span>
+                                                                <span>{resultLabel}</span>
                                                                 {sortConfig.key === 'leads' ? (
                                                                     sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
                                                                 ) : (
@@ -1296,7 +1304,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                                                 className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
                                                                 onClick={() => handleSort('cpl', sortConfig, setSortConfig)}
                                                             >
-                                                                <span>Custo por lead</span>
+                                                                <span>Custo por {isPaidLaunch ? 'ingresso' : 'lead'}</span>
                                                                 {sortConfig.key === 'cpl' ? (
                                                                     sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
                                                                 ) : (
@@ -1332,7 +1340,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                 {/* Creative Leads Pie */}
                                 <Card>
                                     <CardHeader className="pb-2">
-                                        <CardTitle className="text-sm font-medium text-center">% Leads por Criativo</CardTitle>
+                                        <CardTitle className="text-sm font-medium text-center">% {resultLabel} por Criativo</CardTitle>
                                     </CardHeader>
                                     <CardContent className="h-[250px]">
                                         {creativeLeadsData.length > 0 ? (
@@ -1416,7 +1424,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                                                 className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
                                                                 onClick={() => handleSort('leads', creativeSortConfig, setCreativeSortConfig)}
                                                             >
-                                                                <span>Leads</span>
+                                                                <span>{resultLabel}</span>
                                                                 {creativeSortConfig.key === 'leads' ? (
                                                                     creativeSortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
                                                                 ) : (
@@ -1429,7 +1437,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                                                                 className="flex items-center justify-end space-x-1 cursor-pointer hover:text-foreground transition-colors"
                                                                 onClick={() => handleSort('cpl', creativeSortConfig, setCreativeSortConfig)}
                                                             >
-                                                                <span>Custo por lead</span>
+                                                                <span>Custo por {isPaidLaunch ? 'ingresso' : 'lead'}</span>
                                                                 {creativeSortConfig.key === 'cpl' ? (
                                                                     creativeSortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
                                                                 ) : (
@@ -1665,7 +1673,7 @@ export const LancamentoResultadosTab = ({ lancamento }: LancamentoResultadosTabP
                 </TabsContent>
 
                 <TabsContent value="cruzamento" className="space-y-6">
-                    <CruzamentoDadosTab lancamentoId={lancamento.id} />
+                    <CruzamentoDadosTab lancamento={lancamento} />
                 </TabsContent>
 
                 {lancamento?.status_lancamento === 'finalizado' && (
