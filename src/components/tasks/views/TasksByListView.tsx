@@ -330,7 +330,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                                 <Checkbox
                                                                     checked={task.completed}
                                                                     onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
-                                                                    className={`w-5 h-5 transition-all rounded-[4px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : "border-2 border-muted-foreground/30 hover:border-muted-foreground/50"}`}
+                                                                    className={`w-4 h-4 transition-all rounded-[4px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500" : task.priority === 'alta' ? "border-rose-500" : task.priority === 'media' ? "border-amber-500" : task.priority === 'baixa' ? "border-blue-500" : "border-muted-foreground/30"}`}
                                                                     title="Marcar como concluída"
                                                                 />
                                                             </div>

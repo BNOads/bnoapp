@@ -150,10 +150,9 @@ export function TasksAnalysisTab() {
                 rankingByClient: [],
                 priorityDistribution: [],
                 priorityColors: {
-                    [PRIORITY_LABELS.urgente]: '#ef4444',
-                    [PRIORITY_LABELS.alta]: '#eab308',
-                    [PRIORITY_LABELS.media]: '#3b82f6',
-                    [PRIORITY_LABELS.baixa]: '#22c55e'
+                    [PRIORITY_LABELS.alta]: '#ef4444',
+                    [PRIORITY_LABELS.media]: '#eab308',
+                    [PRIORITY_LABELS.baixa]: '#3b82f6'
                 },
                 completedPerDay: [],
                 averageTimeOverall: 0,
@@ -312,6 +311,7 @@ export function TasksAnalysisTab() {
             .map(([clientId, stats]) => {
                 const clientObj = clientes.find(c => c.id === clientId);
                 return {
+                    clientId,
                     name: clientObj ? clientObj.nome : "Cliente Desconhecido",
                     completed: stats.completed,
                     pending: stats.pending,
@@ -350,10 +350,9 @@ export function TasksAnalysisTab() {
             rankingByAssignee: rankingArr,
             priorityDistribution: pdData,
             priorityColors: {
-                [PRIORITY_LABELS.urgente]: '#ef4444',
-                [PRIORITY_LABELS.alta]: '#eab308',
-                [PRIORITY_LABELS.media]: '#3b82f6',
-                [PRIORITY_LABELS.baixa]: '#22c55e'
+                [PRIORITY_LABELS.alta]: '#ef4444',
+                [PRIORITY_LABELS.media]: '#eab308',
+                [PRIORITY_LABELS.baixa]: '#3b82f6'
             },
             completedPerDay: compPerDayArr,
             averageTimeOverall: globalTasksWithTime > 0 ? globalTotalTime / globalTasksWithTime : 0,
@@ -423,6 +422,7 @@ export function TasksAnalysisTab() {
         });
         return Object.entries(hourlyMap).map(([hrStr, count]) => ({
             hour: `${hrStr.padStart(2, '0')}:00`,
+            hourNum: parseInt(hrStr, 10),
             count
         }));
     }, [allTasks, selectedUserLine, selectedClientLine, startDateLimit, endDateLimit]);
@@ -480,10 +480,9 @@ export function TasksAnalysisTab() {
 
     const getPriorityColor = (name: string) => {
         switch (name) {
-            case PRIORITY_LABELS.urgente: return '#ef4444';
-            case PRIORITY_LABELS.alta: return '#eab308';
-            case PRIORITY_LABELS.media: return '#3b82f6';
-            case PRIORITY_LABELS.baixa: return '#22c55e';
+            case PRIORITY_LABELS.alta: return '#ef4444';
+            case PRIORITY_LABELS.media: return '#eab308';
+            case PRIORITY_LABELS.baixa: return '#3b82f6';
             default: return '#71717a';
         }
     };
@@ -746,11 +745,18 @@ export function TasksAnalysisTab() {
                             </div>
                             <div className="divide-y divide-border/30">
                                 {analytics.rankingByAssignee.map((rank, i) => (
-                                    <div key={rank.name} className="grid grid-cols-4 px-4 py-3 hover:bg-muted/30 transition-colors">
+                                    <div
+                                        key={rank.name}
+                                        className="grid grid-cols-4 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer group"
+                                        onClick={() => setKpiPopupFilter({
+                                            title: `Tarefas Concluídas - ${rank.name}`,
+                                            filterFn: (t) => t.completed && t.assignee === rank.name
+                                        })}
+                                    >
                                         <div className="col-span-2 flex items-center gap-2 font-medium truncate">
                                             {i < 3 ? <span className={`text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold ${i === 0 ? 'bg-yellow-500 text-yellow-950' : i === 1 ? 'bg-slate-300 text-slate-800' : 'bg-orange-400 text-orange-950'
                                                 }`}>{i + 1}</span> : <span className="text-[10px] w-4 h-4 flex items-center justify-center text-muted-foreground">{i + 1}</span>}
-                                            <span className="truncate">{rank.name || 'Sem nome'}</span>
+                                            <span className="truncate group-hover:underline">{rank.name || 'Sem nome'}</span>
                                         </div>
                                         <div className="text-center font-bold">{rank.completed}</div>
                                         <div className="text-right text-muted-foreground font-mono text-[11px] flex items-center justify-end">
@@ -775,7 +781,20 @@ export function TasksAnalysisTab() {
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0 pt-4">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={userTimelineData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <AreaChart
+                                data={userTimelineData}
+                                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                                style={{ cursor: 'pointer' }}
+                                onClick={(data) => {
+                                    if (data && data.activePayload && data.activePayload[0]) {
+                                        const payload = data.activePayload[0].payload;
+                                        setKpiPopupFilter({
+                                            title: `Tarefas Concluídas em ${payload.displayDate}`,
+                                            filterFn: (t) => t.completed && t.completed_at && t.completed_at.startsWith(payload.date)
+                                        });
+                                    }
+                                }}
+                            >
                                 <defs>
                                     <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
@@ -814,11 +833,18 @@ export function TasksAnalysisTab() {
                             </div>
                             <div className="divide-y divide-border/30">
                                 {analytics.rankingByClient.map((rank, i) => (
-                                    <div key={rank.name + i} className="grid grid-cols-4 px-4 py-3 hover:bg-muted/30 transition-colors">
+                                    <div
+                                        key={rank.name + i}
+                                        className="grid grid-cols-4 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer group"
+                                        onClick={() => setKpiPopupFilter({
+                                            title: `Tarefas Concluídas - ${rank.name}`,
+                                            filterFn: (t) => t.completed && t.cliente_id === (rank as any).clientId
+                                        })}
+                                    >
                                         <div className="col-span-2 flex items-center gap-2 font-medium truncate">
                                             {i < 3 ? <span className={`text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold ${i === 0 ? 'bg-yellow-500 text-yellow-950' : i === 1 ? 'bg-slate-300 text-slate-800' : 'bg-orange-400 text-orange-950'
                                                 }`}>{i + 1}</span> : <span className="text-[10px] w-4 h-4 flex items-center justify-center text-muted-foreground">{i + 1}</span>}
-                                            <span className="truncate">{rank.name}</span>
+                                            <span className="truncate group-hover:underline">{rank.name}</span>
                                         </div>
                                         <div className="text-center font-bold">{rank.completed}</div>
                                         <div className="text-right text-muted-foreground font-mono text-[11px] flex items-center justify-end">
@@ -857,7 +883,22 @@ export function TasksAnalysisTab() {
                                         return [`${hr}h ${min}m`, 'Tempo'];
                                     }}
                                 />
-                                <Bar dataKey="horas" name="Horas" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                <Bar
+                                    dataKey="horas"
+                                    name="Horas"
+                                    fill="#3b82f6"
+                                    radius={[4, 4, 0, 0]}
+                                    maxBarSize={40}
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={(data) => {
+                                        if (data && data.date) {
+                                            setKpiPopupFilter({
+                                                title: `Tarefas com Tempo em ${data.displayDate}`,
+                                                filterFn: (t) => t.time_tracked > 0 && ((t.completed && t.completed_at && t.completed_at.startsWith(data.date)) || (!t.completed && t.created_at && t.created_at.startsWith(data.date)))
+                                            });
+                                        }
+                                    }}
+                                />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
@@ -882,7 +923,27 @@ export function TasksAnalysisTab() {
                                     cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                                     contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: 'none', color: 'white', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                 />
-                                <Bar dataKey="count" name="Tarefas" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                <Bar
+                                    dataKey="count"
+                                    name="Tarefas"
+                                    fill="#8b5cf6"
+                                    radius={[4, 4, 0, 0]}
+                                    maxBarSize={40}
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={(data) => {
+                                        if (data && data.hourNum !== undefined) {
+                                            const hr = data.hourNum;
+                                            setKpiPopupFilter({
+                                                title: `Tarefas Concluídas entre ${hr}:00 e ${hr}:59`,
+                                                filterFn: (t) => {
+                                                    if (!t.completed || !t.completed_at) return false;
+                                                    const d = new Date(t.completed_at);
+                                                    return d.getHours() === hr;
+                                                }
+                                            });
+                                        }
+                                    }}
+                                />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
@@ -905,7 +966,22 @@ export function TasksAnalysisTab() {
                                     cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                                     contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: 'none', color: 'white', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                 />
-                                <Bar dataKey="pending" name="Tarefas a Fazer" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                <Bar
+                                    dataKey="pending"
+                                    name="Tarefas a Fazer"
+                                    fill="#f97316"
+                                    radius={[4, 4, 0, 0]}
+                                    maxBarSize={40}
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={(data) => {
+                                        if (data && data.clientId) {
+                                            setKpiPopupFilter({
+                                                title: `Tarefas Pendentes - ${data.name}`,
+                                                filterFn: (t) => !t.completed && t.cliente_id === data.clientId
+                                            });
+                                        }
+                                    }}
+                                />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>

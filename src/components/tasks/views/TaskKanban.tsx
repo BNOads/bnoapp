@@ -84,7 +84,7 @@ export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
                     <Checkbox
                         checked={task.completed}
                         onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
-                        className={`mt-1 w-4 h-4 transition-all rounded-[3px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : task.priority === 'alta' ? "border-rose-500/50 hover:border-rose-500" : task.priority === 'media' ? "border-amber-500/50 hover:border-amber-500" : "border-muted-foreground/30 hover:border-muted-foreground/50"}`}
+                        className={`mt-1 w-4 h-4 transition-all rounded-[3px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : task.priority === 'alta' ? "border-rose-500" : task.priority === 'media' ? "border-amber-500" : task.priority === 'baixa' ? "border-blue-500" : "border-muted-foreground/30 hover:border-muted-foreground/50"}`}
                     />
                 </div>
                 <span className={`text-sm font-medium leading-tight ${task.completed ? "line-through text-muted-foreground" : ""}`}>

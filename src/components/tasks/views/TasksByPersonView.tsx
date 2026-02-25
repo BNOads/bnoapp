@@ -470,8 +470,8 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                             <span className={`text-sm truncate font-medium ${task.completed ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"}`}>
                                                                 {task.title}
                                                                 {task.reschedule_count && task.reschedule_count > 3 && (
-                                                                    <Badge className="ml-2 bg-purple-600 hover:bg-purple-700 text-white border-transparent text-[10px] h-4 px-1.5 py-0 shrink-0 font-normal">
-                                                                        +Reagendada
+                                                                    <Badge className={`h-6 text-[10px] capitalize font-medium rounded-sm whitespace-nowrap border-transparent text-white ${task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600' : task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
+                                                                        {PRIORITY_LABELS[task.priority as TaskPriority]}
                                                                     </Badge>
                                                                 )}
                                                             </span>
@@ -675,7 +675,7 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                                 <Checkbox
                                                                     checked={task.completed}
                                                                     onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
-                                                                    className={`w-5 h-5 transition-all rounded-[4px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : "border-2 border-muted-foreground/30 hover:border-muted-foreground/50"}`}
+                                                                    className={`w-5 h-5 transition-all rounded-[4px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : task.priority === 'alta' ? "border-2 border-rose-500" : task.priority === 'media' ? "border-2 border-amber-500" : task.priority === 'baixa' ? "border-2 border-blue-500" : "border-2 border-muted-foreground/30 hover:border-muted-foreground/50"}`}
                                                                     title="Marcar como concluída"
                                                                 />
                                                             </div>
@@ -724,9 +724,9 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                                     </SelectValue>
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
-                                                                    <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
-                                                                    <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
+                                                                    <SelectItem value="baixa" className="text-base py-2"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500" /> {PRIORITY_LABELS.baixa}</div></SelectItem>
+                                                                    <SelectItem value="media" className="text-base py-2"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500" /> {PRIORITY_LABELS.media}</div></SelectItem>
+                                                                    <SelectItem value="alta" className="text-base py-2 font-medium"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500" /> {PRIORITY_LABELS.alta}</div></SelectItem>
                                                                 </SelectContent>
                                                             </Select>
                                                         </div>
