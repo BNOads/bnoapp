@@ -618,84 +618,154 @@ export function useBulkUpdateTasks() {
             if (error) throw error;
             return data;
         },
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: taskKeys.all });
-            toast({ title: `${data.length} tarefas atualizadas` });
-        },
-    });
-}
+        export function useBulkDuplicateTasks() {
+        const queryClient = useQueryClient();
+        const { toast } = useToast();
+
+        return useMutation({
+            mutationFn: async (taskIds: string[]) => {
+                if (!taskIds.length) return [];
+
+                const user = (await supabase.auth.getUser()).data.user;
+
+                // Fetch all tasks to be duplicated
+                const { data: tasks, error: fetchError } = await supabase
+                    .from("tasks")
+                    .select("*")
+                    .in("id", taskIds);
+
+                if (fetchError) throw fetchError;
+                if (!tasks || tasks.length === 0) return [];
+
+                const duplicatedTasks: any[] = [];
+
+                for (const task of tasks) {
+                    const { id: oldId, created_at, updated_at, completed_at, ...taskInfo } = task;
+                    const { data: newTasks, error: insertError } = await supabase
+                        .from("tasks")
+                        .insert({
+                            ...taskInfo,
+                            title: `${taskInfo.title} (Cópia)`,
+                            completed: false,
+                            created_by_id: user?.id
+                        })
+                        .select()
+                        .single();
+
+                    if (insertError) continue;
+                    if (newTasks) {
+                        duplicatedTasks.push(newTasks);
+
+                        // Copy subtasks
+                        const { data: subtasks } = await supabase
+                            .from("subtasks")
+                            .select("*")
+                            .eq("task_id", oldId);
+
+                        if (subtasks && subtasks.length > 0) {
+                            const newSubtasks = subtasks.map(s => ({
+                                task_id: newTasks.id,
+                                title: s.title,
+                                position: s.position,
+                                completed: false
+                            }));
+                            await supabase.from("subtasks").insert(newSubtasks);
+                        }
+
+                        // Record in history
+                        await supabase.from("task_history").insert({
+                            task_id: newTasks.id,
+                            action: "created",
+                            changed_by: user?.email || "Sistema",
+                            field_changed: "duplication",
+                            new_value: `Duplicada da tarefa ID: ${oldId}`
+                        });
+                    }
+                }
+
+                return duplicatedTasks;
+            },
+            onSuccess: (data) => {
+                queryClient.invalidateQueries({ queryKey: taskKeys.all });
+                toast({ title: `${data.length} tarefas duplicadas com sucesso` });
+            },
+            onError: (error) => {
+                toast({ title: "Erro ao duplicar tarefas", description: error.message, variant: "destructive" });
+            }
+        });
+    }
 
 export function useBulkDeleteTasks() {
-    const queryClient = useQueryClient();
-    const { toast } = useToast();
+        const queryClient = useQueryClient();
+        const { toast } = useToast();
 
-    return useMutation({
-        mutationFn: async (taskIds: string[]) => {
-            if (!taskIds.length) return;
-            const { error } = await supabase.from("tasks").delete().in("id", taskIds);
-            if (error) throw error;
-            return taskIds;
-        },
-        onMutate: async (taskIds) => {
-            await queryClient.cancelQueries({ queryKey: taskKeys.all });
-            const previousTasks = queryClient.getQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all });
+        return useMutation({
+            mutationFn: async (taskIds: string[]) => {
+                if (!taskIds.length) return;
+                const { error } = await supabase.from("tasks").delete().in("id", taskIds);
+                if (error) throw error;
+                return taskIds;
+            },
+            onMutate: async (taskIds) => {
+                await queryClient.cancelQueries({ queryKey: taskKeys.all });
+                const previousTasks = queryClient.getQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all });
 
-            queryClient.setQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all }, (old) => {
-                if (!Array.isArray(old)) return old;
-                return old.filter(t => !taskIds.includes(t.id));
-            });
-
-            return { previousTasks };
-        },
-        onError: (err, newTodo, context) => {
-            if (context?.previousTasks) {
-                context.previousTasks.forEach(([queryKey, data]) => {
-                    // Type assertion to bypass strict typing for queryKey array
-                    queryClient.setQueryData(queryKey as any, data);
+                queryClient.setQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all }, (old) => {
+                    if (!Array.isArray(old)) return old;
+                    return old.filter(t => !taskIds.includes(t.id));
                 });
-            }
-            toast({ title: "Erro ao excluir tarefas", description: err.message, variant: "destructive" });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: taskKeys.all });
-            toast({ title: "Tarefas excluídas", description: "As tarefas foram removidas junto com suas subtarefas." });
-        },
-    });
-}
 
-export function useDeleteTask() {
-    const queryClient = useQueryClient();
-    const { toast } = useToast();
+                return { previousTasks };
+            },
+            onError: (err, newTodo, context) => {
+                if (context?.previousTasks) {
+                    context.previousTasks.forEach(([queryKey, data]) => {
+                        // Type assertion to bypass strict typing for queryKey array
+                        queryClient.setQueryData(queryKey as any, data);
+                    });
+                }
+                toast({ title: "Erro ao excluir tarefas", description: err.message, variant: "destructive" });
+            },
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: taskKeys.all });
+                toast({ title: "Tarefas excluídas", description: "As tarefas foram removidas junto com suas subtarefas." });
+            },
+        });
+    }
 
-    return useMutation({
-        mutationFn: async (id: string) => {
-            const { error } = await supabase.from("tasks").delete().eq("id", id);
-            if (error) throw error;
-            return id;
-        },
-        onMutate: async (deletedId) => {
-            await queryClient.cancelQueries({ queryKey: taskKeys.all });
-            const previousTasks = queryClient.getQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all });
+    export function useDeleteTask() {
+        const queryClient = useQueryClient();
+        const { toast } = useToast();
 
-            queryClient.setQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all }, (old) => {
-                if (!Array.isArray(old)) return old;
-                return old.filter(t => t.id !== deletedId);
-            });
+        return useMutation({
+            mutationFn: async (id: string) => {
+                const { error } = await supabase.from("tasks").delete().eq("id", id);
+                if (error) throw error;
+                return id;
+            },
+            onMutate: async (deletedId) => {
+                await queryClient.cancelQueries({ queryKey: taskKeys.all });
+                const previousTasks = queryClient.getQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all });
 
-            return { previousTasks };
-        },
-        onError: (err, newTodo, context) => {
-            if (context?.previousTasks) {
-                context.previousTasks.forEach(([queryKey, data]) => {
-                    // Type assertion to bypass strict typing for queryKey array
-                    queryClient.setQueryData(queryKey as any, data);
+                queryClient.setQueriesData<import("@/types/tasks").Task[]>({ queryKey: taskKeys.all }, (old) => {
+                    if (!Array.isArray(old)) return old;
+                    return old.filter(t => t.id !== deletedId);
                 });
-            }
-            toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: taskKeys.all });
-            toast({ title: "Tarefa excluída" });
-        },
-    });
-}
+
+                return { previousTasks };
+            },
+            onError: (err, newTodo, context) => {
+                if (context?.previousTasks) {
+                    context.previousTasks.forEach(([queryKey, data]) => {
+                        // Type assertion to bypass strict typing for queryKey array
+                        queryClient.setQueryData(queryKey as any, data);
+                    });
+                }
+                toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+            },
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: taskKeys.all });
+                toast({ title: "Tarefa excluída" });
+            },
+        });
+    }

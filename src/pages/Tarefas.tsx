@@ -23,9 +23,12 @@ import { Task, PRIORITY_LABELS } from "@/types/tasks";
 import { isOverdue, isInDateRange, DateRangePreset } from "@/lib/dateUtils";
 
 import { BulkTaskModal } from "@/components/tasks/modals/BulkTaskModal";
+import { useBulkUpdateTasks, useBulkDeleteTasks, useBulkDuplicateTasks } from "@/hooks/useTaskMutations";
 import { BulkEditModal } from "@/components/tasks/modals/BulkEditModal";
 import { CreateTaskModal } from "@/components/tasks/modals/CreateTaskModal";
 import { TaskDetailDialog } from "@/components/tasks/details/TaskDetailDialog";
+import { BulkTaskActionsBar } from "@/components/tasks/BulkTaskActionsBar";
+import { LaunchFieldOptionsManager } from "@/components/Lancamentos/LaunchFieldOptionsManager";
 
 export default function Tarefas() {
     const { userData: currentUser } = useCurrentUser();
@@ -65,6 +68,10 @@ export default function Tarefas() {
     // Detail Dialog state
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [bulkEditInitialAction, setBulkEditInitialAction] = useState<string | null>(null);
+    const [isLaunchOptionsOpen, setIsLaunchOptionsOpen] = useState(false);
+
+    const { mutate: bulkDuplicateTasks } = useBulkDuplicateTasks();
 
     React.useEffect(() => {
         supabase.from("colaboradores")
@@ -201,8 +208,8 @@ export default function Tarefas() {
                             </div>
                         </div>
                         {selectedTasks.length > 0 && minhasViewType === "tabela" && (
-                            <div className="flex justify-end mb-4 animate-in fade-in slide-in-from-top-1">
-                                <Button variant="secondary" onClick={() => setIsBulkEditOpen(true)} className="gap-2 shadow-sm border bg-card hover:bg-muted font-semibold text-primary">
+                            <div className="flex justify-end mb-4 animate-in fade-in slide-in-from-top-1 opacity-0 pointer-events-none">
+                                <Button variant="secondary" onClick={() => { setBulkEditInitialAction(null); setIsBulkEditOpen(true); }} className="gap-2 shadow-sm border bg-card hover:bg-muted font-semibold text-primary">
                                     <Layers className="w-4 h-4" />
                                     Editar Lote ({selectedTasks.length} {selectedTasks.length === 1 ? 'tarefa' : 'tarefas'})
                                 </Button>
@@ -368,6 +375,13 @@ export default function Tarefas() {
                                 </button>
                             )}
                         </div>
+
+                        {isAdmin && (
+                            <Button variant="outline" onClick={() => setIsLaunchOptionsOpen(true)} className="gap-2">
+                                <Filter className="w-4 h-4" />
+                                Tipos de Lançamento
+                            </Button>
+                        )}
 
                         <Button variant="outline" onClick={() => setIsBulkCreateOpen(true)} className="gap-2">
                             <Layers className="w-4 h-4" />
@@ -608,6 +622,32 @@ export default function Tarefas() {
                 onOpenChange={setIsBulkEditOpen}
                 selectedTaskIds={selectedTasks}
                 onClearSelection={() => setSelectedTasks([])}
+                initialAction={bulkEditInitialAction}
+            />
+
+            <BulkTaskActionsBar
+                selectedCount={selectedTasks.length}
+                onClearSelection={() => setSelectedTasks([])}
+                onAction={(action) => {
+                    if (action === 'duplicate') {
+                        if (confirm(`Deseja duplicar as ${selectedTasks.length} tarefas selecionadas?`)) {
+                            bulkDuplicateTasks(selectedTasks, {
+                                onSuccess: () => setSelectedTasks([])
+                            });
+                        }
+                    } else if (action === 'delete') {
+                        setBulkEditInitialAction('delete');
+                        setIsBulkEditOpen(true);
+                    } else {
+                        setBulkEditInitialAction(action);
+                        setIsBulkEditOpen(true);
+                    }
+                }}
+            />
+
+            <LaunchFieldOptionsManager
+                open={isLaunchOptionsOpen}
+                onOpenChange={setIsLaunchOptionsOpen}
             />
 
             <TaskDetailDialog

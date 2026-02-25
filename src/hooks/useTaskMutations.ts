@@ -449,6 +449,83 @@ export function useBulkUpdateTasks() {
     });
 }
 
+export const useBulkDuplicateTasks = () => {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async (taskIds: string[]) => {
+            if (!taskIds.length) return [];
+
+            const user = (await supabase.auth.getUser()).data.user;
+
+            // Fetch all tasks to be duplicated
+            const { data: tasks, error: fetchError } = await supabase
+                .from("tasks")
+                .select("*")
+                .in("id", taskIds);
+
+            if (fetchError) throw fetchError;
+            if (!tasks || tasks.length === 0) return [];
+
+            const duplicatedTasks: any[] = [];
+
+            for (const task of tasks) {
+                const { id: oldId, created_at, updated_at, completed_at, doing_since, timer_started_at, time_tracked, ...taskInfo } = task;
+                const { data: newTasks, error: insertError } = await supabase
+                    .from("tasks")
+                    .insert({
+                        ...taskInfo,
+                        title: `${taskInfo.title} (Cópia)`,
+                        completed: false,
+                        created_by_id: user?.id
+                    })
+                    .select()
+                    .single();
+
+                if (insertError) continue;
+                if (newTasks) {
+                    duplicatedTasks.push(newTasks);
+
+                    // Copy subtasks
+                    const { data: subtasks } = await supabase
+                        .from("subtasks")
+                        .select("*")
+                        .eq("task_id", oldId);
+
+                    if (subtasks && subtasks.length > 0) {
+                        const newSubtasks = subtasks.map(s => ({
+                            task_id: newTasks.id,
+                            title: s.title,
+                            position: s.position,
+                            completed: false
+                        }));
+                        await supabase.from("subtasks").insert(newSubtasks);
+                    }
+
+                    // Record in history
+                    await supabase.from("task_history").insert({
+                        task_id: newTasks.id,
+                        action: "created",
+                        changed_by: user?.email || "Sistema",
+                        field_changed: "duplication",
+                        new_value: `Duplicada da tarefa ID: ${oldId}`
+                    });
+                }
+            }
+
+            return duplicatedTasks;
+        },
+        onSuccess: (data: any[]) => {
+            queryClient.invalidateQueries({ queryKey: taskKeys.all });
+            toast({ title: `${data.length} tarefas duplicadas com sucesso` });
+        },
+        onError: (error: any) => {
+            toast({ title: "Erro ao duplicar tarefas", description: error.message, variant: "destructive" });
+        }
+    });
+}
+
 export function useBulkDeleteTasks() {
     const queryClient = useQueryClient();
     const { toast } = useToast();

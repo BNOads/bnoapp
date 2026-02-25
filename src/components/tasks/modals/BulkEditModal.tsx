@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,16 +17,24 @@ interface BulkEditModalProps {
     onOpenChange: (open: boolean) => void;
     selectedTaskIds: string[];
     onClearSelection: () => void;
+    initialAction?: string | null;
 }
 
-export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSelection }: BulkEditModalProps) {
+export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSelection, initialAction }: BulkEditModalProps) {
     const [assignee, setAssignee] = useState<string>("no-change");
     const [priority, setPriority] = useState<string>("no-change");
     const [status, setStatus] = useState<string>("no-change");
     const [dueDate, setDueDate] = useState<string>("");
+    const [taskListId, setTaskListId] = useState<string>("no-change");
     const [isDeleting, setIsDeleting] = useState(false);
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string }[]>([]);
+    const [taskLists, setTaskLists] = useState<{ id: string, name: string }[]>([]);
+
+    const statusRef = useRef<HTMLButtonElement>(null);
+    const assigneeRef = useRef<HTMLButtonElement>(null);
+    const dateRef = useRef<HTMLInputElement>(null);
+    const listRef = useRef<HTMLButtonElement>(null);
 
     const { mutate: bulkUpdateTasks, isPending: isUpdating } = useBulkUpdateTasks();
     const { mutate: bulkDeleteTasks, isPending: isDeletingTasks } = useBulkDeleteTasks();
@@ -37,14 +45,26 @@ export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSele
             supabase.from("colaboradores").select("nome, user_id").order("nome").then(({ data }) => {
                 if (data) setColaboradores(data);
             });
+            supabase.from("task_lists").select("id, name").order("name").then(({ data }) => {
+                if (data) setTaskLists(data);
+            });
             // Reset values
             setAssignee("no-change");
             setPriority("no-change");
             setStatus("no-change");
             setDueDate("");
-            setIsDeleting(false);
+            setTaskListId("no-change");
+            setIsDeleting(initialAction === 'delete');
+
+            // Auto-focus logic
+            setTimeout(() => {
+                if (initialAction === 'status') statusRef.current?.focus();
+                else if (initialAction === 'assignee') assigneeRef.current?.focus();
+                else if (initialAction === 'date') dateRef.current?.focus();
+                else if (initialAction === 'list') listRef.current?.focus();
+            }, 100);
         }
-    }, [open]);
+    }, [open, initialAction]);
 
     const handleSave = () => {
         if (selectedTaskIds.length === 0) return;
@@ -72,6 +92,9 @@ export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSele
         }
         if (dueDate) {
             updates.due_date = dueDate;
+        }
+        if (taskListId !== "no-change") {
+            updates.task_list_id = taskListId;
         }
 
         // Assignee needs special handling in useBulkUpdateTasks to fetch ID or just pass assignee name
@@ -115,7 +138,7 @@ export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSele
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Responsável</label>
                         <Select value={assignee} onValueChange={setAssignee}>
-                            <SelectTrigger>
+                            <SelectTrigger ref={assigneeRef}>
                                 <SelectValue placeholder="Sem alteração" />
                             </SelectTrigger>
                             <SelectContent>
@@ -146,7 +169,7 @@ export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSele
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Status de Conclusão</label>
                         <Select value={status} onValueChange={setStatus}>
-                            <SelectTrigger>
+                            <SelectTrigger ref={statusRef}>
                                 <SelectValue placeholder="Sem alteração" />
                             </SelectTrigger>
                             <SelectContent>
@@ -171,7 +194,7 @@ export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSele
                         </label>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" className={`w-full justify-start text-left font-normal ${!dueDate && 'text-muted-foreground'}`}>
+                                <Button ref={dateRef as any} variant="outline" className={`w-full justify-start text-left font-normal ${!dueDate && 'text-muted-foreground'}`}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {dueDate ? format(new Date(`${dueDate}T00:00:00`), "dd MMM, yyyy", { locale: ptBR }) : <span>Selecione uma data para alterar</span>}
                                 </Button>
@@ -186,6 +209,21 @@ export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSele
                             </PopoverContent>
                         </Popover>
                         {!dueDate && <p className="text-xs text-muted-foreground mt-1">Deixe vazio para não alterar</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Mover para Lista</label>
+                        <Select value={taskListId} onValueChange={setTaskListId}>
+                            <SelectTrigger ref={listRef}>
+                                <SelectValue placeholder="Sem alteração" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="no-change">Sem alteração</SelectItem>
+                                {taskLists.map(list => (
+                                    <SelectItem key={list.id} value={list.id}>{list.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="pt-4 border-t mt-4 flex items-center justify-between">

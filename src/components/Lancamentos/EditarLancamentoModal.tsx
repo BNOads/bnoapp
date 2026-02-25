@@ -42,6 +42,7 @@ const EditarLancamentoModal: React.FC<EditarLancamentoModalProps> = ({
   });
 
   const [clientes, setClientes] = useState<Array<{ id: string, nome: string }>>([]);
+  const [launchTypes, setLaunchTypes] = useState<any[]>([]);
   const [selectedCriativos, setSelectedCriativos] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -67,9 +68,24 @@ const EditarLancamentoModal: React.FC<EditarLancamentoModalProps> = ({
         observacoes: lancamento.observacoes || ''
       });
       fetchClientes();
+      fetchLaunchTypes();
       fetchCriativosVinculados();
     }
   }, [open, lancamento]);
+
+  const fetchLaunchTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('launch_field_options')
+        .select('*')
+        .eq('field_key', 'tipo_lancamento')
+        .order('sort_order', { ascending: true });
+      if (error) throw error;
+      setLaunchTypes(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar tipos de lançamento:', error);
+    }
+  };
 
   const fetchCriativosVinculados = async () => {
     try {
@@ -300,15 +316,24 @@ const EditarLancamentoModal: React.FC<EditarLancamentoModalProps> = ({
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="semente">Semente</SelectItem>
-                  <SelectItem value="interno">Interno</SelectItem>
-                  <SelectItem value="externo">Externo</SelectItem>
-                  <SelectItem value="perpetuo">Perpétuo</SelectItem>
-                  <SelectItem value="flash">Flash</SelectItem>
-                  <SelectItem value="evento">Evento</SelectItem>
-                  <SelectItem value="tradicional">Lançamento Tradicional</SelectItem>
-                  <SelectItem value="captacao_simples">Captação simples</SelectItem>
-                  <SelectItem value="outro">Outro</SelectItem>
+                  {launchTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.option_key}>
+                      {type.option_label}
+                    </SelectItem>
+                  ))}
+                  {launchTypes.length === 0 && (
+                    <>
+                      <SelectItem value="semente">Semente</SelectItem>
+                      <SelectItem value="interno">Interno</SelectItem>
+                      <SelectItem value="externo">Externo</SelectItem>
+                      <SelectItem value="perpetuo">Perpétuo</SelectItem>
+                      <SelectItem value="flash">Flash</SelectItem>
+                      <SelectItem value="evento">Evento</SelectItem>
+                      <SelectItem value="tradicional">Lançamento Tradicional</SelectItem>
+                      <SelectItem value="captacao_simples">Captação simples</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
