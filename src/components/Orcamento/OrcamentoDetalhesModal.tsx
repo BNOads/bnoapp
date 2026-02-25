@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, Calendar, FileText, History, TrendingUp, Info, FileImage, AlertCircle, Megaphone } from 'lucide-react';
+import { DollarSign, Calendar, FileText, History, TrendingUp, Info, FileImage, AlertCircle, Megaphone, Link2, ExternalLink } from 'lucide-react';
 import { getCategoriaLabel, getCategoriaDescricao, MESES, STATUS_ORCAMENTO } from '@/lib/orcamentoConstants';
 import { OrcamentoCriativosTab } from './OrcamentoCriativosTab';
 
@@ -16,6 +17,7 @@ interface OrcamentoDetalhes {
   id: string;
   nome_funil: string;
   valor_investimento: number;
+  landing_page_url?: string | null;
   valor_gasto?: number;
   etapa_funil?: string;
   periodo_mes?: number;
@@ -147,7 +149,7 @@ export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento, initialT
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="info" className="flex items-center gap-2">
               <Info className="h-4 w-4" />
               Informações
@@ -167,6 +169,10 @@ export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento, initialT
             <TabsTrigger value="grafico" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Gráfico
+            </TabsTrigger>
+            <TabsTrigger value="links" className="flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Links Úteis
             </TabsTrigger>
           </TabsList>
 
@@ -202,6 +208,36 @@ export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento, initialT
                         {getMesLabel(orcamento.periodo_mes)} / {orcamento.periodo_ano}
                       </p>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Landing Page */}
+            {orcamento.landing_page_url && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-50 rounded-lg">
+                        <Link2 className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Landing Page</p>
+                        <p className="text-sm font-medium truncate max-w-[200px] sm:max-w-md">
+                          {orcamento.landing_page_url}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(orcamento.landing_page_url!, '_blank')}
+                      className="flex items-center gap-2"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Abrir
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -379,6 +415,53 @@ export const OrcamentoDetalhesModal = ({ open, onOpenChange, orcamento, initialT
                 </p>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="links" className="space-y-4 mt-4">
+            <div className="grid grid-cols-1 gap-4">
+              {orcamento.landing_page_url ? (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-50 rounded-lg">
+                          <Link2 className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Landing Page</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-md">
+                            {orcamento.landing_page_url}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(orcamento.landing_page_url!);
+                            // toast.success is not imported here, but we can assume sonner or similar if we wanted
+                          }}
+                        >
+                          Copiar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => window.open(orcamento.landing_page_url!, '_blank')}
+                        >
+                          Abrir
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <AlertCircle className="h-10 w-10 text-muted-foreground mb-4 opacity-20" />
+                  <p className="text-muted-foreground">Nenhum link útil cadastrado para este funil.</p>
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </DialogContent>

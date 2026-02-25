@@ -22,6 +22,7 @@ interface Orcamento {
   status_orcamento: string;
   observacoes?: string;
   categoria_explicacao?: string;
+  landing_page_url?: string | null;
 }
 
 interface EditOrcamentoModalProps {
@@ -41,7 +42,8 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
     periodo_ano: new Date().getFullYear(),
     status_orcamento: 'ativo',
     observacoes: '',
-    categoria_explicacao: ''
+    categoria_explicacao: '',
+    landing_page_url: ''
   });
 
   const { toast } = useToast();
@@ -56,7 +58,8 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
         periodo_ano: orcamento.periodo_ano || new Date().getFullYear(),
         status_orcamento: orcamento.status_orcamento || 'ativo',
         observacoes: orcamento.observacoes || '',
-        categoria_explicacao: orcamento.categoria_explicacao || ''
+        categoria_explicacao: orcamento.categoria_explicacao || '',
+        landing_page_url: orcamento.landing_page_url || ''
       });
     }
   }, [open, orcamento]);
@@ -87,6 +90,7 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
           status_orcamento: formData.status_orcamento,
           observacoes: formData.observacoes || null,
           categoria_explicacao: formData.categoria_explicacao || null,
+          landing_page_url: formData.landing_page_url || null,
           data_atualizacao: new Date().toISOString()
         })
         .eq('id', orcamento.id);
@@ -128,7 +132,7 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
               <Input
                 id="nome_funil"
                 value={formData.nome_funil}
-                onChange={(e) => setFormData({...formData, nome_funil: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, nome_funil: e.target.value })}
                 placeholder="Ex: Facebook Ads"
               />
             </div>
@@ -149,7 +153,7 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
               </div>
               <Select
                 value={formData.etapa_funil}
-                onValueChange={(value) => setFormData({...formData, etapa_funil: value})}
+                onValueChange={(value) => setFormData({ ...formData, etapa_funil: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a categoria" />
@@ -173,7 +177,7 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
               step="0.01"
               min="0"
               value={formData.valor_investimento}
-              onChange={(e) => setFormData({...formData, valor_investimento: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, valor_investimento: e.target.value })}
               placeholder="0.00"
             />
           </div>
@@ -183,7 +187,7 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
               <Label htmlFor="periodo_mes">Mês *</Label>
               <Select
                 value={formData.periodo_mes.toString()}
-                onValueChange={(value) => setFormData({...formData, periodo_mes: Number(value)})}
+                onValueChange={(value) => setFormData({ ...formData, periodo_mes: Number(value) })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o mês" />
@@ -202,7 +206,7 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
               <Label htmlFor="periodo_ano">Ano *</Label>
               <Select
                 value={formData.periodo_ano.toString()}
-                onValueChange={(value) => setFormData({...formData, periodo_ano: Number(value)})}
+                onValueChange={(value) => setFormData({ ...formData, periodo_ano: Number(value) })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o ano" />
@@ -221,7 +225,7 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
               <Label htmlFor="status_orcamento">Status *</Label>
               <Select
                 value={formData.status_orcamento}
-                onValueChange={(value) => setFormData({...formData, status_orcamento: value})}
+                onValueChange={(value) => setFormData({ ...formData, status_orcamento: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o status" />
@@ -242,9 +246,19 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
             <Textarea
               id="observacoes"
               value={formData.observacoes}
-              onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
               placeholder="Observações sobre o orçamento (opcional)"
               rows={2}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="landing_page_url">Link da Landing Page</Label>
+            <Input
+              id="landing_page_url"
+              value={formData.landing_page_url}
+              onChange={(e) => setFormData({ ...formData, landing_page_url: e.target.value })}
+              placeholder="https://..."
             />
           </div>
 
@@ -253,7 +267,7 @@ export const EditOrcamentoModal = ({ open, onOpenChange, orcamento, onSuccess }:
             <Textarea
               id="categoria_explicacao"
               value={formData.categoria_explicacao}
-              onChange={(e) => setFormData({...formData, categoria_explicacao: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, categoria_explicacao: e.target.value })}
               placeholder={getCategoriaDescricao(formData.etapa_funil) || 'Adicione uma explicação personalizada para esta categoria...'}
               rows={2}
             />

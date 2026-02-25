@@ -37,7 +37,8 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
     periodo_ano: new Date().getFullYear(),
     status_orcamento: 'ativo',
     observacoes: '',
-    categoria_explicacao: ''
+    categoria_explicacao: '',
+    landing_page_url: ''
   });
 
   const { toast } = useToast();
@@ -56,7 +57,8 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
         periodo_ano: new Date().getFullYear(),
         status_orcamento: 'ativo',
         observacoes: '',
-        categoria_explicacao: ''
+        categoria_explicacao: '',
+        landing_page_url: ''
       });
     }
   }, [open]);
@@ -83,7 +85,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.cliente_id || !formData.nome_funil || !formData.valor_investimento) {
       toast({
         title: "Erro",
@@ -95,7 +97,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
 
     try {
       setLoading(true);
-      
+
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('Usuário não autenticado');
 
@@ -112,6 +114,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
           status_orcamento: formData.status_orcamento,
           observacoes: formData.observacoes || null,
           categoria_explicacao: formData.categoria_explicacao || null,
+          landing_page_url: formData.landing_page_url || null,
           created_by: user.user.id
         }]);
 
@@ -139,7 +142,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
   const clienteSelecionado = clientes.find(c => c.id === formData.cliente_id);
   const funisDisponiveis = (clienteSelecionado?.funis_trabalhando || [
     'Captação Facebook/Instagram',
-    'Captação Google Ads', 
+    'Captação Google Ads',
     'Remarketing',
     'E-mail Marketing',
     'Vendas Diretas',
@@ -152,14 +155,14 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
         <DialogHeader>
           <DialogTitle>Novo Orçamento por Funil</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="cliente">Cliente *</Label>
-              <Select 
-                value={formData.cliente_id} 
-                onValueChange={(value) => setFormData({...formData, cliente_id: value, nome_funil: ''})}
+              <Select
+                value={formData.cliente_id}
+                onValueChange={(value) => setFormData({ ...formData, cliente_id: value, nome_funil: '' })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um cliente" />
@@ -190,7 +193,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
               </div>
               <Select
                 value={formData.etapa_funil}
-                onValueChange={(value) => setFormData({...formData, etapa_funil: value, categoria_explicacao: ''})}
+                onValueChange={(value) => setFormData({ ...formData, etapa_funil: value, categoria_explicacao: '' })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a categoria" />
@@ -208,9 +211,9 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
 
           <div>
             <Label htmlFor="nome_funil">Nome do Funil *</Label>
-            <Select 
-              value={formData.nome_funil} 
-              onValueChange={(value) => setFormData({...formData, nome_funil: value})}
+            <Select
+              value={formData.nome_funil}
+              onValueChange={(value) => setFormData({ ...formData, nome_funil: value })}
               disabled={!formData.cliente_id}
             >
               <SelectTrigger>
@@ -228,7 +231,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
               className="mt-2"
               placeholder="Ou digite um nome personalizado"
               value={formData.nome_funil}
-              onChange={(e) => setFormData({...formData, nome_funil: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, nome_funil: e.target.value })}
             />
           </div>
 
@@ -241,7 +244,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
                 step="0.01"
                 min="0"
                 value={formData.valor_investimento}
-                onChange={(e) => setFormData({...formData, valor_investimento: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, valor_investimento: e.target.value })}
                 placeholder="0.00"
               />
             </div>
@@ -254,7 +257,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
                 step="0.01"
                 min="0"
                 value={formData.valor_gasto}
-                onChange={(e) => setFormData({...formData, valor_gasto: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, valor_gasto: e.target.value })}
                 placeholder="0.00"
               />
             </div>
@@ -263,9 +266,9 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
           <div className="grid gap-4 md:grid-cols-3">
             <div>
               <Label htmlFor="periodo_mes">Mês *</Label>
-              <Select 
-                value={formData.periodo_mes.toString()} 
-                onValueChange={(value) => setFormData({...formData, periodo_mes: Number(value)})}
+              <Select
+                value={formData.periodo_mes.toString()}
+                onValueChange={(value) => setFormData({ ...formData, periodo_mes: Number(value) })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o mês" />
@@ -282,9 +285,9 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
 
             <div>
               <Label htmlFor="periodo_ano">Ano *</Label>
-              <Select 
-                value={formData.periodo_ano.toString()} 
-                onValueChange={(value) => setFormData({...formData, periodo_ano: Number(value)})}
+              <Select
+                value={formData.periodo_ano.toString()}
+                onValueChange={(value) => setFormData({ ...formData, periodo_ano: Number(value) })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o ano" />
@@ -303,7 +306,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
               <Label htmlFor="status_orcamento">Status *</Label>
               <Select
                 value={formData.status_orcamento}
-                onValueChange={(value) => setFormData({...formData, status_orcamento: value})}
+                onValueChange={(value) => setFormData({ ...formData, status_orcamento: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o status" />
@@ -324,9 +327,19 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
             <Textarea
               id="observacoes"
               value={formData.observacoes}
-              onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
               placeholder="Observações sobre o orçamento (opcional)"
               rows={3}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="landing_page_url">Link da Landing Page</Label>
+            <Input
+              id="landing_page_url"
+              value={formData.landing_page_url}
+              onChange={(e) => setFormData({ ...formData, landing_page_url: e.target.value })}
+              placeholder="https://..."
             />
           </div>
 
@@ -335,7 +348,7 @@ export const NovoOrcamentoModal = ({ open, onOpenChange, onSuccess }: NovoOrcame
             <Textarea
               id="categoria_explicacao"
               value={formData.categoria_explicacao}
-              onChange={(e) => setFormData({...formData, categoria_explicacao: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, categoria_explicacao: e.target.value })}
               placeholder={getCategoriaDescricao(formData.etapa_funil) || 'Adicione uma explicação personalizada para esta categoria...'}
               rows={2}
             />

@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Search, Plus, Trash2, TrendingUp, Users, ChevronUp, ChevronDown, PieChart as PieChartIcon, Edit2, Rocket, ExternalLink, Calculator, Filter, Zap } from 'lucide-react';
+import { Search, Plus, Trash2, TrendingUp, Users, ChevronUp, ChevronDown, PieChart as PieChartIcon, Edit2, Rocket, ExternalLink, Calculator, Filter, Zap, Link2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
@@ -42,6 +42,7 @@ interface Orcamento {
   isLancamento?: boolean;
   lancamento_id?: string;
   lancamento_status?: string;
+  landing_page_url?: string | null;
 }
 
 type SortField = 'nome_funil' | 'cliente_nome' | 'valor_investimento' | 'valor_gasto' | 'periodo_mes' | 'etapa_funil';
@@ -794,6 +795,17 @@ export const OrcamentosView = () => {
                                   >
                                     <Edit2 className="h-4 w-4" />
                                   </Button>
+                                  {orcamento.landing_page_url && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => window.open(orcamento.landing_page_url!, '_blank')}
+                                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      title="Abrir Landing Page"
+                                    >
+                                      <Link2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                   <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
                                     <AlertDialogTrigger asChild>
                                       <Button

@@ -3313,8 +3313,8 @@ export type Database = {
           lancamento_id: string
           motivo: string | null
           status_anterior:
-            | Database["public"]["Enums"]["status_lancamento"]
-            | null
+          | Database["public"]["Enums"]["status_lancamento"]
+          | null
           status_novo: Database["public"]["Enums"]["status_lancamento"]
         }
         Insert: {
@@ -3324,8 +3324,8 @@ export type Database = {
           lancamento_id: string
           motivo?: string | null
           status_anterior?:
-            | Database["public"]["Enums"]["status_lancamento"]
-            | null
+          | Database["public"]["Enums"]["status_lancamento"]
+          | null
           status_novo: Database["public"]["Enums"]["status_lancamento"]
         }
         Update: {
@@ -3335,8 +3335,8 @@ export type Database = {
           lancamento_id?: string
           motivo?: string | null
           status_anterior?:
-            | Database["public"]["Enums"]["status_lancamento"]
-            | null
+          | Database["public"]["Enums"]["status_lancamento"]
+          | null
           status_novo?: Database["public"]["Enums"]["status_lancamento"]
         }
         Relationships: [
@@ -3915,8 +3915,8 @@ export type Database = {
       meetings: {
         Row: {
           classificacao_reuniao:
-            | Database["public"]["Enums"]["validacao_teste_lab"]
-            | null
+          | Database["public"]["Enums"]["validacao_teste_lab"]
+          | null
           cliente_id: string | null
           created_at: string
           created_by: string | null
@@ -3940,8 +3940,8 @@ export type Database = {
         }
         Insert: {
           classificacao_reuniao?:
-            | Database["public"]["Enums"]["validacao_teste_lab"]
-            | null
+          | Database["public"]["Enums"]["validacao_teste_lab"]
+          | null
           cliente_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3965,8 +3965,8 @@ export type Database = {
         }
         Update: {
           classificacao_reuniao?:
-            | Database["public"]["Enums"]["validacao_teste_lab"]
-            | null
+          | Database["public"]["Enums"]["validacao_teste_lab"]
+          | null
           cliente_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -4845,6 +4845,7 @@ export type Database = {
           updated_at: string
           valor_gasto: number | null
           valor_investimento: number
+          landing_page_url: string | null
         }
         Insert: {
           active?: boolean
@@ -4866,6 +4867,7 @@ export type Database = {
           updated_at?: string
           valor_gasto?: number | null
           valor_investimento?: number
+          landing_page_url?: string | null
         }
         Update: {
           active?: boolean
@@ -4887,6 +4889,7 @@ export type Database = {
           updated_at?: string
           valor_gasto?: number | null
           valor_investimento?: number
+          landing_page_url?: string | null
         }
         Relationships: [
           {
@@ -6594,8 +6597,8 @@ export type Database = {
           link_experimento: string | null
           meta_metrica: number | null
           metrica_principal:
-            | Database["public"]["Enums"]["metrica_principal_lab"]
-            | null
+          | Database["public"]["Enums"]["metrica_principal_lab"]
+          | null
           nome: string
           o_que_foi_alterado: string | null
           observacao_equipe: string | null
@@ -6626,8 +6629,8 @@ export type Database = {
           link_experimento?: string | null
           meta_metrica?: number | null
           metrica_principal?:
-            | Database["public"]["Enums"]["metrica_principal_lab"]
-            | null
+          | Database["public"]["Enums"]["metrica_principal_lab"]
+          | null
           nome: string
           o_que_foi_alterado?: string | null
           observacao_equipe?: string | null
@@ -6658,8 +6661,8 @@ export type Database = {
           link_experimento?: string | null
           meta_metrica?: number | null
           metrica_principal?:
-            | Database["public"]["Enums"]["metrica_principal_lab"]
-            | null
+          | Database["public"]["Enums"]["metrica_principal_lab"]
+          | null
           nome?: string
           o_que_foi_alterado?: string | null
           observacao_equipe?: string | null
@@ -6817,8 +6820,8 @@ export type Database = {
           id: string
           meta_metrica: number | null
           metrica_principal:
-            | Database["public"]["Enums"]["metrica_principal_lab"]
-            | null
+          | Database["public"]["Enums"]["metrica_principal_lab"]
+          | null
           nome: string
           tipo_teste: Database["public"]["Enums"]["tipo_teste_lab"]
           updated_at: string
@@ -6833,8 +6836,8 @@ export type Database = {
           id?: string
           meta_metrica?: number | null
           metrica_principal?:
-            | Database["public"]["Enums"]["metrica_principal_lab"]
-            | null
+          | Database["public"]["Enums"]["metrica_principal_lab"]
+          | null
           nome: string
           tipo_teste: Database["public"]["Enums"]["tipo_teste_lab"]
           updated_at?: string
@@ -6849,8 +6852,8 @@ export type Database = {
           id?: string
           meta_metrica?: number | null
           metrica_principal?:
-            | Database["public"]["Enums"]["metrica_principal_lab"]
-            | null
+          | Database["public"]["Enums"]["metrica_principal_lab"]
+          | null
           nome?: string
           tipo_teste?: Database["public"]["Enums"]["tipo_teste_lab"]
           updated_at?: string
@@ -7401,102 +7404,102 @@ export type Database = {
       alert_severity: "info" | "warn" | "urgent"
       alert_status: "open" | "closed"
       canal_teste_lab:
-        | "meta_ads"
-        | "google_ads"
-        | "tiktok_ads"
-        | "youtube"
-        | "outro"
+      | "meta_ads"
+      | "google_ads"
+      | "tiktok_ads"
+      | "youtube"
+      | "outro"
       categoria_cliente: "negocio_local" | "infoproduto"
       criterio_vitoria:
-        | "maior_numero_acoes"
-        | "maior_pontuacao"
-        | "maior_consistencia"
+      | "maior_numero_acoes"
+      | "maior_pontuacao"
+      | "maior_consistencia"
       delivery_channel: "inapp" | "email" | "slack"
       estado_civil:
-        | "solteiro"
-        | "casado"
-        | "divorciado"
-        | "viuvo"
-        | "uniao_estavel"
+      | "solteiro"
+      | "casado"
+      | "divorciado"
+      | "viuvo"
+      | "uniao_estavel"
       etapa_funil_enum:
-        | "captacao"
-        | "cpl"
-        | "vendas"
-        | "remarketing"
-        | "email_marketing"
-        | "upsell"
+      | "captacao"
+      | "cpl"
+      | "vendas"
+      | "remarketing"
+      | "email_marketing"
+      | "upsell"
       kickoff_status: "draft" | "active" | "archived"
       meeting_risk: "baixo" | "medio" | "alto"
       meeting_source: "manual" | "google"
       meeting_type:
-        | "alinhamento"
-        | "estrategica"
-        | "crise"
-        | "resultado"
-        | "onboarding"
+      | "alinhamento"
+      | "estrategica"
+      | "crise"
+      | "resultado"
+      | "onboarding"
       metrica_principal_lab: "ctr" | "cpl" | "cpa" | "roas" | "conversao_lp"
       nivel_acesso:
-        | "admin"
-        | "gestor_trafego"
-        | "cs"
-        | "designer"
-        | "webdesigner"
-        | "editor_video"
-        | "gestor_projetos"
-        | "dono"
+      | "admin"
+      | "gestor_trafego"
+      | "cs"
+      | "designer"
+      | "webdesigner"
+      | "editor_video"
+      | "gestor_projetos"
+      | "dono"
       participant_status: "active" | "removed"
       prioridade_tarefa: "copa_mundo" | "libertadores" | "brasileirao"
       recorrencia_tarefa: "nenhuma" | "diaria" | "semanal" | "mensal"
       status_documento_reuniao:
-        | "rascunho"
-        | "pauta_criada"
-        | "ata_concluida"
-        | "arquivado"
+      | "rascunho"
+      | "pauta_criada"
+      | "ata_concluida"
+      | "arquivado"
       status_lancamento:
-        | "em_captacao"
-        | "cpl"
-        | "remarketing"
-        | "finalizado"
-        | "pausado"
-        | "cancelado"
+      | "em_captacao"
+      | "cpl"
+      | "remarketing"
+      | "finalizado"
+      | "pausado"
+      | "cancelado"
       status_orcamento_enum: "ativo" | "pausado" | "concluido" | "cancelado"
       status_tarefa: "pendente" | "em_andamento" | "concluida" | "adiada"
       status_teste_lab:
-        | "planejado"
-        | "rodando"
-        | "pausado"
-        | "concluido"
-        | "cancelado"
+      | "planejado"
+      | "rodando"
+      | "pausado"
+      | "concluido"
+      | "cancelado"
       tipo_acesso_dados:
-        | "leitura_propria"
-        | "leitura_limitada"
-        | "leitura_completa"
-        | "administracao"
+      | "leitura_propria"
+      | "leitura_limitada"
+      | "leitura_completa"
+      | "administracao"
       tipo_bloco_reuniao:
-        | "titulo"
-        | "descricao"
-        | "participantes"
-        | "pauta"
-        | "decisoes"
-        | "acoes"
+      | "titulo"
+      | "descricao"
+      | "participantes"
+      | "pauta"
+      | "decisoes"
+      | "acoes"
       tipo_lancamento:
-        | "semente"
-        | "interno"
-        | "externo"
-        | "perpetuo"
-        | "flash"
-        | "evento"
-        | "outro"
-        | "tradicional"
-        | "captacao_simples"
+      | "semente"
+      | "interno"
+      | "externo"
+      | "perpetuo"
+      | "flash"
+      | "evento"
+      | "outro"
+      | "tradicional"
+      | "captacao_simples"
       tipo_medicao_desafio: "quantidade_acoes" | "pontuacao" | "check_in_diario"
       tipo_teste_lab:
-        | "criativo"
-        | "publico"
-        | "estrategia"
-        | "pagina"
-        | "oferta"
-        | "evento"
+      | "criativo"
+      | "publico"
+      | "estrategia"
+      | "pagina"
+      | "oferta"
+      | "evento"
       validacao_teste_lab: "em_teste" | "deu_bom" | "deu_ruim" | "inconclusivo"
     }
     CompositeTypes: {
@@ -7511,116 +7514,116 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-    ? R
-    : never
+  ? R
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
+    DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] &
+    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+  ? R
+  : never
+  : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
+    Insert: infer I
+  }
+  ? I
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Insert: infer I
+  }
+  ? I
+  : never
+  : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
+    Update: infer U
+  }
+  ? U
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Update: infer U
+  }
+  ? U
+  : never
+  : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Enums"]
+  | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["CompositeTypes"]
+  | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+  : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
 
 export const Constants = {
   public: {

@@ -46,6 +46,7 @@ interface OrcamentoFunil {
   lancamento_status?: string;
   linked_campaigns?: { id: string; name: string }[];
   manual_campaigns?: string[] | null;
+  landing_page_url?: string | null;
 }
 
 // Componente card draggable
@@ -166,6 +167,20 @@ const SortableOrcamentoCard = ({
             >
               {orcamento.isLancamento ? <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" /> : <Eye className="h-3 w-3 sm:h-4 sm:w-4" />}
             </Button>
+            {orcamento.landing_page_url && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(orcamento.landing_page_url!, '_blank');
+                }}
+                className="h-7 w-7 p-0 sm:h-8 sm:w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                title="Abrir Landing Page"
+              >
+                <Link2 className="h-3 w-3 sm:h-4 sm:w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -235,11 +250,10 @@ const SortableOrcamentoCard = ({
             <Dialog open={showCampaignEditor} onOpenChange={setShowCampaignEditor}>
               <DialogTrigger asChild>
                 <div
-                  className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full cursor-pointer transition-colors ${
-                    orcamento.linked_campaigns && orcamento.linked_campaigns.length > 0
+                  className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full cursor-pointer transition-colors ${orcamento.linked_campaigns && orcamento.linked_campaigns.length > 0
                       ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
                       : 'text-muted-foreground bg-muted/50 hover:bg-muted'
-                  }`}
+                    }`}
                   onClick={(e) => e.stopPropagation()}
                   title="Editar campanhas vinculadas"
                 >
@@ -370,7 +384,8 @@ export const OrcamentoPorFunil = ({
     valor_investimento: "",
     observacoes: "",
     etapa_funil: "distribuicao_conteudo",
-    categoria_explicacao: ""
+    categoria_explicacao: "",
+    landing_page_url: ""
   });
   const {
     toast
@@ -403,6 +418,7 @@ export const OrcamentoPorFunil = ({
     isLancamento: true,
     lancamento_id: lancamento.id,
     lancamento_link_publico: lancamento.link_publico || null,
+    landing_page_url: null, // Lançamentos usam o link_publico acima
     lancamento_status: lancamento.status_lancamento,
   });
 
@@ -889,6 +905,7 @@ export const OrcamentoPorFunil = ({
           observacoes: formData.observacoes,
           etapa_funil: formData.etapa_funil,
           categoria_explicacao: formData.categoria_explicacao || null,
+          landing_page_url: formData.landing_page_url || null,
           data_atualizacao: new Date().toISOString()
         }).eq('id', selectedOrcamento.id);
         if (error) throw error;
@@ -911,6 +928,7 @@ export const OrcamentoPorFunil = ({
           observacoes: formData.observacoes,
           etapa_funil: formData.etapa_funil,
           categoria_explicacao: formData.categoria_explicacao || null,
+          landing_page_url: formData.landing_page_url || null,
           active: true,
           created_by: actorUserId
         }).select('id, cliente_id, nome_funil, valor_investimento, active, etapa_funil').single();
@@ -959,7 +977,8 @@ export const OrcamentoPorFunil = ({
         valor_investimento: "",
         observacoes: "",
         etapa_funil: "distribuicao_conteudo",
-        categoria_explicacao: ""
+        categoria_explicacao: "",
+        landing_page_url: ""
       });
       setSelectedOrcamento(null);
       carregarOrcamentos();
@@ -1092,7 +1111,8 @@ export const OrcamentoPorFunil = ({
       valor_investimento: orcamento.valor_investimento.toString(),
       observacoes: orcamento.observacoes || "",
       etapa_funil: orcamento.etapa_funil || "distribuicao_conteudo",
-      categoria_explicacao: orcamento.categoria_explicacao || ""
+      categoria_explicacao: orcamento.categoria_explicacao || "",
+      landing_page_url: orcamento.landing_page_url || ""
     });
     setShowEditarModal(true);
   };
@@ -1437,6 +1457,13 @@ export const OrcamentoPorFunil = ({
             })} placeholder="Informações adicionais sobre o orçamento..." rows={2} />
           </div>
           <div>
+            <Label htmlFor="landing_page_url">Link da Landing Page</Label>
+            <Input id="landing_page_url" value={formData.landing_page_url} onChange={e => setFormData({
+              ...formData,
+              landing_page_url: e.target.value
+            })} placeholder="https://..." />
+          </div>
+          <div>
             <Label htmlFor="categoria_explicacao">Explicação da Categoria</Label>
             <Textarea id="categoria_explicacao" value={formData.categoria_explicacao} onChange={e => setFormData({
               ...formData,
@@ -1512,6 +1539,13 @@ export const OrcamentoPorFunil = ({
               ...formData,
               observacoes: e.target.value
             })} rows={2} />
+          </div>
+          <div>
+            <Label htmlFor="edit_landing_page_url">Link da Landing Page</Label>
+            <Input id="edit_landing_page_url" value={formData.landing_page_url} onChange={e => setFormData({
+              ...formData,
+              landing_page_url: e.target.value
+            })} placeholder="https://..." />
           </div>
           <div>
             <Label htmlFor="edit_categoria_explicacao">Explicação da Categoria</Label>

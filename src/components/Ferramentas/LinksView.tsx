@@ -30,6 +30,8 @@ interface LinkImportante {
   cliente?: {
     nome: string;
   };
+  isFunil?: boolean;
+  funilOriginalId?: string;
 }
 
 interface Cliente {
@@ -39,13 +41,14 @@ interface Cliente {
 
 const categorias = [
   "Site",
-  "Checkout", 
+  "Checkout",
   "Drive",
   "Catálogo",
   "Dashboard",
   "Social Media",
   "Email",
   "WhatsApp",
+  "Funil",
   "Outros"
 ];
 
@@ -58,21 +61,21 @@ export const LinksView = () => {
   const { userData } = useCurrentUser();
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [links, setLinks] = useState<LinkImportante[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [filteredLinks, setFilteredLinks] = useState<LinkImportante[]>([]);
-  
+
   // Filters
   const [selectedClientes, setSelectedClientes] = useState<string[]>([]);
   const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string>("ativo");
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<LinkImportante | null>(null);
-  
+
   // Form data
   const [formData, setFormData] = useState({
     titulo: "",
@@ -80,7 +83,7 @@ export const LinksView = () => {
     cliente_id: "",
     tipo: "Site"
   });
-  
+
   const [loading, setLoading] = useState(true);
 
   // Load data
@@ -117,7 +120,9 @@ export const LinksView = () => {
   const loadLinks = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      // Fetch common links
+      const { data: impLinks, error: impError } = await supabase
         .from("links_importantes")
         .select(`
           *,
@@ -125,8 +130,44 @@ export const LinksView = () => {
         `)
         .order("titulo");
 
-      if (error) throw error;
-      setLinks(data || []);
+      if (impError) throw impError;
+
+      // Fetch funnel links
+      const { data: funnelLinks, error: funnelError } = await supabase
+        .from("orcamentos_funil")
+        .select(`
+          id,
+          nome_funil,
+          landing_page_url,
+          cliente_id,
+          created_by,
+          created_at,
+          updated_at,
+          cliente:clientes(nome)
+        `)
+        .not("landing_page_url", "is", null);
+
+      if (funnelError) throw funnelError;
+
+      // Map funnel links to the LinkImportante structure
+      const mappedFunnelLinks: LinkImportante[] = (funnelLinks || []).map(f => ({
+        id: `funil-${f.id}`,
+        titulo: f.nome_funil,
+        url: f.landing_page_url!,
+        cliente_id: f.cliente_id,
+        tipo: "Funil",
+        created_by: f.created_by,
+        created_at: f.created_at,
+        updated_at: f.updated_at,
+        cliente: f.cliente,
+        isFunil: true,
+        funilOriginalId: f.id
+      }));
+
+      setLinks([
+        ...(impLinks || []),
+        ...mappedFunnelLinks
+      ].sort((a, b) => a.titulo.localeCompare(b.titulo)));
     } catch (error) {
       console.error("Erro ao carregar links:", error);
       toast({
@@ -158,7 +199,7 @@ export const LinksView = () => {
     // Filter by search term
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(link => 
+      filtered = filtered.filter(link =>
         link.titulo.toLowerCase().includes(search) ||
         link.url.toLowerCase().includes(search) ||
         link.cliente?.nome?.toLowerCase().includes(search)
@@ -217,7 +258,7 @@ export const LinksView = () => {
       setLinks([...links, data]);
       setFormData({ titulo: "", url: "", cliente_id: "", tipo: "Site" });
       setIsCreateModalOpen(false);
-      
+
       toast({
         title: "Sucesso",
         description: "Link criado com sucesso",
@@ -275,7 +316,7 @@ export const LinksView = () => {
       setLinks(links.map(link => link.id === editingLink.id ? data : link));
       setEditingLink(null);
       setFormData({ titulo: "", url: "", cliente_id: "", tipo: "Site" });
-      
+
       toast({
         title: "Sucesso",
         description: "Link atualizado com sucesso",
@@ -291,6 +332,13 @@ export const LinksView = () => {
   };
 
   const handleDelete = async (linkId: string) => {
+    if (linkId.startsWith('funil-')) {
+      toast({
+        title: "Link de Funil",
+        description: "Este link é gerado automaticamente pelo funil. Para removê-lo, limpe o campo 'Landing Page' nas configurações do funil.",
+      });
+      return;
+    }
     try {
       const { error } = await supabase
         .from("links_importantes")
@@ -300,7 +348,7 @@ export const LinksView = () => {
       if (error) throw error;
 
       setLinks(links.filter(link => link.id !== linkId));
-      
+
       toast({
         title: "Sucesso",
         description: "Link excluído com sucesso",
@@ -332,6 +380,13 @@ export const LinksView = () => {
   };
 
   const openEditModal = (link: LinkImportante) => {
+    if (link.isFunil) {
+      toast({
+        title: "Link de Funil",
+        description: "Este link é gerado automaticamente pelo funil. Edite-o nas configurações do funil.",
+      });
+      return;
+    }
     setEditingLink(link);
     setFormData({
       titulo: link.titulo,
@@ -374,7 +429,7 @@ export const LinksView = () => {
             Gerencie todos os links importantes organizados por cliente
           </p>
         </div>
-        
+
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -405,7 +460,7 @@ export const LinksView = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <Label htmlFor="titulo">Título *</Label>
                 <Input
@@ -415,7 +470,7 @@ export const LinksView = () => {
                   placeholder="Ex: Site Principal"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="url">URL *</Label>
                 <Input
@@ -426,7 +481,7 @@ export const LinksView = () => {
                   placeholder="https://exemplo.com"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="tipo">Categoria</Label>
                 <Select
@@ -446,7 +501,7 @@ export const LinksView = () => {
                 </Select>
               </div>
             </div>
-            
+
             <div className="flex justify-end gap-2 mt-6">
               <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                 Cancelar
@@ -582,7 +637,7 @@ export const LinksView = () => {
                               e.currentTarget.src = "/placeholder.svg";
                             }}
                           />
-                          
+
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <a
@@ -599,7 +654,7 @@ export const LinksView = () => {
                               {link.url}
                             </p>
                           </div>
-                          
+
                           <Badge variant="outline">
                             {link.tipo}
                           </Badge>
@@ -697,7 +752,7 @@ export const LinksView = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label htmlFor="edit-titulo">Título *</Label>
               <Input
@@ -707,7 +762,7 @@ export const LinksView = () => {
                 placeholder="Ex: Site Principal"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="edit-url">URL *</Label>
               <Input
@@ -718,7 +773,7 @@ export const LinksView = () => {
                 placeholder="https://exemplo.com"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="edit-tipo">Categoria</Label>
               <Select
@@ -738,7 +793,7 @@ export const LinksView = () => {
               </Select>
             </div>
           </div>
-          
+
           <div className="flex justify-end gap-2 mt-6">
             <Button variant="outline" onClick={resetEditModal}>
               Cancelar
