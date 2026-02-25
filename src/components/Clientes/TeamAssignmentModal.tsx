@@ -192,6 +192,59 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
         }
 
         console.log('✅ Atribuições salvas com sucesso:', data);
+
+        // Disparar automações para novas atribuições
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          const actorUserId = authData.user?.id || null;
+
+          const clientePayload = {
+            id: clienteId,
+            nome: clienteNome,
+            traffic_manager_id: selectedGestor || null,
+            cs_id: primaryCs || null,
+          };
+
+          // Se o gestor mudou ou foi adicionado
+          const currentGestor = gestores.find(g => g.is_assigned)?.user_id || '';
+          if (selectedGestor && selectedGestor !== currentGestor) {
+            const gestorInfo = gestores.find(g => g.user_id === selectedGestor);
+            await supabase.functions.invoke('evaluate-automations', {
+              body: {
+                trigger_type: 'new_traffic_manager',
+                data: {
+                  cliente: clientePayload,
+                  traffic_manager: {
+                    id: selectedGestor,
+                    nome: gestorInfo?.nome || null,
+                  },
+                  user_id: actorUserId,
+                },
+              },
+            });
+          }
+
+          // Se um novo CS primário foi definido ou mudou
+          const currentPrimaryCs = cssMembers.find(c => c.is_primary)?.user_id || '';
+          if (primaryCs && primaryCs !== currentPrimaryCs) {
+            const csInfo = cssMembers.find(c => c.user_id === primaryCs);
+            await supabase.functions.invoke('evaluate-automations', {
+              body: {
+                trigger_type: 'new_cs',
+                data: {
+                  cliente: clientePayload,
+                  cs: {
+                    id: primaryCs,
+                    nome: csInfo?.nome || null,
+                  },
+                  user_id: actorUserId,
+                },
+              },
+            });
+          }
+        } catch (autoErr) {
+          console.error('Erro ao disparar automações de equipe:', autoErr);
+        }
       }
 
       toast({
@@ -204,9 +257,9 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
 
     } catch (error: any) {
       console.error('❌ Erro ao salvar atribuições da equipe:', error);
-      
+
       let errorMessage = "Erro ao salvar atribuições da equipe";
-      
+
       if (error.message?.includes('foreign key')) {
         errorMessage = "Erro ao vincular colaborador. Verifique se o colaborador possui um user_id válido.";
       } else if (error.message?.includes('permission')) {

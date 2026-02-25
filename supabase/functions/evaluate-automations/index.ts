@@ -98,6 +98,16 @@ const asObject = (value: unknown): JsonRecord => {
   return {};
 };
 
+const parseVarAndOffset = (varName: string): { baseVar: string; offset: number } => {
+  if (varName.includes("+") || varName.includes("-")) {
+    const match = varName.match(/^(.+?)([+-]\d+)$/);
+    if (match) {
+      return { baseVar: match[1], offset: parseInt(match[2], 10) };
+    }
+  }
+  return { baseVar: varName, offset: 0 };
+};
+
 const safeJson = (value: unknown): unknown => {
   try {
     return JSON.parse(JSON.stringify(value));
@@ -141,28 +151,50 @@ const normalizeRecurrence = (value: unknown): string | null => {
   return allowed.has(recurrence) ? recurrence : null;
 };
 
-const resolveDueDateFromVar = (payload: JsonRecord, triggerData?: JsonRecord): string | null => {
-  const now = new Date();
-  const dueDateVar = asString(payload.due_date_var);
+const resolveDynamicDate = async (
+  dateVar: string | null | undefined,
+  triggerData: JsonRecord,
+  supabase: any,
+): Promise<string | null> => {
+  if (!dateVar) return null;
 
-  if (!dueDateVar) return null;
+  const { baseVar, offset } = parseVarAndOffset(dateVar);
 
-  // Launch date variables
-  if (dueDateVar === "data_inicio_captacao" || dueDateVar === "data_fim_captacao") {
-    if (triggerData) {
-      const lancamento = asObject(triggerData.lancamento);
-      const raw = asString(lancamento[dueDateVar]);
-      if (isDateString(raw)) return raw;
-      // Fallback: fetch from lancamentos table
+  // 1. Launch variables (data_inicio_captacao, data_fim_captacao)
+  if (baseVar === "data_inicio_captacao" || baseVar === "data_fim_captacao") {
+    const lancamento = asObject(triggerData.lancamento);
+    let raw = asString(lancamento[baseVar]);
+
+    // Fallback: try to fetch from DB if ID is present
+    if (!isDateString(raw)) {
       const lancId = asString(lancamento.id);
       if (lancId && isUuid(lancId)) {
-        // Return null here; async resolution handled at call site
-        return null;
+        const { data: lancRow } = await supabase
+          .from("lancamentos")
+          .select(baseVar)
+          .eq("id", lancId)
+          .maybeSingle();
+        raw = asString((lancRow as Record<string, unknown> | null)?.[baseVar]);
       }
+    }
+
+    if (isDateString(raw)) {
+      return toDateIso(addDays(new Date(raw), offset));
     }
     return null;
   }
 
+  // 2. Trigger/Gatilho variables
+  if (baseVar === "today" || baseVar === "trigger_date" || baseVar === "trigger") {
+    return toDateIso(addDays(new Date(), offset));
+  }
+
+  // Handle trigger_+X legacy or explicit format
+  if (baseVar === "trigger_") { // This can happen if format was trigger_+7 and parseVarAndOffset split it
+    return toDateIso(addDays(new Date(), offset));
+  }
+
+  // 3. Fixed offsets
   const fixedOffsets: Record<string, number> = {
     today: 0,
     tomorrow: 1,
@@ -172,22 +204,22 @@ const resolveDueDateFromVar = (payload: JsonRecord, triggerData?: JsonRecord): s
     "30_days": 30,
   };
 
-  if (fixedOffsets[dueDateVar] !== undefined) {
-    return toDateIso(addDays(now, fixedOffsets[dueDateVar]));
+  if (fixedOffsets[baseVar] !== undefined) {
+    return toDateIso(addDays(new Date(), fixedOffsets[baseVar] + offset));
   }
 
-  if (dueDateVar === "custom_days") {
-    const custom = Number(asString(payload.custom_days_value) || "0");
-    if (Number.isFinite(custom) && custom > 0) {
-      return toDateIso(addDays(now, custom));
-    }
+  // 4. Custom days (legacy custom_days field or custom_X prefix)
+  if (baseVar === "custom_days") {
+    // This expects custom_days_value in payload, which resolveDynamicDate doesn't have access to here easily.
+    // However, the UI now serializes this as trigger_+X, so this is mostly for backward compatibility.
+    // We'll skip complex payload drilling here and rely on the new serialization.
     return null;
   }
 
-  if (dueDateVar.startsWith("custom_")) {
-    const parsed = Number(dueDateVar.replace("custom_", ""));
+  if (baseVar.startsWith("custom_")) {
+    const parsed = Number(baseVar.replace("custom_", ""));
     if (Number.isFinite(parsed) && parsed > 0) {
-      return toDateIso(addDays(now, parsed));
+      return toDateIso(addDays(new Date(), parsed + offset));
     }
   }
 
@@ -423,6 +455,7 @@ serve(async (req) => {
         "{instagram_cliente}": firstPresentString(cliente.instagram, data.instagram_cliente) || "",
         "{gestor_cliente}": managerName || "",
         "{cs_cliente}": csName || "",
+        "{status_cliente}": firstPresentString(cliente.status_cliente, data.status_cliente) || "",
         "{nome_funil}": firstPresentString(funil.nome, data.nome_funil) || "",
         "{status_funil}":
           firstPresentString(funil.status, lancamento.status_lancamento, data.status_lancamento) || "",
@@ -431,6 +464,7 @@ serve(async (req) => {
           "",
         "{nome_lancamento}":
           firstPresentString(lancamento.nome_lancamento, data.nome_lancamento) || "",
+        "{status_lancamento}": firstPresentString(lancamento.status_lancamento, data.status_lancamento) || "",
         "{data_inicio_captacao}":
           firstPresentString(lancamento.data_inicio_captacao, data.data_inicio_captacao) || "",
         "{data_fim_captacao}":
@@ -559,6 +593,20 @@ serve(async (req) => {
           context.trafficManager?.nome,
           context.trafficManager?.email,
           cliente.gestor_trafego_nome,
+        );
+      }
+
+      if (field === "client_status") {
+        return firstPresentString(
+          cliente.status_cliente,
+          data.status_cliente,
+        );
+      }
+
+      if (field === "launch_status") {
+        return firstPresentString(
+          lancamento.status_lancamento,
+          data.status_lancamento,
         );
       }
 
@@ -694,50 +742,32 @@ serve(async (req) => {
 
               const recurrence = normalizeRecurrence(actionPayload.recurrence);
 
-              // Resolve recurrence_start_type → actual ISO date
-              const recurrenceStartType = asString(actionPayload.recurrence_start_type);
-              let recurrenceStart: string | null = null;
+              // 1. Resolve Recurrence Start (if exists)
+              const recurrenceStart = await resolveDynamicDate(
+                asString(actionPayload.recurrence_start),
+                payloadData,
+                supabase
+              );
 
-              if (recurrenceStartType === "data_inicio_captacao" || recurrenceStartType === "data_fim_captacao") {
-                const lancamentoCtx = asObject(payloadData.lancamento);
-                const raw = asString(lancamentoCtx[recurrenceStartType]);
-                recurrenceStart = isDateString(raw) ? raw : null;
-                if (!recurrenceStart) {
-                  // Optionally fall back to lancamentos table fetch
-                  const lancId = asString(lancamentoCtx.id);
-                  if (lancId && isUuid(lancId)) {
-                    const { data: lancRow } = await supabase
-                      .from("lancamentos")
-                      .select(`${recurrenceStartType}`)
-                      .eq("id", lancId)
-                      .maybeSingle();
-                    const fetched = asString((lancRow as Record<string, unknown> | null)?.[recurrenceStartType]);
-                    recurrenceStart = isDateString(fetched) ? fetched : null;
-                  }
-                }
-              } else {
-                recurrenceStart = isDateString(actionPayload.recurrence_start)
-                  ? actionPayload.recurrence_start
-                  : null;
+              // 2. Resolve Due Date (only if no recurrence start or as a fallback)
+              // Note: If recurrence is active, recurrenceStart takes precedence as the first due_date
+              let dueDate = recurrenceStart;
+
+              if (!dueDate) {
+                dueDate = await resolveDynamicDate(
+                  asString(actionPayload.due_date_var),
+                  payloadData,
+                  supabase
+                );
               }
 
-              let dueDateVar = resolveDueDateFromVar(actionPayload, payloadData);
-              // Async fallback for launch date variables
-              const dueDateVarName = asString(actionPayload.due_date_var);
-              if (!dueDateVar && (dueDateVarName === "data_inicio_captacao" || dueDateVarName === "data_fim_captacao")) {
-                const lancamento = asObject(payloadData.lancamento);
-                const lancId = asString(lancamento.id);
-                if (lancId && isUuid(lancId)) {
-                  const { data: lancRow } = await supabase
-                    .from("lancamentos")
-                    .select(dueDateVarName)
-                    .eq("id", lancId)
-                    .maybeSingle();
-                  const fetched = asString((lancRow as Record<string, unknown> | null)?.[dueDateVarName]);
-                  dueDateVar = isDateString(fetched) ? fetched : null;
+              // Legacy fallback for custom_days if not already resolved
+              if (!dueDate && asString(actionPayload.due_date_var) === "custom_days") {
+                const custom = Number(asString(actionPayload.custom_days_value) || "0");
+                if (Number.isFinite(custom) && custom > 0) {
+                  dueDate = toDateIso(addDays(new Date(), custom));
                 }
               }
-              const dueDate = recurrenceStart || dueDateVar;
 
               const priorityRaw = asString(actionPayload.priority);
               const priority = ["alta", "media", "baixa"].includes(priorityRaw || "")

@@ -143,6 +143,24 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
         throw error;
       }
 
+      // Execute Automations if status changed to a "disabled" state
+      if (formData.status_cliente !== cliente.status_cliente && ['inativo', 'pausado'].includes(formData.status_cliente)) {
+        try {
+          await supabase.functions.invoke('evaluate-automations', {
+            body: {
+              trigger_type: 'client_disabled',
+              data: {
+                cliente: { ...cliente, ...formData },
+                status_anterior: cliente.status_cliente,
+                status_novo: formData.status_cliente
+              }
+            }
+          });
+        } catch (autoErr) {
+          console.error("Erro ao avaliar automações de cliente desabilitado", autoErr);
+        }
+      }
+
       toast({
         title: "Cliente atualizado com sucesso!",
         description: "As informações do cliente foram atualizadas.",

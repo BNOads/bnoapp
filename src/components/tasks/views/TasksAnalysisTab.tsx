@@ -4,13 +4,13 @@ import { useTaskSessions } from '@/hooks/useTasks';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, Cell, AreaChart, Area } from 'recharts';
-import { Loader2, TrendingUp, Filter, Clock, Users, Timer, Target, CheckCircle2, Calendar, Building2, AlertCircle, Flag } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, AreaChart, Area } from 'recharts';
+import { Loader2, Calendar, Building2, Users, CheckCircle2, AlertCircle, Flag, Zap } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { PRIORITY_LABELS, Task } from '@/types/tasks';
 import { isOverdue } from '@/lib/dateUtils';
-import { startOfDay, startOfWeek, startOfMonth, subDays, format, parseISO, isSameDay, isAfter, isBefore } from 'date-fns';
+import { startOfDay, subDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from "react-day-picker";
 import { TarefasList } from './TarefasList';
@@ -22,15 +22,11 @@ interface AnalyticsData {
     tasksCompleted: number;
     tasksOverdue: number;
     tasksHighPriority: number;
-
     rankingByAssignee: { name: string; completed: number; avgTimeTracked: number; totalTimeTracked: number }[];
     rankingByClient: { name: string; completed: number; pending: number; totalTimeTracked: number }[];
-
     priorityDistribution: { name: string; value: number }[];
     priorityColors: Record<string, string>;
-
     completedPerDay: { date: string; displayDate: string; count: number }[];
-
     averageTimeOverall: number;
     averageTimeByList: { name: string; avgTime: number; completedCount: number }[];
 }
@@ -39,118 +35,136 @@ export function TasksAnalysisTab() {
     const [loading, setLoading] = useState(true);
     const [allTasks, setAllTasks] = useState<any[]>([]);
     const [taskLists, setTaskLists] = useState<Record<string, string>>({});
-
-    // Opções de Filtro Global
     const [selectedUserLine, setSelectedUserLine] = useState<string>("all");
     const [selectedClientLine, setSelectedClientLine] = useState<string>("all");
-    const [dateRangeFilter, setDateRangeFilter] = useState<string>("30"); // "30", "60", "90", "all"
-
+    const [dateRangeFilter, setDateRangeFilter] = useState<string>("30");
     const [clientes, setClientes] = useState<{ id: string, nome: string }[]>([]);
-
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-
-    // Custom Date Range State
     const [dateRangeObj, setDateRangeObj] = useState<DateRange | undefined>(undefined);
-
-    // KPI popup state
     const [kpiPopupFilter, setKpiPopupFilter] = useState<{ title: string; filterFn: (t: any) => boolean } | null>(null);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+    const fetchAnalyticsData = async () => {
+        setLoading(true);
+        try {
+            const { data: listsData, error: listsError } = await supabase.from('task_lists').select('id, name');
+            if (listsError) console.error("Error fetching task lists:", listsError);
+
+            const listMap: Record<string, string> = {};
+            listsData?.forEach(l => { listMap[l.id] = (l as any).name; });
+            setTaskLists(listMap);
+
+            const { data: tasks, error } = await supabase
+                .from('tasks')
+                .select(`
+                    id,
+                    title,
+                    assignee,
+                    priority,
+                    completed,
+                    completed_at,
+                    due_date,
+                    time_tracked,
+                    list_id,
+                    cliente_id,
+                    created_at
+                `)
+                .order('created_at', { ascending: false })
+                .limit(10000);
+
+            if (error) throw error;
+            setAllTasks(tasks || []);
+
+            const { data: clientesData } = await supabase.from("clientes").select("id, nome").eq("ativo", true);
+            if (clientesData) setClientes(clientesData);
+        } catch (err) {
+            console.error("Error fetching tasks for analytics", err);
+            // Ensure analytics isn't stuck if fetch fails
+            setAllTasks([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         fetchAnalyticsData();
     }, []);
 
-    const fetchAnalyticsData = async () => {
-        setLoading(true);
-        try {
-            // Fetch task lists for mapping IDs
-            const { data: listsData } = await supabase.from('task_lists').select('id, title');
-            const listMap: Record<string, string> = {};
-            listsData?.forEach(l => { listMap[l.id] = l.title; });
-            setTaskLists(listMap);
-
-            // We pull a larger set of tasks but only specific columns to save memory
-            const { data: tasks, error } = await supabase
-                .from('tasks')
-                .select(`
-          id,
-          title,
-          assignee,
-          priority,
-          completed,
-          completed_at,
-          due_date,
-          time_tracked,
-          list_id,
-          cliente_id,
-          created_at
-        `)
-                .order('created_at', { ascending: false })
-                .limit(10000); // Massive pull for deep historical analytics
-
-            if (error) throw error;
-            setAllTasks(tasks || []);
-
-        } catch (err) {
-            console.error("Error fetching tasks for analytics", err);
-        } finally {
-            setLoading(false);
-        }
-
-        supabase.from("clientes")
-            .select("id, nome")
-            .eq("ativo", true)
-            .then(({ data }) => {
-                if (data) setClientes(data);
-            });
-    };
-
-    useEffect(() => {
-        if (allTasks.length === 0) return;
-
-        // Run aggregations
+    const { startDateLimit, endDateLimit, todayStr, daysToTrack } = useMemo(() => {
         const now = new Date();
         const today = startOfDay(now);
-        const thisWeek = startOfWeek(now, { weekStartsOn: 1 });
-        const thisMonth = startOfMonth(now);
+        let startDate: Date | null = null;
+        let endDate: Date | null = null;
+        let days = 30;
 
-        // Calcula limite de data de acurdo com o DateRangeFilter (1, 30, 60, 90 dias, ou tudo)
-        let startDateLimit: Date | null = null;
-        let daysToTrack = 30; // default for graphs
-        let endDateLimit: Date | null = null;
         if (dateRangeFilter === "ontem") {
-            startDateLimit = subDays(today, 1);
-            endDateLimit = today; // up to today (exclusive)
+            startDate = subDays(today, 1);
+            endDate = today;
         } else if (dateRangeFilter === "1") {
-            startDateLimit = today;
+            startDate = today;
+            endDate = subDays(today, -1);
         } else if (dateRangeFilter !== "all" && !dateRangeFilter.includes("~")) {
-            daysToTrack = parseInt(dateRangeFilter, 10);
-            startDateLimit = subDays(today, daysToTrack);
+            days = parseInt(dateRangeFilter, 10);
+            startDate = subDays(today, days);
+            endDate = subDays(today, -1);
         } else if (dateRangeFilter.includes("~")) {
             const [startStr, endStr] = dateRangeFilter.split("~");
             if (startStr && endStr) {
-                startDateLimit = parseISO(startStr);
-                endDateLimit = startOfDay(new Date(new Date(parseISO(endStr)).getTime() + 86400000)); // +1 day for inclusive end date
+                startDate = parseISO(startStr);
+                endDate = startOfDay(new Date(new Date(parseISO(endStr)).getTime() + 86400000));
             }
         }
 
-        const todayStr = format(today, 'yyyy-MM-dd');
+        return {
+            startDateLimit: startDate,
+            endDateLimit: endDate,
+            todayStr: format(today, 'yyyy-MM-dd'),
+            daysToTrack: days
+        };
+    }, [dateRangeFilter]);
+
+    useEffect(() => {
+        // We set a default state for analytics if no tasks exist
+        if (allTasks.length === 0) {
+            setAnalytics({
+                tasksPending: 0,
+                tasksCompleted: 0,
+                tasksOverdue: 0,
+                tasksHighPriority: 0,
+                rankingByAssignee: [],
+                rankingByClient: [],
+                priorityDistribution: [],
+                priorityColors: {
+                    [PRIORITY_LABELS.urgente]: '#ef4444',
+                    [PRIORITY_LABELS.alta]: '#eab308',
+                    [PRIORITY_LABELS.media]: '#3b82f6',
+                    [PRIORITY_LABELS.baixa]: '#22c55e'
+                },
+                completedPerDay: [],
+                averageTimeOverall: 0,
+                averageTimeByList: [],
+            });
+            return;
+        }
+
         let kpiPending = 0;
         let kpiCompleted = 0;
         let kpiOverdue = 0;
         let kpiHighPriority = 0;
 
+        const now = new Date();
+        const today = startOfDay(now);
+
         allTasks.forEach(task => {
             if (selectedUserLine !== "all" && task.assignee !== selectedUserLine) return;
             if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return;
 
-            // Apply date filters to KPIs
             let isWithinDateRange = true;
             if (startDateLimit) {
-                const targetDateStr = task.completed ? task.completed_at : task.created_at;
+                const targetDateStr = task.completed ? task.completed_at : (task.due_date || task.created_at);
                 if (targetDateStr) {
-                    const targetDate = new Date(targetDateStr);
+                    const targetDate = targetDateStr.includes('T') ? new Date(targetDateStr) : parseISO(targetDateStr);
                     if (targetDate < startDateLimit || (endDateLimit && targetDate >= endDateLimit)) {
                         isWithinDateRange = false;
                     }
@@ -179,7 +193,6 @@ export function TasksAnalysisTab() {
             priorityCounts[label] = 0;
         });
 
-        // Last X days completed map (initialize with zeros)
         const dailyMap: Record<string, number> = {};
         for (let i = daysToTrack - 1; i >= 0; i--) {
             const d = subDays(today, i);
@@ -191,19 +204,10 @@ export function TasksAnalysisTab() {
         let globalTotalTime = 0;
         let globalTasksWithTime = 0;
 
-        // Segundo passo: calcular rankings/gráficos com filtro de período
         allTasks.forEach(task => {
-            // Apply Global User Filter
-            if (selectedUserLine !== "all" && task.assignee !== selectedUserLine) {
-                return;
-            }
+            if (selectedUserLine !== "all" && task.assignee !== selectedUserLine) return;
+            if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return;
 
-            // Apply Global Client Filter
-            if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) {
-                return;
-            }
-
-            // Apply Global Date Filter
             let compDate: Date | null = null;
             if (task.completed && task.completed_at) {
                 compDate = new Date(task.completed_at);
@@ -215,7 +219,6 @@ export function TasksAnalysisTab() {
                 if (endDateLimit && createdDate >= endDateLimit) return;
             }
 
-            // Tracking Client Stats for Pending
             if (task.cliente_id) {
                 if (!clientStats[task.cliente_id]) {
                     clientStats[task.cliente_id] = { completed: 0, pending: 0, totalTime: 0 };
@@ -226,8 +229,6 @@ export function TasksAnalysisTab() {
             }
 
             if (task.completed && compDate) {
-
-                // Tracking daily chart (last 30 days)
                 const dKey = format(compDate, 'yyyy-MM-dd');
                 if (dailyMap[dKey] !== undefined) {
                     dailyMap[dKey]++;
@@ -238,14 +239,12 @@ export function TasksAnalysisTab() {
                         assigneeStats[task.assignee] = { completed: 0, totalTime: 0, tasksWithTime: 0 };
                     }
                     assigneeStats[task.assignee].completed++;
-
                     if (task.time_tracked && task.time_tracked > 0) {
                         assigneeStats[task.assignee].totalTime += task.time_tracked;
                         assigneeStats[task.assignee].tasksWithTime++;
                     }
                 }
 
-                // Tracking Client Stats for Completed
                 if (task.cliente_id) {
                     clientStats[task.cliente_id].completed++;
                     if (task.time_tracked && task.time_tracked > 0) {
@@ -253,7 +252,6 @@ export function TasksAnalysisTab() {
                     }
                 }
 
-                // List Stats
                 if (task.list_id) {
                     if (!listStats[task.list_id]) {
                         listStats[task.list_id] = { completed: 0, totalTime: 0 };
@@ -264,14 +262,12 @@ export function TasksAnalysisTab() {
                     }
                 }
 
-                // Global Time
                 if (task.time_tracked && task.time_tracked > 0) {
                     globalTotalTime += task.time_tracked;
                     globalTasksWithTime++;
                 }
             }
 
-            // Priorities
             const priorityLabel = PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS];
             if (priorityLabel) {
                 priorityCounts[priorityLabel]++;
@@ -319,7 +315,7 @@ export function TasksAnalysisTab() {
                 completedCount: stats.completed
             }))
             .sort((a, b) => b.avgTime - a.avgTime)
-            .slice(0, 10); // Top 10 longest lists
+            .slice(0, 10);
 
         setAnalytics({
             tasksPending: kpiPending,
@@ -340,53 +336,24 @@ export function TasksAnalysisTab() {
             rankingByClient: rankingClientArr
         });
 
-    }, [allTasks, taskLists, clientes, selectedUserLine, selectedClientLine, dateRangeFilter]);
+    }, [allTasks, taskLists, clientes, selectedUserLine, selectedClientLine, startDateLimit, endDateLimit, todayStr, daysToTrack]);
 
     const userTimelineData = useMemo(() => {
         if (allTasks.length === 0) return [];
-
-        let daysToTrack = dateRangeFilter === "all" ? 30 : parseInt(dateRangeFilter, 10);
-        // Avoid rendering 5000 days on the chart, limit to 90 for performance
-        if (daysToTrack > 90) daysToTrack = 90;
-
+        let daysToTrackLimit = daysToTrack > 90 ? 90 : daysToTrack;
         const today = startOfDay(new Date());
         const dailyMap: Record<string, number> = {};
-        for (let i = daysToTrack - 1; i >= 0; i--) {
+        for (let i = daysToTrackLimit - 1; i >= 0; i--) {
             const d = subDays(today, i);
             const k = format(d, 'yyyy-MM-dd');
             dailyMap[k] = 0;
         }
-
-        // Calculate startDateLimit and endDateLimit for filtering
-        let startDateLimit: Date | null = null;
-        let endDateLimit: Date | null = null;
-
-        if (dateRangeFilter === "ontem") {
-            startDateLimit = subDays(today, 1);
-            endDateLimit = today;
-        } else if (dateRangeFilter === "1") {
-            startDateLimit = today;
-        } else if (dateRangeFilter !== "all" && !dateRangeFilter.includes("~")) {
-            startDateLimit = subDays(today, parseInt(dateRangeFilter, 10));
-        } else if (dateRangeFilter.includes("~")) {
-            const [startStr, endStr] = dateRangeFilter.split("~");
-            if (startStr && endStr) {
-                startDateLimit = parseISO(startStr);
-                endDateLimit = startOfDay(new Date(new Date(parseISO(endStr)).getTime() + 86400000));
-            }
-        }
-
         allTasks.forEach(task => {
             if (task.completed && task.completed_at) {
                 const compDate = new Date(task.completed_at);
-                // Apply date range filter
                 if (startDateLimit && compDate < startDateLimit) return;
                 if (endDateLimit && compDate >= endDateLimit) return;
-
-                if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) {
-                    return;
-                }
-
+                if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return;
                 if (selectedUserLine === "all" || task.assignee === selectedUserLine) {
                     const dKey = format(compDate, 'yyyy-MM-dd');
                     if (dailyMap[dKey] !== undefined) {
@@ -395,107 +362,51 @@ export function TasksAnalysisTab() {
                 }
             }
         });
-
         return Object.entries(dailyMap).map(([dateStr, count]) => ({
             date: dateStr,
             displayDate: format(parseISO(dateStr), 'd MMM', { locale: ptBR }),
             count
         }));
-    }, [allTasks, selectedUserLine, selectedClientLine, dateRangeFilter]);
+    }, [allTasks, selectedUserLine, selectedClientLine, startDateLimit, endDateLimit, daysToTrack]);
 
     const hourlyCompletionData = useMemo(() => {
         if (allTasks.length === 0) return [];
-
         const hourlyMap: Record<number, number> = {};
         for (let i = 0; i < 24; i++) hourlyMap[i] = 0;
-
-        const today = startOfDay(new Date());
-        let startDateLimit: Date | null = null;
-        let endDateLimit: Date | null = null;
-
-        if (dateRangeFilter === "ontem") {
-            startDateLimit = subDays(today, 1);
-            endDateLimit = today;
-        } else if (dateRangeFilter === "1") {
-            startDateLimit = today;
-        } else if (dateRangeFilter !== "all" && !dateRangeFilter.includes("~")) {
-            startDateLimit = subDays(today, parseInt(dateRangeFilter, 10));
-        } else if (dateRangeFilter.includes("~")) {
-            const [startStr, endStr] = dateRangeFilter.split("~");
-            if (startStr && endStr) {
-                startDateLimit = parseISO(startStr);
-                endDateLimit = startOfDay(new Date(new Date(parseISO(endStr)).getTime() + 86400000));
-            }
-        }
-
         allTasks.forEach(task => {
             if (task.completed && task.completed_at) {
                 const compDate = new Date(task.completed_at);
-                // Apply date range filter
                 if (startDateLimit && compDate < startDateLimit) return;
                 if (endDateLimit && compDate >= endDateLimit) return;
-
-                if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) {
-                    return;
-                }
-
+                if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return;
                 if (selectedUserLine === "all" || task.assignee === selectedUserLine) {
                     const hr = compDate.getHours();
                     hourlyMap[hr]++;
                 }
             }
         });
-
         return Object.entries(hourlyMap).map(([hrStr, count]) => ({
             hour: `${hrStr.padStart(2, '0')}:00`,
             count
         }));
-    }, [allTasks, selectedUserLine, selectedClientLine, dateRangeFilter]);
+    }, [allTasks, selectedUserLine, selectedClientLine, startDateLimit, endDateLimit]);
 
-    // Data para o gráfico de Ponto (Horas Trabalhadas no Dia)
     const trackedTimeData = useMemo(() => {
         if (allTasks.length === 0) return [];
-
-        let daysToTrack = dateRangeFilter === "all" ? 30 : parseInt(dateRangeFilter, 10);
-        if (daysToTrack > 90) daysToTrack = 90;
-
+        let daysToTrackLimit = daysToTrack > 90 ? 90 : daysToTrack;
         const today = startOfDay(new Date());
         const sessionMap: Record<string, number> = {};
-
-        // Inicializa zerado pros dias no eixo x
-        for (let i = daysToTrack - 1; i >= 0; i--) {
+        for (let i = daysToTrackLimit - 1; i >= 0; i--) {
             const d = subDays(today, i);
             const k = format(d, 'yyyy-MM-dd');
-            sessionMap[k] = 0; // Guardar em segundos aqui
+            sessionMap[k] = 0;
         }
-
-        let startDateLimit: Date | null = null;
-        let endDateLimit: Date | null = null;
-
-        if (dateRangeFilter === "ontem") {
-            startDateLimit = subDays(today, 1);
-            endDateLimit = today;
-        } else if (dateRangeFilter === "1") {
-            startDateLimit = today;
-        } else if (dateRangeFilter !== "all" && !dateRangeFilter.includes("~")) {
-            startDateLimit = subDays(today, parseInt(dateRangeFilter, 10));
-        } else if (dateRangeFilter.includes("~")) {
-            const [startStr, endStr] = dateRangeFilter.split("~");
-            if (startStr && endStr) {
-                startDateLimit = parseISO(startStr);
-                endDateLimit = startOfDay(new Date(new Date(parseISO(endStr)).getTime() + 86400000));
-            }
-        }
-
         allTasks.forEach(task => {
             if (task.completed && task.completed_at && task.time_tracked) {
                 const compDate = new Date(task.completed_at);
-
                 if (startDateLimit && compDate < startDateLimit) return;
                 if (endDateLimit && compDate >= endDateLimit) return;
-
                 if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return;
-
                 if (selectedUserLine === "all" || task.assignee === selectedUserLine) {
                     const dKey = format(compDate, 'yyyy-MM-dd');
                     if (sessionMap[dKey] !== undefined) {
@@ -504,17 +415,14 @@ export function TasksAnalysisTab() {
                 }
             }
         });
-
         return Object.entries(sessionMap).map(([dateStr, totalSeconds]) => ({
             date: dateStr,
             displayDate: format(parseISO(dateStr), 'd MMM', { locale: ptBR }),
-            // Convertemos para horas puras, por exemplo 2.5 horas
             horas: Number((totalSeconds / 3600).toFixed(2)),
             segundos: totalSeconds
         }));
-    }, [allTasks, selectedUserLine, selectedClientLine, dateRangeFilter]);
+    }, [allTasks, selectedUserLine, selectedClientLine, daysToTrack, startDateLimit, endDateLimit]);
 
-    // Format Helper for Time (seconds to HH:MM:SS)
     const formatTime = (seconds: number) => {
         if (!seconds) return "00:00:00";
         const h = Math.floor(seconds / 3600);
@@ -533,22 +441,46 @@ export function TasksAnalysisTab() {
         }
     };
 
-    // Tasks filtradas por user/client para o popup de KPI
     const filteredTasksForPopup = useMemo(() => {
         return allTasks.filter(task => {
             if (selectedUserLine !== "all" && task.assignee !== selectedUserLine) return false;
             if (selectedClientLine !== "all" && task.cliente_id !== selectedClientLine) return false;
+            if (startDateLimit) {
+                const targetDateStr = task.completed ? task.completed_at : (task.due_date || task.created_at);
+                if (targetDateStr) {
+                    const targetDate = targetDateStr.includes('T') ? new Date(targetDateStr) : parseISO(targetDateStr);
+                    if (targetDate < startDateLimit || (endDateLimit && targetDate >= endDateLimit)) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
             return true;
         });
-    }, [allTasks, selectedUserLine, selectedClientLine]);
+    }, [allTasks, selectedUserLine, selectedClientLine, startDateLimit, endDateLimit]);
 
     const todayStrForPopup = format(startOfDay(new Date()), 'yyyy-MM-dd');
 
-    if (loading || !analytics) {
+    if (loading) {
         return (
             <div className="flex flex-col items-center justify-center p-20 text-muted-foreground w-full h-[600px]">
                 <Loader2 className="w-10 h-10 animate-spin mb-4" />
                 <p>Apurando histórico de produtividade de todas as tarefas...</p>
+            </div>
+        );
+    }
+
+    if (!analytics || allTasks.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center p-20 text-muted-foreground w-full h-[600px] gap-4">
+                <p>Nenhuma tarefa encontrada no sistema.</p>
+                <button
+                    onClick={() => fetchAnalyticsData()}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium"
+                >
+                    Tentar Novamente
+                </button>
             </div>
         );
     }
@@ -560,8 +492,6 @@ export function TasksAnalysisTab() {
 
     return (
         <div className="space-y-6 max-w-[1600px] mx-auto animate-in fade-in pt-2">
-
-            {/* Global Filter Bar */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-card p-4 rounded-xl border border-border/50 shadow-sm gap-4">
                 <div>
                     <h2 className="text-xl font-bold tracking-tight">Dashboard de Análise</h2>
@@ -629,7 +559,6 @@ export function TasksAnalysisTab() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Equipe Inteira</SelectItem>
-                                {/* We use a unique list of assignees dynamically from the data */}
                                 {Array.from(new Set(allTasks.filter(t => t.assignee).map(t => t.assignee))).map(name => (
                                     <SelectItem key={name as string} value={name as string}>{name as string}</SelectItem>
                                 ))}
@@ -654,7 +583,6 @@ export function TasksAnalysisTab() {
                 </div>
             </div>
 
-            {/* KPI Cards Header - mesmos KPIs da aba Time, clicáveis */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <button
                     onClick={() => setKpiPopupFilter({ title: 'Tarefas Pendentes', filterFn: (t) => !t.completed })}
@@ -702,8 +630,6 @@ export function TasksAnalysisTab() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* Prioridades Bar */}
                 <Card className="lg:col-span-1 border-border/50 bg-card shadow-sm">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base font-semibold">Prioridades Concluídas</CardTitle>
@@ -729,7 +655,6 @@ export function TasksAnalysisTab() {
                     </CardContent>
                 </Card>
 
-                {/* Historico Mes Bar */}
                 <Card className="lg:col-span-2 border-border/50 bg-card shadow-sm">
                     <CardHeader className="pb-2 flex flex-row items-center justify-between">
                         <div>
@@ -752,12 +677,9 @@ export function TasksAnalysisTab() {
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
-
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* Tabela de Responsáveis */}
                 <Card className="lg:col-span-1 border-border/50 bg-card shadow-sm flex flex-col h-[400px]">
                     <CardHeader className="pb-2 flex-shrink-0">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -795,7 +717,6 @@ export function TasksAnalysisTab() {
                     </CardContent>
                 </Card>
 
-                {/* Produção Individual por Responsavel */}
                 <Card className="lg:col-span-2 border-border/50 bg-card shadow-sm h-[400px] flex flex-col">
                     <CardHeader className="pb-2 pt-4 flex flex-row items-center justify-between flex-shrink-0">
                         <div>
@@ -824,12 +745,9 @@ export function TasksAnalysisTab() {
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
-
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* Tabela de Clientes */}
                 <Card className="lg:col-span-1 border-border/50 bg-card shadow-sm flex flex-col h-[400px]">
                     <CardHeader className="pb-2 flex-shrink-0">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -867,7 +785,6 @@ export function TasksAnalysisTab() {
                     </CardContent>
                 </Card>
 
-                {/* Gráfico de Horas Trabalhadas por Dia que foi movido pra cá */}
                 <Card className="lg:col-span-2 border-border/50 bg-card shadow-sm h-[400px] flex flex-col">
                     <CardHeader className="pb-2 pt-4 flex flex-row items-center justify-between flex-shrink-0">
                         <div>
@@ -896,12 +813,9 @@ export function TasksAnalysisTab() {
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
-
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                {/* Horários / Conclusões por Hora */}
                 <Card className="border-border/50 bg-card shadow-sm h-[320px] flex flex-col">
                     <CardHeader className="pb-2 pt-4 flex flex-row items-center justify-between flex-shrink-0">
                         <div>
@@ -925,7 +839,6 @@ export function TasksAnalysisTab() {
                     </CardContent>
                 </Card>
 
-                {/* Tarefas Pendentes por Cliente */}
                 <Card className="border-border/50 bg-card shadow-sm h-[320px] flex flex-col">
                     <CardHeader className="pb-2 pt-4 flex flex-row items-center justify-between flex-shrink-0">
                         <div>
@@ -948,10 +861,8 @@ export function TasksAnalysisTab() {
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
-
             </div>
 
-            {/* KPI Popup Dialog */}
             <Dialog open={!!kpiPopupFilter} onOpenChange={(open) => !open && setKpiPopupFilter(null)}>
                 <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-6">
                     <DialogHeader>
@@ -982,7 +893,6 @@ export function TasksAnalysisTab() {
                     if (!open) setSelectedTaskId(null);
                 }}
             />
-
         </div>
     );
 }

@@ -141,6 +141,26 @@ const EditarLancamentoModal: React.FC<EditarLancamentoModalProps> = ({
 
       if (error) throw error;
 
+      // Execute Automations if status changed to a "disabled" state (cancelado or pausado)
+      if (formData.status_lancamento !== lancamento.status_lancamento && ['cancelado', 'pausado'].includes(formData.status_lancamento)) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          await supabase.functions.invoke('evaluate-automations', {
+            body: {
+              trigger_type: 'launch_disabled',
+              data: {
+                lancamento: { ...lancamento, ...updateData },
+                status_anterior: lancamento.status_lancamento,
+                status_novo: formData.status_lancamento,
+                user_id: authData.user?.id
+              }
+            }
+          });
+        } catch (autoErr) {
+          console.error("Erro ao avaliar automações de lançamento desabilitado", autoErr);
+        }
+      }
+
       // Atualizar vínculos de criativos
       const { error: deleteError } = await supabase
         .from('lancamento_criativos')

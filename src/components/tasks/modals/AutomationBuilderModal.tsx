@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useCreateTaskAutomation, TaskAutomation, useUpdateTaskAutomation } from "@/hooks/useTaskAutomations";
 import { useTaskLists } from "@/hooks/useTasks";
 import { supabase } from "@/integrations/supabase/client";
-import { Zap, ArrowRight, Activity, PlusCircle, CheckCircle, Bell, ArrowLeft, Trash2, Calendar, RefreshCw, ListTodo, Star } from "lucide-react";
+import { Zap, ArrowRight, Activity, PlusCircle, CheckCircle, Bell, ArrowLeft, Trash2, Calendar, RefreshCw, ListTodo, Star, X } from "lucide-react";
 
 interface AutomationBuilderModalProps {
     open: boolean;
@@ -52,11 +52,49 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
             if (initialData) {
                 setName(mode === "duplicate" ? `${initialData.name} (Cópia)` : initialData.name);
                 setTriggerType(initialData.trigger_type);
-                setActions((initialData.actions || []).map(a => ({
-                    id: crypto.randomUUID(),
-                    type: a.type,
-                    payload: a.payload
-                })));
+                setActions((initialData.actions || []).map(a => {
+                    const payload = { ...a.payload };
+
+                    // Normalize due_date_var for the UI
+                    if (payload.due_date_var) {
+                        if (payload.due_date_var.startsWith("custom_")) {
+                            payload.custom_days_value = payload.due_date_var.replace("custom_", "");
+                            payload.due_date_var = "custom_days";
+                        } else {
+                            const match = payload.due_date_var.match(/^(.+?)([+-]\d+)$/);
+                            if (match) {
+                                payload.due_date_var = match[1];
+                                payload.due_date_offset = match[2].replace("+", "");
+                            }
+                        }
+                    }
+
+                    // Normalize recurrence_start for the UI
+                    if (payload.recurrence_start) {
+                        const isFixedDate = /^\d{4}-\d{2}-\d{2}$/.test(payload.recurrence_start);
+                        if (isFixedDate) {
+                            payload.recurrence_start_type = "fixed_date";
+                            payload.recurrence_start_fixed = payload.recurrence_start;
+                        } else if (payload.recurrence_start.startsWith("trigger_")) {
+                            payload.recurrence_start_type = payload.recurrence_start;
+                        } else {
+                            // Variable with offset?
+                            const match = payload.recurrence_start.match(/^(.+?)([+-]\d+)$/);
+                            if (match) {
+                                payload.recurrence_start_type = match[1];
+                                payload.recurrence_start_offset = match[2].replace("+", "");
+                            } else {
+                                payload.recurrence_start_type = payload.recurrence_start;
+                            }
+                        }
+                    }
+
+                    return {
+                        id: crypto.randomUUID(),
+                        type: a.type,
+                        payload
+                    };
+                }));
                 setConditions(Array.isArray(initialData.trigger_conditions) ? initialData.trigger_conditions.map(c => ({
                     id: crypto.randomUUID(),
                     field: c.field || "",
@@ -77,6 +115,8 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "new_challenge", label: "Novo Desafio Criado", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
         { id: "new_traffic_manager", label: "Novo Gestor de Tráfego", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
         { id: "new_cs", label: "Novo CS Atribuído", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
+        { id: "launch_disabled", label: "Lançamento Desabilitado", icon: <X className="w-4 h-4 mr-2 text-rose-500" /> },
+        { id: "client_disabled", label: "Cliente Desabilitado", icon: <X className="w-4 h-4 mr-2 text-rose-500" /> },
     ];
 
     const ACTIONS_TYPES = [
@@ -92,11 +132,9 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "7_days", label: "7 dias após (1 semana)" },
         { id: "15_days", label: "15 dias após" },
         { id: "30_days", label: "30 dias após (1 mês)" },
-        { id: "custom_days", label: "Personalizado (X dias após)..." },
-        ...(triggerType === "new_launch" ? [
-            { id: "data_inicio_captacao", label: "📅 Início da Captação (do Lançamento)" },
-            { id: "data_fim_captacao", label: "📅 Fim da Captação (do Lançamento)" },
-        ] : []),
+        { id: "custom_days", label: "Gatilho + X dias (Personalizado)..." },
+        { id: "data_inicio_captacao", label: "📅 Início da Captação (do Lançamento)" },
+        { id: "data_fim_captacao", label: "📅 Fim da Captação (do Lançamento)" },
     ];
 
     const RECURRENCE_OPTIONS = [
@@ -108,11 +146,7 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
 
     const RECURRENCE_START_OPTIONS = [
         { id: "trigger_date", label: "Data do Gatilho (Hoje)" },
-        { id: "trigger_+1", label: "1 dia após o Gatilho" },
-        { id: "trigger_+3", label: "3 dias após o Gatilho" },
-        { id: "trigger_+7", label: "7 dias após o Gatilho" },
-        { id: "trigger_+14", label: "14 dias após o Gatilho" },
-        { id: "trigger_+30", label: "30 dias após o Gatilho" },
+        { id: "trigger_custom", label: "Personalizado (X dias após o Gatilho)..." },
         { id: "data_inicio_captacao", label: "Início da Captação (Lançamento)" },
         { id: "data_fim_captacao", label: "Fim da Captação (Lançamento)" },
         { id: "fixed_date", label: "Data fixa..." },
@@ -129,6 +163,8 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "cs_manager", label: "Gestor de CS" },
         { id: "funnel_status", label: "Status do Funil" },
         { id: "budget_value", label: "Valor do Orçamento" },
+        { id: "client_status", label: "Status do Cliente" },
+        { id: "launch_status", label: "Status do Lançamento" },
     ];
 
     const VARIABLES = [
@@ -136,10 +172,12 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "{instagram_cliente}", label: "Instagram do Cliente" },
         { id: "{gestor_cliente}", label: "Gestor do Cliente / Tráfego" },
         { id: "{cs_cliente}", label: "CS do Cliente" },
+        { id: "{status_cliente}", label: "Status do Cliente" },
         { id: "{nome_funil}", label: "Nome do Funil" },
         { id: "{status_funil}", label: "Status do Funil" },
         { id: "{orcamento_funil}", label: "Orçamento do Funil" },
         { id: "{nome_lancamento}", label: "Nome do Lançamento" },
+        { id: "{status_lancamento}", label: "Status do Lançamento" },
         { id: "{data_inicio_captacao}", label: "Data Início da Captação" },
         { id: "{data_fim_captacao}", label: "Data Fim da Captação" },
         { id: "{data_atual}", label: "Data Atual" },
@@ -190,10 +228,36 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
     const getDueDateVar = (payload: any): string | null => {
         if (!payload?.due_date_var || payload.due_date_var === "none") return null;
         if (payload.due_date_var === "custom_days") {
-            const days = parseInt(payload.custom_days_value || "1", 10);
-            return `custom_${days}`;
+            const days = parseInt(payload.custom_days_value || "0", 10);
+            return `trigger_${days >= 0 ? "+" : ""}${days}`;
         }
+
+        const offset = parseInt(payload.due_date_offset || "0", 10);
+        if (!isNaN(offset) && offset !== 0) {
+            return `${payload.due_date_var}${offset > 0 ? "+" : ""}${offset}`;
+        }
+
         return payload.due_date_var;
+    };
+
+    const getRecurrenceStart = (payload: any): string | null => {
+        const type = payload.recurrence_start_type;
+        if (!type || type === "none") return null;
+
+        if (type === "fixed_date") return payload.recurrence_start_fixed || null;
+
+        if (type === "trigger_date") return "trigger_+0";
+        if (type === "trigger_custom") {
+            const days = parseInt(payload.recurrence_start_offset || "0", 10);
+            return `trigger_${days >= 0 ? "+" : ""}${days}`;
+        }
+
+        const offset = parseInt(payload.recurrence_start_offset || "0", 10);
+        if (!isNaN(offset) && offset !== 0) {
+            return `${type}${offset > 0 ? "+" : ""}${offset}`;
+        }
+
+        return type;
     };
 
     const handleSaveDraft = async () => {
@@ -209,7 +273,7 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                     due_date_var: getDueDateVar(a.payload) || null,
                     recurrence: a.payload?.recurrence && a.payload.recurrence !== "none" ? a.payload.recurrence : null,
                     recurrence_start_type: a.payload?.recurrence && a.payload.recurrence !== "none" ? (a.payload.recurrence_start_type || null) : null,
-                    recurrence_start: a.payload?.recurrence && a.payload.recurrence !== "none" ? (a.payload.recurrence_start || null) : null,
+                    recurrence_start: a.payload?.recurrence && a.payload.recurrence !== "none" ? getRecurrenceStart(a.payload) : null,
                     list_id: a.payload?.list_id || null,
                     priority: a.payload?.priority || null,
                 }
@@ -264,7 +328,7 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                     due_date_var: getDueDateVar(a.payload),
                     recurrence: a.payload.recurrence && a.payload.recurrence !== "none" ? a.payload.recurrence : null,
                     recurrence_start_type: a.payload.recurrence && a.payload.recurrence !== "none" ? (a.payload.recurrence_start_type || null) : null,
-                    recurrence_start: a.payload.recurrence && a.payload.recurrence !== "none" ? (a.payload.recurrence_start || null) : null,
+                    recurrence_start: a.payload.recurrence && a.payload.recurrence !== "none" ? getRecurrenceStart(a.payload) : null,
                     list_id: a.payload.list_id || null,
                     priority: a.payload.priority || null,
                 }
@@ -596,19 +660,25 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                                                     ))}
                                                                 </SelectContent>
                                                             </Select>
-                                                            {/* Custom days input */}
-                                                            {act.payload?.due_date_var === "custom_days" && (
+                                                            {/* Offset/Custom input for dates */}
+                                                            {act.payload?.due_date_var && act.payload.due_date_var !== "none" && !["today", "tomorrow", "3_days", "7_days", "15_days", "30_days"].includes(act.payload.due_date_var) && (
                                                                 <div className="flex items-center gap-2 mt-1.5">
                                                                     <Input
                                                                         type="number"
-                                                                        min={1}
-                                                                        max={365}
                                                                         className="bg-white h-9 border-slate-200 w-24 text-center font-semibold"
-                                                                        placeholder="7"
-                                                                        value={act.payload?.custom_days_value || ""}
-                                                                        onChange={(e) => updateAction(act.id, { payload: { ...act.payload, custom_days_value: e.target.value } })}
+                                                                        placeholder="0"
+                                                                        value={act.payload?.due_date_var === "custom_days" ? (act.payload?.custom_days_value || "0") : (act.payload?.due_date_offset || "0")}
+                                                                        onChange={(e) => {
+                                                                            if (act.payload.due_date_var === "custom_days") {
+                                                                                updateAction(act.id, { payload: { ...act.payload, custom_days_value: e.target.value } });
+                                                                            } else {
+                                                                                updateAction(act.id, { payload: { ...act.payload, due_date_offset: e.target.value } });
+                                                                            }
+                                                                        }}
                                                                     />
-                                                                    <span className="text-sm text-slate-500">dias após o gatilho</span>
+                                                                    <span className="text-sm text-slate-500">
+                                                                        {act.payload.due_date_var === "custom_days" ? "dias após o gatilho" : "dias após variável"}
+                                                                    </span>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -669,6 +739,25 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                                                                 }
                                                                             })}
                                                                         />
+                                                                    )}
+                                                                    {act.payload?.recurrence_start_type && !["trigger_date", "fixed_date"].includes(act.payload.recurrence_start_type) && (
+                                                                        <div className="flex items-center gap-2 mt-1">
+                                                                            <Input
+                                                                                type="number"
+                                                                                className="bg-white h-9 border-slate-200 w-20 text-center text-xs"
+                                                                                placeholder="0"
+                                                                                value={act.payload?.recurrence_start_offset || "0"}
+                                                                                onChange={(e) => updateAction(act.id, {
+                                                                                    payload: {
+                                                                                        ...act.payload,
+                                                                                        recurrence_start_offset: e.target.value
+                                                                                    }
+                                                                                })}
+                                                                            />
+                                                                            <span className="text-[10px] text-slate-500">
+                                                                                {act.payload.recurrence_start_type === "trigger_custom" ? "dias após o gatilho" : "dias após variável"}
+                                                                            </span>
+                                                                        </div>
                                                                     )}
                                                                     <p className="text-[10px] text-slate-400">
                                                                         Define o due_date da 1ª tarefa e o início da série de recorrências.
