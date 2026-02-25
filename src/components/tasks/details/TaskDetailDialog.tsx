@@ -375,6 +375,11 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                             title={task.completed ? "Tarefas concluídas não podem ser renomeadas" : "Clique para editar"}
                                         >
                                             {task.title}
+                                            {task.reschedule_count && task.reschedule_count > 3 && (
+                                                <Badge className="ml-3 bg-purple-600 hover:bg-purple-700 text-white border-transparent text-sm py-0.5 px-2">
+                                                    +Reagendada
+                                                </Badge>
+                                            )}
                                         </h1>
                                     )}
                                 </div>
@@ -527,6 +532,26 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                             </PopoverContent>
                                         </Popover>
                                     </div>
+
+                                    {/* Reagendamentos */}
+                                    {task.reschedule_count !== undefined && task.reschedule_count !== null && (
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-24 sm:w-28 text-sm text-muted-foreground flex items-center gap-2 shrink-0">
+                                                <RefreshCw className="h-3.5 w-3.5" />
+                                                Reagendamentos
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${task.reschedule_count > 3 ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-muted text-muted-foreground'}`}>
+                                                    {task.reschedule_count}
+                                                </span>
+                                                {task.reschedule_count > 3 && (
+                                                    <span className="text-[10px] text-purple-600 font-medium animate-pulse">
+                                                        Tarefa crítica
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Prioridade */}
                                     <div className="flex items-center gap-3 min-w-0">

@@ -68,6 +68,7 @@ export function TasksAnalysisTab() {
                     time_tracked,
                     list_id,
                     cliente_id,
+                    reschedule_count,
                     created_at
                 `)
                 .order('created_at', { ascending: false })

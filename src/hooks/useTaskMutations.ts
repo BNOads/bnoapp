@@ -148,6 +148,7 @@ export const handleRecurringTaskCreation = async (taskId: string) => {
             completed: false,
             due_date: nextDueDate,
             is_recurring_instance: true,
+            reschedule_count: 0,
         };
 
         const { data: newInst } = await supabase.from("tasks").insert(newTaskData).select("id").single();
@@ -224,6 +225,19 @@ export function useUpdateTask() {
                 updates.doing_since = null;
             } else if (updates.completed === false) {
                 updates.completed_at = null;
+            }
+
+            // Logic for reschedule_count
+            if (updates.due_date) {
+                const { data: currentTask } = await supabase
+                    .from("tasks")
+                    .select("due_date, reschedule_count")
+                    .eq("id", id)
+                    .single();
+
+                if (currentTask && currentTask.due_date && updates.due_date > currentTask.due_date) {
+                    updates.reschedule_count = (currentTask.reschedule_count || 0) + 1;
+                }
             }
 
             const { data, error } = await supabase

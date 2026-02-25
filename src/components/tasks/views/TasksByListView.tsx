@@ -338,6 +338,11 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                                 <div className="flex items-center gap-2">
                                                                     <p className={`text-[13px] font-medium hover:underline truncate ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                                                                         {task.title}
+                                                                        {task.reschedule_count && task.reschedule_count > 3 && (
+                                                                            <Badge className="ml-2 bg-purple-600 hover:bg-purple-700 text-white border-transparent text-[10px] h-4 px-1.5 py-0 shrink-0">
+                                                                                +Reagendada
+                                                                            </Badge>
+                                                                        )}
                                                                     </p>
                                                                     {task.cliente_id && (
                                                                         <Badge variant="outline" className="text-[10px] h-4 px-1 gap-1 shrink-0 font-normal">

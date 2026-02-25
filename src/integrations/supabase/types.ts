@@ -6487,6 +6487,7 @@ export type Database = {
           recurrence_end_date: string | null
           time_tracked: number | null
           timer_started_at: string | null
+          reschedule_count: number | null
           title: string
           updated_at: string
         }
@@ -6515,6 +6516,7 @@ export type Database = {
           recurrence_end_date?: string | null
           time_tracked?: number | null
           timer_started_at?: string | null
+          reschedule_count?: number | null
           title: string
           updated_at?: string
         }
@@ -6543,6 +6545,7 @@ export type Database = {
           recurrence_end_date?: string | null
           time_tracked?: number | null
           timer_started_at?: string | null
+          reschedule_count?: number | null
           title?: string
           updated_at?: string
         }

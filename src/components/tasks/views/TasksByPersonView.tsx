@@ -469,6 +469,11 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                             {task.priority === 'media' && !task.completed && <Badge className="text-[9px] px-1 h-4 bg-amber-500 hover:bg-amber-600 shrink-0 border-transparent text-white font-normal uppercase">{PRIORITY_LABELS.media}</Badge>}
                                                             <span className={`text-sm truncate font-medium ${task.completed ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"}`}>
                                                                 {task.title}
+                                                                {task.reschedule_count && task.reschedule_count > 3 && (
+                                                                    <Badge className="ml-2 bg-purple-600 hover:bg-purple-700 text-white border-transparent text-[10px] h-4 px-1.5 py-0 shrink-0 font-normal">
+                                                                        +Reagendada
+                                                                    </Badge>
+                                                                )}
                                                             </span>
                                                             {task.description && task.description.trim() && (
                                                                 <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" title="Possui descrição" />
@@ -678,6 +683,11 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                                 <div className="flex items-center gap-2">
                                                                     <p className={`text-[13px] font-medium hover:underline truncate ${task.completed ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                                                                         {task.title}
+                                                                        {task.reschedule_count && task.reschedule_count > 3 && (
+                                                                            <Badge className="ml-2 bg-purple-600 hover:bg-purple-700 text-white border-transparent text-[10px] h-4 px-1.5 py-0 shrink-0">
+                                                                                +Reagendada
+                                                                            </Badge>
+                                                                        )}
                                                                     </p>
                                                                     {task.description && task.description.trim() && (
                                                                         <FileText className="w-3 h-3 text-muted-foreground shrink-0" title="Possui descrição" />
