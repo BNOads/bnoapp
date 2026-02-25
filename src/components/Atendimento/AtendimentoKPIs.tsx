@@ -31,23 +31,68 @@ function useUserEscaladoEventIds(userId: string | null | undefined) {
     });
 }
 
+function useActiveClients() {
+    return useQuery({
+        queryKey: ["active-clients-minimal"],
+        queryFn: async () => {
+            const { data } = await supabase
+                .from("clientes")
+                .select("nome, aliases")
+                .eq("is_active", true);
+            return data ?? [];
+        },
+        staleTime: 30 * 60 * 1000,
+    });
+}
+
+function parseClientFromTitle(title: string): string | null {
+    if (!title) return null;
+    const match = title.match(/^([^|–\-]+)\s*[|–\-]/);
+    return match ? match[1].trim() : null;
+}
+
 export function AtendimentoKPIs() {
     const now = new Date();
     const todayStart = startOfDay(now);
     const todayEnd = endOfDay(now);
 
-    const { data: events = [], isLoading } = useGoogleCalendar(30);
+    const { data: events = [], isLoading: loadingCalendar } = useGoogleCalendar(30);
     const { data: userId } = useCurrentUserId();
     const { data: escaladoIds = new Set() } = useUserEscaladoEventIds(userId);
+    const { data: activeClients = [], isLoading: loadingClients } = useActiveClients();
 
     const { totalHoje, jaFeitas, escalado } = useMemo(() => {
+        // Create a Set of all active client names and aliases for fast lookup
+        const activeNameSet = new Set<string>();
+        activeClients.forEach(c => {
+            activeNameSet.add(c.nome.toLowerCase());
+            if (c.aliases) {
+                c.aliases.forEach((a: string) => activeNameSet.add(a.toLowerCase()));
+            }
+        });
+
         const todayEvents = events.filter(ev => {
+            // 1. Time filter
             const startRaw = ev.start?.dateTime ?? ev.start?.date;
             if (!startRaw) return false;
+            let isToday = false;
             try {
                 const start = parseISO(startRaw);
-                return isValid(start) && start >= todayStart && start <= todayEnd;
+                isToday = isValid(start) && start >= todayStart && start <= todayEnd;
             } catch { return false; }
+            if (!isToday) return false;
+
+            // 2. Client filter: If it looks like a client meeting, must be an active client
+            const clientName = parseClientFromTitle(ev.summary ?? "");
+            if (clientName) {
+                // It has the "CLIENT | ..." format
+                return activeNameSet.has(clientName.toLowerCase());
+            }
+
+            // If it doesn't have the "CLIENT |" format, we assume it's an internal meeting or something else
+            // but the user wants "Atendimento" to be about clients.
+            // Usually, these are the meetings they care about.
+            return true;
         });
 
         const done = todayEvents.filter(ev => {
@@ -59,9 +104,9 @@ export function AtendimentoKPIs() {
         const esc = todayEvents.filter(ev => escaladoIds.has(ev.id));
 
         return { totalHoje: todayEvents.length, jaFeitas: done.length, escalado: esc.length };
-    }, [events, escaladoIds, todayStart, todayEnd]);
+    }, [events, escaladoIds, todayStart, todayEnd, activeClients]);
 
-    if (isLoading) return null;
+    if (loadingCalendar || loadingClients) return null;
 
     const kpis = [
         {

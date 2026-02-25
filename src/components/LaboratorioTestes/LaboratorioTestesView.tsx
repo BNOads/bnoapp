@@ -110,7 +110,7 @@ export const LaboratorioTestesView = () => {
 
   // Load clients and gestores for filter dropdowns
   useEffect(() => {
-    supabase.from('clientes').select('id, nome').eq('ativo', true).order('nome').then(({ data }) => {
+    supabase.from('clientes').select('id, nome').eq('is_active', true).order('nome').then(({ data }) => {
       if (data) setClientes(data);
     });
     supabase.from('colaboradores').select('id, user_id, nome').eq('ativo', true).order('nome').then(({ data }) => {

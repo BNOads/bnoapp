@@ -34,7 +34,7 @@ export function useMeetings(filters?: MeetingFilters) {
                 .from("meetings")
                 .select(`
           *,
-          clientes(nome, situacao_cliente),
+          clientes(nome, situacao_cliente, is_active),
           colaboradores(nome, avatar_url),
           meeting_participants(*),
           tasks(*)
@@ -71,7 +71,7 @@ export function useMeeting(id: string) {
                 .from("meetings")
                 .select(`
           *,
-          clientes(nome, situacao_cliente),
+          clientes(nome, situacao_cliente, is_active),
           colaboradores(nome, avatar_url),
           meeting_participants(*),
           tasks(*)

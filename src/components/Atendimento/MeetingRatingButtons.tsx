@@ -65,24 +65,24 @@ function useRateMeeting(googleEventId: string) {
 const BUTTONS: { value: Classificacao; label: string; icon: React.ElementType; active: string; inactive: string }[] = [
     {
         value: "bom",
-        label: "Deu Bom",
+        label: "Bom 🤩",
         icon: ThumbsUp,
         active: "bg-green-500 text-white border-green-500 shadow-sm",
         inactive: "bg-green-50 text-green-700 border-green-300 hover:bg-green-100 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800",
     },
     {
-        value: "ruim",
-        label: "Deu Ruim",
-        icon: ThumbsDown,
-        active: "bg-red-500 text-white border-red-500 shadow-sm",
-        inactive: "bg-red-50 text-red-700 border-red-300 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800",
-    },
-    {
         value: "inconclusivo",
-        label: "Inconclusivo",
+        label: "Ok",
         icon: HelpCircle,
         active: "bg-orange-400 text-white border-orange-400 shadow-sm",
         inactive: "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800",
+    },
+    {
+        value: "ruim",
+        label: "Ruim 😭",
+        icon: ThumbsDown,
+        active: "bg-red-500 text-white border-red-500 shadow-sm",
+        inactive: "bg-red-50 text-red-700 border-red-300 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800",
     },
 ];
 
@@ -93,32 +93,37 @@ export function MeetingRatingButtons({ googleEventId, titulo, dataEvento }: Meet
     if (loadingRating) return null;
 
     return (
-        <div className="flex items-center gap-1.5 flex-wrap">
-            {BUTTONS.map(btn => {
-                const isActive = current === btn.value;
-                const Icon = btn.icon;
-                return (
-                    <button
-                        key={btn.value}
-                        onClick={e => {
-                            e.stopPropagation();
-                            rate({ classificacao: btn.value, titulo, dataEvento });
-                        }}
-                        disabled={isPending}
-                        className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all",
-                            isActive ? btn.active : btn.inactive
-                        )}
-                    >
-                        {isPending && isActive ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                            <Icon className="h-3.5 w-3.5" />
-                        )}
-                        {btn.label}
-                    </button>
-                );
-            })}
+        <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">
+                Avaliação da Reunião
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+                {BUTTONS.map(btn => {
+                    const isActive = current === btn.value;
+                    const Icon = btn.icon;
+                    return (
+                        <button
+                            key={btn.value}
+                            onClick={e => {
+                                e.stopPropagation();
+                                rate({ classificacao: btn.value, titulo, dataEvento });
+                            }}
+                            disabled={isPending}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all",
+                                isActive ? btn.active : btn.inactive
+                            )}
+                        >
+                            {isPending && isActive ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                                <Icon className="h-3.5 w-3.5" />
+                            )}
+                            {btn.label}
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 }

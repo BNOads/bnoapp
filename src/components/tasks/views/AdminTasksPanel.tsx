@@ -20,7 +20,7 @@ export function AdminTasksPanel({ tasks }: AdminTasksPanelProps) {
         });
         return [
             { name: PRIORITY_LABELS.alta, value: counts.alta, color: "#ef4444" },
-            { name: PRIORITY_LABELS.media, value: counts.media, color: "#f59e0b" },
+            { name: PRIORITY_LABELS.media, value: counts.media, color: "#eab308" },
             { name: PRIORITY_LABELS.baixa, value: counts.baixa, color: "#3b82f6" },
         ].filter(d => d.value > 0);
     }, [tasks]);

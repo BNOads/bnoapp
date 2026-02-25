@@ -14,25 +14,32 @@ export function DashboardAtendimento() {
 
     const now = new Date();
 
-    const { meuMeetingsHoje, acontecendoAgora, proximas } = useMemo(() => {
-        const meus = meetings.filter((m: any) =>
+    const { meuMeetingsHoje, acontecendoAgora, proximas, totalMeetings } = useMemo(() => {
+        const activeMeetings = meetings.filter((m: any) => m.clientes?.is_active !== false);
+
+        const meus = activeMeetings.filter((m: any) =>
             m.colaboradores?.nome === userData?.nome || m.gestor_id === userData?.id
         );
 
-        const agora = meetings.filter((m: any) => {
+        const agora = activeMeetings.filter((m: any) => {
             const start = parseISO(`${m.data}T${m.hora_inicio}`);
             const end = m.hora_fim ? parseISO(`${m.data}T${m.hora_fim}`) : null;
             return isPast(start) && (!end || isFuture(end));
         });
 
-        const prox = meetings
+        const prox = activeMeetings
             .filter((m: any) => {
                 const start = parseISO(`${m.data}T${m.hora_inicio}`);
                 return isFuture(start);
             })
             .slice(0, 3);
 
-        return { meuMeetingsHoje: meus, acontecendoAgora: agora, proximas: prox };
+        return {
+            meuMeetingsHoje: meus,
+            acontecendoAgora: agora,
+            proximas: prox,
+            totalMeetings: activeMeetings.length
+        };
     }, [meetings, userData]);
 
     if (isLoading) {
@@ -52,7 +59,7 @@ export function DashboardAtendimento() {
                                 : `Você tem ${meuMeetingsHoje.length} reunião${meuMeetingsHoje.length > 1 ? "ões" : ""} hoje.`}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                            Total do dia: {meetings.length} reunião(ões) agendada(s) para o time.
+                            Total do dia: {totalMeetings} reunião(ões) agendada(s) para o time.
                         </p>
                     </div>
                 </div>
@@ -67,7 +74,7 @@ export function DashboardAtendimento() {
                                 <CalendarDays className="h-5 w-5 text-blue-500" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold">{meetings.length}</p>
+                                <p className="text-2xl font-bold">{totalMeetings}</p>
                                 <p className="text-xs text-muted-foreground">Reuniões Hoje</p>
                             </div>
                         </div>
@@ -169,7 +176,7 @@ export function DashboardAtendimento() {
                 </Card>
             )}
 
-            {meetings.length === 0 && (
+            {totalMeetings === 0 && (
                 <div className="rounded-xl border-2 border-dashed border-muted py-12 text-center text-sm text-muted-foreground">
                     Nenhuma reunião agendada para hoje.
                 </div>

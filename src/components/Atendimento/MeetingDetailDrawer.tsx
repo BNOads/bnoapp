@@ -48,7 +48,7 @@ function useClienteByName(clienteName: string | null) {
                 .from("clientes")
                 .select("id, nome, pasta_drive_url")
                 .ilike("nome", `%${clienteName}%`)
-                .eq("ativo", true)
+                .eq("is_active", true)
                 .limit(1);
             return data?.[0] ?? null;
         },

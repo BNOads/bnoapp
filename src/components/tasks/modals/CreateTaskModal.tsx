@@ -73,7 +73,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
             supabase.from("colaboradores").select("nome, user_id, avatar_url").order("nome").then(({ data }) => {
                 if (data) setColaboradores(data);
             });
-            supabase.from("clientes").select("id, nome, branding_logo_url, aliases, catalogo_criativos_url").eq("ativo", true).order("nome").then(({ data }) => {
+            supabase.from("clientes").select("id, nome, branding_logo_url, aliases, catalogo_criativos_url").eq("is_active", true).order("nome").then(({ data }) => {
                 if (data) setClientes(data);
             });
             // Reset values when opened

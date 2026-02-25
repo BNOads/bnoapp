@@ -204,7 +204,6 @@ export function MensagensSemanaisView() {
       try {
         let queryClientes = supabase.from("clientes")
           .select("id, nome")
-          .eq("ativo", true)
           .eq("is_active", true)
           .is("deleted_at", null);
 
@@ -273,7 +272,7 @@ export function MensagensSemanaisView() {
     try {
       const {
         data: clientesData
-      } = await supabase.from("clientes").select("id, nome, cs_id, primary_cs_user_id").eq("ativo", true).order("nome");
+      } = await supabase.from("clientes").select("id, nome, cs_id, primary_cs_user_id").eq("is_active", true).order("nome");
 
       // Carregar colaboradores com seus avatares
       const {

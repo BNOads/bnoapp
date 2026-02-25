@@ -36,6 +36,9 @@ export function ReunioesList() {
     const { data: meetings = [], isLoading } = useMeetings({ data_inicio: dataInicio });
 
     const filtered = meetings.filter((m: any) => {
+        const isActive = (m.clientes as any)?.is_active !== false;
+        if (!isActive) return false;
+
         const clienteName = (m.clientes as any)?.nome ?? "";
         const matchSearch = clienteName.toLowerCase().includes(search.toLowerCase());
         const matchClass = classificacaoFilter === "all" || m.classificacao_reuniao === classificacaoFilter;

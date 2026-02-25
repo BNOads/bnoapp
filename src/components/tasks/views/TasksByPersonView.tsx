@@ -123,7 +123,7 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
             });
         supabase.from("clientes")
             .select("id, nome")
-            .eq("ativo", true)
+            .eq("is_active", true)
             .then(({ data }) => {
                 if (data) setClientes(data);
             });
@@ -461,17 +461,18 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                             <Checkbox
                                                                 checked={task.completed}
                                                                 onCheckedChange={c => toggleComplete({ id: task.id, completed: c as boolean })}
-                                                                className={`w-5 h-5 transition-all rounded-[4px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : task.priority === 'alta' ? "border-2 border-rose-500/50 hover:border-rose-500" : task.priority === 'media' ? "border-2 border-amber-500/50 hover:border-amber-500" : "border-2 border-muted-foreground/30 hover:border-muted-foreground/50"}`}
+                                                                className={`w-5 h-5 transition-all rounded-[4px] ${task.completed ? "border-emerald-500 bg-emerald-500 text-white data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500" : task.priority === 'alta' ? "border-2 border-rose-500" : task.priority === 'media' ? "border-2 border-amber-500" : task.priority === 'baixa' ? "border-2 border-blue-500" : "border-2 border-muted-foreground/30 hover:border-muted-foreground/50"}`}
                                                             />
                                                         </div>
                                                         <div className="truncate flex items-center gap-2">
                                                             {task.priority === 'alta' && !task.completed && <Badge className="text-[9px] px-1 h-4 bg-rose-500 hover:bg-rose-600 shrink-0 border-transparent text-white font-normal uppercase">{PRIORITY_LABELS.alta}</Badge>}
                                                             {task.priority === 'media' && !task.completed && <Badge className="text-[9px] px-1 h-4 bg-amber-500 hover:bg-amber-600 shrink-0 border-transparent text-white font-normal uppercase">{PRIORITY_LABELS.media}</Badge>}
+                                                            {task.priority === 'baixa' && !task.completed && <Badge className="text-[9px] px-1 h-4 bg-blue-500 hover:bg-blue-600 shrink-0 border-transparent text-white font-normal uppercase">{PRIORITY_LABELS.baixa}</Badge>}
                                                             <span className={`text-sm truncate font-medium ${task.completed ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"}`}>
                                                                 {task.title}
                                                                 {task.reschedule_count && task.reschedule_count > 3 && (
-                                                                    <Badge className={`h-6 text-[10px] capitalize font-medium rounded-sm whitespace-nowrap border-transparent text-white ${task.priority === 'alta' ? 'bg-rose-500 hover:bg-rose-600' : task.priority === 'media' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
-                                                                        {PRIORITY_LABELS[task.priority as TaskPriority]}
+                                                                    <Badge className="ml-2 bg-purple-600 hover:bg-purple-700 text-white border-transparent text-[10px] h-4 px-1.5 py-0 shrink-0 font-normal">
+                                                                        +Reagendada
                                                                     </Badge>
                                                                 )}
                                                             </span>
@@ -709,7 +710,13 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                             {/* Mobile elements */}
                                                             <div className="sm:hidden flex flex-col items-end shrink-0 gap-1 text-xs">
                                                                 {task.due_date && <span className={`${isOverdue(task.due_date, task.completed) ? "text-destructive" : "text-muted-foreground"}`}>{format(new Date(`${task.due_date}T12:00:00`), "dd/MM")}</span>}
-                                                                {task.priority && !task.completed && <Badge variant="outline" className="text-[9px] px-1 h-4 scale-90">{PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}</Badge>}
+                                                                {task.priority && !task.completed && (
+                                                                    <Badge
+                                                                        className={`text-[9px] px-1 h-4 scale-90 border-transparent text-white truncate max-w-[70px] ${task.priority === 'alta' ? 'bg-rose-500' : task.priority === 'media' ? 'bg-amber-500' : 'bg-blue-500'}`}
+                                                                    >
+                                                                        {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
+                                                                    </Badge>
+                                                                )}
                                                             </div>
                                                         </div>
 

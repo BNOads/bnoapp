@@ -40,8 +40,29 @@ function useInternalParticipants(eventIds: string[]) {
     });
 }
 
+function useActiveClients() {
+    return useQuery({
+        queryKey: ["active-clients-minimal"],
+        queryFn: async () => {
+            const { data } = await supabase
+                .from("clientes")
+                .select("nome, aliases")
+                .eq("is_active", true);
+            return data ?? [];
+        },
+        staleTime: 30 * 60 * 1000,
+    });
+}
+
+function parseClientFromTitle(title: string): string | null {
+    if (!title) return null;
+    const match = title.match(/^([^|–\-]+)\s*[|–\-]/);
+    return match ? match[1].trim() : null;
+}
+
 export function LiveMeetingBanner() {
     const { data: events = [] } = useGoogleCalendar(1); // just today
+    const { data: activeClients = [] } = useActiveClients();
     const [now, setNow] = useState(() => new Date());
 
     // Refresh the "now" every 30 seconds to keep the live check current
@@ -50,10 +71,27 @@ export function LiveMeetingBanner() {
         return () => clearInterval(id);
     }, []);
 
-    const liveEvents = useMemo(
-        () => events.filter(ev => isHappeningNow(ev, now)),
-        [events, now]
-    );
+    const liveEvents = useMemo(() => {
+        const activeNameSet = new Set<string>();
+        activeClients.forEach(c => {
+            activeNameSet.add(c.nome.toLowerCase());
+            if (c.aliases) {
+                c.aliases.forEach((a: string) => activeNameSet.add(a.toLowerCase()));
+            }
+        });
+
+        return events.filter(ev => {
+            if (!isHappeningNow(ev, now)) return false;
+
+            // Client filter: If it looks like a client meeting, must be an active client
+            const clientName = parseClientFromTitle(ev.summary ?? "");
+            if (clientName) {
+                return activeNameSet.has(clientName.toLowerCase());
+            }
+
+            return true;
+        });
+    }, [events, now, activeClients]);
 
     const { data: participants = [] } = useInternalParticipants(liveEvents.map(e => e.id));
 

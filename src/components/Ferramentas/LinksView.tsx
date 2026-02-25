@@ -102,7 +102,7 @@ export const LinksView = () => {
       const { data, error } = await supabase
         .from("clientes")
         .select("id, nome")
-        .eq("ativo", true)
+        .eq("is_active", true)
         .order("nome");
 
       if (error) throw error;

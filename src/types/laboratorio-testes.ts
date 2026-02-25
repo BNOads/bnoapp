@@ -183,9 +183,9 @@ export const STATUS_COLORS: Record<StatusTesteLab, string> = {
 
 export const VALIDACAO_LABELS: Record<ValidacaoTesteLab, string> = {
   em_teste: 'Em Teste',
-  deu_bom: 'Deu Bom',
-  deu_ruim: 'Deu Ruim',
-  inconclusivo: 'Inconclusivo',
+  deu_bom: 'Bom 🤩',
+  deu_ruim: 'Ruim 😭',
+  inconclusivo: 'Ok',
 };
 
 export const VALIDACAO_COLORS: Record<ValidacaoTesteLab, string> = {

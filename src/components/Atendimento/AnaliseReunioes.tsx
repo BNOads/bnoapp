@@ -63,7 +63,7 @@ function useArquivoClientCounts() {
             const { data: clientes, error: clientesError } = await supabase
                 .from("clientes")
                 .select("id, nome")
-                .eq("ativo", true);
+                .eq("is_active", true);
             if (clientesError) throw clientesError;
 
             // Build a map of UPPERCASE_NAME → cliente
@@ -176,17 +176,17 @@ export function AnaliseReunioes() {
                             <div className="flex items-center gap-2">
                                 <ThumbsUp className="h-5 w-5 text-green-500" />
                                 <span className="text-2xl font-bold text-green-600">{ratingStats?.bom ?? 0}</span>
-                                <span className="text-xs text-muted-foreground">Deu Bom</span>
+                                <span className="text-xs text-muted-foreground">Bom 🤩</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <ThumbsDown className="h-5 w-5 text-red-500" />
                                 <span className="text-2xl font-bold text-red-600">{ratingStats?.ruim ?? 0}</span>
-                                <span className="text-xs text-muted-foreground">Deu Ruim</span>
+                                <span className="text-xs text-muted-foreground">Ruim 😭</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <HelpCircle className="h-5 w-5 text-orange-400" />
                                 <span className="text-2xl font-bold text-orange-500">{ratingStats?.inconclusivo ?? 0}</span>
-                                <span className="text-xs text-muted-foreground">Inconclusivo</span>
+                                <span className="text-xs text-muted-foreground">Ok</span>
                             </div>
                         </div>
                     </CardContent>
@@ -212,7 +212,7 @@ export function AnaliseReunioes() {
                         <p className="text-3xl font-bold">
                             {classStats.find(c => c.key === "deu_ruim")?.value ?? 0}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">Reuniões "Deu Ruim"</p>
+                        <p className="text-xs text-muted-foreground mt-1">Reuniões "Ruim 😭"</p>
                     </CardContent>
                 </Card>
             </div>

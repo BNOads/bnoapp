@@ -13,7 +13,7 @@ function useClientesEmAlerta() {
                 .from("clientes")
                 .select("id, nome, situacao_cliente")
                 .eq("situacao_cliente", "alerta")
-                .eq("ativo", true)
+                .eq("is_active", true)
                 .order("nome", { ascending: true });
             if (error) throw new Error(error.message);
             return data ?? [];

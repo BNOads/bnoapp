@@ -92,8 +92,29 @@ interface GroupedEvents {
     events: GoogleCalendarEvent[];
 }
 
+function useActiveClients() {
+    return useQuery({
+        queryKey: ["active-clients-minimal"],
+        queryFn: async () => {
+            const { data } = await supabase
+                .from("clientes")
+                .select("nome, aliases")
+                .eq("is_active", true);
+            return data ?? [];
+        },
+        staleTime: 30 * 60 * 1000,
+    });
+}
+
+function parseClientFromTitle(title: string): string | null {
+    if (!title) return null;
+    const match = title.match(/^([^|–\-]+)\s*[|–\-]/);
+    return match ? match[1].trim() : null;
+}
+
 export function EscalaReunioes() {
-    const { data: events = [], isLoading, error, refetch } = useGoogleCalendar(30);
+    const { data: events = [], isLoading: loadingCalendar, error, refetch } = useGoogleCalendar(30);
+    const { data: activeClients = [], isLoading: loadingClients } = useActiveClients();
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<GoogleCalendarEvent | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -102,6 +123,8 @@ export function EscalaReunioes() {
     const [customFrom, setCustomFrom] = useState("");
     const [customTo, setCustomTo] = useState("");
     const [page, setPage] = useState(0);
+
+    const isLoading = loadingCalendar || loadingClients;
 
     // Apply date + search filters to flat events list
     const filteredEvents = useMemo(() => {
@@ -135,10 +158,26 @@ export function EscalaReunioes() {
                 to = endOfDay(addDays(now, 7));
         }
 
+        // Create a Set of all active client names and aliases for fast lookup
+        const activeNameSet = new Set<string>();
+        activeClients.forEach(c => {
+            activeNameSet.add(c.nome.toLowerCase());
+            if (c.aliases) {
+                c.aliases.forEach((a: string) => activeNameSet.add(a.toLowerCase()));
+            }
+        });
+
         return events.filter(ev => {
             const d = getEventDate(ev);
             if (!d) return false;
             if (d < from || d > to) return false;
+
+            // Client filter: If it looks like a client meeting, must be an active client
+            const clientName = parseClientFromTitle(ev.summary ?? "");
+            if (clientName) {
+                if (!activeNameSet.has(clientName.toLowerCase())) return false;
+            }
+
             if (search) {
                 const q = search.toLowerCase();
                 return (
@@ -148,7 +187,7 @@ export function EscalaReunioes() {
             }
             return true;
         });
-    }, [events, dateFilter, customFrom, customTo, search]);
+    }, [events, dateFilter, customFrom, customTo, search, activeClients]);
 
     // Group filtered events by date
     const grouped: GroupedEvents[] = useMemo(() => {

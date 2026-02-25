@@ -42,7 +42,7 @@ function useClientes() {
             const { data, error } = await supabase
                 .from("clientes")
                 .select("id, nome, situacao_cliente")
-                .eq("ativo", true)
+                .eq("is_active", true)
                 .order("nome", { ascending: true });
             if (error) throw error;
             return data;

@@ -73,7 +73,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
             supabase.from("colaboradores").select("nome, user_id, avatar_url").order("nome").then(({ data }) => {
                 if (data) setColaboradores(data);
             });
-            supabase.from("clientes").select("id, nome, branding_logo_url, catalogo_criativos_url").eq("ativo", true).order("nome").then(({ data }) => {
+            supabase.from("clientes").select("id, nome, branding_logo_url, catalogo_criativos_url").eq("is_active", true).order("nome").then(({ data }) => {
                 if (data) setClientes(data);
             });
         }
@@ -565,8 +565,8 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                         >
                                             <SelectTrigger className="w-auto h-7 px-2 border-0 hover:bg-muted shadow-none bg-transparent -ml-2">
                                                 {task.priority ? (
-                                                    <Badge variant={task.priority === "alta" ? "destructive" : task.priority === "media" ? "secondary" : "outline"} className="h-6 text-[10px] capitalize font-medium rounded-sm whitespace-nowrap">
-                                                        {PRIORITY_LABELS[task.priority as TaskPriority]}
+                                                    <Badge className={`h-6 text-[10px] capitalize font-medium rounded-sm whitespace-nowrap border-transparent text-white ${task.priority === 'alta' ? 'bg-rose-500' : task.priority === 'media' ? 'bg-amber-500' : 'bg-blue-500'}`}>
+                                                        {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
                                                     </Badge>
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">-</span>
@@ -581,7 +581,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                                     <div className="flex items-center gap-2"><Flag className="w-3.5 h-3.5 text-amber-500" /> {PRIORITY_LABELS.media}</div>
                                                 </SelectItem>
                                                 <SelectItem value="alta">
-                                                    <div className="flex items-center gap-2"><Flag className="w-3.5 h-3.5 text-red-500" /> {PRIORITY_LABELS.alta}</div>
+                                                    <div className="flex items-center gap-2"><Flag className="w-3.5 h-3.5 text-rose-500" /> {PRIORITY_LABELS.alta}</div>
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>

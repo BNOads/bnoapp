@@ -52,7 +52,6 @@ export function ResumosSistemaTab() {
                 primary_cs_user_id,
                 primary_cs:colaboradores!clientes_primary_cs_user_id_fkey(id, nome, avatar_url)
             `)
-            .eq("ativo", true)
             .eq("is_active", true)
             .is("deleted_at", null)
             .order("nome")

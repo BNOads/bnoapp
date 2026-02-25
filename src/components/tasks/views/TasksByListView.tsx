@@ -68,7 +68,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
             });
         supabase.from("clientes")
             .select("id, nome, branding_logo_url")
-            .eq("ativo", true)
+            .eq("is_active", true)
             .then(({ data }) => {
                 if (data) setClientes(data);
             });
@@ -372,7 +372,13 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                             {/* Mobile elements */}
                                                             <div className="sm:hidden flex flex-col items-end shrink-0 gap-1 text-xs">
                                                                 {task.due_date && <span className={`${isOverdue(task.due_date, task.completed) ? "text-destructive" : "text-muted-foreground"}`}>{format(new Date(`${task.due_date}T12:00:00`), "dd/MM")}</span>}
-                                                                {task.priority && !task.completed && <Badge variant="outline" className="text-[9px] px-1 h-4 scale-90">{PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}</Badge>}
+                                                                {task.priority && !task.completed && (
+                                                                    <Badge
+                                                                        className={`text-[9px] px-1 h-4 scale-90 border-transparent text-white truncate max-w-[70px] ${task.priority === 'alta' ? 'bg-rose-500' : task.priority === 'media' ? 'bg-amber-500' : 'bg-blue-500'}`}
+                                                                    >
+                                                                        {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
+                                                                    </Badge>
+                                                                )}
                                                             </div>
                                                         </div>
 

@@ -23,16 +23,16 @@ export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
     useEffect(() => {
         supabase.from("clientes")
             .select("id, nome")
-            .eq("ativo", true)
+            .eq("is_active", true)
             .then(({ data }) => {
                 if (data) setClientes(data);
             });
     }, []);
 
     const columns = [
-        { id: "baixa", title: "Baixa Prioridade", color: "bg-blue-500/10 text-blue-700 border-blue-200" },
-        { id: "media", title: "Média Prioridade", color: "bg-amber-500/10 text-amber-700 border-amber-200" },
-        { id: "alta", title: "Alta Prioridade", color: "bg-red-500/10 text-red-700 border-red-200" },
+        { id: "baixa", title: PRIORITY_LABELS.baixa, color: "bg-blue-500/10 text-blue-700 border-blue-200" },
+        { id: "media", title: PRIORITY_LABELS.media, color: "bg-amber-500/10 text-amber-700 border-amber-200" },
+        { id: "alta", title: PRIORITY_LABELS.alta, color: "bg-rose-500/10 text-rose-700 border-rose-200" },
         { id: "completed", title: "Concluídas", color: "bg-green-500/10 text-green-700 border-green-200" }
     ];
 

@@ -81,7 +81,7 @@ export default function Tarefas() {
             });
         supabase.from("clientes")
             .select("id, nome")
-            .eq("ativo", true)
+            .eq("is_active", true)
             .then(({ data }) => {
                 if (data) setClientes(data);
             });

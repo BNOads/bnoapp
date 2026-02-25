@@ -30,7 +30,7 @@ export const useDashboardStats = () => {
         const { count: clientes } = await supabase
           .from('clientes')
           .select('*', { count: 'exact', head: true })
-          .eq('ativo', true);
+          .eq('is_active', true);
 
         // Buscar PDIs concluídos do usuário atual
         const { count: pdisFinalizados } = await supabase

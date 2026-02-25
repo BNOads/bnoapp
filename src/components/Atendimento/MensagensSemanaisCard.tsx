@@ -24,7 +24,7 @@ export function MensagensSemanaisCard() {
                 const { data: clientesData } = await supabase
                     .from("clientes")
                     .select("id, nome")
-                    .eq("ativo", true)
+                    .eq("is_active", true)
                     .order("nome");
 
                 // Fetch messages for current week

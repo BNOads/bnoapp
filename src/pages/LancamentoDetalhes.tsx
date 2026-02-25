@@ -449,7 +449,7 @@ export default function LancamentoDetalhes() {
       const {
         data,
         error
-      } = await supabase.from('clientes').select('id, nome').eq('ativo', true).order('nome');
+      } = await supabase.from('clientes').select('id, nome').eq('is_active', true).order('nome');
       if (error) throw error;
       setAvailableClients(data || []);
     } catch (error: any) {

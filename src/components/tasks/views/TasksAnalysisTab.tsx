@@ -77,7 +77,7 @@ export function TasksAnalysisTab() {
             if (error) throw error;
             setAllTasks(tasks || []);
 
-            const { data: clientesData } = await supabase.from("clientes").select("id, nome").eq("ativo", true);
+            const { data: clientesData } = await supabase.from("clientes").select("id, nome").eq("is_active", true);
             if (clientesData) setClientes(clientesData);
         } catch (err) {
             console.error("Error fetching tasks for analytics", err);
