@@ -189,13 +189,19 @@ export default function ProjecaoInterativa({
 
   // Carregar histórico de projeções
   const loadHistorico = useCallback(async () => {
-    if (!funilId) return;
     setLoadingHistorico(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('projecoes_funil')
-        .select('*')
-        .eq('orcamento_funil_id', funilId)
+        .select('*');
+
+      if (funilId) {
+        query = query.eq('orcamento_funil_id', funilId);
+      } else {
+        query = query.is('orcamento_funil_id', null);
+      }
+
+      const { data, error } = await query
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -864,14 +870,14 @@ export default function ProjecaoInterativa({
                           className="w-20 h-7 text-sm"
                           step={activeTab === 'cadastros' ? '1' : '0.1'}
                           min={activeTab === 'cadastros' ? 5 : 0.5}
-                          max={activeTab === 'cadastros' ? 100 : 10}
+                          max={100}
                           autoFocus
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') confirmEditMetric('conversionRate', activeTab === 'cadastros' ? 5 : 0.5, activeTab === 'cadastros' ? 100 : 10);
+                            if (e.key === 'Enter') confirmEditMetric('conversionRate', activeTab === 'cadastros' ? 5 : 0.5, 100);
                             if (e.key === 'Escape') cancelEditMetric();
                           }}
                         />
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('conversionRate', activeTab === 'cadastros' ? 5 : 0.5, activeTab === 'cadastros' ? 100 : 10)}>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmEditMetric('conversionRate', activeTab === 'cadastros' ? 5 : 0.5, 100)}>
                           <Check className="h-3.5 w-3.5 text-green-600" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEditMetric}>
@@ -899,13 +905,13 @@ export default function ProjecaoInterativa({
                   value={[projecao.conversionRate]}
                   onValueChange={([value]) => handleMetricChange('conversionRate', value)}
                   min={activeTab === 'cadastros' ? 5 : 0.5}
-                  max={activeTab === 'cadastros' ? 100 : 10}
+                  max={100}
                   step={activeTab === 'cadastros' ? 1 : 0.1}
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>{activeTab === 'cadastros' ? '5%' : '0.5%'}</span>
                   <span className="text-emerald-600 font-semibold">Meta: {activeTab === 'cadastros' ? '50' : (benchmarks['conversion_rate']?.valor || benchmarks['conversionRate']?.valor || 3)}%</span>
-                  <span>{activeTab === 'cadastros' ? '100%' : '10%'}</span>
+                  <span>100%</span>
                 </div>
               </div>
 
