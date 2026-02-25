@@ -73,13 +73,13 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
+    "date-fns": "^3.6.0",
     "date-fns-tz": "^3.2.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.24",
     "html2canvas": "^1.4.1",
     "input-otp": "^1.4.2",
-    "jspdf": "^3.0.3",
+    "jspdf": "^4.2.0",
     "jszip": "^3.10.1",
     "lexical": "^0.38.2",
     "lucide-react": "^0.462.0",
@@ -126,6 +126,6 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19"
+    "vite": "^7.3.1"
   }
 }
