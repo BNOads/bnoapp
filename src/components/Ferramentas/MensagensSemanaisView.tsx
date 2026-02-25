@@ -551,10 +551,20 @@ export function MensagensSemanaisView() {
         throw new Error("Colaborador não encontrado");
       }
 
-      // 2. Tentar encontrar o CS padrão do cliente
+      // 2. Tentar encontrar o CS padrão do cliente (colaborador_id, não user_id)
       const {
         data: cliente
       } = await supabase.from("clientes").select("cs_id, primary_cs_user_id").eq("id", novoClienteId).maybeSingle();
+
+      // Mapear user_id para colaborador_id se necessário
+      let finalCsId = cliente?.cs_id;
+      if (!finalCsId && cliente?.primary_cs_user_id) {
+        const csColab = colaboradores.find(c => c.user_id === cliente.primary_cs_user_id);
+        if (csColab) {
+          finalCsId = csColab.id;
+        }
+      }
+
       const agora = new Date().toISOString();
       const novoHistorico = {
         tipo: 'gestor_salvo',
@@ -564,11 +574,12 @@ export function MensagensSemanaisView() {
         detalhes: 'Mensagem criada pela ferramenta'
       };
       const {
+        data: insertedData,
         error
       } = await supabase.from("mensagens_semanais").insert({
         cliente_id: novoClienteId,
         gestor_id: colaborador.id,
-        cs_id: cliente?.primary_cs_user_id || cliente?.cs_id || null,
+        cs_id: finalCsId,
         semana_referencia: weekStart,
         mensagem: novoTexto.trim(),
         created_by: user.data.user.id,
@@ -578,7 +589,7 @@ export function MensagensSemanaisView() {
       if (error) {
         throw error;
       }
-      const newId = (data as any)?.id;
+      const newId = insertedData?.id;
       toast({
         title: "Sucesso",
         description: "Mensagem criada com sucesso!"

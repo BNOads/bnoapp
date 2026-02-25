@@ -10,6 +10,7 @@ import { RecurrenceSelect } from "./RecurrenceSelect";
 import { CriativoSelector } from "../../Lancamentos/CriativoSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -765,21 +766,20 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                 {/* Description Body */}
                                 <div className="border rounded-xl p-0 bg-card text-card-foreground shadow-sm mb-6 min-h-[150px] sm:min-h-[200px] overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-all">
                                     {isEditingDescription || !task.description ? (
-                                        <div className="flex flex-col h-full h-[200px]">
-                                            <Textarea
-                                                value={description}
-                                                onChange={(e) => setDescription(e.target.value)}
-                                                placeholder="Escreva uma descrição ou / para adicionar comandos..."
-                                                className="w-full flex-1 border-0 resize-none p-4 sm:p-6 text-sm focus-visible:ring-0 rounded-none bg-transparent"
-                                                onFocus={() => setIsEditingDescription(true)}
+                                        <div className="flex flex-col h-full min-h-[200px]">
+                                            <RichTextEditor
+                                                content={description}
+                                                onChange={setDescription}
+                                                placeholder="Escreva uma descrição..."
+                                                className="border-0 rounded-none"
+                                                context="tarefa"
+                                                entityId={task.id}
                                             />
-                                            {isEditingDescription && (
-                                                <div className="flex justify-end p-2 bg-muted/20 border-t">
-                                                    <Button size="sm" onClick={handleSaveDescription}>
-                                                        Salvar
-                                                    </Button>
-                                                </div>
-                                            )}
+                                            <div className="flex justify-end p-2 bg-muted/20 border-t">
+                                                <Button size="sm" onClick={handleSaveDescription}>
+                                                    Salvar
+                                                </Button>
+                                            </div>
                                         </div>
                                     ) : (
                                         <div

@@ -144,10 +144,28 @@ export function MensagemSemanal({
         colaborador_id: colaborador.id,
         detalhes: mensagemExistente ? 'Mensagem atualizada pelo gestor' : 'Mensagem criada pelo gestor'
       };
+
+      // Garantir que cs_id seja um colaborador_id e não um user_id
+      let finalCsId = csId;
+      if (csId && csId.length > 0) {
+        // Se o csId parecer um user_id (contém hífens e tem 36 caracteres, comum para UUIDs do Auth), 
+        // mas precisamos confirmar se é um colaborador_id. 
+        // Na dúvida, vamos buscar o colaborador por user_id se não encontrarmos por id.
+        const { data: csColab } = await supabase
+          .from("colaboradores")
+          .select("id")
+          .or(`id.eq.${csId},user_id.eq.${csId}`)
+          .maybeSingle();
+
+        if (csColab) {
+          finalCsId = csColab.id;
+        }
+      }
+
       const dadosMensagem = {
         cliente_id: clienteId,
         gestor_id: colaborador.id,
-        cs_id: csId,
+        cs_id: finalCsId,
         semana_referencia: semanaReferencia,
         mensagem: mensagem.trim(),
         created_by: user.data.user.id,
