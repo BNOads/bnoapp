@@ -27,6 +27,19 @@ export function FileUploadButton({
         const file = event.target.files?.[0];
         if (!file || !editor) return;
 
+        // Limite de 1MB
+        const MAX_SIZE = 1 * 1024 * 1024;
+        if (file.size > MAX_SIZE) {
+            toast.error("Arquivo muito grande", {
+                description: "O limite máximo para anexos na descrição é de 1MB.",
+            });
+            // Limpar input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+            return;
+        }
+
         setIsUploading(true);
         const toastId = toast.loading("Enviando arquivo...");
 

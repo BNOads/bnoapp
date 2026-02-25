@@ -16,8 +16,17 @@ export function useImagePaste({ editor, context, entityId }: UseImagePasteOption
 
       // Verificar se há imagem no clipboard
       const imageFile = getImageFromClipboard(event);
-      
+
       if (!imageFile) return;
+
+      // Limite de 1MB
+      const MAX_SIZE = 1 * 1024 * 1024;
+      if (imageFile.size > MAX_SIZE) {
+        toast.error("Imagem muito grande", {
+          description: "O limite máximo para imagens coladas é de 1MB.",
+        });
+        return;
+      }
 
       // Prevenir comportamento padrão
       event.preventDefault();
@@ -28,7 +37,7 @@ export function useImagePaste({ editor, context, entityId }: UseImagePasteOption
       try {
         // Inserir placeholder
         const position = editor.state.selection.from;
-        
+
         // Upload da imagem
         const result = await uploadImage({
           file: imageFile,
@@ -66,11 +75,20 @@ export function useImagePaste({ editor, context, entityId }: UseImagePasteOption
       if (!files || files.length === 0) return;
 
       // Verificar se há imagem
-      const imageFile = Array.from(files).find(file => 
+      const imageFile = Array.from(files).find(file =>
         file.type.startsWith('image/')
       );
 
       if (!imageFile) return;
+
+      // Limite de 1MB
+      const MAX_SIZE = 1 * 1024 * 1024;
+      if (imageFile.size > MAX_SIZE) {
+        toast.error("Imagem muito grande", {
+          description: "O limite máximo para imagens arrastadas é de 1MB.",
+        });
+        return;
+      }
 
       // Prevenir comportamento padrão
       event.preventDefault();

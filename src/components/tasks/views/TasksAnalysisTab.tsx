@@ -101,9 +101,19 @@ export function TasksAnalysisTab() {
         if (dateRangeFilter === "ontem") {
             startDate = subDays(today, 1);
             endDate = today;
+            days = 1;
+        } else if (dateRangeFilter === "amanha") {
+            startDate = subDays(today, -1);
+            endDate = subDays(today, -2);
+            days = 1;
         } else if (dateRangeFilter === "1") {
             startDate = today;
             endDate = subDays(today, -1);
+            days = 1;
+        } else if (dateRangeFilter === "proximos_7") {
+            startDate = today;
+            endDate = subDays(today, -7);
+            days = 7;
         } else if (dateRangeFilter !== "all" && !dateRangeFilter.includes("~")) {
             days = parseInt(dateRangeFilter, 10);
             startDate = subDays(today, days);
@@ -113,6 +123,9 @@ export function TasksAnalysisTab() {
             if (startStr && endStr) {
                 startDate = parseISO(startStr);
                 endDate = startOfDay(new Date(new Date(parseISO(endStr)).getTime() + 86400000));
+                // Calculate days for the chart
+                const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+                days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             }
         }
 
@@ -194,10 +207,21 @@ export function TasksAnalysisTab() {
         });
 
         const dailyMap: Record<string, number> = {};
-        for (let i = daysToTrack - 1; i >= 0; i--) {
-            const d = subDays(today, i);
-            const k = format(d, 'yyyy-MM-dd');
-            dailyMap[k] = 0;
+        if (startDateLimit && endDateLimit) {
+            let curr = new Date(startDateLimit);
+            let loops = 0;
+            while (curr < endDateLimit && loops < 500) {
+                const k = format(curr, 'yyyy-MM-dd');
+                dailyMap[k] = 0;
+                curr = new Date(curr.getTime() + 86400000);
+                loops++;
+            }
+        } else {
+            for (let i = daysToTrack - 1; i >= 0; i--) {
+                const d = subDays(today, i);
+                const k = format(d, 'yyyy-MM-dd');
+                dailyMap[k] = 0;
+            }
         }
 
         const listStats: Record<string, { completed: number; totalTime: number }> = {};
@@ -340,13 +364,24 @@ export function TasksAnalysisTab() {
 
     const userTimelineData = useMemo(() => {
         if (allTasks.length === 0) return [];
-        let daysToTrackLimit = daysToTrack > 90 ? 90 : daysToTrack;
-        const today = startOfDay(new Date());
         const dailyMap: Record<string, number> = {};
-        for (let i = daysToTrackLimit - 1; i >= 0; i--) {
-            const d = subDays(today, i);
-            const k = format(d, 'yyyy-MM-dd');
-            dailyMap[k] = 0;
+        if (startDateLimit && endDateLimit) {
+            let curr = new Date(startDateLimit);
+            let loops = 0;
+            while (curr < endDateLimit && loops < 500) {
+                const k = format(curr, 'yyyy-MM-dd');
+                dailyMap[k] = 0;
+                curr = new Date(curr.getTime() + 86400000);
+                loops++;
+            }
+        } else {
+            let daysToTrackLimit = daysToTrack > 90 ? 90 : daysToTrack;
+            const today = startOfDay(new Date());
+            for (let i = daysToTrackLimit - 1; i >= 0; i--) {
+                const d = subDays(today, i);
+                const k = format(d, 'yyyy-MM-dd');
+                dailyMap[k] = 0;
+            }
         }
         allTasks.forEach(task => {
             if (task.completed && task.completed_at) {
@@ -393,13 +428,24 @@ export function TasksAnalysisTab() {
 
     const trackedTimeData = useMemo(() => {
         if (allTasks.length === 0) return [];
-        let daysToTrackLimit = daysToTrack > 90 ? 90 : daysToTrack;
-        const today = startOfDay(new Date());
         const sessionMap: Record<string, number> = {};
-        for (let i = daysToTrackLimit - 1; i >= 0; i--) {
-            const d = subDays(today, i);
-            const k = format(d, 'yyyy-MM-dd');
-            sessionMap[k] = 0;
+        if (startDateLimit && endDateLimit) {
+            let curr = new Date(startDateLimit);
+            let loops = 0;
+            while (curr < endDateLimit && loops < 500) {
+                const k = format(curr, 'yyyy-MM-dd');
+                sessionMap[k] = 0;
+                curr = new Date(curr.getTime() + 86400000);
+                loops++;
+            }
+        } else {
+            let daysToTrackLimit = daysToTrack > 90 ? 90 : daysToTrack;
+            const today = startOfDay(new Date());
+            for (let i = daysToTrackLimit - 1; i >= 0; i--) {
+                const d = subDays(today, i);
+                const k = format(d, 'yyyy-MM-dd');
+                sessionMap[k] = 0;
+            }
         }
         allTasks.forEach(task => {
             if (task.completed && task.completed_at && task.time_tracked) {
@@ -509,6 +555,8 @@ export function TasksAnalysisTab() {
                             <SelectContent>
                                 <SelectItem value="1">Hoje</SelectItem>
                                 <SelectItem value="ontem">Ontem</SelectItem>
+                                <SelectItem value="amanha">Amanhã</SelectItem>
+                                <SelectItem value="proximos_7">Próximos 7 Dias</SelectItem>
                                 <SelectItem value="7">Últimos 7 Dias</SelectItem>
                                 <SelectItem value="30">Últimos 30 Dias</SelectItem>
                                 <SelectItem value="60">Últimos 60 Dias</SelectItem>
