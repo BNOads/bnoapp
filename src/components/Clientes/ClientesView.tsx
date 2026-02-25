@@ -15,6 +15,7 @@ import { NovoClienteModal } from "./NovoClienteModal";
 import { DeleteClienteModal } from "./DeleteClienteModal";
 import { InativarClienteModal } from "./InativarClienteModal";
 import { ReativarClienteModal } from "./ReativarClienteModal";
+import { PermanentDeleteClienteModal } from "./PermanentDeleteClienteModal";
 import { ImportarClientesModal } from "./ImportarClientesModal";
 import { EditarClienteModal } from "./EditarClienteModal";
 import { EdicaoMassaModal } from "./EdicaoMassaModal";
@@ -128,6 +129,11 @@ export const ClientesView = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [edicaoMassaModalOpen, setEdicaoMassaModalOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
+  const [permanentDeleteModalOpen, setPermanentDeleteModalOpen] = useState(false);
+  const [clienteToPermanentDelete, setClienteToPermanentDelete] = useState<{
     id: string;
     nome: string;
   } | null>(null);
@@ -434,6 +440,20 @@ export const ClientesView = () => {
   const handleDeleteSuccess = () => {
     setDeleteModalOpen(false);
     setClienteToDelete(null);
+    carregarClientes();
+  };
+
+  const handlePermanentDeleteClick = (cliente: any) => {
+    setClienteToPermanentDelete({
+      id: cliente.id,
+      nome: cliente.nome
+    });
+    setPermanentDeleteModalOpen(true);
+  };
+
+  const handlePermanentDeleteSuccess = () => {
+    setPermanentDeleteModalOpen(false);
+    setClienteToPermanentDelete(null);
     carregarClientes();
   };
 
@@ -1415,10 +1435,14 @@ export const ClientesView = () => {
 
                                     {canCreateContent && (
                                       <>
-                                        <div className="h-px bg-border/50 my-1.5 mx-1" />
-                                        <DropdownMenuItem onClick={() => handleDeleteClick(cliente)} className="text-red-600 rounded-lg cursor-pointer my-0.5 font-medium focus:bg-red-50 focus:text-red-700">
+                                        <DropdownMenuItem onClick={() => handleDeleteClick(cliente)} className="text-red-700 rounded-lg cursor-pointer my-0.5 font-medium focus:bg-red-50 focus:text-red-700">
                                           <Trash2 className="h-4 w-4 mr-2" />
                                           Apagar Cliente
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuItem onClick={() => handlePermanentDeleteClick(cliente)} className="text-red-800 rounded-lg cursor-pointer my-0.5 font-bold focus:bg-red-100 focus:text-red-900">
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Excluir Permanentemente
                                         </DropdownMenuItem>
                                       </>
                                     )}
@@ -1474,6 +1498,18 @@ export const ClientesView = () => {
         setClienteToDelete(null);
       }
     }} cliente={clienteToDelete} onSuccess={handleDeleteSuccess} />
+
+    <PermanentDeleteClienteModal
+      open={permanentDeleteModalOpen}
+      onOpenChange={open => {
+        setPermanentDeleteModalOpen(open);
+        if (!open) {
+          setClienteToPermanentDelete(null);
+        }
+      }}
+      cliente={clienteToPermanentDelete}
+      onSuccess={handlePermanentDeleteSuccess}
+    />
 
     <ImportarClientesModal open={importModalOpen} onOpenChange={setImportModalOpen} onSuccess={() => {
       carregarClientes(); // Recarregar lista após importar
