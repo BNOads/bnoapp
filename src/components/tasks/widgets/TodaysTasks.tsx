@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToggleTaskComplete, useUpdateTask, useCreateTask, useDeleteTask } from "@/hooks/useTaskMutations";
 import { PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS, getRecurrenceLabel } from "@/types/tasks";
-import { CheckCircleIcon, CalendarIcon, Flag, Clock, User, RepeatIcon, Users, List, Plus, Trash2, AlertCircle, ChevronRight, FileText, Check, SkipForward } from "lucide-react";
+import { CheckCircleIcon, CalendarIcon, Flag, Clock, User, RepeatIcon, Users, List, Plus, Trash2, AlertCircle, ChevronRight, FileText, Check, SkipForward, Maximize2, Minimize2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -42,6 +42,7 @@ export function TodaysTasks() {
     // Inline editing states
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState("");
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
 
@@ -338,7 +339,7 @@ export function TodaysTasks() {
     }
 
     return (
-        <Card className="w-full h-auto min-h-[500px] max-h-[700px] flex flex-col shadow-sm border p-6 overflow-hidden">
+        <Card className={`w-full h-auto flex flex-col shadow-sm border p-6 transition-all duration-300 ${isExpanded ? "min-h-[500px]" : "min-h-[500px] max-h-[700px] overflow-hidden"}`}>
             <div className="flex items-center justify-between mb-2">
                 <div>
                     <h2 className="text-xl font-bold tracking-tight">Minhas Tarefas</h2>
@@ -369,6 +370,15 @@ export function TodaysTasks() {
                         <FileText className="w-4 h-4" />
                         Ver Todas
                     </Button>
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="h-9 w-9 rounded-md text-muted-foreground bg-background border-dashed hover:border-solid transition-all"
+                        title={isExpanded ? "Reduzir" : "Expandir"}
+                    >
+                        {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    </Button>
                 </div>
             </div>
 
@@ -398,7 +408,7 @@ export function TodaysTasks() {
                 <Progress value={progress} className="h-2.5 bg-muted rounded-full [&>div]:bg-amber-500" />
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2 pb-4 -mr-2">
+            <div className={`flex-1 pr-2 pb-4 -mr-2 ${isExpanded ? "" : "overflow-y-auto"}`}>
                 <Accordion type="multiple" defaultValue={["overdue", "upcoming", "completed"]} className="w-full space-y-4">
 
                     {overdueTasks.length > 0 && (

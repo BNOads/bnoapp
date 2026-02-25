@@ -8,10 +8,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "0.0.0.0",
     port: 8080,
-    strictPort: true,
-    hmr: {
-      clientPort: 8080,
-    },
+    strictPort: false,
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',

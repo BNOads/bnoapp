@@ -114,7 +114,7 @@ export function TestesProximosVencer() {
               diasRodando,
               tipo: 'rodando_longo',
               label: `${diasRodando}d rodando`,
-              subtitle: `${clienteNome}${gestorLabel} · Inicio: ${format(dataInicio, "dd/MM", { locale: ptBR })}`,
+              subtitle: `${clienteNome}${gestorLabel} · Inicio: ${format(startDate, "dd/MM", { locale: ptBR })}`,
             });
           } else {
             // Normal running test

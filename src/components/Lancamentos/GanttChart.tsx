@@ -86,16 +86,23 @@ const GanttChart: React.FC<GanttChartProps> = ({
 
   const calcularPosicao = (data: string) => {
     const dataObj = new Date(data);
-    const dias = differenceInDays(dataObj, dataInicio);
+    if (isNaN(dataObj.getTime())) return 0;
     const totalDias = differenceInDays(dataFim, dataInicio);
+    if (totalDias === 0) return 0;
+    const dias = differenceInDays(dataObj, dataInicio);
     return (dias / totalDias) * 100;
   };
 
   const calcularLargura = (inicio: string, fim?: string) => {
     const dataInicioObj = new Date(inicio);
-    const dataFimObj = fim ? new Date(fim) : addDays(dataInicioObj, 7); // Default 7 dias se não tiver fim
-    const dias = Math.max(1, differenceInDays(dataFimObj, dataInicioObj));
+    if (isNaN(dataInicioObj.getTime())) return 0;
+    const dataFimObj = fim ? new Date(fim) : addDays(dataInicioObj, 7);
+    if (isNaN(dataFimObj.getTime())) return 0;
+
     const totalDias = differenceInDays(dataFim, dataInicio);
+    if (totalDias === 0) return 100;
+
+    const dias = Math.max(1, differenceInDays(dataFimObj, dataInicioObj));
     return Math.max(2, (dias / totalDias) * 100);
   };
 
@@ -115,7 +122,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
   const obterDivisoesTempo = () => {
     const divisoes = [];
     const totalDias = differenceInDays(dataFim, dataInicio);
-    
+
     switch (escalaVisao) {
       case 'diaria':
         for (let i = 0; i < totalDias; i += 1) {
@@ -142,18 +149,18 @@ const GanttChart: React.FC<GanttChartProps> = ({
         while (dataAtual <= dataFim) {
           const inicioMes = Math.max(0, differenceInDays(dataAtual, dataInicio));
           const fimMes = Math.min(totalDias, differenceInDays(endOfMonth(dataAtual), dataInicio));
-          
+
           divisoes.push({
             data: dataAtual,
             posicao: (inicioMes / totalDias) * 100,
             largura: ((fimMes - inicioMes) / totalDias) * 100
           });
-          
+
           dataAtual = addDays(endOfMonth(dataAtual), 1);
         }
         break;
     }
-    
+
     return divisoes;
   };
 
@@ -172,7 +179,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
               Visualização temporal dos lançamentos e suas fases
             </CardDescription>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
               <SelectTrigger className="w-40">
@@ -234,7 +241,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
                       {lancamento.colaboradores?.nome}
                     </div>
                   </div>
-                  
+
                   <Badge
                     variant="secondary"
                     className={`${statusColors[lancamento.status_lancamento]} text-white text-xs`}
@@ -252,9 +259,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
                       left: `${calcularPosicao(lancamento.data_inicio_captacao)}%`,
                       width: `${calcularLargura(lancamento.data_inicio_captacao, lancamento.data_fim_captacao)}%`
                     }}
-                    title={`Captação: ${format(new Date(lancamento.data_inicio_captacao), 'dd/MM/yyyy')} ${
-                      lancamento.data_fim_captacao ? `- ${format(new Date(lancamento.data_fim_captacao), 'dd/MM/yyyy')}` : ''
-                    }`}
+                    title={`Captação: ${format(new Date(lancamento.data_inicio_captacao), 'dd/MM/yyyy')} ${lancamento.data_fim_captacao ? `- ${format(new Date(lancamento.data_fim_captacao), 'dd/MM/yyyy')}` : ''
+                      }`}
                   >
                     Captação
                   </div>
@@ -279,9 +285,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
                         left: `${calcularPosicao(lancamento.data_inicio_remarketing)}%`,
                         width: `${calcularLargura(lancamento.data_inicio_remarketing, lancamento.data_fim_remarketing)}%`
                       }}
-                      title={`Remarketing: ${format(new Date(lancamento.data_inicio_remarketing), 'dd/MM/yyyy')} ${
-                        lancamento.data_fim_remarketing ? `- ${format(new Date(lancamento.data_fim_remarketing), 'dd/MM/yyyy')}` : ''
-                      }`}
+                      title={`Remarketing: ${format(new Date(lancamento.data_inicio_remarketing), 'dd/MM/yyyy')} ${lancamento.data_fim_remarketing ? `- ${format(new Date(lancamento.data_fim_remarketing), 'dd/MM/yyyy')}` : ''
+                        }`}
                     >
                       Remarketing
                     </div>

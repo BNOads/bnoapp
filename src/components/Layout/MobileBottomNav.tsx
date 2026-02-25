@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, CheckSquare, Rocket, Shield, Settings } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Rocket, Headphones, Settings } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 export const MobileBottomNav = () => {
@@ -33,10 +33,10 @@ export const MobileBottomNav = () => {
     // In a real scenario we could conditionally show these
     const extraTabs = [
         {
-            id: "orcamentos",
-            label: "Funis",
-            icon: Shield,
-            path: "/ferramentas/orcamentos-funil",
+            id: "atendimento",
+            label: "Atendimento",
+            icon: Headphones,
+            path: "/atendimento",
         },
         {
             id: "config",
