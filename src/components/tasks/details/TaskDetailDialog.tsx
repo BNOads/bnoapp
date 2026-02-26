@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
     Check, Clock, CalendarIcon, AlertCircle, Share2, MoreHorizontal,
-    Maximize2, Link as LinkIcon, User, Tag, Flag, Search, Bell, Pin, Play, Square, Users, RefreshCw, RepeatIcon, List, Building2, Trash2
+    Maximize2, Link as LinkIcon, User, Tag, Flag, Search, Bell, Pin, Play, Square, Users, RefreshCw, RepeatIcon, List, Building2, Trash2, ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +30,8 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCreateComment } from "@/hooks/useTaskComments";
 import { supabase } from "@/integrations/supabase/client";
 import { Calendar } from "@/components/ui/calendar";
+import { TicketDetailsDrawer } from "@/components/Tickets/TicketDetailsDrawer";
+import { Ticket } from "lucide-react";
 
 interface TaskDetailDialogProps {
     taskId: string | null;
@@ -67,6 +69,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
 
     const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string, avatar_url?: string }[]>([]);
     const [clientes, setClientes] = useState<{ id: string, nome: string, branding_logo_url?: string, catalogo_criativos_url?: string }[]>([]);
+    const [ticketDrawerOpen, setTicketDrawerOpen] = useState(false);
 
     useEffect(() => {
         if (open || asPage) {
@@ -347,6 +350,16 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                     <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                                         {task.id.substring(0, 8)}
                                     </span>
+                                    {task.ticket_id && (
+                                        <button
+                                            onClick={() => setTicketDrawerOpen(true)}
+                                            className="inline-flex items-center gap-3 px-5 py-2.5 rounded-lg border-2 border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors font-semibold text-sm shadow-sm dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/40 dark:hover:bg-blue-500/20"
+                                        >
+                                            <Ticket className="h-5 w-5 animate-pulse" />
+                                            Ver ticket de origem
+                                            <ExternalLink className="h-4 w-4 opacity-70" />
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Task Title Row */}
@@ -902,6 +915,13 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                         </div>
                     </div>
                 </div>
+            )}
+            {task?.ticket_id && (
+                <TicketDetailsDrawer
+                    ticketId={task.ticket_id}
+                    isOpen={ticketDrawerOpen}
+                    onClose={() => setTicketDrawerOpen(false)}
+                />
             )}
         </>
     );

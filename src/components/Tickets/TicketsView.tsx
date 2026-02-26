@@ -1,109 +1,76 @@
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, LayoutGrid, List, Filter } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Plus } from "lucide-react";
 import { useTickets } from "@/hooks/useTickets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { TicketTable } from "./TicketTable";
-import { TicketBoard } from "./TicketBoard";
 import { CreateTicketModal } from "./CreateTicketModal";
 import { TicketStats } from "./TicketStats";
 
-export function TicketsView() {
+export function TicketsView({ embedded = false }: { embedded?: boolean }) {
     const { userData } = useCurrentUser();
-    const [viewMode, setViewMode] = useState<"list" | "board">("board");
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState("meus");
+    const [showOnlyMine, setShowOnlyMine] = useState(false);
 
     const filters = {
-        responsavel_id: activeTab === "meus" ? userData?.id : undefined,
+        responsavel_id: showOnlyMine ? userData?.user_id : undefined,
     };
 
     const { data: tickets = [], isLoading } = useTickets(filters);
 
     return (
-        <div className="space-y-6 container mx-auto py-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Central de Tickets</h1>
-                    <p className="text-muted-foreground">
-                        Gerencie solicitações de suporte e atendimento de forma centralizada.
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="border rounded-md p-1 flex items-center bg-background">
-                        <Button
-                            variant={viewMode === "board" ? "secondary" : "ghost"}
-                            size="sm"
-                            onClick={() => setViewMode("board")}
-                            className="h-8 w-8 p-0"
-                        >
-                            <LayoutGrid className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant={viewMode === "list" ? "secondary" : "ghost"}
-                            size="sm"
-                            onClick={() => setViewMode("list")}
-                            className="h-8 w-8 p-0"
-                        >
-                            <List className="h-4 w-4" />
-                        </Button>
+        <div className={embedded ? "space-y-4" : "space-y-4 container mx-auto py-6"}>
+            {!embedded && (
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">Central de Tickets</h1>
+                        <p className="text-muted-foreground text-sm mt-1">
+                            Gerencie solicitações de suporte e atendimento de forma centralizada.
+                        </p>
                     </div>
                     <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
                         <Plus className="h-4 w-4" /> Novo Ticket
                     </Button>
                 </div>
-            </div>
+            )}
 
+            {/* Stats */}
             <TicketStats tickets={tickets} />
 
-            <Tabs defaultValue="meus" className="w-full" onValueChange={setActiveTab}>
-                <div className="flex items-center justify-between mb-4">
-                    <TabsList>
-                        <TabsTrigger value="meus">Meus Tickets</TabsTrigger>
-                        <TabsTrigger value="todos">Todos os Tickets</TabsTrigger>
-                        <TabsTrigger value="dashboard">Analytics</TabsTrigger>
-                    </TabsList>
-
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="gap-2">
-                            <Filter className="h-4 w-4" /> Filtros
-                        </Button>
-                    </div>
+            {/* Toggle row */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Switch
+                        id="only-mine"
+                        checked={showOnlyMine}
+                        onCheckedChange={setShowOnlyMine}
+                    />
+                    <Label htmlFor="only-mine" className="text-sm cursor-pointer select-none">
+                        Somente meus tickets
+                    </Label>
                 </div>
-
-                <TabsContent value="meus" className="mt-0">
-                    {isLoading ? (
-                        <div className="py-20 text-center text-muted-foreground italic">Carregando seus tickets...</div>
-                    ) : viewMode === "board" ? (
-                        <TicketBoard tickets={tickets} />
-                    ) : (
-                        <TicketTable tickets={tickets} />
+                <div className="flex items-center gap-3">
+                    <span className="text-sm text-muted-foreground">
+                        {tickets.length} {tickets.length === 1 ? "ticket" : "tickets"}
+                    </span>
+                    {embedded && (
+                        <Button size="sm" onClick={() => setIsCreateModalOpen(true)} className="gap-1.5 h-8">
+                            <Plus className="h-3.5 w-3.5" /> Novo Ticket
+                        </Button>
                     )}
-                </TabsContent>
+                </div>
+            </div>
 
-                <TabsContent value="todos" className="mt-0">
-                    {isLoading ? (
-                        <div className="py-20 text-center text-muted-foreground italic">Carregando todos os tickets...</div>
-                    ) : viewMode === "board" ? (
-                        <TicketBoard tickets={tickets} />
-                    ) : (
-                        <TicketTable tickets={tickets} />
-                    )}
-                </TabsContent>
-
-                <TabsContent value="dashboard" className="mt-0">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Dashboard Executivo</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground italic">Em desenvolvimento...</p>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
+            {/* Table / loading */}
+            {isLoading ? (
+                <div className="py-20 text-center text-muted-foreground italic">
+                    Carregando tickets...
+                </div>
+            ) : (
+                <TicketTable tickets={tickets} />
+            )}
 
             <CreateTicketModal
                 isOpen={isCreateModalOpen}

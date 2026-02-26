@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,17 +28,20 @@ interface KickoffContent {
   created_by: string;
 }
 
+interface KickoffVersion {
+  id: string;
+  version: number;
+  created_at: string;
+  created_by: string;
+}
+
 export const KickoffVisualizacao = ({ clienteId, clienteNome, onEdit }: KickoffVisualizacaoProps) => {
   const { toast } = useToast();
   const [content, setContent] = useState<KickoffContent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [versions, setVersions] = useState<any[]>([]);
+  const [versions, setVersions] = useState<KickoffVersion[]>([]);
 
-  useEffect(() => {
-    loadKickoffContent();
-  }, [clienteId]);
-
-  const loadKickoffContent = async () => {
+  const loadKickoffContent = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -86,7 +89,11 @@ export const KickoffVisualizacao = ({ clienteId, clienteNome, onEdit }: KickoffV
     } finally {
       setLoading(false);
     }
-  };
+  }, [clienteId, toast]);
+
+  useEffect(() => {
+    void loadKickoffContent();
+  }, [loadKickoffContent]);
 
   const parseMarkdownToSections = (markdown: string) => {
     const lines = markdown.split('\n');
@@ -122,24 +129,29 @@ export const KickoffVisualizacao = ({ clienteId, clienteNome, onEdit }: KickoffV
     return sections;
   };
 
+  const isStructuredContent = (markdown: string) => parseMarkdownToSections(markdown).length > 0;
+
   const exportToPDF = async () => {
     if (!content) return;
 
     try {
-      // Simular exportação - em produção, usar biblioteca como jsPDF
       const sections = parseMarkdownToSections(content.content_md);
       let exportContent = `KICKOFF - ${clienteNome}\n\n`;
-      
-      sections.forEach(section => {
-        exportContent += `${section.title.toUpperCase()}\n`;
-        exportContent += '='.repeat(section.title.length) + '\n\n';
-        
-        section.content.forEach(item => {
-          exportContent += `${item.label}: ${item.value}\n`;
+
+      if (sections.length > 0) {
+        sections.forEach(section => {
+          exportContent += `${section.title.toUpperCase()}\n`;
+          exportContent += '='.repeat(section.title.length) + '\n\n';
+
+          section.content.forEach(item => {
+            exportContent += `${item.label}: ${item.value}\n`;
+          });
+
+          exportContent += '\n';
         });
-        
-        exportContent += '\n';
-      });
+      } else {
+        exportContent += content.content_md;
+      }
 
       // Criar blob e download
       const blob = new Blob([exportContent], { type: 'text/plain;charset=utf-8' });
@@ -194,6 +206,7 @@ export const KickoffVisualizacao = ({ clienteId, clienteNome, onEdit }: KickoffV
   }
 
   const sections = parseMarkdownToSections(content.content_md);
+  const structured = isStructuredContent(content.content_md);
 
   return (
     <div className="space-y-6">
@@ -234,32 +247,43 @@ export const KickoffVisualizacao = ({ clienteId, clienteNome, onEdit }: KickoffV
 
       {/* Conteúdo do Kickoff */}
       <div className="space-y-6">
-        {sections.map((section, sectionIndex) => (
-          <Card key={sectionIndex}>
+        {structured ? (
+          sections.map((section, sectionIndex) => (
+            <Card key={sectionIndex}>
+              <CardHeader>
+                <CardTitle className="text-lg">{section.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {section.content.map((item, itemIndex) => (
+                    <div key={itemIndex}>
+                      <div className="flex flex-col space-y-1">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          {item.label}
+                        </label>
+                        <div className="text-sm">
+                          {item.value || '-'}
+                        </div>
+                      </div>
+                      {itemIndex < section.content.length - 1 && (
+                        <Separator className="mt-4" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card>
             <CardHeader>
-              <CardTitle className="text-lg">{section.title}</CardTitle>
+              <CardTitle className="text-lg">Conteúdo</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {section.content.map((item, itemIndex) => (
-                  <div key={itemIndex}>
-                    <div className="flex flex-col space-y-1">
-                      <label className="text-sm font-medium text-muted-foreground">
-                        {item.label}
-                      </label>
-                      <div className="text-sm">
-                        {item.value || '-'}
-                      </div>
-                    </div>
-                    {itemIndex < section.content.length - 1 && (
-                      <Separator className="mt-4" />
-                    )}
-                  </div>
-                ))}
-              </div>
+              <pre className="whitespace-pre-wrap text-sm leading-6">{content.content_md}</pre>
             </CardContent>
           </Card>
-        ))}
+        )}
       </div>
 
       {/* Histórico de Versões */}

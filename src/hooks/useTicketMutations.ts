@@ -29,40 +29,75 @@ export function useCreateTicket() {
 
             if (ticketError) throw ticketError;
 
-            // 2. Create Task Linked to Ticket
+            // Fetch client name + responsavel name + create log in parallel
+            const [clienteRes, responsavelRes] = await Promise.all([
+                supabase.from("clientes").select("nome").eq("id", ticket.cliente_id).single(),
+                ticket.responsavel_id
+                    ? supabase.from("colaboradores").select("nome").eq("user_id", ticket.responsavel_id).single()
+                    : Promise.resolve({ data: null }),
+                supabase.from("ticket_logs").insert({
+                    ticket_id: ticket.id,
+                    user_id: user.id,
+                    acao: "criado",
+                    descricao: "Ticket aberto pelo sistema",
+                }),
+            ]);
+
+            const clienteNome = clienteRes.data?.nome || "Cliente";
+            const responsavelNome = (responsavelRes as any).data?.nome || null;
+            const descricaoResumida = (ticket.descricao || "").substring(0, 80);
+            const SUPORTE_LIST_ID = "909c6ae7-c732-4d9c-8d9a-ff20cfcc5e3b";
+
+            // 2. Create primary Task linked to Ticket (assigned to responsável)
             const { data: task, error: taskError } = await supabase
                 .from("tasks")
                 .insert({
-                    title: `Ticket #${ticket.numero}: ${ticket.categoria}`,
+                    title: `${clienteNome} | ${descricaoResumida}`,
                     description: ticket.descricao,
-                    priority: ticket.prioridade === "critica" ? "copa_mundo" :
-                        ticket.prioridade === "alta" ? "libertadores" : "brasileirao",
-                    status: "pendente",
-                    user_id: ticket.responsavel_id || user.id,
+                    priority: ticket.prioridade === "critica" || ticket.prioridade === "alta" ? "alta" :
+                        ticket.prioridade === "media" ? "media" : "baixa",
+                    assigned_to_id: ticket.responsavel_id || user.id,
+                    assignee: responsavelNome,
+                    created_by_id: user.id,
                     ticket_id: ticket.id,
                     cliente_id: ticket.cliente_id,
+                    list_id: SUPORTE_LIST_ID,
                 })
                 .select()
                 .single();
 
             if (taskError) {
                 console.error("Error creating linked task:", taskError);
-                // We don't fail the whole operation but log it
             } else {
-                // Update ticket with linked task ID
+                // Update ticket with linked task id
                 await supabase
                     .from("tickets")
                     .update({ linked_task_id: task.id })
                     .eq("id", ticket.id);
-            }
 
-            // 3. Create initial log
-            await supabase.from("ticket_logs").insert({
-                ticket_id: ticket.id,
-                user_id: user.id,
-                acao: "criado",
-                descricao: "Ticket aberto pelo sistema",
-            });
+                // 3. If creator is different from responsável, create follow-up task for creator
+                if (ticket.responsavel_id && ticket.responsavel_id !== user.id) {
+                    // Get creator name
+                    const { data: creatorData } = await supabase
+                        .from("colaboradores")
+                        .select("nome")
+                        .eq("user_id", user.id)
+                        .single();
+
+                    await supabase.from("tasks").insert({
+                        title: `[Acompanhamento] ${clienteNome} | ${descricaoResumida}`,
+                        description: `Ticket #${ticket.numero} aberto. Acompanhe o andamento da tarefa principal de suporte.`,
+                        priority: ticket.prioridade === "critica" || ticket.prioridade === "alta" ? "alta" :
+                            ticket.prioridade === "media" ? "media" : "baixa",
+                        assigned_to_id: user.id,
+                        assignee: creatorData?.nome || null,
+                        created_by_id: user.id,
+                        ticket_id: ticket.id,
+                        cliente_id: ticket.cliente_id,
+                        list_id: SUPORTE_LIST_ID,
+                    });
+                }
+            }
 
             return ticket;
         },
@@ -110,6 +145,60 @@ export function useUpdateTicket() {
             queryClient.invalidateQueries({ queryKey: ticketKeys.all });
             queryClient.invalidateQueries({ queryKey: ticketKeys.detail(data.id) });
             toast({ title: "Ticket atualizado" });
+        },
+    });
+}
+
+export function useLinkTaskToTicket() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async ({ ticketId, taskId }: { ticketId: string; taskId: string }) => {
+            const { error } = await supabase
+                .from("tasks")
+                .update({ ticket_id: ticketId })
+                .eq("id", taskId);
+
+            if (error) throw error;
+
+            // Log the action
+            const user = (await supabase.auth.getUser()).data.user;
+            await supabase.from("ticket_logs").insert({
+                ticket_id: ticketId,
+                user_id: user?.id,
+                acao: "tarefa_vinculada",
+                descricao: "Tarefa existente vinculada ao ticket",
+            });
+        },
+        onSuccess: (_, { ticketId }) => {
+            queryClient.invalidateQueries({ queryKey: ticketKeys.detail(ticketId) });
+            queryClient.invalidateQueries({ queryKey: taskKeys.all });
+            toast({ title: "Tarefa vinculada ao ticket" });
+        },
+        onError: (error: any) => {
+            toast({ title: "Erro ao vincular tarefa", description: error.message, variant: "destructive" });
+        },
+    });
+}
+
+export function useUnlinkTaskFromTicket() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async ({ ticketId, taskId }: { ticketId: string; taskId: string }) => {
+            const { error } = await supabase
+                .from("tasks")
+                .update({ ticket_id: null })
+                .eq("id", taskId);
+
+            if (error) throw error;
+        },
+        onSuccess: (_, { ticketId }) => {
+            queryClient.invalidateQueries({ queryKey: ticketKeys.detail(ticketId) });
+            queryClient.invalidateQueries({ queryKey: taskKeys.all });
+            toast({ title: "Tarefa desvinculada do ticket" });
         },
     });
 }

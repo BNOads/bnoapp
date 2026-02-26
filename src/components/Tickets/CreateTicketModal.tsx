@@ -23,7 +23,7 @@ export function CreateTicketModal({ isOpen, onClose, defaultClienteId }: CreateT
     const [descricao, setDescricao] = useState("");
     const [origem, setOrigem] = useState("interno");
     const [clientes, setClientes] = useState<{ id: string; name: string }[]>([]);
-    const [colaboradores, setColaboradores] = useState<{ id: string; name: string }[]>([]);
+    const [colaboradores, setColaboradores] = useState<{ id: string; name: string; avatar_url?: string | null }[]>([]);
 
     const createTicket = useCreateTicket();
 
@@ -40,14 +40,18 @@ export function CreateTicketModal({ isOpen, onClose, defaultClienteId }: CreateT
                     setClientes(clientesData.map(c => ({ id: c.id, name: c.nome })));
                 }
 
-                const { data: profilesData } = await supabase
-                    .from("profiles") // Using profiles for actual user_id linking
-                    .select("id, nome")
+                const { data: colabData } = await supabase
+                    .from("colaboradores")
+                    .select("user_id, nome, avatar_url")
                     .eq("ativo", true)
                     .order("nome");
 
-                if (profilesData) {
-                    setColaboradores(profilesData.map(p => ({ id: p.id, name: p.nome })));
+                if (colabData) {
+                    setColaboradores(colabData.filter(c => c.user_id).map(c => ({
+                        id: c.user_id!,
+                        name: c.nome,
+                        avatar_url: c.avatar_url,
+                    })));
                 }
             };
 
@@ -139,6 +143,7 @@ export function CreateTicketModal({ isOpen, onClose, defaultClienteId }: CreateT
                             value={responsavelId}
                             onValueChange={setResponsavelId}
                             placeholder="Deixe em branco para atribuir depois"
+                            showAvatar
                         />
                     </div>
 

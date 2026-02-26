@@ -4,7 +4,8 @@ import { Database } from "@/integrations/supabase/types";
 
 export type Ticket = Database["public"]["Tables"]["tickets"]["Row"] & {
     clientes?: { nome: string };
-    profiles?: { nome: string };
+    responsavel_nome?: string;
+    responsavel_avatar?: string | null;
 };
 
 export const ticketKeys = {
@@ -31,7 +32,7 @@ export function useTickets(filters?: TicketFilters) {
         queryFn: async () => {
             let query = supabase
                 .from("tickets")
-                .select("*, clientes(nome), profiles!tickets_responsavel_id_fkey(nome)")
+                .select("*, clientes(nome)")
                 .order("created_at", { ascending: false });
 
             if (filters?.search) {
@@ -58,7 +59,32 @@ export function useTickets(filters?: TicketFilters) {
 
             const { data, error } = await query;
             if (error) throw error;
-            return (data as unknown) as Ticket[];
+
+            const tickets = (data || []) as unknown as Ticket[];
+
+            // Enrich with responsavel names + avatars from colaboradores
+            const responsavelIds = [...new Set(tickets.map(t => t.responsavel_id).filter(Boolean))];
+            if (responsavelIds.length > 0) {
+                const { data: colaboradores } = await supabase
+                    .from("colaboradores")
+                    .select("user_id, nome, avatar_url")
+                    .in("user_id", responsavelIds as string[]);
+
+                if (colaboradores) {
+                    const colabMap = new Map(colaboradores.map(c => [c.user_id, c]));
+                    tickets.forEach(t => {
+                        if (t.responsavel_id) {
+                            const colab = colabMap.get(t.responsavel_id);
+                            if (colab) {
+                                t.responsavel_nome = colab.nome;
+                                t.responsavel_avatar = colab.avatar_url;
+                            }
+                        }
+                    });
+                }
+            }
+
+            return tickets;
         },
         staleTime: 5 * 60 * 1000,
     });
@@ -68,21 +94,51 @@ export function useTicket(id: string) {
     return useQuery({
         queryKey: ticketKeys.detail(id),
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("tickets")
-                .select(`
-          *,
-          clientes(nome, whatsapp_grupo_url),
-          profiles!tickets_responsavel_id_fkey(nome, email),
-          ticket_logs(*, profiles(nome)),
-          ticket_anexos(*),
-          tasks(*)
-        `)
-                .eq("id", id)
-                .single();
+            // Run ticket + logs + all colaboradores in parallel
+            const [ticketRes, logsRes, colabRes] = await Promise.all([
+                supabase
+                    .from("tickets")
+                    .select("*, clientes(nome, whatsapp_grupo_url), ticket_anexos(*), tasks!tasks_ticket_id_fkey(*)")
+                    .eq("id", id)
+                    .single(),
+                supabase
+                    .from("ticket_logs")
+                    .select("*")
+                    .eq("ticket_id", id)
+                    .order("created_at", { ascending: true }),
+                supabase
+                    .from("colaboradores")
+                    .select("user_id, nome, email, avatar_url")
+                    .eq("ativo", true),
+            ]);
 
-            if (error) throw error;
-            return data;
+            if (ticketRes.error) throw ticketRes.error;
+            const data = ticketRes.data;
+            const logs = logsRes.data || [];
+            const colabMap = new Map((colabRes.data || []).map(c => [c.user_id, c]));
+
+            // Responsavel
+            const responsavelColab = data.responsavel_id ? colabMap.get(data.responsavel_id) : null;
+            const responsavel = responsavelColab
+                ? { nome: responsavelColab.nome, email: responsavelColab.email, avatar_url: responsavelColab.avatar_url }
+                : null;
+
+            // Enrich logs
+            const enrichedLogs = logs.map(l => ({
+                ...l,
+                profiles: l.user_id ? {
+                    nome: colabMap.get(l.user_id)?.nome || "Desconhecido",
+                    avatar_url: colabMap.get(l.user_id)?.avatar_url || null,
+                } : null,
+            }));
+
+            return {
+                ...data,
+                profiles: responsavel,
+                ticket_logs: enrichedLogs,
+                criado_por_nome: data.criado_por ? colabMap.get(data.criado_por)?.nome || null : null,
+                criado_por_avatar: data.criado_por ? colabMap.get(data.criado_por)?.avatar_url || null : null,
+            };
         },
         enabled: !!id,
     });

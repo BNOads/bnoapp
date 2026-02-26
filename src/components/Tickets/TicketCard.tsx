@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Ticket } from "@/hooks/useTickets";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Clock, MessageSquare, Paperclip, AlertTriangle } from "lucide-react";
 
 interface TicketCardProps {
@@ -35,19 +35,20 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
                         <AlertTriangle className="h-3 w-3 text-red-500 animate-pulse" />
                     )}
                 </div>
-                <h3 className="text-sm font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                    {ticket.descricao}
+                <h3 className="text-sm font-semibold leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                    {ticket.clientes?.nome || "Sem cliente"} | {ticket.descricao?.substring(0, 50)}{(ticket.descricao?.length || 0) > 50 ? "..." : ""}
                 </h3>
             </CardHeader>
 
             <CardContent className="p-3 space-y-3">
+                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    {ticket.descricao}
+                </p>
+
                 <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-[10px] h-5 py-0 px-1.5 font-normal">
                         {ticket.categoria}
                     </Badge>
-                    <span className="text-[11px] font-medium truncate">
-                        {ticket.clientes?.nome || "Sem cliente"}
-                    </span>
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
@@ -74,19 +75,20 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
             <CardFooter className="p-3 pt-0 border-top bg-muted/20 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                     <Avatar className="h-5 w-5 border border-background">
+                        <AvatarImage src={ticket.responsavel_avatar || undefined} />
                         <AvatarFallback className="text-[8px]">
-                            {ticket.profiles?.nome?.substring(0, 2).toUpperCase() || "??"}
+                            {ticket.responsavel_nome?.substring(0, 2).toUpperCase() || "??"}
                         </AvatarFallback>
                     </Avatar>
                     <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">
-                        {ticket.profiles?.nome || "Pendente"}
+                        {ticket.responsavel_nome || "Pendente"}
                     </span>
                 </div>
 
-                {(ticket as any).sla_estimado && ticket.status !== "encerrado" && (
+                {ticket.sla_limite && ticket.status !== "encerrado" && (
                     <div className="flex items-center gap-1">
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                        <span className="text-[9px] font-medium text-primary">SLA</span>
+                        <div className={`h-1.5 w-1.5 rounded-full ${new Date(ticket.sla_limite) < new Date() ? "bg-red-500" : "bg-primary"} animate-pulse`} />
+                        <span className={`text-[9px] font-medium ${new Date(ticket.sla_limite) < new Date() ? "text-red-500" : "text-primary"}`}>SLA</span>
                     </div>
                 )}
             </CardFooter>
