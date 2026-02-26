@@ -137,7 +137,6 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
         createTask({
             title: `${task.title} (Cópia)`,
             description: task.description,
-            status: 'pendente',
             priority: task.priority || 'media',
             assignee: task.assignee,
             assigned_to_id: task.assigned_to_id,
@@ -184,7 +183,7 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
 
     // Combine taskLists and a "Sem Lista" column
     const columns = [
-        ...taskLists.map(l => ({ id: l.id, title: l.name, color: l.color, is_locked: l.is_locked })),
+        ...taskLists.map(l => ({ id: l.id, title: l.name, color: l.color, is_locked: false })),
         { id: "none", title: "Sem Lista", color: "#94a3b8", is_locked: false }
     ].sort((a, b) => getTasksByList(b.id).length - getTasksByList(a.id).length);
 
@@ -273,13 +272,13 @@ export function TasksByListView({ tasks, onTaskClick, selectedTasks, onToggleSel
                                                 }
                                             }}
                                             className="w-4 h-4"
-                                            title="Selecionar todas desta lista"
+                                            aria-label="Selecionar todas desta lista"
                                         />
                                     </div>
                                     <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: col.color }} />
                                     <h3 className="font-semibold text-[15px] flex items-center gap-2">
                                         {col.title}
-                                        {col.is_locked && <Lock className="w-3.5 h-3.5 text-muted-foreground" title="Lista Privada" />}
+                                        {col.is_locked && <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
                                     </h3>
                                     <button
                                         className="w-5 h-5 rounded-full bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-colors ml-1"

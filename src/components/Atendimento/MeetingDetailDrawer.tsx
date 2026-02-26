@@ -102,13 +102,13 @@ function useSaveDetails(googleEventId: string | null) {
         }) => {
             const { data: { user } } = await supabase.auth.getUser();
             const { error } = await supabase
-                .from("google_event_ratings")
+                .from("google_event_ratings" as any)
                 .upsert({
                     google_event_id: googleEventId!,
                     avaliado_por: user?.id ?? null,
                     updated_at: new Date().toISOString(),
                     ...payload,
-                }, { onConflict: "google_event_id" });
+                } as any, { onConflict: "google_event_id" });
             if (error) throw error;
         },
         onSuccess: () => {

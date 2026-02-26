@@ -107,7 +107,7 @@ export function TicketTable({ tickets }: TicketTableProps) {
                                             <div className="flex items-center gap-1.5">
                                                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                                                 <span className="text-xs font-medium">
-                                                    {ticket.sla_estimado ? format(new Date(ticket.sla_estimado), "dd/MM HH:mm") : "--"}
+                                                    {(ticket as any).sla_estimado ? format(new Date((ticket as any).sla_estimado), "dd/MM HH:mm") : "--"}
                                                 </span>
                                             </div>
                                         )}

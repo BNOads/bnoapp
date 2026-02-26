@@ -34,7 +34,8 @@ import {
 import { buildLaunchSheetCrossing, formatSheetColumnLabel, type MatchedPersonRow } from '@/lib/launchSheetCrossing';
 
 interface CruzamentoDadosTabProps {
-  lancamento: any;
+  lancamento?: any;
+  lancamentoId?: string;
 }
 
 interface LancamentoLinkRow {
@@ -92,7 +93,7 @@ const compareValues = (aValue: unknown, bValue: unknown, direction: 'asc' | 'des
     : bText.localeCompare(aText, 'pt-BR', { sensitivity: 'base' });
 };
 
-export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) => {
+export const CruzamentoDadosTab = ({ lancamento, lancamentoId: lancamentoIdProp }: CruzamentoDadosTabProps) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -158,7 +159,7 @@ export const CruzamentoDadosTab = ({ lancamentoId }: CruzamentoDadosTabProps) =>
       setLoading(false);
       setRefreshing(false);
     }
-  }, [lancamentoId]);
+  }, [lancamento]);
 
   useEffect(() => {
     fetchLinks();

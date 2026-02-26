@@ -59,7 +59,7 @@ export function CommentSection({ taskId, comments, hideForm = false }: CommentSe
                             </div>
                         </div>
 
-                        {((currentUser?.nome === comment.author_name || currentUser?.email === comment.author_name) || currentUser?.role === 'admin') && (
+                        {((currentUser?.nome === comment.author_name || currentUser?.email === comment.author_name) || (currentUser as any)?.role === 'admin') && (
                             <Button
                                 variant="ghost"
                                 size="icon"

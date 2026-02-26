@@ -666,7 +666,7 @@ export function MensagensSemanaisView() {
       if (error) {
         throw error;
       }
-      const editedId = (data as any)?.id;
+      const editedId = mensagemEditando?.id;
       toast({
         title: "Sucesso",
         description: "Mensagem atualizada com sucesso!"

@@ -1305,6 +1305,8 @@ export const OrcamentoPorFunil = ({
                   onHistorico={abrirHistorico}
                   onDetalhes={(o) => abrirDetalhes(o)}
                   onStatusChange={handleStatusChange}
+                  onEditCampaigns={handleEditCampaigns}
+                  allCampaigns={campaignsData}
                   onOpenCreatives={(o) => abrirDetalhes(o, "criativos")}
                   formatarMoeda={formatarMoeda}
                 />

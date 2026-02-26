@@ -88,7 +88,7 @@ export type TaskStatus = "overdue" | "today" | "upcoming" | "no-date";
 
 export type TaskHistoryAction = "created" | "updated" | "completed" | "reopened" | "deleted";
 
-export interface Task extends TaskRow {
+export interface Task extends Omit<TaskRow, 'time_tracked' | 'timer_started_at'> {
     subtasks?: Subtask[];
     task_comments?: TaskComment[];
     task_history?: TaskHistory[];

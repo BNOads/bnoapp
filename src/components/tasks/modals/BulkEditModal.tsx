@@ -94,7 +94,7 @@ export function BulkEditModal({ open, onOpenChange, selectedTaskIds, onClearSele
             updates.due_date = dueDate;
         }
         if (taskListId !== "no-change") {
-            updates.task_list_id = taskListId;
+            (updates as any).task_list_id = taskListId;
         }
 
         // Assignee needs special handling in useBulkUpdateTasks to fetch ID or just pass assignee name

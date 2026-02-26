@@ -41,8 +41,8 @@ async function saveDriveUrls(
     if (transcript?.url) payload.transcricao = `[Transcrição automática via Gemini]\n${transcript.url}`;
 
     const { error } = await supabase
-        .from("google_event_ratings")
-        .upsert(payload, { onConflict: "google_event_id" });
+        .from("google_event_ratings" as any)
+        .upsert(payload as any, { onConflict: "google_event_id" });
     if (error) throw error;
 }
 

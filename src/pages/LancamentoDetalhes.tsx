@@ -515,7 +515,7 @@ export default function LancamentoDetalhes() {
         error
       } = await supabase.from('lancamentos').update({
         nome_lancamento: lancamento.nome_lancamento,
-        status_lancamento: lancamento.status_lancamento,
+        status_lancamento: lancamento.status_lancamento as any,
         tipo_lancamento: lancamento.tipo_lancamento,
         promessa: lancamento.promessa,
         ticket_produto: lancamento.ticket_produto,
