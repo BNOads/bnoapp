@@ -396,8 +396,13 @@ serve(async (req) => {
     const resolveAutomationContext = async (data: JsonRecord): Promise<AutomationContext> => {
       const cliente = asObject(data.cliente);
       const lancamento = asObject(data.lancamento);
+      // Objects explicitly sent in new_traffic_manager / new_cs trigger payloads
+      const trafficManagerObj = asObject(data.traffic_manager);
+      const csObj = asObject(data.cs);
 
       const trafficCandidates: unknown[] = [
+        trafficManagerObj.id,
+        trafficManagerObj.user_id,
         cliente.traffic_manager_id,
         lancamento.gestor_responsavel_id,
         data.gestor_responsavel_id,
@@ -405,6 +410,8 @@ serve(async (req) => {
       ];
 
       const csCandidates: unknown[] = [
+        csObj.id,
+        csObj.user_id,
         cliente.cs_id,
         cliente.primary_cs_user_id,
       ];
@@ -419,6 +426,11 @@ serve(async (req) => {
         }
       }
 
+      // If still not found and we have a name from the explicit traffic_manager object, try by name
+      if (!trafficManager && asString(trafficManagerObj.nome)) {
+        trafficManager = await findCollaboratorByNameOrEmail(asString(trafficManagerObj.nome)!);
+      }
+
       let csManager: CollaboratorInfo | null = null;
       for (const candidate of csCandidates) {
         if (!candidate) continue;
@@ -427,6 +439,11 @@ serve(async (req) => {
           csManager = resolved;
           break;
         }
+      }
+
+      // If still not found and we have a name from the explicit cs object, try by name
+      if (!csManager && asString(csObj.nome)) {
+        csManager = await findCollaboratorByNameOrEmail(asString(csObj.nome)!);
       }
 
       return { trafficManager, csManager };

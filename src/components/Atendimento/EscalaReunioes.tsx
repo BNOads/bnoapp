@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo, useState } from "react";
 import {
@@ -126,9 +126,17 @@ function useAllEventParticipants() {
 }
 
 export function EscalaReunioes() {
-    const { data: events = [], isLoading: loadingCalendar, error, refetch } = useGoogleCalendar(30);
+    const { data: events = [], isLoading: loadingCalendar, isFetching: fetchingCalendar, error, refetch } = useGoogleCalendar(30);
     const { data: colaboradores = [], isLoading: loadingColaboradores } = useColaboradores();
-    const { data: participants = [], isLoading: loadingParticipants } = useAllEventParticipants();
+    const { data: participants = [] } = useAllEventParticipants();
+    const queryClient = useQueryClient();
+
+    const handleSync = async () => {
+        await refetch();
+        // Invalidate all per-event participant caches so auto-matched data appears
+        queryClient.invalidateQueries({ queryKey: ["event-participants"] });
+        queryClient.invalidateQueries({ queryKey: ["all-event-participants"] });
+    };
 
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<GoogleCalendarEvent | null>(null);
@@ -140,7 +148,7 @@ export function EscalaReunioes() {
     const [customTo, setCustomTo] = useState("");
     const [page, setPage] = useState(0);
 
-    const isLoading = loadingCalendar || loadingColaboradores || loadingParticipants;
+    const isLoading = loadingCalendar || loadingColaboradores;
 
     // Apply date + search filters to flat events list
     const filteredEvents = useMemo(() => {
@@ -329,8 +337,8 @@ export function EscalaReunioes() {
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => refetch()} disabled={isLoading}>
-                                    <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                                <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleSync} disabled={fetchingCalendar}>
+                                    <RefreshCw className={`h-4 w-4 ${fetchingCalendar ? "animate-spin" : ""}`} />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>Atualizar</TooltipContent>

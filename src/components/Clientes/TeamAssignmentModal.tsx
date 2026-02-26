@@ -203,6 +203,8 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
             nome: clienteNome,
             traffic_manager_id: selectedGestor || null,
             cs_id: primaryCs || null,
+            primary_cs_user_id: primaryCs || null,
+            primary_gestor_user_id: selectedGestor || null,
           };
 
           // Se o gestor mudou ou foi adicionado
@@ -216,6 +218,7 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
                   cliente: clientePayload,
                   traffic_manager: {
                     id: selectedGestor,
+                    user_id: selectedGestor,
                     nome: gestorInfo?.nome || null,
                   },
                   user_id: actorUserId,
@@ -235,6 +238,7 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
                   cliente: clientePayload,
                   cs: {
                     id: primaryCs,
+                    user_id: primaryCs,
                     nome: csInfo?.nome || null,
                   },
                   user_id: actorUserId,

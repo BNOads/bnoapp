@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { X, Plus } from "lucide-react";
 
 interface EditarColaboradorModalProps {
   open: boolean;
@@ -18,7 +19,8 @@ interface EditarColaboradorModalProps {
 export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSuccess }: EditarColaboradorModalProps) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  
+  const [aliasInput, setAliasInput] = useState("");
+
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -30,6 +32,7 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
     cargo_display: "",
     mini_bio: "",
     responsabilidades: "",
+    aliases: [] as string[],
   });
 
   useEffect(() => {
@@ -45,12 +48,25 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
         cargo_display: colaborador.cargo_display || "",
         mini_bio: colaborador.mini_bio || "",
         responsabilidades: colaborador.responsabilidades || "",
+        aliases: Array.isArray(colaborador.aliases) ? colaborador.aliases : [],
       });
+      setAliasInput("");
     }
   }, [colaborador]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const addAlias = () => {
+    const val = aliasInput.trim();
+    if (!val || formData.aliases.includes(val)) return;
+    setFormData(prev => ({ ...prev, aliases: [...prev.aliases, val] }));
+    setAliasInput("");
+  };
+
+  const removeAlias = (alias: string) => {
+    setFormData(prev => ({ ...prev, aliases: prev.aliases.filter(a => a !== alias) }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,6 +87,7 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
           cargo_display: formData.cargo_display || null,
           mini_bio: formData.mini_bio || null,
           responsabilidades: formData.responsabilidades || null,
+          aliases: formData.aliases.length > 0 ? formData.aliases : null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', colaborador.id);
@@ -104,7 +121,7 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
         <DialogHeader>
           <DialogTitle>Editar Colaborador</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -152,8 +169,8 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
 
             <div className="space-y-2">
               <Label htmlFor="estado_civil">Estado Civil</Label>
-              <Select 
-                value={formData.estado_civil} 
+              <Select
+                value={formData.estado_civil}
                 onValueChange={(value) => handleInputChange("estado_civil", value)}
               >
                 <SelectTrigger>
@@ -171,8 +188,8 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
 
             <div className="space-y-2">
               <Label htmlFor="tamanho_camisa">Tamanho da Camisa</Label>
-              <Select 
-                value={formData.tamanho_camisa} 
+              <Select
+                value={formData.tamanho_camisa}
                 onValueChange={(value) => handleInputChange("tamanho_camisa", value)}
               >
                 <SelectTrigger>
@@ -201,8 +218,8 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
 
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="nivel_acesso">Nível de Acesso</Label>
-              <Select 
-                value={formData.nivel_acesso} 
+              <Select
+                value={formData.nivel_acesso}
                 onValueChange={(value) => handleInputChange("nivel_acesso", value)}
               >
                 <SelectTrigger>
@@ -244,6 +261,47 @@ export const EditarColaboradorModal = ({ open, onOpenChange, colaborador, onSucc
               placeholder="Principais responsabilidades e atribuições..."
               className="min-h-[60px]"
             />
+          </div>
+
+          {/* Aliases for Google Calendar matching */}
+          <div className="space-y-2">
+            <Label>
+              Aliases Google Calendar
+              <span className="ml-2 text-xs text-muted-foreground font-normal">
+                nomes ou emails alternativos usados no Google Calendar
+              </span>
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                value={aliasInput}
+                onChange={e => setAliasInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addAlias(); } }}
+                placeholder="Ex: João Silva ou joao@gmail.com"
+                className="h-9 text-sm"
+              />
+              <Button type="button" variant="outline" size="icon" className="h-9 w-9 flex-shrink-0" onClick={addAlias}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {formData.aliases.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {formData.aliases.map(alias => (
+                  <span
+                    key={alias}
+                    className="inline-flex items-center gap-1 bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs"
+                  >
+                    {alias}
+                    <button
+                      type="button"
+                      onClick={() => removeAlias(alias)}
+                      className="hover:text-destructive transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
