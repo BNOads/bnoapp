@@ -104,9 +104,9 @@ export function ParticipantesPopover({ googleEventId }: ParticipantesPopoverProp
                                 <TooltipProvider key={c.id}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Avatar className="h-6 w-6 border-2 border-background cursor-pointer">
+                                            <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
                                                 <AvatarImage src={c.avatar_url ?? undefined} />
-                                                <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
+                                                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
                                                     {getInitials(c.nome)}
                                                 </AvatarFallback>
                                             </Avatar>
@@ -116,8 +116,8 @@ export function ParticipantesPopover({ googleEventId }: ParticipantesPopoverProp
                                 </TooltipProvider>
                             ))}
                             {selectedColaboradores.length > 3 && (
-                                <Avatar className="h-6 w-6 border-2 border-background">
-                                    <AvatarFallback className="text-[9px] bg-muted">
+                                <Avatar className="h-8 w-8 border-2 border-background">
+                                    <AvatarFallback className="text-[10px] bg-muted">
                                         +{selectedColaboradores.length - 3}
                                     </AvatarFallback>
                                 </Avatar>

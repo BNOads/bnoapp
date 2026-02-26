@@ -124,11 +124,56 @@ function useAllEventParticipants() {
         staleTime: 5 * 60 * 1000,
     });
 }
+function useClientes() {
+    return useQuery({
+        queryKey: ["clientes-for-calendar"],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from("clientes")
+                .select("id, nome, aliases, slug")
+                .eq("is_active", true)
+                .order("nome", { ascending: true });
+            if (error) throw error;
+            return data ?? [];
+        },
+        staleTime: 15 * 60 * 1000,
+    });
+}
+
+function normStr(s: string): string {
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+}
+
+function matchClientFromTitle(title: string, clientes: { id: string; nome: string; aliases: string[] | null }[]): { id: string; nome: string } | null {
+    // Extract prefix before " | " or "|"
+    const sep = title.indexOf('|');
+    const candidate = sep > 0 ? title.slice(0, sep).trim() : title.trim();
+    if (!candidate) return null;
+    const norm = normStr(candidate);
+    let best: { id: string; nome: string } | null = null;
+    let bestScore = 0;
+    for (const c of clientes) {
+        // Check nome
+        if (normStr(c.nome) === norm) return { id: c.id, nome: c.nome };
+        const nomeScore = normStr(c.nome).includes(norm) || norm.includes(normStr(c.nome)) ? 0.8 : 0;
+        // Check aliases
+        let aliasScore = 0;
+        for (const a of (c.aliases ?? [])) {
+            if (normStr(a) === norm) return { id: c.id, nome: c.nome };
+            if (normStr(a).includes(norm) || norm.includes(normStr(a))) aliasScore = 0.8;
+        }
+        const score = Math.max(nomeScore, aliasScore);
+        if (score > bestScore) { bestScore = score; best = { id: c.id, nome: c.nome }; }
+    }
+    return bestScore >= 0.8 ? best : null;
+}
+
 
 export function EscalaReunioes() {
     const { data: events = [], isLoading: loadingCalendar, isFetching: fetchingCalendar, error, refetch } = useGoogleCalendar(30);
     const { data: colaboradores = [], isLoading: loadingColaboradores } = useColaboradores();
     const { data: participants = [] } = useAllEventParticipants();
+    const { data: clientes = [] } = useClientes();
     const queryClient = useQueryClient();
 
     const handleSync = async () => {
@@ -405,6 +450,15 @@ export function EscalaReunioes() {
                                                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
                                                                 Reunião
                                                             </Badge>
+                                                            {(() => {
+                                                                const matched = matchClientFromTitle(ev.summary ?? "", clientes);
+                                                                if (!matched) return null;
+                                                                return (
+                                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-400 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30">
+                                                                        {matched.nome}
+                                                                    </Badge>
+                                                                );
+                                                            })()}
                                                         </div>
 
                                                         {/* Time + location + meet */}
@@ -433,36 +487,8 @@ export function EscalaReunioes() {
                                                             )}
                                                         </div>
 
-                                                        {/* Google Calendar attendees + Internal participants */}
-                                                        <div className="flex items-center gap-3 pt-0.5 flex-wrap">
-                                                            {/* External attendees (from Google) */}
-                                                            {attendees.length > 0 && (
-                                                                <div className="flex -space-x-2">
-                                                                    {attendees.slice(0, 4).map((a, i) => (
-                                                                        <TooltipProvider key={i}>
-                                                                            <Tooltip>
-                                                                                <TooltipTrigger>
-                                                                                    <Avatar className="h-8 w-8 border-2 border-background">
-                                                                                        <AvatarFallback className="text-[10px] bg-muted font-medium">
-                                                                                            {getInitials(a.displayName, a.email)}
-                                                                                        </AvatarFallback>
-                                                                                    </Avatar>
-                                                                                </TooltipTrigger>
-                                                                                <TooltipContent>{a.displayName ?? a.email}</TooltipContent>
-                                                                            </Tooltip>
-                                                                        </TooltipProvider>
-                                                                    ))}
-                                                                    {attendees.length > 4 && (
-                                                                        <Avatar className="h-8 w-8 border-2 border-background">
-                                                                            <AvatarFallback className="text-[10px] bg-muted">
-                                                                                +{attendees.length - 4}
-                                                                            </AvatarFallback>
-                                                                        </Avatar>
-                                                                    )}
-                                                                </div>
-                                                            )}
-
-                                                            {/* Internal BNOapp Participants */}
+                                                        {/* Internal BNOapp Participants only */}
+                                                        <div className="flex items-center gap-3 pt-0.5">
                                                             <ParticipantesPopover googleEventId={ev.id} />
                                                         </div>
 
