@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { MeetingRatingButtons } from "./MeetingRatingButtons";
 import {
     ExternalLink, Save, Video, FileText, MessageSquare,
-    BookOpen, Loader2, CheckCircle2
+    BookOpen, Loader2, CheckCircle2, Download
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -169,6 +169,7 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
     const [gravacaoUrl, setGravacaoUrl] = useState("");
     const [transcricao, setTranscricao] = useState("");
     const [comentarios, setComentarios] = useState("");
+    const [loadingGemini, setLoadingGemini] = useState(false);
 
     useEffect(() => {
         setGravacaoUrl(stored?.gravacao_url ?? "");
@@ -176,7 +177,31 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
         setComentarios(stored?.comentarios ?? "");
     }, [stored, event?.id]);
 
+    const handleLoadGeminiContent = async () => {
+        const fileUrl = event?.attachments?.find(
+            a => a.mimeType === 'application/vnd.google-apps.document' &&
+                (a.title?.toLowerCase().includes('anota') || a.title?.toLowerCase().includes('gemini'))
+        )?.fileUrl;
+        if (!fileUrl) return;
+        setLoadingGemini(true);
+        try {
+            const { data, error } = await supabase.functions.invoke("fetch-doc-content", {
+                body: { docUrl: fileUrl }
+            });
+            if (error) throw error;
+            if (data?.content) {
+                setTranscricao(data.content);
+                toast({ title: "✅ Conteúdo carregado", description: "Anotações do Gemini importadas." });
+            }
+        } catch (err: any) {
+            toast({ title: "Erro ao carregar", description: err.message, variant: "destructive" });
+        } finally {
+            setLoadingGemini(false);
+        }
+    };
+
     if (!event) return null;
+
 
     // Drive search URL — searches Google Drive for the event title
     const driveSearchQuery = encodeURIComponent(
@@ -309,45 +334,24 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
                                 <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
                             </a>
                         )}
+                        {/* Drive search links — removed per user request */}
 
-                        {/* Drive search links */}
-                        <div className="flex flex-col gap-1.5">
-                            <a
-                                href={driveSearchUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 hover:bg-green-100 transition-colors text-xs font-medium"
-                            >
-                                <Video className="h-3.5 w-3.5 flex-shrink-0" />
-                                Buscar gravacao no Google Drive
-                                <ExternalLink className="h-3 w-3 ml-auto flex-shrink-0" />
-                            </a>
-                            {cliente?.pasta_drive_url && (
-                                <a
-                                    href={cliente.pasta_drive_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors text-xs"
-                                >
-                                    <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
-                                    Abrir pasta do Drive — {cliente.nome}
-                                    <ExternalLink className="h-3 w-3 ml-auto flex-shrink-0 opacity-50" />
-                                </a>
-                            )}
-                        </div>
-
-                        {/* Manual paste */}
-                        <Input
-                            placeholder="Ou cole o link da gravação manualmente..."
-                            value={gravacaoUrl}
-                            onChange={e => setGravacaoUrl(e.target.value)}
-                            className="text-sm"
-                        />
-                        {gravacaoUrl && (
-                            <a href={gravacaoUrl} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                                <ExternalLink className="h-3 w-3" /> Abrir gravação
-                            </a>
+                        {/* Manual paste for recording when no attachment */}
+                        {!calendarRecording && (
+                            <>
+                                <Input
+                                    placeholder="Cole o link da gravação..."
+                                    value={gravacaoUrl}
+                                    onChange={e => setGravacaoUrl(e.target.value)}
+                                    className="text-sm"
+                                />
+                                {gravacaoUrl && (
+                                    <a href={gravacaoUrl} target="_blank" rel="noopener noreferrer"
+                                        className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                                        <ExternalLink className="h-3 w-3" /> Abrir gravação
+                                    </a>
+                                )}
+                            </>
                         )}
                     </div>
                     {/* Transcript */}
@@ -360,29 +364,36 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
                             )}
                         </Label>
 
-                        {/* Calendar-attached Gemini notes (priority) */}
+                        {/* Calendar-attached Gemini notes */}
                         {calendarTranscript?.fileUrl && (
-                            <a href={calendarTranscript.fileUrl} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 transition-colors">
-                                <FileText className="h-4 w-4 flex-shrink-0" />
-                                <span className="truncate flex-1 text-xs">{calendarTranscript.title}</span>
-                                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
-                            </a>
-                        )}
-                        {autoTranscript?.transcricao && (
-                            <div className="px-3 py-2 rounded-lg border bg-purple-50 dark:bg-purple-950/30 border-purple-200 text-xs text-muted-foreground max-h-32 overflow-y-auto leading-relaxed whitespace-pre-wrap">
-                                {autoTranscript.transcricao.substring(0, 400)}
-                                {autoTranscript.transcricao.length > 400 && "…"}
+                            <div className="flex items-center gap-2">
+                                <a href={calendarTranscript.fileUrl} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-2 flex-1 px-3 py-2 rounded-lg border bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 transition-colors text-xs">
+                                    <FileText className="h-4 w-4 flex-shrink-0" />
+                                    <span className="truncate flex-1">{calendarTranscript.title}</span>
+                                    <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                                </a>
+                                <button
+                                    onClick={handleLoadGeminiContent}
+                                    disabled={loadingGemini}
+                                    title="Carregar conteúdo do documento"
+                                    className="flex items-center gap-1 px-2 py-2 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors text-xs disabled:opacity-50 flex-shrink-0"
+                                >
+                                    {loadingGemini ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                                </button>
                             </div>
                         )}
 
-                        <Textarea
-                            placeholder="Ou cole a transcrição manualmente..."
-                            value={transcricao}
-                            onChange={e => setTranscricao(e.target.value)}
-                            rows={4}
-                            className="resize-none text-sm"
-                        />
+                        {/* Transcription content (from Gemini load or DB) */}
+                        {(transcricao || autoTranscript?.transcricao) && (() => {
+                            const text = transcricao || autoTranscript?.transcricao || "";
+                            return (
+                                <div className="px-3 py-2 rounded-lg border bg-purple-50 dark:bg-purple-950/30 border-purple-200 text-xs text-muted-foreground max-h-48 overflow-y-auto leading-relaxed whitespace-pre-wrap">
+                                    {text.substring(0, 600)}
+                                    {text.length > 600 && "…"}
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     <Separator />
