@@ -512,11 +512,12 @@ function PushNotificationBanner() {
   const { isSupported, isSubscribed, permission, isLoading, subscribe, unsubscribe } = usePushNotifications();
   const [dismissed, setDismissed] = useState(false);
 
-  // Don't show if not supported, already subscribed (unless we want to show manage), or dismissed
-  if (!isSupported) return null;
+  // Sem nenhuma API de notificação → esconde
+  if (typeof window === 'undefined' || !('Notification' in window)) return null;
   if (dismissed) return null;
   if (permission === 'denied') return null;
 
+  // Inscrito e funcionando
   if (isSubscribed) {
     return (
       <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
@@ -528,9 +529,7 @@ function PushNotificationBanner() {
           variant="ghost"
           size="sm"
           className="h-7 px-2 text-xs text-blue-600 hover:text-red-600 hover:bg-red-50"
-          onClick={async () => {
-            await unsubscribe();
-          }}
+          onClick={async () => { await unsubscribe(); }}
           disabled={isLoading}
         >
           <BellOff className="h-3.5 w-3.5 mr-1" />
@@ -540,6 +539,30 @@ function PushNotificationBanner() {
     );
   }
 
+  // Push não suportado neste browser (iOS Safari fora de PWA, etc.)
+  if (!isSupported) {
+    return (
+      <div className="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+        <Smartphone className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-slate-600">Push disponível no app</p>
+          <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">
+            Instale como PWA (Adicionar à tela inicial) para receber notificações nativas
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 text-slate-300 hover:text-slate-500"
+          onClick={() => setDismissed(true)}
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  // Suportado mas não inscrito → banner de ativação
   return (
     <div className="flex items-start gap-2 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-3 py-2.5 shadow-sm">
       <Smartphone className="h-4 w-4 text-blue-100 mt-0.5 flex-shrink-0" />
