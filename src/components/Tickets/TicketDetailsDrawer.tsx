@@ -164,29 +164,29 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
                                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Responsável</p>
                                                 <div className="flex items-center gap-3">
                                                     <Avatar className="h-8 w-8">
-                                                        <AvatarFallback>{ticket.profiles?.nome?.[0]}</AvatarFallback>
+                                                        <AvatarFallback>{(ticket as any).profiles?.nome?.[0]}</AvatarFallback>
                                                     </Avatar>
                                                     <div className="flex flex-col">
-                                                        <span className="text-sm font-semibold">{ticket.profiles?.nome || "Não atribuído"}</span>
-                                                        <span className="text-[10px] text-muted-foreground">{ticket.profiles?.email}</span>
+                                                        <span className="text-sm font-semibold">{(ticket as any).profiles?.nome || "Não atribuído"}</span>
+                                                        <span className="text-[10px] text-muted-foreground">{(ticket as any).profiles?.email}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         {/* SLA Info */}
-                                        {ticket.status !== "encerrado" && (
-                                            <div className={`p-4 rounded-lg flex items-center gap-3 border ${new Date(ticket.sla_estimado) < new Date() ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"
+                                        {ticket.status !== "encerrado" && (ticket as any).sla_estimado && (
+                                            <div className={`p-4 rounded-lg flex items-center gap-3 border ${new Date((ticket as any).sla_estimado) < new Date() ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"
                                                 }`}>
-                                                <Clock className={`h-5 w-5 ${new Date(ticket.sla_estimado) < new Date() ? "text-red-500" : "text-blue-500"
+                                                <Clock className={`h-5 w-5 ${new Date((ticket as any).sla_estimado) < new Date() ? "text-red-500" : "text-blue-500"
                                                     }`} />
                                                 <div>
-                                                    <p className={`text-xs font-bold uppercase ${new Date(ticket.sla_estimado) < new Date() ? "text-red-600" : "text-blue-600"
+                                                    <p className={`text-xs font-bold uppercase ${new Date((ticket as any).sla_estimado) < new Date() ? "text-red-600" : "text-blue-600"
                                                         }`}>
-                                                        {new Date(ticket.sla_estimado) < new Date() ? "SLA Vencido!" : "Previsão de Solução"}
+                                                        {new Date((ticket as any).sla_estimado) < new Date() ? "SLA Vencido!" : "Previsão de Solução"}
                                                     </p>
                                                     <p className="text-sm font-medium">
-                                                        {format(new Date(ticket.sla_estimado), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                                                        {format(new Date((ticket as any).sla_estimado), "dd 'de' MMM, HH:mm", { locale: ptBR })}
                                                     </p>
                                                 </div>
                                             </div>
@@ -229,7 +229,7 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
 
                                     <TabsContent value="tasks" className="mt-0">
                                         <div className="space-y-4">
-                                            {ticket.tasks?.map((task: any) => (
+                                            {((ticket as any).tasks || [])?.map((task: any) => (
                                                 <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/20">
                                                     <div className="flex flex-col">
                                                         <span className="text-sm font-medium">{task.title}</span>
@@ -242,7 +242,7 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
                                                     )}
                                                 </div>
                                             ))}
-                                            {(!ticket.tasks || ticket.tasks.length === 0) && (
+                                            {(!(ticket as any).tasks || (ticket as any).tasks.length === 0) && (
                                                 <p className="text-sm text-center py-10 text-muted-foreground italic">Nenhuma tarefa vinculada.</p>
                                             )}
                                         </div>
@@ -273,7 +273,7 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
                             {ticket.status !== "encerrado" && (
                                 <div className="p-6 border-t bg-muted/10 space-y-4">
                                     <div className="space-y-2">
-                                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Responder / Solução</Label>
+                                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Responder / Solução</label>
                                         <AdvancedRichTextEditor
                                             content={solution}
                                             onChange={setSolution}

@@ -138,7 +138,7 @@ export const SheetAnalysis = ({ data, title }: SheetAnalysisProps) => {
                         });
                     });
                     cloudData = Object.entries(wordCounts)
-                        .map(([name, value]) => ({ name, value }))
+                        .map(([name, value]) => ({ name, value, percent: 0 }))
                         .sort((a, b) => b.value - a.value)
                         .slice(0, 50);
                 } else {

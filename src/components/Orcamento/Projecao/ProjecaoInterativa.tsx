@@ -177,10 +177,10 @@ export default function ProjecaoInterativa({
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
-          .eq('id', user.id)
+          .select('nivel_acesso')
+          .eq('user_id', user.id)
           .single();
-        setIsAdmin(profile?.role === 'admin');
+        setIsAdmin((profile as any)?.nivel_acesso === 'admin');
       }
     };
     checkAdmin();

@@ -136,7 +136,7 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
     try {
       const { error } = await supabase
         .from('clientes')
-        .update(formData)
+        .update(formData as any)
         .eq('id', cliente.id);
 
       if (error) {

@@ -3,7 +3,7 @@ import { Task, PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS,
 import { isOverdue, isToday, isRecurringDate } from "@/lib/dateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, CalendarIcon, AlertCircle, User, RepeatIcon, Clock, CircleUserIcon, ChevronDownIcon, MessageSquare, CheckCircleIcon, List, Trash2, Copy, MoreVertical, FileText } from "lucide-react";
+import { ChevronDown, ChevronRight, CalendarIcon, AlertCircle, User, RepeatIcon, Clock, CircleUserIcon, ChevronDownIcon, MessageSquare, CheckCircle2, List, Trash2, Copy, MoreVertical, FileText } from "lucide-react";
 import { useToggleTaskComplete, useUpdateTask, useDeleteTask, useCreateTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -110,7 +110,6 @@ export function TarefasList({ tasks, onTaskClick, selectedTasks = [], onToggleSe
         createTask({
             title: `${task.title} (Cópia)`,
             description: task.description,
-            status: 'pendente',
             priority: task.priority || 'media',
             assignee: task.assignee,
             assigned_to_id: task.assigned_to_id,

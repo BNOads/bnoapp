@@ -11,7 +11,7 @@ export function TicketSummaryWidget() {
 
     const openTickets = tickets.filter(t => t.status !== 'encerrado');
     const criticalTickets = openTickets.filter(t => t.prioridade === 'critica');
-    const overdueTickets = openTickets.filter(t => new Date(t.sla_estimado) < new Date());
+    const overdueTickets = openTickets.filter(t => (t as any).sla_estimado && new Date((t as any).sla_estimado) < new Date());
 
     if (isLoading) {
         return (

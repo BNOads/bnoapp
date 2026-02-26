@@ -58,7 +58,7 @@ export function useTickets(filters?: TicketFilters) {
 
             const { data, error } = await query;
             if (error) throw error;
-            return data as Ticket[];
+            return (data as unknown) as Ticket[];
         },
         staleTime: 5 * 60 * 1000,
     });

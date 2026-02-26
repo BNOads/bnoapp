@@ -83,7 +83,7 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
                     </span>
                 </div>
 
-                {ticket.sla_estimado && ticket.status !== "encerrado" && (
+                {(ticket as any).sla_estimado && ticket.status !== "encerrado" && (
                     <div className="flex items-center gap-1">
                         <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                         <span className="text-[9px] font-medium text-primary">SLA</span>

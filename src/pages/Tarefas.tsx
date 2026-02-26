@@ -243,7 +243,7 @@ export default function Tarefas() {
                     setIsCreateOpen(true);
                 }}
                 onOpenBulkEdit={() => setIsBulkEditOpen(true)}
-                gridLayout={activeMainTab === "usuario"}
+                gridLayout={false}
                 hideCompleted={hideCompleted}
             />
         );

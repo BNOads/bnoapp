@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToggleTaskComplete, useDeleteTask, useCreateTask, useUpdateTask } from "@/hooks/useTaskMutations";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, UserCircle, Plus, ChevronDown, ChevronRight, Trash2, Flag, Users, ArrowUpDown, ArrowUp, ArrowDown, Building2, FileText } from "lucide-react";
+import { CalendarIcon, UserCircle, Plus, ChevronDown, ChevronRight, Trash2, Flag, Users, ArrowUpDown, ArrowUp, ArrowDown, Building2, FileText, Layers } from "lucide-react";
 import { isOverdue } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +60,6 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
         createTask({
             title: `${task.title} (Cópia)`,
             description: task.description,
-            status: 'pendente',
             priority: task.priority || 'media',
             assignee: task.assignee,
             assigned_to_id: task.assigned_to_id,
@@ -477,7 +476,7 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                                 )}
                                                             </span>
                                                             {task.description && task.description.trim() && (
-                                                                <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" title="Possui descrição" />
+                                                                <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                                             )}
                                                             {task.cliente_id && (
                                                                 <Badge variant="outline" className="text-[9px] h-4 px-1 gap-1 shrink-0 font-normal">
@@ -691,7 +690,7 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                                                         )}
                                                                     </p>
                                                                     {task.description && task.description.trim() && (
-                                                                        <FileText className="w-3 h-3 text-muted-foreground shrink-0" title="Possui descrição" />
+                                                                        <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
                                                                     )}
                                                                     {task.cliente_id && (
                                                                         <Badge variant="outline" className="text-[10px] h-4 px-1 gap-1 shrink-0 font-normal">

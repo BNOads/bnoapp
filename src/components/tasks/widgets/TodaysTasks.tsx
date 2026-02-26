@@ -27,7 +27,6 @@ export function TodaysTasks() {
     const userName = currentUser?.nome || currentUser?.email || "";
     const { data: rawTasks = [], isLoading } = useTasks({
         assignee: userName || "BNO_LOADING_USER",
-        status: "all"
     });
     const { mutate: toggleComplete } = useToggleTaskComplete();
     const { mutate: updateTask } = useUpdateTask();
@@ -162,7 +161,7 @@ export function TodaysTasks() {
                                         {task.title}
                                     </span>
                                     {task.description && task.description.trim() && (
-                                        <FileText className="w-4 h-4 text-muted-foreground shrink-0 mt-1" title="Possui descrição" />
+                                        <FileText className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
                                     )}
                                 </>
                             )}

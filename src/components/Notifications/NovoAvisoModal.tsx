@@ -32,7 +32,6 @@ export const NovoAvisoModal: React.FC<NovoAvisoModalProps> = ({ open, onOpenChan
             email: false
         },
         dataInicio: '',
-        dataInicio: '',
         dataFim: ''
     });
 

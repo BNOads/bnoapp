@@ -24,6 +24,7 @@ export interface TaskFilters {
     date?: string;
     created_by_id?: string;
     cliente_id?: string;
+    status?: string;
 }
 
 export function useTasks(filters?: TaskFilters) {
@@ -72,7 +73,7 @@ export function useTasks(filters?: TaskFilters) {
 
             const { data, error } = await query;
             if (error) throw error;
-            return data as Task[];
+            return (data as unknown) as Task[];
         },
         staleTime: 5 * 60 * 1000,
     });
@@ -93,7 +94,7 @@ export function useUserTasks(userFullName: string | null) {
                 .order("created_at", { ascending: false });
 
             if (error) throw error;
-            return data as Task[];
+            return (data as unknown) as Task[];
         },
         staleTime: 5 * 60 * 1000,
         enabled: !!userFullName,
@@ -133,7 +134,7 @@ export function useTask(id: string) {
                 };
 
                 subtasksTree.forEach(attachChildren);
-                data.subtasksTree = subtasksTree;
+                (data as any).subtasksTree = subtasksTree;
             }
 
             return data;

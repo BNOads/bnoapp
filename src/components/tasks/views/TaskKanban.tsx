@@ -7,6 +7,7 @@ import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor,
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, MessageSquare, Clock, Building2, FileText } from "lucide-react";
+import { PRIORITY_LABELS } from "@/types/tasks";
 import { isOverdue } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 

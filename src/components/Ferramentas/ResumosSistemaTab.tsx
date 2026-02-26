@@ -37,7 +37,7 @@ export function ResumosSistemaTab() {
         direcao: 'asc'
     });
 
-    const { isGestor, isCS, isAdmin } = useUserPermissions();
+    const { isCS, isAdmin } = useUserPermissions();
 
     const TIMEZONE = "America/Sao_Paulo";
 
@@ -156,16 +156,14 @@ export function ResumosSistemaTab() {
 
             const [resMensagens, resDiario, resReunioes, resGravacoes, resLancamentos, resOrcamentos, resAlocacoes] = await Promise.all([
                 supabase.from("mensagens_semanais").select(`
-                    *,
-                    gestor:gestor_id(nome, avatar_url),
-                    cs:cs_id(nome, avatar_url)
+                    *
                 `).eq("semana_referencia", weekStart).in("cliente_id", clientesParaGerar.map(c => c.id)),
                 supabase.from("diario_bordo").select("texto, created_at, autor_id, cliente_id").in("cliente_id", clientesParaGerar.map(c => c.id)).gte("created_at", start.toISOString()).lte("created_at", endDate.toISOString()).order("created_at", { ascending: true }),
-                supabase.from("reunioes").select("titulo, descricao, data, cliente_id").in("cliente_id", clientesParaGerar.map(c => c.id)).gte("data", start.toISOString()).lte("data", endDate.toISOString()),
+                supabase.from("reunioes").select("titulo, descricao, cliente_id").in("cliente_id", clientesParaGerar.map(c => c.id)),
                 supabase.from("gravacoes").select("titulo, created_at, cliente_id").in("cliente_id", clientesParaGerar.map(c => c.id)).gte("created_at", start.toISOString()).lte("created_at", endDate.toISOString()),
                 supabase.from("lancamentos").select("nome_lancamento, status_lancamento, cliente_id").eq("ativo", true).not("status_lancamento", "in", '("finalizado","cancelado")').in("cliente_id", clientesParaGerar.map(c => c.id)),
                 supabase.from("orcamentos_funil").select("nome_funil, etapa_funil, cliente_id, ativo").eq("ativo", true).in("cliente_id", clientesParaGerar.map(c => c.id)),
-                supabase.from("alocacoes").select(`
+                supabase.from("alocacoes" as any).select(`
                     cliente_id,
                     gestor:gestor_id(id, nome, avatar_url),
                     cs:cs_id(id, nome, avatar_url)
@@ -196,12 +194,12 @@ export function ResumosSistemaTab() {
                 cliente.primary_cs = primary_cs_obj;
 
                 const d = (resDiario.data || []).filter(x => x.cliente_id === cliente.id);
-                const r = (resReunioes.data || []).filter(x => x.cliente_id === cliente.id);
-                const g = (resGravacoes.data || []).filter(x => x.cliente_id === cliente.id);
-                const l = (resLancamentos.data || []).filter(x => x.cliente_id === cliente.id);
-                const o = (resOrcamentos.data || []).filter(x => x.cliente_id === cliente.id);
+                const r = (resReunioes.data || []).filter((x: any) => x.cliente_id === cliente.id);
+                const g = (resGravacoes.data || []).filter((x: any) => x.cliente_id === cliente.id);
+                const l = (resLancamentos.data || []).filter((x: any) => x.cliente_id === cliente.id);
+                const o = (resOrcamentos.data || []).filter((x: any) => x.cliente_id === cliente.id);
 
-                let alocacao = (resAlocacoes.data || []).find(x => x.cliente_id === cliente.id);
+                let alocacao: any = (resAlocacoes.data || []).find((x: any) => x.cliente_id === cliente.id);
                 if (alocacao) {
                     alocacao.gestor = Array.isArray(alocacao.gestor) ? alocacao.gestor[0] : alocacao.gestor;
                     alocacao.cs = Array.isArray(alocacao.cs) ? alocacao.cs[0] : alocacao.cs;
@@ -272,7 +270,7 @@ export function ResumosSistemaTab() {
                 if (!insertError && insertedMsgs) {
                     insertedMsgs.forEach(msg => {
                         const resumoTarget = formataResumos.find(r => r.cliente.id === msg.cliente_id);
-                        if (resumoTarget) resumoTarget.mensagens = [msg];
+                        if (resumoTarget) resumoTarget.mensagens = [msg as any];
                     });
                 } else {
                     console.error("Erro inserindo mensagens em lote:", insertError);

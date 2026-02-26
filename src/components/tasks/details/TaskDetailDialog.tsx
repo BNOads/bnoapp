@@ -829,7 +829,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
 
                                     <div className="pt-6 pb-12">
                                         <TabsContent value="subtasks" className="m-0 bg-transparent">
-                                            <SubtaskList taskId={task.id} subtasks={task.subtasksTree || []} />
+                                            <SubtaskList taskId={task.id} subtasks={(task as any).subtasksTree || task.subtasks || []} />
                                         </TabsContent>
                                         {/* Mobile Activity Tab */}
                                         <TabsContent value="activity" className="m-0 bg-transparent lg:hidden space-y-6">

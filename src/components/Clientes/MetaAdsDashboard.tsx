@@ -253,7 +253,7 @@ export const MetaAdsDashboard = ({ clientId, isPublicView = false }: MetaAdsDash
                 totals.reach += Number(item.reach) || 0;
 
                 // Conversion Logic
-                const conversions = getConversionsFromActions(item.actions);
+                const conversions = getConversionsFromActions(item.actions as any);
                 totals.conversions += conversions;
 
                 // Chart Data
