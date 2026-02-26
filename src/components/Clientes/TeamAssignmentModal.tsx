@@ -198,53 +198,71 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
           const { data: authData } = await supabase.auth.getUser();
           const actorUserId = authData.user?.id || null;
 
+          // Busca dados completos do cliente para enriquecer o payload
+          const { data: clienteData } = await supabase
+            .from('clientes')
+            .select('id, nome, status_cliente')
+            .eq('id', clienteId)
+            .maybeSingle();
+
           const clientePayload = {
             id: clienteId,
-            nome: clienteNome,
+            nome: clienteData?.nome || clienteNome,
+            status_cliente: clienteData?.status_cliente || null,
             traffic_manager_id: selectedGestor || null,
             cs_id: primaryCs || null,
             primary_cs_user_id: primaryCs || null,
             primary_gestor_user_id: selectedGestor || null,
           };
 
-          // Se o gestor mudou ou foi adicionado
-          const currentGestor = gestores.find(g => g.is_assigned)?.user_id || '';
-          if (selectedGestor && selectedGestor !== currentGestor) {
+          // Sempre disparar new_traffic_manager quando um gestor é salvo
+          // (cobre tanto primeiro acesso pós-onboarding quanto mudança de gestor)
+          if (selectedGestor) {
             const gestorInfo = gestores.find(g => g.user_id === selectedGestor);
-            await supabase.functions.invoke('evaluate-automations', {
+            console.log('🚀 Disparando automação new_traffic_manager para:', gestorInfo?.nome);
+            const { error: gestorAutoErr } = await supabase.functions.invoke('evaluate-automations', {
               body: {
                 trigger_type: 'new_traffic_manager',
                 data: {
                   cliente: clientePayload,
                   traffic_manager: {
-                    id: selectedGestor,
+                    id: gestorInfo?.user_id || selectedGestor,
                     user_id: selectedGestor,
                     nome: gestorInfo?.nome || null,
+                    email: gestorInfo?.email || null,
                   },
                   user_id: actorUserId,
                 },
               },
             });
+            if (gestorAutoErr) {
+              console.error('❌ Erro na automação new_traffic_manager:', gestorAutoErr);
+            }
           }
 
-          // Se um novo CS primário foi definido ou mudou
-          const currentPrimaryCs = cssMembers.find(c => c.is_primary)?.user_id || '';
-          if (primaryCs && primaryCs !== currentPrimaryCs) {
+          // Sempre disparar new_cs quando um CS primário é salvo
+          // (cobre tanto primeiro acesso pós-onboarding quanto mudança de CS)
+          if (primaryCs) {
             const csInfo = cssMembers.find(c => c.user_id === primaryCs);
-            await supabase.functions.invoke('evaluate-automations', {
+            console.log('🚀 Disparando automação new_cs para:', csInfo?.nome);
+            const { error: csAutoErr } = await supabase.functions.invoke('evaluate-automations', {
               body: {
                 trigger_type: 'new_cs',
                 data: {
                   cliente: clientePayload,
                   cs: {
-                    id: primaryCs,
+                    id: csInfo?.user_id || primaryCs,
                     user_id: primaryCs,
                     nome: csInfo?.nome || null,
+                    email: csInfo?.email || null,
                   },
                   user_id: actorUserId,
                 },
               },
             });
+            if (csAutoErr) {
+              console.error('❌ Erro na automação new_cs:', csAutoErr);
+            }
           }
         } catch (autoErr) {
           console.error('Erro ao disparar automações de equipe:', autoErr);

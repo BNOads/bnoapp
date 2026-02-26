@@ -52,13 +52,13 @@ self.addEventListener('install', (event) => {
 // Função para verificar se deve cachear a requisição
 function shouldCache(request) {
   const url = new URL(request.url);
-  
+
   // Não cachear se for:
   // - Método diferente de GET
   // - URL externa (domínio diferente)
   // - Rotas de API (/api/, /functions/)
   // - ClickUp, Hotmart, Facebook etc.
-  
+
   if (request.method !== 'GET') return false;
   if (url.origin !== self.location.origin) return false;
   if (url.pathname.includes('/api/')) return false;
@@ -67,7 +67,7 @@ function shouldCache(request) {
   if (url.hostname.includes('hotmart.com')) return false;
   if (url.hostname.includes('facebook.com')) return false;
   if (url.hostname.includes('supabase.co')) return false;
-  
+
   return true;
 }
 
@@ -81,19 +81,19 @@ function isStaticAsset(url) {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
-  
+
   // Checar modo bypass
   event.respondWith(
     (async () => {
       const bypass = await isBypassMode();
-      
+
       // Se bypass ativo, sempre network-only com headers no-cache
       if (bypass) {
         const headers = new Headers(request.headers);
         headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         headers.set('Pragma', 'no-cache');
         headers.set('Expires', '0');
-        
+
         const modifiedRequest = new Request(request, { headers });
         return fetch(modifiedRequest)
           .then(response => {
@@ -112,12 +112,12 @@ self.addEventListener('fetch', (event) => {
             throw err;
           });
       }
-      
+
       // Para APIs externas e ClickUp: sempre network-only
       if (!shouldCache(request)) {
         return fetch(request);
       }
-  
+
       // Para recursos estáticos: cache-first
       if (isStaticAsset(url)) {
         return caches.match(request)
@@ -125,7 +125,7 @@ self.addEventListener('fetch', (event) => {
             if (cachedResponse) {
               return cachedResponse;
             }
-            
+
             return fetch(request)
               .then((response) => {
                 // Cache successful responses
@@ -146,7 +146,7 @@ self.addEventListener('fetch', (event) => {
               });
           });
       }
-      
+
       // Para páginas: network-first com fallback para cache
       return fetch(request)
         .then((response) => {
@@ -166,6 +166,70 @@ self.addEventListener('fetch', (event) => {
           return caches.match(request);
         });
     })()
+  );
+});
+
+// ── Push Notifications ────────────────────────────────────────────────────────
+
+// Receber push do servidor e exibir notificação nativa
+self.addEventListener('push', (event) => {
+  let data = {
+    title: 'BNOads',
+    body: 'Você tem uma nova notificação.',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-72x72.png',
+    tag: 'bnoads-push',
+    data: { url: '/notificacoes' }
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon,
+    badge: data.badge,
+    tag: data.tag,
+    data: data.data,
+    vibrate: [200, 100, 200],
+    requireInteraction: false,
+    silent: false,
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Ao clicar na notificação: abrir/focar o app na página de notificações
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url || '/notificacoes';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Se já tem uma janela aberta, foca nela e navega
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.focus();
+          if ('navigate' in client) {
+            client.navigate(targetUrl);
+          }
+          return;
+        }
+      }
+      // Se não há janela aberta, abre uma nova
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
   );
 });
 

@@ -115,11 +115,22 @@ export default function CreateNotificationModal({ onSuccess, showButton = true, 
         ativo: true
       } as any;
 
-      const { error } = await supabase
+      const { data: newAviso, error } = await supabase
         .from('avisos')
-        .insert(notificationData);
+        .insert(notificationData)
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Disparar push notifications de forma assíncrona
+      if (newAviso?.id) {
+        supabase.functions.invoke('send-push-notification', {
+          body: { avisoId: newAviso.id },
+        }).catch(err => {
+          console.warn('Push notification dispatch failed (non-critical):', err);
+        });
+      }
 
       toast.success(
         formData.data_inicio
