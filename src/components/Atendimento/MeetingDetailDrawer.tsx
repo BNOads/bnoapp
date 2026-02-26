@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { MeetingRatingButtons } from "./MeetingRatingButtons";
 import {
     ExternalLink, Save, Video, FileText, MessageSquare,
-    BookOpen, Loader2, RefreshCw, AlertCircle, CheckCircle2
+    BookOpen, Loader2, CheckCircle2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -56,22 +56,41 @@ function useClienteByName(clienteName: string | null) {
     });
 }
 
-/** Query recordings from gravacoes by event title prefix — no client/date restriction */
-function useRecordingsByTitle(eventTitle: string | undefined, enabled: boolean) {
+/** Find recordings in gravacoes by cliente_id + event date, with fallback to title */
+function useRecordingsByDateAndClient(
+    eventStart: string | undefined,
+    clienteId: string | null | undefined,
+    eventTitle: string | undefined,
+    enabled: boolean
+) {
     return useQuery({
-        queryKey: ["gravacoes-by-event-title", eventTitle],
-        enabled: !!eventTitle && enabled,
+        queryKey: ["gravacoes-by-date-client", eventStart, clienteId, eventTitle],
+        enabled: enabled && (!!clienteId || !!eventTitle),
         queryFn: async () => {
-            if (!eventTitle) return [];
-            // Use first ~40 chars of event title (e.g. "RAQUELPERONDI | Reunião de Briefing")
-            const snippet = eventTitle.substring(0, 40);
-            const { data } = await supabase
-                .from("gravacoes")
-                .select("id, titulo, url_gravacao, transcricao, created_at")
-                .ilike("titulo", `%${snippet}%`)
-                .order("created_at", { ascending: false })
-                .limit(5);
-            return data ?? [];
+            // Primary: filter by cliente_id + date in title (e.g. "2026/02/26")
+            if (clienteId && eventStart) {
+                const datePart = format(parseISO(eventStart), 'yyyy/MM/dd');
+                const { data } = await supabase
+                    .from("gravacoes")
+                    .select("id, titulo, url_gravacao, transcricao, created_at")
+                    .eq("cliente_id", clienteId)
+                    .ilike("titulo", `%${datePart}%`)
+                    .order("created_at", { ascending: false })
+                    .limit(10);
+                if (data?.length) return data;
+            }
+            // Fallback: title prefix (broader search)
+            if (eventTitle) {
+                const snippet = eventTitle.substring(0, 40);
+                const { data } = await supabase
+                    .from("gravacoes")
+                    .select("id, titulo, url_gravacao, transcricao, created_at")
+                    .ilike("titulo", `%${snippet}%`)
+                    .order("created_at", { ascending: false })
+                    .limit(5);
+                return data ?? [];
+            }
+            return [];
         },
         staleTime: 2 * 60 * 1000,
     });
@@ -122,7 +141,6 @@ function useSaveDetails(googleEventId: string | null) {
 export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
     const navigate = useNavigate();
     const { toast } = useToast();
-    const queryClient = useQueryClient();
 
     const startRaw = event?.start.dateTime ?? event?.start.date;
     const anoReuniao = startRaw ? parseISO(startRaw).getFullYear() : new Date().getFullYear();
@@ -135,8 +153,13 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
     const clienteNameFromTitle = event?.summary ? parseClientFromTitle(event.summary) : null;
     const { data: cliente } = useClienteByName(clienteNameFromTitle);
 
-    // Auto recordings from gravacoes by title (same logic as client panel)
-    const { data: matchedRecordings = [] } = useRecordingsByTitle(event?.summary, open);
+    // Recordings: primary by cliente_id + date, fallback by title
+    const { data: matchedRecordings = [] } = useRecordingsByDateAndClient(
+        event?.start.dateTime ?? event?.start.date,
+        cliente?.id,
+        event?.summary,
+        open
+    );
 
     // Manual overrides stored in google_event_ratings
     const { data: stored } = useMeetingComments(event?.id ?? null);
@@ -145,14 +168,11 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
     const [gravacaoUrl, setGravacaoUrl] = useState("");
     const [transcricao, setTranscricao] = useState("");
     const [comentarios, setComentarios] = useState("");
-    const [syncError, setSyncError] = useState<string | null>(null);
-    const [syncing, setSyncing] = useState(false);
 
     useEffect(() => {
         setGravacaoUrl(stored?.gravacao_url ?? "");
         setTranscricao(stored?.transcricao ?? "");
         setComentarios(stored?.comentarios ?? "");
-        setSyncError(null);
     }, [stored, event?.id]);
 
     if (!event) return null;
@@ -169,34 +189,6 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
         r.transcricao
     );
 
-    // Sync using same flow as client panel
-    const handleSync = async () => {
-        if (!cliente?.id) {
-            setSyncError(cliente === null
-                ? `Cliente "${clienteNameFromTitle}" não encontrado no sistema`
-                : "Não foi possível identificar o cliente desta reunião");
-            return;
-        }
-        setSyncing(true);
-        setSyncError(null);
-        try {
-            const { data, error } = await supabase.functions.invoke("sync-meeting-recordings", {
-                body: { clienteId: cliente!.id, clienteName: cliente!.nome },
-            });
-            if (error) throw new Error(error.message ?? "Erro desconhecido");
-            if (!data?.success) throw new Error(data?.error ?? "Sincronização falhou");
-
-            queryClient.invalidateQueries({ queryKey: ["gravacoes-by-event-title", event?.summary] });
-            toast({
-                title: "✅ Drive sincronizado",
-                description: data.message ?? `${data.insertedCount ?? 0} gravações novas`,
-            });
-        } catch (err: any) {
-            setSyncError(err.message ?? "Erro ao sincronizar");
-        } finally {
-            setSyncing(false);
-        }
-    };
 
     const handleSave = async () => {
         await saveDetails.mutateAsync({
@@ -271,23 +263,13 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
 
                     {/* Recording */}
                     <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label className="flex items-center gap-2 text-sm font-semibold">
-                                <Video className="h-4 w-4 text-muted-foreground" />
-                                Gravação da Reunião
-                                {(autoRecording || gravacaoUrl) && (
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                                )}
-                            </Label>
-                            <button
-                                onClick={handleSync}
-                                disabled={syncing}
-                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                            >
-                                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-                                {syncing ? "Sincronizando..." : "Sincronizar Drive"}
-                            </button>
-                        </div>
+                        <Label className="flex items-center gap-2 text-sm font-semibold">
+                            <Video className="h-4 w-4 text-muted-foreground" />
+                            Gravação da Reunião
+                            {(autoRecording || gravacaoUrl) && (
+                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                            )}
+                        </Label>
 
                         {/* Auto-detected from gravacoes by title */}
                         {autoRecording ? (
@@ -326,14 +308,7 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
                             </a>
                         )}
 
-                        {syncError && (
-                            <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-destructive/30 bg-destructive/5 text-xs text-destructive">
-                                <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                                <span>{syncError}</span>
-                            </div>
-                        )}
                     </div>
-
                     {/* Transcript */}
                     <div className="space-y-2">
                         <Label className="flex items-center gap-2 text-sm font-semibold">
