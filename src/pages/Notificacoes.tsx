@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
     Bell, Check, Search, Filter, MessageSquare, AlertTriangle,
-    Info, CheckCircle, XCircle, Settings, Repeat, User as UserIcon, MailX
+    Info, CheckCircle, XCircle, Settings, Repeat, User as UserIcon, MailX, Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { User } from "@supabase/supabase-js";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface NotificationRead {
     user_id: string;
@@ -41,6 +42,31 @@ interface Notification {
 
 export function NotificacoesDetalhesView() {
     const { isAdmin } = useUserPermissions();
+    const { isSubscribed, subscribe } = usePushNotifications();
+    const [isSendingTest, setIsSendingTest] = useState(false);
+
+    const sendTestPush = async () => {
+        setIsSendingTest(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('send-push-notification', {
+                body: {
+                    titulo: '🔔 Teste Push BNOads',
+                    conteudo: 'Se você está vendo isso, as notificações push estão funcionando!',
+                    destinatarios: ['all'],
+                },
+            });
+            if (error) throw error;
+            if (data?.sent > 0) {
+                toast.success(`Push enviado para ${data.sent} dispositivo(s)!`);
+            } else {
+                toast.warning('Nenhum dispositivo inscrito. Ative as notificações push primeiro.');
+            }
+        } catch (err: any) {
+            toast.error('Erro ao enviar push: ' + (err?.message ?? String(err)));
+        } finally {
+            setIsSendingTest(false);
+        }
+    };
     const [user, setUser] = useState<User | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
@@ -220,13 +246,25 @@ export function NotificacoesDetalhesView() {
                     </p>
                 </div>
                 {isAdmin && (
-                    <Button onClick={() => {
-                        setResendData(null);
-                        setIsNovoAvisoOpen(true);
-                    }} className="gap-2 bg-indigo-600 hover:bg-indigo-700">
-                        <Send className="w-4 h-4" />
-                        Criar Novo Aviso
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={sendTestPush}
+                            disabled={isSendingTest}
+                            className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+                            title={isSubscribed ? 'Enviar push de teste' : 'Ative o push primeiro no sino de notificações'}
+                        >
+                            <Zap className="w-4 h-4" />
+                            {isSendingTest ? 'Enviando...' : 'Testar Push'}
+                        </Button>
+                        <Button onClick={() => {
+                            setResendData(null);
+                            setIsNovoAvisoOpen(true);
+                        }} className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+                            <Send className="w-4 h-4" />
+                            Criar Novo Aviso
+                        </Button>
+                    </div>
                 )}
             </div>
 

@@ -75,8 +75,7 @@ export function usePushNotifications() {
                     endpoint: subscription.endpoint,
                     auth: keys.auth,
                     p256dh: keys.p256dh,
-                    user_agent: navigator.userAgent.substring(0, 255),
-                }, { onConflict: 'user_id,endpoint' });
+                }, { onConflict: 'user_id' });
 
             if (error) {
                 console.error('Erro ao salvar inscrição push:', error);
