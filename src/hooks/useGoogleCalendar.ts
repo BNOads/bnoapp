@@ -35,7 +35,7 @@ async function fetchCalendarEvents(timeMin: string, timeMax: string): Promise<Go
 
 export function useGoogleCalendar(daysAhead = 30) {
     const now = new Date();
-    const timeMin = addDays(now, -8).toISOString(); // go 8 days back to cover "Últimos 7 dias"
+    const timeMin = addDays(now, -90).toISOString(); // fetch 90 days back to cover new filters
     const timeMax = addDays(now, daysAhead).toISOString();
 
     return useQuery({

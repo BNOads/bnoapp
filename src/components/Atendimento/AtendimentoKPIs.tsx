@@ -21,10 +21,19 @@ function useUserEscaladoEventIds(userId: string | null | undefined) {
         queryKey: ["user-escalado-events", userId],
         enabled: !!userId,
         queryFn: async () => {
+            // First find the colaborador_id for this user_id
+            const { data: colaborador } = await supabase
+                .from("colaboradores")
+                .select("id")
+                .eq("user_id", userId!)
+                .single();
+
+            if (!colaborador) return new Set();
+
             const { data } = await supabase
                 .from("google_event_participants")
                 .select("google_event_id")
-                .eq("user_id", userId!);
+                .eq("colaborador_id", colaborador.id);
             return new Set((data ?? []).map((r: any) => r.google_event_id));
         },
         staleTime: 5 * 60 * 1000,

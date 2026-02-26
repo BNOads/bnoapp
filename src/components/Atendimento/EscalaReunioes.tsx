@@ -23,6 +23,7 @@ import {
     ChevronLeft,
     ChevronRight,
     CalendarRange,
+    Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +40,7 @@ import { MeetingDetailDrawer } from "@/components/Atendimento/MeetingDetailDrawe
 
 const PAGE_SIZE = 5;
 
-type DateFilter = "hoje" | "ontem" | "amanha" | "proximos7" | "ultimos7" | "custom";
+type DateFilter = "hoje" | "ontem" | "amanha" | "proximos7" | "ultimos7" | "ultimos30" | "ultimos90" | "custom";
 
 const EVENT_COLORS = [
     { bg: "bg-blue-50 dark:bg-blue-950/40", border: "border-l-blue-500", dot: "bg-blue-500" },
@@ -114,25 +115,59 @@ function parseClientFromTitle(title: string): string | null {
     return match ? match[1].trim() : null;
 }
 
+function useColaboradores() {
+    return useQuery({
+        queryKey: ["colaboradores-ativos"],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from("colaboradores")
+                .select("id, nome, avatar_url")
+                .eq("ativo", true)
+                .order("nome", { ascending: true });
+            if (error) throw error;
+            return data ?? [];
+        },
+        staleTime: 10 * 60 * 1000,
+    });
+}
+
+function useAllEventParticipants() {
+    return useQuery({
+        queryKey: ["all-event-participants"],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from("google_event_participants")
+                .select("google_event_id, colaborador_id");
+            if (error) throw error;
+            return data ?? [];
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+}
+
 export function EscalaReunioes() {
     const { data: events = [], isLoading: loadingCalendar, error, refetch } = useGoogleCalendar(30);
     const { data: activeClients = [], isLoading: loadingClients } = useActiveClients();
+    const { data: colaboradores = [], isLoading: loadingColaboradores } = useColaboradores();
+    const { data: participants = [], isLoading: loadingParticipants } = useAllEventParticipants();
+
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<GoogleCalendarEvent | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [search, setSearch] = useState("");
     const [dateFilter, setDateFilter] = useState<DateFilter>("hoje");
+    const [userFilter, setUserFilter] = useState<string>("all");
     const [customFrom, setCustomFrom] = useState("");
     const [customTo, setCustomTo] = useState("");
     const [page, setPage] = useState(0);
 
-    const isLoading = loadingCalendar || loadingClients;
+    const isLoading = loadingCalendar || loadingClients || loadingColaboradores || loadingParticipants;
 
     // Apply date + search filters to flat events list
     const filteredEvents = useMemo(() => {
         const now = new Date();
-        let from: Date;
-        let to: Date;
+        let from = startOfDay(now);
+        let to = endOfDay(now);
 
         switch (dateFilter) {
             case "hoje":
@@ -151,13 +186,23 @@ export function EscalaReunioes() {
                 from = startOfDay(addDays(now, -7));
                 to = endOfDay(now);
                 break;
+            case "ultimos30":
+                from = startOfDay(addDays(now, -30));
+                to = endOfDay(now);
+                break;
+            case "ultimos90":
+                from = startOfDay(addDays(now, -90));
+                to = endOfDay(now);
+                break;
             case "custom":
                 from = customFrom ? startOfDay(parseISO(customFrom)) : startOfDay(now);
                 to = customTo ? endOfDay(parseISO(customTo)) : endOfDay(addDays(now, 30));
                 break;
-            default: // proximos7
+            case "proximos7":
+            default:
                 from = startOfDay(now);
                 to = endOfDay(addDays(now, 7));
+                break;
         }
 
         // Create a Set of all active client names and aliases for fast lookup
@@ -174,6 +219,14 @@ export function EscalaReunioes() {
             if (!d) return false;
             if (d < from || d > to) return false;
 
+            // User filter: show events where this collaborator is a participant
+            if (userFilter !== "all") {
+                const isParticipant = (participants || []).some(
+                    (p: any) => p.google_event_id === ev.id && p.colaborador_id === userFilter
+                );
+                if (!isParticipant) return false;
+            }
+
             // Client filter: If it looks like a client meeting, must be an active client
             const clientName = parseClientFromTitle(ev.summary ?? "");
             if (clientName) {
@@ -189,7 +242,7 @@ export function EscalaReunioes() {
             }
             return true;
         });
-    }, [events, dateFilter, customFrom, customTo, search, activeClients]);
+    }, [events, dateFilter, customFrom, customTo, search, userFilter, participants, activeClients]);
 
     // Group filtered events by date
     const grouped: GroupedEvents[] = useMemo(() => {
@@ -259,7 +312,25 @@ export function EscalaReunioes() {
                             <SelectItem value="amanha">Amanhã</SelectItem>
                             <SelectItem value="proximos7">Próximos 7 dias</SelectItem>
                             <SelectItem value="ultimos7">Últimos 7 dias</SelectItem>
+                            <SelectItem value="ultimos30">Últimos 30 dias</SelectItem>
+                            <SelectItem value="ultimos90">Últimos 90 dias</SelectItem>
                             <SelectItem value="custom">Personalizar</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {/* User filter */}
+                    <Select value={userFilter} onValueChange={v => { setUserFilter(v); setPage(0); }}>
+                        <SelectTrigger className="w-[180px] h-9">
+                            <Users className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <SelectValue placeholder="Filtrar por usuário" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos os usuários</SelectItem>
+                            {colaboradores.map(c => (
+                                <SelectItem key={c.id} value={c.id}>
+                                    {c.nome}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
 
