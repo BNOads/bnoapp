@@ -225,7 +225,7 @@ export function TarefasList({ tasks, onTaskClick, selectedTasks = [], onToggleSe
                                                     title="Clique para editar"
                                                 >
                                                     {task.title}
-                                                    {task.reschedule_count && task.reschedule_count > 3 && (
+                                                    {(task.reschedule_count ?? 0) > 3 && (
                                                         <Badge className="ml-2 bg-purple-600 hover:bg-purple-700 text-white border-transparent text-[10px] h-4 px-1.5 py-0">
                                                             +Reagendada
                                                         </Badge>

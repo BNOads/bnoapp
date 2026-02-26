@@ -89,7 +89,7 @@ export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
                 </div>
                 <span className={`text-sm font-medium leading-tight ${task.completed ? "line-through text-muted-foreground" : ""}`}>
                     {task.title}
-                    {task.reschedule_count && task.reschedule_count > 3 && (
+                    {(task.reschedule_count ?? 0) > 3 && (
                         <Badge className="ml-2 bg-purple-600 hover:bg-purple-700 text-white border-transparent text-[9px] h-3.5 px-1 py-0 inline-flex items-center align-middle relative -top-[1px]">
                             +Reagendada
                         </Badge>
