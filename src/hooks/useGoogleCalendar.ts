@@ -11,6 +11,7 @@ export interface GoogleCalendarEvent {
     start: { dateTime?: string; date?: string };
     end: { dateTime?: string; date?: string };
     attendees?: { displayName?: string; email?: string; self?: boolean }[];
+    attachments?: { fileId?: string; fileUrl?: string; title?: string; mimeType?: string; iconLink?: string }[];
     colorId?: string;
     hangoutLink?: string;
     htmlLink?: string;
@@ -33,13 +34,13 @@ async function fetchCalendarEvents(timeMin: string, timeMax: string): Promise<Go
     return data?.items ?? [];
 }
 
-export function useGoogleCalendar(daysAhead = 30) {
+export function useGoogleCalendar(daysAhead = 30, daysBack = 7) {
     const now = new Date();
-    const timeMin = addDays(now, -90).toISOString(); // fetch 90 days back to cover new filters
+    const timeMin = addDays(now, -daysBack).toISOString();
     const timeMax = addDays(now, daysAhead).toISOString();
 
     return useQuery({
-        queryKey: ["google-calendar-events", format(now, "yyyy-MM-dd"), daysAhead],
+        queryKey: ["google-calendar-events", format(now, "yyyy-MM-dd"), daysBack, daysAhead],
         queryFn: () => fetchCalendarEvents(timeMin, timeMax),
         staleTime: 10 * 60 * 1000, // 10 minutes
         retry: 1,

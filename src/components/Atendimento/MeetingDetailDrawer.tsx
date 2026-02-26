@@ -24,6 +24,7 @@ export interface MeetingDetailEvent {
     end: { dateTime?: string; date?: string };
     htmlLink?: string;
     hangoutLink?: string;
+    attachments?: { fileId?: string; fileUrl?: string; title?: string; mimeType?: string; iconLink?: string }[];
 }
 
 interface Props {
@@ -177,6 +178,24 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
 
     if (!event) return null;
 
+    // Drive search URL — searches Google Drive for the event title
+    const driveSearchQuery = encodeURIComponent(
+        (event.summary ?? "").replace(/\s*\|\s*/, ' ')
+    );
+    const driveSearchUrl = `https://drive.google.com/drive/search?q=${driveSearchQuery}`;
+
+    // Calendar attachments (recording + Gemini notes attached to the event)
+    const calendarAttachments = event.attachments ?? [];
+    const calendarRecording = calendarAttachments.find(a =>
+        a.mimeType?.startsWith('video/') ||
+        a.title?.toLowerCase().includes('recording') ||
+        a.fileUrl?.includes('.mp4')
+    );
+    const calendarTranscript = calendarAttachments.find(a =>
+        a.mimeType === 'application/vnd.google-apps.document' &&
+        (a.title?.toLowerCase().includes('anota') || a.title?.toLowerCase().includes('gemini'))
+    );
+
     const autoRecording = matchedRecordings.find(r =>
         r.url_gravacao &&
         (r.titulo?.toLowerCase().includes("recording") ||
@@ -271,30 +290,53 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
                             )}
                         </Label>
 
-                        {/* Auto-detected from gravacoes by title */}
-                        {autoRecording ? (
+                        {/* Calendar attachments (direct from Google Calendar event) */}
+                        {calendarRecording && (
+                            <a href={calendarRecording.fileUrl!} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 transition-colors">
+                                <Video className="h-4 w-4 flex-shrink-0" />
+                                <span className="truncate flex-1 text-xs">{calendarRecording.title}</span>
+                                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                            </a>
+                        )}
+
+                        {/* If found in local DB from previous syncs */}
+                        {!calendarRecording && autoRecording && (
                             <a href={autoRecording.url_gravacao!} target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 transition-colors">
                                 <Video className="h-4 w-4 flex-shrink-0" />
                                 <span className="truncate flex-1 text-xs">{autoRecording.titulo}</span>
                                 <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
                             </a>
-                        ) : (
-                            <div className="px-3 py-2 rounded-lg bg-muted/40 border border-dashed text-xs text-muted-foreground space-y-1">
-                                <p>Nenhuma gravação encontrada para esta reunião.</p>
-                                {cliente && (
-                                    <button
-                                        onClick={() => { onOpenChange(false); navigate(`/clientes/${cliente.id}?tab=gravacoes`); }}
-                                        className="text-blue-600 hover:underline flex items-center gap-1"
-                                    >
-                                        <ExternalLink className="h-3 w-3" />
-                                        Ver gravações de {cliente.nome}
-                                    </button>
-                                )}
-                            </div>
                         )}
 
-                        {/* Manual input (stored in google_event_ratings) */}
+                        {/* Drive search links */}
+                        <div className="flex flex-col gap-1.5">
+                            <a
+                                href={driveSearchUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 hover:bg-green-100 transition-colors text-xs font-medium"
+                            >
+                                <Video className="h-3.5 w-3.5 flex-shrink-0" />
+                                Buscar gravacao no Google Drive
+                                <ExternalLink className="h-3 w-3 ml-auto flex-shrink-0" />
+                            </a>
+                            {cliente?.pasta_drive_url && (
+                                <a
+                                    href={cliente.pasta_drive_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors text-xs"
+                                >
+                                    <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                                    Abrir pasta do Drive — {cliente.nome}
+                                    <ExternalLink className="h-3 w-3 ml-auto flex-shrink-0 opacity-50" />
+                                </a>
+                            )}
+                        </div>
+
+                        {/* Manual paste */}
                         <Input
                             placeholder="Ou cole o link da gravação manualmente..."
                             value={gravacaoUrl}
@@ -307,18 +349,26 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
                                 <ExternalLink className="h-3 w-3" /> Abrir gravação
                             </a>
                         )}
-
                     </div>
                     {/* Transcript */}
                     <div className="space-y-2">
                         <Label className="flex items-center gap-2 text-sm font-semibold">
                             <FileText className="h-4 w-4 text-muted-foreground" />
                             Transcrição da Reunião
-                            {(autoTranscript || transcricao) && (
+                            {(calendarTranscript || autoTranscript || transcricao) && (
                                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
                             )}
                         </Label>
 
+                        {/* Calendar-attached Gemini notes (priority) */}
+                        {calendarTranscript?.fileUrl && (
+                            <a href={calendarTranscript.fileUrl} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 transition-colors">
+                                <FileText className="h-4 w-4 flex-shrink-0" />
+                                <span className="truncate flex-1 text-xs">{calendarTranscript.title}</span>
+                                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                            </a>
+                        )}
                         {autoTranscript?.transcricao && (
                             <div className="px-3 py-2 rounded-lg border bg-purple-50 dark:bg-purple-950/30 border-purple-200 text-xs text-muted-foreground max-h-32 overflow-y-auto leading-relaxed whitespace-pre-wrap">
                                 {autoTranscript.transcricao.substring(0, 400)}

@@ -169,20 +169,8 @@ function matchClientFromTitle(title: string, clientes: { id: string; nome: strin
 }
 
 
+
 export function EscalaReunioes() {
-    const { data: events = [], isLoading: loadingCalendar, isFetching: fetchingCalendar, error, refetch } = useGoogleCalendar(30);
-    const { data: colaboradores = [], isLoading: loadingColaboradores } = useColaboradores();
-    const { data: participants = [] } = useAllEventParticipants();
-    const { data: clientes = [] } = useClientes();
-    const queryClient = useQueryClient();
-
-    const handleSync = async () => {
-        await refetch();
-        // Invalidate all per-event participant caches so auto-matched data appears
-        queryClient.invalidateQueries({ queryKey: ["event-participants"] });
-        queryClient.invalidateQueries({ queryKey: ["all-event-participants"] });
-    };
-
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<GoogleCalendarEvent | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -192,6 +180,20 @@ export function EscalaReunioes() {
     const [customFrom, setCustomFrom] = useState("");
     const [customTo, setCustomTo] = useState("");
     const [page, setPage] = useState(0);
+
+    const daysBack = dateFilter === "ultimos90" ? 90 : dateFilter === "ultimos30" ? 30 : 7;
+    const { data: events = [], isLoading: loadingCalendar, isFetching: fetchingCalendar, error, refetch } = useGoogleCalendar(30, daysBack);
+
+    const { data: colaboradores = [], isLoading: loadingColaboradores } = useColaboradores();
+    const { data: participants = [] } = useAllEventParticipants();
+    const { data: clientes = [] } = useClientes();
+    const queryClient = useQueryClient();
+
+    const handleSync = async () => {
+        await refetch();
+        queryClient.invalidateQueries({ queryKey: ["event-participants"] });
+        queryClient.invalidateQueries({ queryKey: ["all-event-participants"] });
+    };
 
     const isLoading = loadingCalendar || loadingColaboradores;
 
