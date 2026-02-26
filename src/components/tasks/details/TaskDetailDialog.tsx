@@ -375,7 +375,7 @@ export function TaskDetailDialog({ taskId, open = false, onOpenChange, asPage = 
                                             title={task.completed ? "Tarefas concluídas não podem ser renomeadas" : "Clique para editar"}
                                         >
                                             {task.title}
-                                            {task.reschedule_count && task.reschedule_count > 3 && (
+                                            {(task.reschedule_count ?? 0) > 3 && (
                                                 <Badge className="ml-3 bg-purple-600 hover:bg-purple-700 text-white border-transparent text-sm py-0.5 px-2">
                                                     +Reagendada
                                                 </Badge>
