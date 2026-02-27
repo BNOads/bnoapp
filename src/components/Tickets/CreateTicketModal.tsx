@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useCreateTicket } from "@/hooks/useTicketMutations";
@@ -149,11 +149,10 @@ export function CreateTicketModal({ isOpen, onClose, defaultClienteId, defaultOr
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="descricao">Descrição do Problema *</Label>
-                        <Textarea
+                        <Label htmlFor="descricao">Nome da Demanda *</Label>
+                        <Input
                             id="descricao"
-                            placeholder="Descreva detalhadamente a solicitação..."
-                            className="min-h-[120px]"
+                            placeholder="Descreva brevemente a demanda..."
                             value={descricao}
                             onChange={(e) => setDescricao(e.target.value)}
                             required

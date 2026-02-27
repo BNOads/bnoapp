@@ -56,18 +56,6 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
     const updateDraft = useDraftTasksStore((state) => state.updateDraft);
     const removeDraft = useDraftTasksStore((state) => state.removeDraft);
 
-    const getAssignedTo = () => {
-        if (draftData?.assignee) return draftData.assignee;
-        if (defaultAssignee) return defaultAssignee;
-        return currentUser ? (currentUser.nome || currentUser.email || "unassigned") : "unassigned";
-    };
-
-    useEffect(() => {
-        if (!defaultAssignee && currentUser) {
-            setAssignee(getAssignedTo());
-        }
-    }, [currentUser, defaultAssignee]);
-
     useEffect(() => {
         if (open) {
             supabase.from("colaboradores").select("nome, user_id, avatar_url").order("nome").then(({ data }) => {
@@ -76,10 +64,16 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
             supabase.from("clientes").select("id, nome, branding_logo_url, aliases, catalogo_criativos_url").eq("is_active", true).order("nome").then(({ data }) => {
                 if (data) setClientes(data);
             });
-            // Reset values when opened
+
+            // Compute assignee inline to avoid stale closure from external getAssignedTo()
+            const resolvedAssignee = draftData?.assignee
+                || defaultAssignee
+                || (currentUser ? (currentUser.nome || currentUser.email || "unassigned") : "unassigned");
+
+            // Reset ALL fields cleanly every time the modal opens to prevent state leaking between openings
             setTitle(draftData?.title || defaultTitle || "");
             setDescription(draftData?.description || defaultDescription || "");
-            setAssignee(getAssignedTo());
+            setAssignee(resolvedAssignee);
             setPriority((draftData?.priority as TaskPriority) || "media");
             setRecurrence((draftData?.recurrence as RecurrenceType) || "none");
             setListId(draftData?.list_id || defaultListId || "none");
@@ -88,7 +82,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultAssignee, defaultLi
             setAutoSelectedClientIndicator(false);
             setDueDate(draftData?.due_date || null);
         }
-    }, [open, defaultAssignee, defaultListId, defaultTitle, defaultDescription, draftData]);
+    }, [open, defaultAssignee, defaultListId, defaultTitle, defaultDescription, draftData, currentUser]);
 
     // Auto-recommendation logic for client based on title
     useEffect(() => {

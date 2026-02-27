@@ -162,8 +162,11 @@ export function TicketTable({ tickets }: TicketTableProps) {
     const [statusFilter, setStatusFilter] = useState("all");
     const [priorityFilter, setPriorityFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
+    const [gestorFilter, setGestorFilter] = useState("all");
+    const [clienteFilter, setClienteFilter] = useState("all");
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [colaboradores, setColaboradores] = useState<{ id: string; nome: string; avatar_url?: string | null }[]>([]);
+    const [clientes, setClientes] = useState<{ id: string; nome: string; gestor_id: string | null }[]>([]);
 
     const { mutate: updateTicket } = useUpdateTicket();
     const queryClient = useQueryClient();
@@ -178,7 +181,33 @@ export function TicketTable({ tickets }: TicketTableProps) {
             .then(({ data }) => {
                 if (data) setColaboradores(data.filter(c => c.user_id).map(c => ({ id: c.user_id!, nome: c.nome, avatar_url: c.avatar_url })));
             });
+
+        supabase
+            .from("clientes")
+            .select("id, nome, primary_gestor_user_id")
+            .eq("is_active", true)
+            .order("nome")
+            .then(({ data }) => {
+                if (data) setClientes(data.map(c => ({ id: c.id, nome: c.nome, gestor_id: c.primary_gestor_user_id })));
+            });
     }, []);
+
+    // Gestor options derived from clientes list
+    const gestorOptions = [
+        { value: "all", label: "Todos os gestores" },
+        ...Array.from(
+            new Map(
+                clientes
+                    .filter(c => c.gestor_id)
+                    .map(c => [c.gestor_id!, colaboradores.find(col => col.id === c.gestor_id)?.nome || c.gestor_id!])
+            ).entries()
+        ).map(([id, nome]) => ({ value: id, label: nome })),
+    ];
+
+    const clienteOptions = [
+        { value: "all", label: "Todos os clientes" },
+        ...clientes.map(c => ({ value: c.id, label: c.nome })),
+    ];
 
     // Client-side filter
     const filtered = tickets.filter(t => {
@@ -189,7 +218,10 @@ export function TicketTable({ tickets }: TicketTableProps) {
         const matchStatus = statusFilter === "all" || t.status === statusFilter;
         const matchPriority = priorityFilter === "all" || t.prioridade === priorityFilter;
         const matchCategory = categoryFilter === "all" || t.categoria === categoryFilter;
-        return matchSearch && matchStatus && matchPriority && matchCategory;
+        const matchCliente = clienteFilter === "all" || t.cliente_id === clienteFilter;
+        const clienteInfo = clientes.find(c => c.id === t.cliente_id);
+        const matchGestor = gestorFilter === "all" || clienteInfo?.gestor_id === gestorFilter;
+        return matchSearch && matchStatus && matchPriority && matchCategory && matchCliente && matchGestor;
     });
 
     const allSelected = filtered.length > 0 && filtered.every(t => selectedIds.has(t.id));
@@ -239,16 +271,36 @@ export function TicketTable({ tickets }: TicketTableProps) {
     return (
         <div className="space-y-3">
             {/* Filters row */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <div className="relative flex-1">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap">
+                <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
-                        placeholder="Buscar por nome, email ou WhatsApp..."
+                        placeholder="Buscar por cliente..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         className="pl-9 h-9 bg-background"
                     />
                 </div>
+                <Select value={clienteFilter} onValueChange={setClienteFilter}>
+                    <SelectTrigger className="w-full sm:w-44 h-9 bg-background">
+                        <SelectValue placeholder="Todos os clientes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {clienteOptions.map(o => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={gestorFilter} onValueChange={setGestorFilter}>
+                    <SelectTrigger className="w-full sm:w-44 h-9 bg-background">
+                        <SelectValue placeholder="Todos os gestores" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {gestorOptions.map(o => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-full sm:w-44 h-9 bg-background">
                         <SelectValue />
