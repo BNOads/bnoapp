@@ -44,7 +44,7 @@ export function FloatingTaskButton() {
     };
 
     return (
-        <div className="fixed bottom-[80px] right-6 z-50 flex flex-col items-end gap-2 group">
+        <div className="fixed bottom-[160px] md:bottom-[72px] right-6 z-50 flex flex-col items-end gap-2 group">
             {/* Draft list (shows on group hover) */}
             {drafts.length > 0 && (
                 <div className="mb-2 hidden w-72 flex-col gap-2 opacity-0 transition-all duration-300 group-hover:flex group-hover:opacity-100 bg-background/95 backdrop-blur-sm border shadow-xl rounded-xl p-3">
