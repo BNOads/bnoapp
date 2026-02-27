@@ -50,6 +50,7 @@ import Atendimento from "./pages/Atendimento";
 import TarefaDetalhe from "./pages/TarefaDetalhe";
 import { AppLayout } from "@/components/Layout/AppLayout";
 import FerramentaProjecaoView from "@/components/Ferramentas/FerramentaProjecaoView";
+import { MensagemSextouView } from "@/components/Ferramentas/MensagemSextouView";
 import { NotificacoesDetalhesView } from "./pages/Notificacoes";
 import RedirectPage from "./pages/RedirectPage";
 
@@ -182,6 +183,17 @@ function App() {
                   <Route path="/ferramentas/projecoes" element={
                     <ProtectedRoute>
                       <FerramentaProjecaoView />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/ferramentas/mensagem-sextou" element={
+                    <ProtectedRoute>
+                      <div className="space-y-6 p-4 md:p-8">
+                        <div>
+                          <h1 className="text-3xl font-bold">🎉 Mensagem Sextou</h1>
+                          <p className="text-muted-foreground mt-1">Resumos semanais de atividades para envio aos clientes toda sexta-feira.</p>
+                        </div>
+                        <MensagemSextouView />
+                      </div>
                     </ProtectedRoute>
                   } />
                   <Route path="/ferramentas/:toolName" element={

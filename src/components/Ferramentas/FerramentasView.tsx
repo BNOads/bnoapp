@@ -10,6 +10,7 @@ import LancamentosView from "@/components/Lancamentos/LancamentosView";
 import { UTMBuilderView } from "./UTMBuilderView";
 import { AcessosLoginsView } from "./AcessosLoginsView";
 import { MensagensSemanaisView } from "./MensagensSemanaisView";
+import { MensagemSextouView } from "./MensagemSextouView";
 import { LinksView } from "./LinksView";
 import { CreativeDownloaderView } from "./CreativeDownloaderView";
 import { DocumentosView } from "./DocumentosView";
@@ -244,12 +245,22 @@ export const FerramentasView = () => {
     {
       id: "mensagens-semanais",
       title: "Mensagens Semanais",
-      description: "Gerencie mensagens semanais dos clientes e controle de envio",
+      description: "Gerencie mensagens semanais de tráfego e controle de envio",
       icon: MessageSquare,
       component: <MensagensSemanaisView />,
       color: "text-indigo-600 dark:text-indigo-400",
       bgLight: "bg-indigo-50 dark:bg-indigo-950/30",
       borderLight: "border-indigo-200 dark:border-indigo-900/50"
+    },
+    {
+      id: "mensagem-sextou",
+      title: "Mensagem Sextou 🎉",
+      description: "Gere e envie resumos semanais de atividades para seus clientes toda sexta-feira",
+      icon: MessageSquare,
+      component: <MensagemSextouView />,
+      color: "text-orange-600 dark:text-orange-400",
+      bgLight: "bg-orange-50 dark:bg-orange-950/30",
+      borderLight: "border-orange-200 dark:border-orange-900/50"
     },
     {
       id: "links",
@@ -463,7 +474,8 @@ export const FerramentasView = () => {
       'assistente': '/assistente',
       'cultura-time': '/cultura-time',
       'simulador-funil': '/ferramentas/projecoes',
-      'admin-meta-ads': '/admin/meta-ads'
+      'admin-meta-ads': '/admin/meta-ads',
+      'mensagem-sextou': '/ferramentas/mensagem-sextou',
     };
 
     if (externalRoutes[toolId]) {

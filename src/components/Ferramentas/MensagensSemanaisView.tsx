@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { WeekPicker } from "@/components/ui/WeekPicker";
-import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, RefreshCw, Plus, Pencil, Trash2, Copy, MoreHorizontal, Wand2, Trash, AlertCircle } from "lucide-react";
+import { MessageSquare, Eye, Filter, Check, X, ArrowUpDown, Plus, Pencil, Trash2, Copy, MoreHorizontal, Wand2, Trash, AlertCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,7 +22,6 @@ import { ptBR } from "date-fns/locale";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ResumosSistemaTab } from "./ResumosSistemaTab";
 interface MensagemSemanal {
   id: string;
   cliente_id: string;
@@ -911,10 +910,6 @@ ${mensagem.mensagem}`;
           <MessageSquare className="h-4 w-4" />
           Mensagens
         </TabsTrigger>
-        <TabsTrigger value="resumos" className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Resumos do Sistema
-        </TabsTrigger>
       </TabsList>
 
       <div className="flex items-center gap-2">
@@ -1289,10 +1284,6 @@ ${mensagem.mensagem}`;
           )}
         </CardContent>
       </Card>
-    </TabsContent>
-
-    <TabsContent value="resumos">
-      <ResumosSistemaTab />
     </TabsContent>
 
     {/* Modal de Visualização */}
