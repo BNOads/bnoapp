@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import {
   Copy, Download, Link, Zap, Plus, X, AlertTriangle, FileSpreadsheet,
-  ExternalLink, Pencil, Trash2, Search, Share2, MousePointerClick, Code, Tags
+  ExternalLink, Pencil, Trash2, Search, Share2, MousePointerClick, Code, Tags, ChevronDown
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +44,7 @@ interface RedirectLink {
   title: string | null;
   click_count: number;
   fb_pixel_id: string | null;
+  fb_pixel_event: string | null;
   gtm_id: string | null;
   custom_script: string | null;
   created_by: string;
@@ -105,6 +106,7 @@ export const UTMBuilderView = () => {
   const [editForm, setEditForm] = useState({
     title: "",
     fb_pixel_id: "",
+    fb_pixel_event: "PageView",
     gtm_id: "",
     custom_script: "",
   });
@@ -251,6 +253,7 @@ export const UTMBuilderView = () => {
     setEditForm({
       title: r.title || "",
       fb_pixel_id: r.fb_pixel_id || "",
+      fb_pixel_event: r.fb_pixel_event || "PageView",
       gtm_id: r.gtm_id || "",
       custom_script: r.custom_script || "",
     });
@@ -261,6 +264,7 @@ export const UTMBuilderView = () => {
     const { error } = await supabase.from("utm_redirects").update({
       title: editForm.title || null,
       fb_pixel_id: editForm.fb_pixel_id || null,
+      fb_pixel_event: editForm.fb_pixel_event || "PageView",
       gtm_id: editForm.gtm_id || null,
       custom_script: editForm.custom_script || null,
       updated_at: new Date().toISOString(),
@@ -792,15 +796,40 @@ export const UTMBuilderView = () => {
                 <Tags className="h-4 w-4" />
                 Rastreamento e Conversões
               </p>
-              <div>
-                <Label>Facebook Pixel ID</Label>
-                <Input
-                  placeholder="Ex: 123456789012345"
-                  value={editForm.fb_pixel_id}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, fb_pixel_id: e.target.value }))}
-                />
-                <p className="text-xs text-muted-foreground mt-1">Disparado automaticamente ao acessar o link redirect</p>
+              <div className="space-y-3">
+                <div>
+                  <Label>Facebook Pixel ID</Label>
+                  <Input
+                    placeholder="Ex: 123456789012345"
+                    value={editForm.fb_pixel_id}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, fb_pixel_id: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Disparado automaticamente ao acessar o link redirect</p>
+                </div>
+                {editForm.fb_pixel_id && (
+                  <div>
+                    <Label>Evento do Pixel</Label>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      value={editForm.fb_pixel_event}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, fb_pixel_event: e.target.value }))}
+                    >
+                      <option value="PageView">PageView – Visualização de página</option>
+                      <option value="Lead">Lead – Cadastro / formulário</option>
+                      <option value="CompleteRegistration">CompleteRegistration – Registro completo</option>
+                      <option value="Contact">Contact – Contato (WhatsApp, ligação…)</option>
+                      <option value="InitiateCheckout">InitiateCheckout – Início de compra</option>
+                      <option value="Purchase">Purchase – Compra realizada</option>
+                      <option value="AddToCart">AddToCart – Adicionar ao carrinho</option>
+                      <option value="ViewContent">ViewContent – Ver conteúdo</option>
+                      <option value="Search">Search – Pesquisa</option>
+                      <option value="Subscribe">Subscribe – Assinatura</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">Qual evento disparar no Pixel ao acessar este link</p>
+                  </div>
+                )}
               </div>
+
               <div>
                 <Label>Google Tag Manager ID</Label>
                 <Input

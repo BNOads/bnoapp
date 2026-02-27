@@ -2,6 +2,14 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
+/** Ensure URL always has a protocol — prevents relative-path redirect bug */
+function normalizeUrl(url: string): string {
+    if (!url) return url;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (/^[a-z][a-z\d+\-.]*:/i.test(url)) return url; // mailto:, tel:, etc.
+    return "https://" + url;
+}
+
 export default function RedirectPage() {
     const { slug } = useParams<{ slug: string }>();
     const [notFound, setNotFound] = useState(false);
@@ -14,7 +22,7 @@ export default function RedirectPage() {
         const fetchAndRedirect = async () => {
             const { data, error } = await supabase
                 .from("utm_redirects")
-                .select("destination_url, fb_pixel_id, gtm_id, custom_script")
+                .select("destination_url, fb_pixel_id, fb_pixel_event, gtm_id, custom_script")
                 .eq("slug", slug)
                 .maybeSingle();
 
@@ -35,7 +43,7 @@ export default function RedirectPage() {
           n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
           t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
           document,'script','https://connect.facebook.net/en_US/fbevents.js');
-          fbq('init','${data.fb_pixel_id}');fbq('track','PageView');
+          fbq('init','${data.fb_pixel_id}');fbq('track','${(data as any).fb_pixel_event || 'PageView'}');
         `;
                 document.head.appendChild(el);
             }
@@ -65,7 +73,7 @@ export default function RedirectPage() {
 
             // Wait 3 seconds then redirect
             setTimeout(() => {
-                window.location.replace(data.destination_url);
+                window.location.replace(normalizeUrl(data.destination_url));
             }, 3000);
         };
 

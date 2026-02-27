@@ -21,6 +21,7 @@ const TIMEZONE = "America/Sao_Paulo";
 
 export function MensagemSextouView() {
     const [clientes, setClientes] = useState<any[]>([]);
+    const [colaboradores, setColaboradores] = useState<any[]>([]);
     const [clienteSelecionado, setClienteSelecionado] = useState<string>("all");
     const [weekStart, setWeekStart] = useState<string>("");
     const [loading, setLoading] = useState(false);
@@ -58,26 +59,34 @@ export function MensagemSextouView() {
         return () => clearInterval(interval);
     }, [mensagemSelecionada]);
 
-    // Initialize week
+    // Initialize week and fetch base data
     useEffect(() => {
         const now = toZonedTime(new Date(), TIMEZONE);
         const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 });
         setWeekStart(format(currentWeekStart, "yyyy-MM-dd"));
-        fetchClientes();
+        fetchBase();
     }, []);
 
-    const fetchClientes = async () => {
-        const { data } = await supabase
-            .from("clientes")
-            .select(`
-                id, nome, primary_gestor_user_id, primary_cs_user_id,
-                gestor:colaboradores!clientes_primary_gestor_user_id_fkey(id, nome, avatar_url),
-                primary_cs:colaboradores!clientes_primary_cs_user_id_fkey(id, nome, avatar_url)
-            `)
-            .eq("is_active", true)
-            .is("deleted_at", null)
-            .order("nome");
-        setClientes(data || []);
+    const fetchBase = async () => {
+        const [{ data: clientesData }, { data: colabData }] = await Promise.all([
+            supabase
+                .from("clientes")
+                .select(`
+                    id, nome, slug, primary_gestor_user_id, primary_cs_user_id,
+                    primary_cs:colaboradores!clientes_primary_cs_user_id_fkey(id, nome, avatar_url),
+                    gestor:colaboradores!clientes_primary_gestor_user_id_fkey(id, nome, avatar_url)
+                `)
+                .eq("is_active", true)
+                .is("deleted_at", null)
+                .order("nome"),
+            supabase
+                .from("colaboradores")
+                .select("id, nome, user_id, avatar_url")
+                .eq("ativo", true)
+                .order("nome")
+        ]);
+        setClientes(clientesData || []);
+        setColaboradores(colabData || []);
     };
 
     // ---- Helpers ----
@@ -181,13 +190,14 @@ export function MensagemSextouView() {
 
         setLoading(true);
         try {
-            const start = new Date(weekStart + "T00:00:00");
-            const endDate = endOfWeek(start, { weekStartsOn: 1 });
+            // Use same timezone handling as original
+            const start = new Date(`${weekStart}T00:00:00-03:00`);
+            const end = endOfWeek(start, { weekStartsOn: 1 });
+            const endDate = new Date(end.setHours(23, 59, 59, 999));
             const endStr = format(endDate, "yyyy-MM-dd");
 
             const isPautaNaSemana = (p: any) => {
-                if (!p.data_hora && (!p.dia || !p.mes || !p.ano)) return true;
-                const pDate = p.data_hora ? new Date(p.data_hora) : new Date(p.ano || new Date().getFullYear(), p.mes - 1, p.dia);
+                const pDate = new Date(p.ano, p.mes - 1, p.dia);
                 return pDate >= start && pDate <= endDate;
             };
 
@@ -202,55 +212,61 @@ export function MensagemSextouView() {
                 resLancamentos,
                 resOrcamentos,
             ] = await Promise.all([
+                // Use .eq on semana_referencia matching original
                 supabase.from("mensagens_semanais")
                     .select("*")
                     .in("cliente_id", clienteIds)
-                    .gte("semana_referencia", weekStart)
-                    .lte("semana_referencia", endStr)
-                    .order("created_at", { ascending: false }),
+                    .eq("semana_referencia", weekStart),
 
-                supabase.from("diario_bordo").select("id, cliente_id, texto, created_at")
+                supabase.from("diario_bordo").select("texto, created_at, autor_id, cliente_id")
                     .in("cliente_id", clienteIds)
                     .gte("created_at", start.toISOString())
-                    .lte("created_at", endDate.toISOString()),
+                    .lte("created_at", endDate.toISOString())
+                    .order("created_at", { ascending: true }),
 
-                supabase.from("reunioes").select("id, cliente_id, titulo, data_hora")
+                supabase.from("reunioes").select("titulo, descricao, cliente_id, data_hora")
                     .in("cliente_id", clienteIds)
                     .gte("data_hora", start.toISOString())
                     .lte("data_hora", endDate.toISOString()),
 
                 supabase.from("reunioes_documentos")
-                    .select("id, cliente_id, titulo_reuniao, dia, mes, ano, data_hora, reunioes_blocos(id, tipo, titulo, ordem)")
+                    .select(`titulo_reuniao, cliente_id, dia, mes, ano, reunioes_blocos(titulo, tipo, ordem)`)
+                    .in("cliente_id", clienteIds)
+                    .eq("ano", new Date(weekStart).getFullYear())
+                    .in("mes", [new Date(start).getMonth() + 1, new Date(endDate).getMonth() + 1]),
+
+                supabase.from("gravacoes").select("titulo, created_at, cliente_id")
+                    .in("cliente_id", clienteIds)
+                    .gte("created_at", start.toISOString())
+                    .lte("created_at", endDate.toISOString()),
+
+                supabase.from("lancamentos").select("nome_lancamento, status_lancamento, cliente_id")
+                    .eq("ativo", true)
+                    .not("status_lancamento", "in", '("finalizado","cancelado")')
                     .in("cliente_id", clienteIds),
 
-                supabase.from("gravacoes").select("id, cliente_id, titulo").in("cliente_id", clienteIds),
-
-                supabase.from("lancamentos").select("id, cliente_id, nome_lancamento, status_lancamento")
-                    .in("cliente_id", clienteIds)
-                    .neq("status_lancamento", "finalizado"),
-
-                supabase.from("orcamentos_funil").select("id, cliente_id, nome_funil, etapa_funil")
+                supabase.from("orcamentos_funil").select("nome_funil, etapa_funil, cliente_id, ativo")
+                    .eq("ativo", true)
                     .in("cliente_id", clienteIds),
             ]);
 
-            // Tasks: fetch per client
-            const tarefasResult = await Promise.all(clientesParaGerar.map(async (cliente) => {
-                const [tarefasConcluidas, tarefasAbertas] = await Promise.all([
-                    supabase.from("tarefas")
-                        .select("id, title, description, cliente_id, status")
+            // Tasks: use "tasks" table like original, per client
+            const tarefasResult = await Promise.all(clientesParaGerar.map(cliente =>
+                Promise.all([
+                    supabase.from("tasks")
+                        .select("title, completed_at, description, cliente_id")
+                        .eq("completed", true)
                         .eq("cliente_id", cliente.id)
-                        .in("status", ["done", "concluida", "concluido", "completed"])
-                        .gte("updated_at", start.toISOString())
-                        .lte("updated_at", endDate.toISOString()),
-                    supabase.from("tarefas")
-                        .select("id, title, description, cliente_id, status")
+                        .gte("completed_at", start.toISOString())
+                        .lte("completed_at", endDate.toISOString()),
+                    supabase.from("tasks")
+                        .select("title, description, cliente_id")
+                        .eq("completed", false)
                         .eq("cliente_id", cliente.id)
-                        .not("status", "in", '("done","concluida","concluido","completed")')
-                ]);
-                return [tarefasConcluidas, tarefasAbertas];
-            }));
+                ])
+            ));
 
-            // Filter sextou records only (sistema_gerado in historico_envios)
+            // Filter sextou records only
             const mensagensSextou = (resMensagens.data || []).filter(x => {
                 const hs = Array.isArray(x.historico_envios) ? x.historico_envios : [];
                 return hs.some((h: any) => h.tipo === 'sistema_gerado' || h.tipo === 'sextou_gerado');
@@ -259,9 +275,17 @@ export function MensagemSextouView() {
             const formataResumos = clientesParaGerar.map((cliente, idx) => {
                 const m = mensagensSextou.filter(x => x.cliente_id === cliente.id);
 
-                const gestor_obj = Array.isArray(cliente.gestor) ? cliente.gestor[0] : cliente.gestor;
-                const primary_cs_obj = Array.isArray(cliente.primary_cs) ? cliente.primary_cs[0] : cliente.primary_cs;
-                (cliente as any).gestor = gestor_obj;
+                // Resolve gestor: try FK join first, then fallback to colaboradores by user_id
+                let gestor_obj = Array.isArray(cliente.gestor) ? cliente.gestor[0] : cliente.gestor;
+                if (!gestor_obj && cliente.primary_gestor_user_id) {
+                    gestor_obj = colaboradores.find(c => c.user_id === cliente.primary_gestor_user_id) || null;
+                }
+
+                // Resolve CS: try FK join first, then fallback
+                let primary_cs_obj = Array.isArray(cliente.primary_cs) ? cliente.primary_cs[0] : cliente.primary_cs;
+                if (!primary_cs_obj && cliente.primary_cs_user_id) {
+                    primary_cs_obj = colaboradores.find(c => c.user_id === cliente.primary_cs_user_id) || null;
+                }
 
                 const d = (resDiario.data || []).filter(x => x.cliente_id === cliente.id);
                 const r = (resReunioes.data || []).filter((x: any) => x.cliente_id === cliente.id);
@@ -306,7 +330,7 @@ export function MensagemSextouView() {
                     .map(r => ({
                         cliente_id: r.cliente.id,
                         gestor_id: r.alocacao.gestor.id,
-                        cs_id: r.cliente.primary_cs?.id || null,
+                        cs_id: r.alocacao.cs?.id || null,
                         semana_referencia: weekStart,
                         mensagem: gerarTextoWhatsapp(r),
                         enviado: false,
@@ -319,18 +343,24 @@ export function MensagemSextouView() {
                         }]
                     }));
 
+                if (msgsToInsert.length === 0) {
+                    console.warn('⚠️ Nenhum resumo com gestor para salvar. Clientes sem gestor serão ignorados.');
+                }
+
                 const { data: insertedMsgs, error: insertError } = await supabase
                     .from("mensagens_semanais")
                     .insert(msgsToInsert)
                     .select();
 
-                if (!insertError && insertedMsgs) {
+                if (insertError) {
+                    console.error('Erro ao inserir mensagens:', insertError);
+                } else if (insertedMsgs) {
                     insertedMsgs.forEach(msg => {
                         const resumoTarget = formataResumos.find(r => r.cliente.id === msg.cliente_id);
                         if (resumoTarget) resumoTarget.mensagens = [msg as any];
                     });
 
-                    // Fire-and-forget IA generation
+                    // Fire-and-forget IA generation for new records
                     insertedMsgs.forEach(msg => {
                         const resumoTarget = formataResumos.find(r => r.cliente.id === msg.cliente_id);
                         if (resumoTarget) {
@@ -347,6 +377,8 @@ export function MensagemSextouView() {
                                         .update({ mensagem_ia: iaData.mensagemFormato })
                                         .eq('id', msg.id)
                                         .then(() => console.log(`✅ IA Sextou gerada para ${resumoTarget.cliente.nome}`));
+                                } else {
+                                    console.error(`❌ IA erro para ${resumoTarget.cliente.nome}:`, iaError);
                                 }
                             });
                         }
@@ -354,7 +386,7 @@ export function MensagemSextouView() {
                 }
             }
 
-            // Also generate IA for existing records without mensagem_ia
+            // Generate IA for existing records without mensagem_ia
             const resumosComMensagemSemIA = formataResumos.filter(r => r.mensagens.length > 0 && !r.mensagens[0].mensagem_ia);
             resumosComMensagemSemIA.forEach(resumoData => {
                 const msgDb = resumoData.mensagens[0];
