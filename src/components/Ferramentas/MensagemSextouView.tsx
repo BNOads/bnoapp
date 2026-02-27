@@ -266,14 +266,20 @@ export function MensagemSextouView() {
                 ])
             ));
 
-            // Filter sextou records only
-            const mensagensSextou = (resMensagens.data || []).filter(x => {
+            // Separate into sextou-tagged vs other records
+            const todasMensagens = resMensagens.data || [];
+            const isSextouRecord = (x: any) => {
                 const hs = Array.isArray(x.historico_envios) ? x.historico_envios : [];
                 return hs.some((h: any) => h.tipo === 'sistema_gerado' || h.tipo === 'sextou_gerado');
-            });
+            };
 
             const formataResumos = clientesParaGerar.map((cliente, idx) => {
-                const m = mensagensSextou.filter(x => x.cliente_id === cliente.id);
+                // Find any existing record for this client this week
+                const existingAll = todasMensagens.filter(x => x.cliente_id === cliente.id);
+                const existingSextou = existingAll.filter(isSextouRecord);
+
+                // Use sextou record if exists, otherwise the first available record
+                const m = existingSextou.length > 0 ? existingSextou : [];
 
                 // Resolve gestor: try FK join first, then fallback to colaboradores by user_id
                 let gestor_obj = Array.isArray(cliente.gestor) ? cliente.gestor[0] : cliente.gestor;
@@ -313,99 +319,105 @@ export function MensagemSextouView() {
                     orcamentos: o,
                     tarefas: t,
                     tarefasPendentes: tp,
-                    alocacao: { gestor: gestor_obj, cs: primary_cs_obj }
+                    alocacao: { gestor: gestor_obj, cs: primary_cs_obj },
+                    // Track what needs to happen
+                    _existing: existingAll[0] || null,
+                    _hasSextou: existingSextou.length > 0,
                 };
             });
 
-            // Auto-save new records
-            const resumosValidosSemMensagem = formataResumos.filter(r => gerarTextoVazioCheck(r) && r.mensagens.length === 0);
+            // Process saves: INSERT new, UPDATE existing non-sextou, skip existing sextou
+            const { data: userData } = await supabase.auth.getUser();
+            const userId = userData.user?.id;
+            const agora = new Date().toISOString();
 
-            if (resumosValidosSemMensagem.length > 0) {
-                const { data: userData } = await supabase.auth.getUser();
-                const userId = userData.user?.id;
-                const agora = new Date().toISOString();
-
-                const msgsToInsert = resumosValidosSemMensagem
-                    .filter(r => !!(r.alocacao?.gestor?.id))
-                    .map(r => ({
-                        cliente_id: r.cliente.id,
-                        gestor_id: r.alocacao.gestor.id,
-                        cs_id: r.alocacao.cs?.id || null,
-                        semana_referencia: weekStart,
-                        mensagem: gerarTextoWhatsapp(r),
-                        enviado: false,
-                        created_by: userId,
-                        historico_envios: [{
-                            tipo: 'sistema_gerado',
-                            data: agora,
-                            user_id: userId,
-                            detalhes: 'Mensagem Sextou salva automaticamente.'
-                        }]
-                    }));
-
-                if (msgsToInsert.length === 0) {
-                    console.warn('⚠️ Nenhum resumo com gestor para salvar. Clientes sem gestor serão ignorados.');
-                }
-
-                const { data: insertedMsgs, error: insertError } = await supabase
-                    .from("mensagens_semanais")
-                    .insert(msgsToInsert)
-                    .select();
-
-                if (insertError) {
-                    console.error('Erro ao inserir mensagens:', insertError);
-                } else if (insertedMsgs) {
-                    insertedMsgs.forEach(msg => {
-                        const resumoTarget = formataResumos.find(r => r.cliente.id === msg.cliente_id);
-                        if (resumoTarget) resumoTarget.mensagens = [msg as any];
-                    });
-
-                    // Fire-and-forget IA generation for new records
-                    insertedMsgs.forEach(msg => {
-                        const resumoTarget = formataResumos.find(r => r.cliente.id === msg.cliente_id);
-                        if (resumoTarget) {
-                            const textoContexto = gerarTextoWhatsapp(resumoTarget);
-                            supabase.functions.invoke('formatar-mensagem-semanal', {
-                                body: {
-                                    cliente_nome: resumoTarget.cliente.nome,
-                                    rascunho: textoContexto,
-                                    tipo_resumo: 'sextou'
-                                }
-                            }).then(({ data: iaData, error: iaError }) => {
-                                if (!iaError && iaData?.mensagemFormato) {
-                                    supabase.from('mensagens_semanais')
-                                        .update({ mensagem_ia: iaData.mensagemFormato })
-                                        .eq('id', msg.id)
-                                        .then(() => console.log(`✅ IA Sextou gerada para ${resumoTarget.cliente.nome}`));
-                                } else {
-                                    console.error(`❌ IA erro para ${resumoTarget.cliente.nome}:`, iaError);
-                                }
-                            });
-                        }
-                    });
-                }
-            }
-
-            // Generate IA for existing records without mensagem_ia
-            const resumosComMensagemSemIA = formataResumos.filter(r => r.mensagens.length > 0 && !r.mensagens[0].mensagem_ia);
-            resumosComMensagemSemIA.forEach(resumoData => {
-                const msgDb = resumoData.mensagens[0];
-                const textoContexto = gerarTextoWhatsapp(resumoData);
+            const gerarIA = async (msgId: string, clienteNome: string, textoContexto: string) => {
                 supabase.functions.invoke('formatar-mensagem-semanal', {
-                    body: {
-                        cliente_nome: resumoData.cliente.nome,
-                        rascunho: textoContexto,
-                        tipo_resumo: 'sextou'
-                    }
+                    body: { cliente_nome: clienteNome, rascunho: textoContexto, tipo_resumo: 'sextou' }
                 }).then(({ data: iaData, error: iaError }) => {
                     if (!iaError && iaData?.mensagemFormato) {
                         supabase.from('mensagens_semanais')
                             .update({ mensagem_ia: iaData.mensagemFormato })
-                            .eq('id', msgDb.id)
-                            .then(() => console.log(`✅ IA Sextou retrofit para ${resumoData.cliente.nome}`));
+                            .eq('id', msgId)
+                            .then(() => console.log(`✅ IA Sextou para ${clienteNome}`));
+                    } else {
+                        console.error(`❌ IA erro para ${clienteNome}:`, iaError);
                     }
                 });
-            });
+            };
+
+            for (const resumo of formataResumos) {
+                if (!gerarTextoVazioCheck(resumo)) continue;
+
+                const textoBase = gerarTextoWhatsapp(resumo);
+                const sextouHistEntry = {
+                    tipo: 'sistema_gerado',
+                    data: agora,
+                    user_id: userId,
+                    detalhes: 'Mensagem Sextou gerada automaticamente.'
+                };
+
+                if (resumo._hasSextou) {
+                    // Already has sextou record — generate IA if missing
+                    const msgDb = resumo.mensagens[0];
+                    if (msgDb && !msgDb.mensagem_ia) {
+                        await gerarIA(msgDb.id, resumo.cliente.nome, textoBase);
+                    }
+                } else if (resumo._existing) {
+                    // Has a non-sextou record → UPDATE it to tag as sextou and add sextou mensagem
+                    const existing = resumo._existing;
+                    const existingHistorico = Array.isArray(existing.historico_envios) ? existing.historico_envios : [];
+                    const { data: updated, error: updateError } = await supabase
+                        .from('mensagens_semanais')
+                        .update({
+                            mensagem: textoBase,
+                            historico_envios: [...existingHistorico, sextouHistEntry],
+                        })
+                        .eq('id', existing.id)
+                        .select()
+                        .single();
+
+                    if (!updateError && updated) {
+                        resumo.mensagens = [updated];
+                        if (!updated.mensagem_ia) {
+                            await gerarIA(updated.id, resumo.cliente.nome, textoBase);
+                        }
+                    } else {
+                        console.error('Erro ao atualizar registro existente:', updateError);
+                    }
+                } else {
+                    // No record at all → INSERT
+                    if (!resumo.alocacao?.gestor?.id) {
+                        console.warn(`⚠️ Sem gestor para ${resumo.cliente.nome}, pulando.`);
+                        continue;
+                    }
+
+                    const { data: inserted, error: insertError } = await supabase
+                        .from('mensagens_semanais')
+                        .insert({
+                            cliente_id: resumo.cliente.id,
+                            gestor_id: resumo.alocacao.gestor.id,
+                            cs_id: resumo.alocacao.cs?.id || null,
+                            semana_referencia: weekStart,
+                            mensagem: textoBase,
+                            enviado: false,
+                            created_by: userId,
+                            historico_envios: [sextouHistEntry]
+                        })
+                        .select()
+                        .single();
+
+                    if (!insertError && inserted) {
+                        resumo.mensagens = [inserted];
+                        await gerarIA(inserted.id, resumo.cliente.nome, textoBase);
+                    } else {
+                        console.error(`Erro ao inserir para ${resumo.cliente.nome}:`, insertError);
+                    }
+                }
+            }
+
+            // Clean up internal tracking fields
+            formataResumos.forEach((r: any) => { delete r._existing; delete r._hasSextou; });
 
             setResumosData([...formataResumos]);
         } catch (error: any) {
