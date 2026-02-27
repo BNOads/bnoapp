@@ -264,6 +264,36 @@ export const TeamAssignmentModal: React.FC<TeamAssignmentModalProps> = ({
               console.error('❌ Erro na automação new_cs:', csAutoErr);
             }
           }
+
+          // Quando ambos Gestor e CS estão configurados, buscar gravações de onboarding automaticamente
+          if (selectedGestor && primaryCs) {
+            console.log('🎬 Buscando gravações de onboarding automaticamente para:', clienteNome);
+            try {
+              const { data: sessionData } = await supabase.auth.getSession();
+              const onboardingResp = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/buscar-onboarding-drive`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${sessionData.session?.access_token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ clienteId }),
+                }
+              );
+              if (onboardingResp.ok) {
+                const onboardingResult = await onboardingResp.json();
+                const updated = onboardingResult.results?.find((r: { kickoffUpdated: boolean }) => r.kickoffUpdated);
+                if (updated) {
+                  console.log('✅ Kickoff atualizado com links de onboarding');
+                } else {
+                  console.log('ℹ️ Nenhuma gravação de onboarding encontrada para este cliente');
+                }
+              }
+            } catch (onboardingErr) {
+              console.error('❌ Erro ao buscar onboarding automaticamente:', onboardingErr);
+            }
+          }
         } catch (autoErr) {
           console.error('Erro ao disparar automações de equipe:', autoErr);
         }

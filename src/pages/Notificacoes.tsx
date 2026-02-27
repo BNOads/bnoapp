@@ -17,14 +17,14 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { User } from "@supabase/supabase-js";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { PushToggleRow } from "@/components/Notifications/NotificationBell";
 
 interface NotificationRead {
     user_id: string;
     lido_em: string;
 }
 
-interface Notification {
+interface AvisoNotification {
     id: string;
     titulo: string;
     conteudo: string;
@@ -42,7 +42,6 @@ interface Notification {
 
 export function NotificacoesDetalhesView() {
     const { isAdmin } = useUserPermissions();
-    const { isSubscribed, subscribe } = usePushNotifications();
     const [isSendingTest, setIsSendingTest] = useState(false);
 
     const sendTestPush = async () => {
@@ -68,8 +67,8 @@ export function NotificacoesDetalhesView() {
         }
     };
     const [user, setUser] = useState<User | null>(null);
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+    const [notifications, setNotifications] = useState<AvisoAvisoNotification[]>([]);
+    const [selectedNotification, setSelectedNotification] = useState<AvisoNotification | null>(null);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState("all");
@@ -244,6 +243,10 @@ export function NotificacoesDetalhesView() {
                         Acompanhe todos os avisos e atualizações do sistema.
                         {unreadCount > 0 && <span className="text-indigo-600 font-medium ml-2">({unreadCount} não lidas)</span>}
                     </p>
+                    {/* Push toggle inline na página */}
+                    <div className="mt-2">
+                        <PushToggleRow compact />
+                    </div>
                 </div>
                 {isAdmin && (
                     <div className="flex items-center gap-2">

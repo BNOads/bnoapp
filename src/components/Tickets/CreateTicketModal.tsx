@@ -13,15 +13,16 @@ interface CreateTicketModalProps {
     isOpen: boolean;
     onClose: () => void;
     defaultClienteId?: string;
+    defaultOrigem?: string;
 }
 
-export function CreateTicketModal({ isOpen, onClose, defaultClienteId }: CreateTicketModalProps) {
+export function CreateTicketModal({ isOpen, onClose, defaultClienteId, defaultOrigem }: CreateTicketModalProps) {
     const [clienteId, setClienteId] = useState(defaultClienteId || "");
     const [categoria, setCategoria] = useState("");
     const [prioridade, setPrioridade] = useState("media");
     const [responsavelId, setResponsavelId] = useState("");
     const [descricao, setDescricao] = useState("");
-    const [origem, setOrigem] = useState("interno");
+    const [origem, setOrigem] = useState(defaultOrigem || "interno");
     const [clientes, setClientes] = useState<{ id: string; name: string }[]>([]);
     const [colaboradores, setColaboradores] = useState<{ id: string; name: string; avatar_url?: string | null }[]>([]);
 
@@ -63,7 +64,7 @@ export function CreateTicketModal({ isOpen, onClose, defaultClienteId }: CreateT
             setPrioridade("media");
             setResponsavelId("");
             setDescricao("");
-            setOrigem("interno");
+            setOrigem(defaultOrigem || "interno");
         }
     }, [isOpen, defaultClienteId]);
 

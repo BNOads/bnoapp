@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { FileText, History, Save } from "lucide-react";
+import { FileText, History, Save, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -41,6 +41,7 @@ export const KickoffModal = ({ isOpen, onClose, clienteId, clienteNome }: Kickof
   const [currentVersion, setCurrentVersion] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFetchingOnboarding, setIsFetchingOnboarding] = useState(false);
 
   const initialContent = INITIAL_TEXT_TEMPLATE.replace("{{client_name}}", clienteNome);
 
@@ -193,6 +194,39 @@ export const KickoffModal = ({ isOpen, onClose, clienteId, clienteNome }: Kickof
     }
   };
 
+  const handleFetchOnboarding = async () => {
+    if (!user?.id) return;
+    try {
+      setIsFetchingOnboarding(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/buscar-onboarding-drive`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ clienteId }),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Erro ao buscar onboarding");
+
+      const found = result.results?.find((r: { clienteNome: string; found: boolean; kickoffUpdated: boolean }) => r.kickoffUpdated);
+      if (found && kickoffId) {
+        await loadKickoffContent(kickoffId);
+        toast({ title: "Onboarding encontrado!", description: "Links de gravação e transcrição adicionados ao kickoff." });
+      } else {
+        toast({ title: "Nenhuma gravação encontrada", description: "Não foi possível encontrar arquivos de onboarding para este cliente.", variant: "destructive" });
+      }
+    } catch (error: unknown) {
+      toast({ title: "Erro", description: getErrorMessage(error), variant: "destructive" });
+    } finally {
+      setIsFetchingOnboarding(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -220,18 +254,31 @@ export const KickoffModal = ({ isOpen, onClose, clienteId, clienteNome }: Kickof
         </DialogHeader>
 
         <div className="flex items-center justify-between">
-          {versions.length > 1 ? (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              <History className="h-3 w-3" />
-              {versions.length} versões
-            </Badge>
-          ) : (
-            <div />
-          )}
-          <Button onClick={handleSave} disabled={isSaving} size="sm">
-            <Save className="h-4 w-4 mr-2" />
-            {isSaving ? "Salvando..." : "Salvar"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {versions.length > 1 ? (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <History className="h-3 w-3" />
+                {versions.length} versões
+              </Badge>
+            ) : (
+              <div />
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleFetchOnboarding}
+              disabled={isFetchingOnboarding}
+              size="sm"
+              variant="outline"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              {isFetchingOnboarding ? "Buscando..." : "Buscar Onboarding"}
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving} size="sm">
+              <Save className="h-4 w-4 mr-2" />
+              {isSaving ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
         </div>
 
         <Textarea
@@ -244,6 +291,14 @@ export const KickoffModal = ({ isOpen, onClose, clienteId, clienteNome }: Kickof
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Fechar
+          </Button>
+          <Button
+            onClick={handleFetchOnboarding}
+            disabled={isFetchingOnboarding}
+            variant="secondary"
+          >
+            <Search className="h-4 w-4 mr-2" />
+            {isFetchingOnboarding ? "Buscando..." : "Buscar Onboarding"}
           </Button>
           <Button onClick={handleSave} disabled={isSaving}>
             <Save className="h-4 w-4 mr-2" />

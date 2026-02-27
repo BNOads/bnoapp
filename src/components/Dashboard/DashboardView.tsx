@@ -26,6 +26,7 @@ import { AniversariosProximos } from "@/components/Dashboard/AniversariosProximo
 import { TestesProximosVencer } from "@/components/Dashboard/TestesProximosVencer";
 import { DesafioSidebar } from "@/components/Dashboard/DesafioSidebar";
 import { LancamentosSidebar } from "@/components/Dashboard/LancamentosSidebar";
+import { ReuniaoHojeCard } from "@/components/Dashboard/ReuniaoHojeCard";
 import { TodaysTasks } from "@/components/tasks/widgets/TodaysTasks";
 
 export function DashboardView() {
@@ -441,6 +442,8 @@ export function DashboardView() {
       {/* Sidebar - Agora com Desafio e Lançamentos */}
       <aside className="w-full lg:w-1/4 min-w-[260px] space-y-2">
         {/* Desafio Moved to Header */}
+        <ReuniaoHojeCard />
+
         {(isAdmin || isMaster || canManageBudgets) && (
           <LancamentosSidebar />
         )}
