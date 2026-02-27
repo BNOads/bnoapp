@@ -39,6 +39,9 @@ import {
     ArrowLeftRight,
     User,
     AlertTriangle,
+    Pencil,
+    X,
+    Save,
 } from "lucide-react";
 import { useTicket } from "@/hooks/useTickets";
 import { useUpdateTicket, useCloseTicket, useUnlinkTaskFromTicket } from "@/hooks/useTicketMutations";
@@ -161,6 +164,13 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
     // Transfer dialog state
     const [showTransferDialog, setShowTransferDialog] = useState(false);
 
+    // Inline description edit state
+    const [isEditingDesc, setIsEditingDesc] = useState(false);
+    const [descInput, setDescInput] = useState("");
+
+    // Admin check
+    const isAdmin = ["admin", "dono"].includes(currentUser?.nivel_acesso ?? "");
+
     useEffect(() => {
         if (isOpen) {
             supabase.from("colaboradores").select("user_id, nome, avatar_url").eq("ativo", true).order("nome")
@@ -185,6 +195,13 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
         author: log.profiles?.nome,
         author_avatar: log.profiles?.avatar_url,
     })).sort((a: ActivityItem, b: ActivityItem) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    const handleSaveDesc = async () => {
+        if (!descInput.trim()) return;
+        updateTicket({ id: ticketId, updates: { descricao: descInput.trim() } });
+        setIsEditingDesc(false);
+        toast({ title: "Descrição atualizada" });
+    };
 
     const handleSubmitNote = async () => {
         if (!annotationInput.trim() || !currentUser) return;
@@ -259,12 +276,12 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
                                     <StatusChip
                                         status={ticket.status || "aberto"}
                                         onChange={(v) => updateTicket({ id: ticketId, updates: { status: v as any } })}
-                                        disabled={isClosed}
+                                        disabled={isClosed || !isAdmin}
                                     />
                                     <PriorityChip
                                         priority={ticket.prioridade || "media"}
                                         onChange={(v) => updateTicket({ id: ticketId, updates: { prioridade: v } })}
-                                        disabled={isClosed}
+                                        disabled={isClosed || !isAdmin}
                                     />
                                     <span className="text-xs text-muted-foreground ml-auto">
                                         {format(new Date(ticket.created_at), "dd MMM yyyy, HH:mm", { locale: ptBR })}
@@ -291,7 +308,7 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
                                     {/* Responsável */}
                                     <div className="space-y-0.5">
                                         <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Responsável</p>
-                                        {isClosed ? (
+                                        {(isClosed || !isAdmin) ? (
                                             <div className="flex items-center gap-1.5">
                                                 <Avatar className="h-5 w-5">
                                                     <AvatarImage src={responsavelAtual?.avatar_url || undefined} />
@@ -378,10 +395,42 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
                                     <section>
                                         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-2">
                                             <MessageSquare className="h-3.5 w-3.5" /> Descrição
+                                            {isAdmin && !isClosed && !isEditingDesc && (
+                                                <button
+                                                    onClick={() => { setDescInput(ticket.descricao || ""); setIsEditingDesc(true); }}
+                                                    className="ml-auto p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                                                    title="Editar descrição"
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
                                         </h4>
-                                        <div className="bg-muted/30 rounded-lg p-4 text-sm leading-relaxed border whitespace-pre-wrap text-foreground">
-                                            {ticket.descricao || <span className="italic text-muted-foreground">Sem descrição.</span>}
-                                        </div>
+                                        {isAdmin && !isClosed && isEditingDesc ? (
+                                            <div className="space-y-2">
+                                                <Textarea
+                                                    value={descInput}
+                                                    onChange={e => setDescInput(e.target.value)}
+                                                    className="min-h-[100px] resize-none text-sm"
+                                                    autoFocus
+                                                    onKeyDown={e => {
+                                                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleSaveDesc();
+                                                        if (e.key === "Escape") setIsEditingDesc(false);
+                                                    }}
+                                                />
+                                                <div className="flex items-center gap-2 justify-end">
+                                                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setIsEditingDesc(false)}>
+                                                        <X className="h-3.5 w-3.5" /> Cancelar
+                                                    </Button>
+                                                    <Button size="sm" className="h-7 text-xs gap-1" onClick={handleSaveDesc} disabled={!descInput.trim()}>
+                                                        <Save className="h-3.5 w-3.5" /> Salvar
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-muted/30 rounded-lg p-4 text-sm leading-relaxed border whitespace-pre-wrap text-foreground">
+                                                {ticket.descricao || <span className="italic text-muted-foreground">Sem descrição.</span>}
+                                            </div>
+                                        )}
                                     </section>
 
                                     {/* Solução registrada */}
@@ -467,8 +516,8 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
                                             </div>
                                         )}
 
-                                        {/* ── ACTION BUTTONS (like screenshot) ── */}
-                                        {!isClosed && (
+                                        {/* ── ACTION BUTTONS (admin only) ── */}
+                                        {isAdmin && !isClosed && (
                                             <div className="flex items-center gap-3 mt-4">
                                                 <Button
                                                     variant="outline"
@@ -566,8 +615,8 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
                                             </div>
                                         )}
 
-                                        {/* Annotation input */}
-                                        {!isClosed && (
+                                        {/* Annotation input — admin only */}
+                                        {isAdmin && !isClosed && (
                                             <div className="border rounded-xl overflow-hidden bg-background focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-all">
                                                 <Textarea
                                                     value={annotationInput}
@@ -579,7 +628,7 @@ export function TicketDetailsDrawer({ ticketId, isOpen, onClose }: TicketDetails
                                                     }}
                                                 />
                                                 <div className="flex items-center justify-between px-3 py-2 bg-muted/10 border-t">
-                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1"><StickyNote className="h-3 w-3" /> Anotação interna · ⌘↵</span>
+                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1"><StickyNote className="h-3 w-3" /> Comentário interno · ⌘↵</span>
                                                     <Button size="sm" className="h-7 text-xs gap-1.5" onClick={handleSubmitNote} disabled={!annotationInput.trim() || isSubmittingNote}>
                                                         <Send className="h-3.5 w-3.5" /> Salvar
                                                     </Button>
