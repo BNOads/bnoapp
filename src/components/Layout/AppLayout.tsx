@@ -32,7 +32,8 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   // Rotas completamente standalone - sem header NUNCA (nem logado nem deslogado)
   const standaloneRoutes = [
-    '/lancamento/'
+    '/lancamento/',
+    '/d/'
   ];
 
   const isStandaloneRoute = standaloneRoutes.some(route =>

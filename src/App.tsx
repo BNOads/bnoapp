@@ -51,6 +51,7 @@ import TarefaDetalhe from "./pages/TarefaDetalhe";
 import { AppLayout } from "@/components/Layout/AppLayout";
 import FerramentaProjecaoView from "@/components/Ferramentas/FerramentaProjecaoView";
 import { NotificacoesDetalhesView } from "./pages/Notificacoes";
+import RedirectPage from "./pages/RedirectPage";
 
 
 const queryClient = new QueryClient({
@@ -78,6 +79,7 @@ function App() {
                   <Route path="/pop/publico/:id" element={<POPPublico />} />
                   <Route path="/lancamento/:linkPublico" element={<LancamentoPublico />} />
                   <Route path="/documentos/publico/:slug" element={<DocumentoPublico />} />
+                  <Route path="/d/:slug" element={<RedirectPage />} />
                   <Route path="/r/:slug" element={<ReferenciaPublica />} />
                   <Route path="/referencia/publica/:slug" element={<ReferenciaPublica />} />
                   <Route path="/painel-publico/:token" element={<PublicDashboard />} />

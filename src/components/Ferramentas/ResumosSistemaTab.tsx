@@ -31,6 +31,41 @@ export function ResumosSistemaTab() {
     // Modal state for viewing a message
     const [mensagemSelecionada, setMensagemSelecionada] = useState<any>(null);
 
+    // Polling: auto-refresh modal when IA is being generated in background
+    useEffect(() => {
+        if (!mensagemSelecionada) return;
+        const msgDb = mensagemSelecionada?.mensagens?.[0];
+        if (!msgDb || msgDb.mensagem_ia) return; // Already has IA or no message, no need to poll
+
+        const pollInterval = setInterval(async () => {
+            const { data } = await supabase
+                .from("mensagens_semanais")
+                .select("mensagem_ia")
+                .eq("id", msgDb.id)
+                .maybeSingle();
+
+            if (data?.mensagem_ia) {
+                // IA is ready! Update state
+                setMensagemSelecionada((prev: any) => ({
+                    ...prev,
+                    mensagens: [{ ...msgDb, mensagem_ia: data.mensagem_ia }]
+                }));
+                // Also update the table
+                if (resumosData) {
+                    setResumosData(resumosData.map((resumo: any) => {
+                        if (resumo.cliente.id === mensagemSelecionada.cliente.id) {
+                            return { ...resumo, mensagens: [{ ...msgDb, mensagem_ia: data.mensagem_ia }] };
+                        }
+                        return resumo;
+                    }));
+                }
+                clearInterval(pollInterval);
+            }
+        }, 4000); // Poll every 4 seconds
+
+        return () => clearInterval(pollInterval);
+    }, [mensagemSelecionada?.mensagens?.[0]?.id, mensagemSelecionada?.mensagens?.[0]?.mensagem_ia]);
+
     // Sorting state
     const [ordenacao, setOrdenacao] = useState<{ coluna: string; direcao: 'asc' | 'desc' }>({
         coluna: 'cliente_nome',
@@ -50,7 +85,9 @@ export function ResumosSistemaTab() {
                 nome,
                 slug,
                 primary_cs_user_id,
-                primary_cs:colaboradores!clientes_primary_cs_user_id_fkey(id, nome, avatar_url)
+                primary_gestor_user_id,
+                primary_cs:colaboradores!clientes_primary_cs_user_id_fkey(id, nome, avatar_url),
+                gestor:colaboradores!clientes_primary_gestor_user_id_fkey(id, nome, avatar_url)
             `)
             .eq("is_active", true)
             .is("deleted_at", null)
@@ -73,6 +110,7 @@ export function ResumosSistemaTab() {
             (resumoData.tarefasPendentes && resumoData.tarefasPendentes.length > 0) ||
             (resumoData.lancamentos && resumoData.lancamentos.length > 0) ||
             (resumoData.reunioes && resumoData.reunioes.length > 0) ||
+            (resumoData.pautas && resumoData.pautas.length > 0) ||
             (resumoData.gravacoes && resumoData.gravacoes.length > 0) ||
             (resumoData.diario && resumoData.diario.length > 0) ||
             (resumoData.orcamentos && resumoData.orcamentos.length > 0) ||
@@ -80,44 +118,80 @@ export function ResumosSistemaTab() {
     }
 
     const gerarTextoWhatsapp = (resumoData: any) => {
-        const { cliente, mensagens, diario, reunioes, gravacoes, lancamentos, orcamentos, tarefas, tarefasPendentes } = resumoData;
+        const { cliente, diario, reunioes, pautas, gravacoes, lancamentos, orcamentos, tarefas, tarefasPendentes } = resumoData;
 
-        let texto = `*Resumo Semanal - ${cliente.nome}* 📊\n\n`;
+        // Helper: strip client name prefix from task titles (e.g. "CLIENTENAME | Task" → "Task")
+        const stripClientePrefix = (title: string) => {
+            if (!title) return title;
+            const sep = title.indexOf(' | ');
+            if (sep > 0) return title.substring(sep + 3).trim();
+            return title.trim();
+        };
 
-        if (tarefas && tarefas.length > 0) {
-            texto += `*✅ Tarefas Concluídas:*\n`;
-            tarefas?.forEach((t: any) => texto += `• ${t.title}\n`);
+        // Dedup tasks by title
+        const uniqueTitles = new Set<string>();
+        const dedupTarefas = (arr: any[]) => arr.filter(t => {
+            const key = stripClientePrefix(t.title || '').toLowerCase();
+            if (uniqueTitles.has(key)) return false;
+            uniqueTitles.add(key);
+            return true;
+        });
+
+        const tarefasLimpas = dedupTarefas(tarefas || []);
+        const tarefasPendentesLimpas = dedupTarefas(tarefasPendentes || []);
+
+        let texto = `*Resumo Semanal - ${cliente.nome}*\n\n`;
+
+        if (tarefasLimpas.length > 0) {
+            texto += `✅ *Tarefas Concluídas na Semana:*\n`;
+            tarefasLimpas.forEach((t: any) => {
+                texto += `- ${stripClientePrefix(t.title)}\n`;
+            });
             texto += `\n`;
         }
 
-        if (tarefasPendentes && tarefasPendentes.length > 0) {
-            texto += `*⏳ Tarefas em Andamento/A Fazer:*\n`;
-            tarefasPendentes?.forEach((t: any) => texto += `• ${t.title}\n`);
+        if (tarefasPendentesLimpas.length > 0) {
+            texto += `⏳ *Tarefas em Andamento:*\n`;
+            tarefasPendentesLimpas.forEach((t: any) => texto += `- ${stripClientePrefix(t.title)}\n`);
             texto += `\n`;
         }
 
         if (lancamentos && lancamentos.length > 0) {
-            texto += `*🚀 Lançamentos Ativos:*\n`;
-            lancamentos?.forEach((l: any) => texto += `• ${l.nome_lancamento} (${l.status_lancamento?.replace(/_/g, " ")})\n`);
+            texto += `🚀 *Lançamentos Ativos:*\n`;
+            lancamentos?.forEach((l: any) => texto += `- ${l.nome_lancamento} (${l.status_lancamento?.replace(/_/g, " ")})\n`);
             texto += `\n`;
         }
 
         if (orcamentos && orcamentos.length > 0) {
-            texto += `*🎯 Funis Ativos:*\n`;
-            orcamentos?.forEach((o: any) => texto += `• ${o.nome_funil} ${o.etapa_funil ? `(${o.etapa_funil})` : ''}\n`);
+            texto += `🎯 *Funis Ativos:*\n`;
+            orcamentos?.forEach((o: any) => texto += `- ${o.nome_funil}${o.etapa_funil ? ` (${o.etapa_funil})` : ''}\n`);
             texto += `\n`;
         }
 
         if ((reunioes && reunioes.length > 0) || (gravacoes && gravacoes.length > 0)) {
-            texto += `*🎥 Reuniões & Gravações:*\n`;
-            reunioes?.forEach((r: any) => texto += `• ${r.titulo}\n`);
-            gravacoes?.forEach((g: any) => texto += `• ${g.titulo}\n`);
+            texto += `🎥 *Reuniões & Gravações:*\n`;
+            reunioes?.forEach((r: any) => texto += `- ${r.titulo}\n`);
+            gravacoes?.forEach((g: any) => texto += `- ${g.titulo}\n`);
+            texto += `\n`;
+        }
+
+        if (pautas && pautas.length > 0) {
+            texto += `📋 *Anotações de Reuniões:*\n`;
+            pautas?.forEach((p: any) => {
+                texto += `- ${p.titulo_reuniao} (${String(p.dia).padStart(2, '0')}/${String(p.mes).padStart(2, '0')})\n`;
+                const blocosRelevantes = (p.blocos || []).filter((b: any) =>
+                    b.titulo && !['titulo', 'participantes'].includes(b.tipo)
+                );
+                blocosRelevantes.forEach((b: any) => {
+                    texto += `  → ${b.titulo}\n`;
+                });
+            });
             texto += `\n`;
         }
 
         if (diario && diario.length > 0) {
-            texto += `*📝 Atualizações do Painel:*\n`;
-            diario?.forEach((d: any) => texto += `• ${d.texto}\n`);
+            texto += `📝 *Diário de Bordo:*\n`;
+            diario?.forEach((d: any) => texto += `- ${d.texto}\n`);
             texto += `\n`;
         }
 
@@ -154,74 +228,91 @@ export function ResumosSistemaTab() {
             const startStr = format(start, "yyyy-MM-dd", { locale: ptBR });
             const endStr = format(endDate, "yyyy-MM-dd", { locale: ptBR });
 
-            const [resMensagens, resDiario, resReunioes, resGravacoes, resLancamentos, resOrcamentos, resAlocacoes] = await Promise.all([
-                supabase.from("mensagens_semanais").select(`
-                    *
-                `).eq("semana_referencia", weekStart).in("cliente_id", clientesParaGerar.map(c => c.id)),
-                supabase.from("diario_bordo").select("texto, created_at, autor_id, cliente_id").in("cliente_id", clientesParaGerar.map(c => c.id)).gte("created_at", start.toISOString()).lte("created_at", endDate.toISOString()).order("created_at", { ascending: true }),
-                supabase.from("reunioes").select("titulo, descricao, cliente_id").in("cliente_id", clientesParaGerar.map(c => c.id)),
-                supabase.from("gravacoes").select("titulo, created_at, cliente_id").in("cliente_id", clientesParaGerar.map(c => c.id)).gte("created_at", start.toISOString()).lte("created_at", endDate.toISOString()),
-                supabase.from("lancamentos").select("nome_lancamento, status_lancamento, cliente_id").eq("ativo", true).not("status_lancamento", "in", '("finalizado","cancelado")').in("cliente_id", clientesParaGerar.map(c => c.id)),
-                supabase.from("orcamentos_funil").select("nome_funil, etapa_funil, cliente_id, ativo").eq("ativo", true).in("cliente_id", clientesParaGerar.map(c => c.id)),
-                supabase.from("alocacoes" as any).select(`
-                    cliente_id,
-                    gestor:gestor_id(id, nome, avatar_url),
-                    cs:cs_id(id, nome, avatar_url)
-                `).in("cliente_id", clientesParaGerar.map(c => c.id))
+            const clienteIds = clientesParaGerar.map(c => c.id);
+
+            const [resMensagens, resDiario, resReunioes, resPautas, resGravacoes, resLancamentos, resOrcamentos] = await Promise.all([
+                supabase.from("mensagens_semanais").select(`*`)
+                    .eq("semana_referencia", weekStart)
+                    .in("cliente_id", clienteIds),
+                supabase.from("diario_bordo").select("texto, created_at, autor_id, cliente_id")
+                    .in("cliente_id", clienteIds)
+                    .gte("created_at", start.toISOString())
+                    .lte("created_at", endDate.toISOString())
+                    .order("created_at", { ascending: true }),
+                // Filtra reunioes pelo campo data_hora na semana
+                supabase.from("reunioes").select("titulo, descricao, cliente_id, data_hora")
+                    .in("cliente_id", clienteIds)
+                    .gte("data_hora", start.toISOString())
+                    .lte("data_hora", endDate.toISOString()),
+                // Busca pautas de reunioes (reunioes_documentos) por dia/mes/ano
+                supabase.from("reunioes_documentos").select(`
+                    titulo_reuniao, cliente_id, dia, mes, ano,
+                    reunioes_blocos(titulo, tipo, ordem)
+                `)
+                    .in("cliente_id", clienteIds)
+                    .eq("ano", new Date(weekStart).getFullYear())
+                    .in("mes", [
+                        new Date(start).getMonth() + 1,
+                        new Date(endDate).getMonth() + 1
+                    ]),
+                supabase.from("gravacoes").select("titulo, created_at, cliente_id")
+                    .in("cliente_id", clienteIds)
+                    .gte("created_at", start.toISOString())
+                    .lte("created_at", endDate.toISOString()),
+                supabase.from("lancamentos").select("nome_lancamento, status_lancamento, cliente_id")
+                    .eq("ativo", true)
+                    .not("status_lancamento", "in", '("finalizado","cancelado")')
+                    .in("cliente_id", clienteIds),
+                supabase.from("orcamentos_funil").select("nome_funil, etapa_funil, cliente_id, ativo")
+                    .eq("ativo", true)
+                    .in("cliente_id", clienteIds),
             ]);
 
-            const { data: tarefas } = await supabase
-                .from("tasks")
-                .select("title, completed_at, description")
-                .eq("completed", true)
-                .gte("completed_at", start.toISOString())
-                .lte("completed_at", endDate.toISOString());
+            // Tasks filtradas por cliente_id — uma query por cliente (mais correto que name matching)
+            const tarefasResult = await Promise.all(clientesParaGerar.map(cliente =>
+                Promise.all([
+                    supabase.from("tasks")
+                        .select("title, completed_at, description, cliente_id")
+                        .eq("completed", true)
+                        .eq("cliente_id", cliente.id)
+                        .gte("completed_at", start.toISOString())
+                        .lte("completed_at", endDate.toISOString()),
+                    supabase.from("tasks")
+                        .select("title, description, cliente_id")
+                        .eq("completed", false)
+                        .eq("cliente_id", cliente.id)
+                ])
+            ));
 
-            const { data: tarefasAbertas } = await supabase
-                .from("tasks")
-                .select("title, description")
-                .eq("completed", false);
+            // Helper: filtra pautas dentro da semana
+            const isPautaNaSemana = (p: any) => {
+                const pDate = new Date(p.ano, p.mes - 1, p.dia);
+                return pDate >= start && pDate <= endDate;
+            };
 
-            const formataResumos = clientesParaGerar.map(cliente => {
-                const m = (resMensagens.data || []).filter(x => {
-                    if (x.cliente_id !== cliente.id) return false;
-                    const hs = Array.isArray(x.historico_envios) ? x.historico_envios : (typeof x.historico_envios === 'string' && x.historico_envios ? JSON.parse(x.historico_envios) : []);
-                    return hs.some((h: any) => h.tipo === 'sistema_gerado');
-                });
+            const formataResumos = clientesParaGerar.map((cliente, idx) => {
+                const m = (resMensagens.data || []).filter(x => x.cliente_id === cliente.id);
 
-                // Extract primary_cs safely
+                // Extract primary_cs and gestor safely from the clientes join
                 const primary_cs_obj = Array.isArray(cliente.primary_cs) ? cliente.primary_cs[0] : cliente.primary_cs;
+                const gestor_obj = Array.isArray((cliente as any).gestor) ? (cliente as any).gestor[0] : (cliente as any).gestor;
                 cliente.primary_cs = primary_cs_obj;
+                (cliente as any).gestor = gestor_obj;
 
                 const d = (resDiario.data || []).filter(x => x.cliente_id === cliente.id);
                 const r = (resReunioes.data || []).filter((x: any) => x.cliente_id === cliente.id);
+                // Pautas filtradas por cliente e dentro da semana
+                const p = (resPautas.data || []).filter((x: any) => x.cliente_id === cliente.id && isPautaNaSemana(x)).map((p: any) => ({
+                    ...p,
+                    blocos: Array.isArray(p.reunioes_blocos) ? p.reunioes_blocos.sort((a: any, b: any) => a.ordem - b.ordem) : []
+                }));
                 const g = (resGravacoes.data || []).filter((x: any) => x.cliente_id === cliente.id);
                 const l = (resLancamentos.data || []).filter((x: any) => x.cliente_id === cliente.id);
                 const o = (resOrcamentos.data || []).filter((x: any) => x.cliente_id === cliente.id);
 
-                let alocacao: any = (resAlocacoes.data || []).find((x: any) => x.cliente_id === cliente.id);
-                if (alocacao) {
-                    alocacao.gestor = Array.isArray(alocacao.gestor) ? alocacao.gestor[0] : alocacao.gestor;
-                    alocacao.cs = Array.isArray(alocacao.cs) ? alocacao.cs[0] : alocacao.cs;
-                }
-
-                const nomeMatch = (cliente.nome || "").toLowerCase();
-                const slugMatch = (cliente.slug || "").toLowerCase();
-
-                const filterTaskFunction = (x: any) => {
-                    const titleStr = (x.title || "").toLowerCase();
-                    const descStr = (x.description || "").toLowerCase();
-                    const checks = [];
-                    if (nomeMatch) checks.push(nomeMatch);
-                    if (slugMatch) checks.push(slugMatch);
-
-                    if (checks.length === 0) return false;
-
-                    return checks.some(check => titleStr.includes(check) || descStr.includes(check));
-                };
-
-                const t = (tarefas || []).filter(filterTaskFunction);
-                const tp = (tarefasAbertas || []).filter(filterTaskFunction);
+                const [tarefasConcluidas, tarefasAbertas] = tarefasResult[idx];
+                const t = tarefasConcluidas.data || [];
+                const tp = tarefasAbertas.data || [];
 
                 return {
                     cliente,
@@ -229,12 +320,13 @@ export function ResumosSistemaTab() {
                     mensagens: m,
                     diario: d,
                     reunioes: r,
+                    pautas: p,
                     gravacoes: g,
                     lancamentos: l,
                     orcamentos: o,
                     tarefas: t,
                     tarefasPendentes: tp,
-                    alocacao
+                    alocacao: { gestor: gestor_obj, cs: primary_cs_obj }
                 };
             });
 
@@ -246,21 +338,27 @@ export function ResumosSistemaTab() {
                 const userId = userData.user?.id;
                 const agora = new Date().toISOString();
 
-                const msgsToInsert = resumosValidosSemMensagem.map(r => ({
-                    cliente_id: r.cliente.id,
-                    gestor_id: r.alocacao?.gestor?.id || null,
-                    cs_id: r.cliente.primary_cs?.id || null,
-                    semana_referencia: weekStart,
-                    mensagem: gerarTextoWhatsapp(r),
-                    enviado: false,
-                    created_by: userId,
-                    historico_envios: [{
-                        tipo: 'sistema_gerado',
-                        data: agora,
-                        user_id: userId,
-                        detalhes: 'Resumo semanal salvo automaticamente no momento da geração.'
-                    }]
-                }));
+                const msgsToInsert = resumosValidosSemMensagem
+                    .filter(r => !!(r.alocacao?.gestor?.id)) // só inserir se tiver gestor (campo NOT NULL)
+                    .map(r => ({
+                        cliente_id: r.cliente.id,
+                        gestor_id: r.alocacao.gestor.id,
+                        cs_id: r.cliente.primary_cs?.id || null,
+                        semana_referencia: weekStart,
+                        mensagem: gerarTextoWhatsapp(r),
+                        enviado: false,
+                        created_by: userId,
+                        historico_envios: [{
+                            tipo: 'sistema_gerado',
+                            data: agora,
+                            user_id: userId,
+                            detalhes: 'Resumo semanal salvo automaticamente no momento da geração.'
+                        }]
+                    }));
+
+                if (msgsToInsert.length === 0) {
+                    console.warn('Nenhum resumo válido com gestor para salvar. Clientes sem gestor associado não serão salvos.');
+                }
 
                 const { data: insertedMsgs, error: insertError } = await supabase
                     .from("mensagens_semanais")
@@ -272,10 +370,54 @@ export function ResumosSistemaTab() {
                         const resumoTarget = formataResumos.find(r => r.cliente.id === msg.cliente_id);
                         if (resumoTarget) resumoTarget.mensagens = [msg as any];
                     });
+
+                    // Disparar geração de IA em background para todos os novos resumos
+                    insertedMsgs.forEach(msg => {
+                        const resumoTarget = formataResumos.find(r => r.cliente.id === msg.cliente_id);
+                        if (resumoTarget) {
+                            const textoContexto = gerarTextoWhatsapp(resumoTarget);
+                            // Fire-and-forget: não bloqueia o carregamento da tabela
+                            supabase.functions.invoke('formatar-mensagem-semanal', {
+                                body: {
+                                    cliente_nome: resumoTarget.cliente.nome,
+                                    rascunho: textoContexto,
+                                    tipo_resumo: 'sistema'
+                                }
+                            }).then(({ data: iaData, error: iaError }) => {
+                                if (!iaError && iaData?.mensagemFormato) {
+                                    supabase.from('mensagens_semanais')
+                                        .update({ mensagem_ia: iaData.mensagemFormato })
+                                        .eq('id', msg.id)
+                                        .then(() => console.log(`✅ IA gerada para ${resumoTarget.cliente.nome}`));
+                                }
+                            });
+                        }
+                    });
                 } else {
                     console.error("Erro inserindo mensagens em lote:", insertError);
                 }
             }
+
+            // Para resumos que já têm mensagem salva mas sem versão IA, gerar também em background
+            const resumosComMensagemSemIA = formataResumos.filter(r => r.mensagens.length > 0 && !r.mensagens[0].mensagem_ia);
+            resumosComMensagemSemIA.forEach(resumoData => {
+                const msgDb = resumoData.mensagens[0];
+                const textoContexto = gerarTextoWhatsapp(resumoData);
+                supabase.functions.invoke('formatar-mensagem-semanal', {
+                    body: {
+                        cliente_nome: resumoData.cliente.nome,
+                        rascunho: textoContexto,
+                        tipo_resumo: 'sistema'
+                    }
+                }).then(({ data: iaData, error: iaError }) => {
+                    if (!iaError && iaData?.mensagemFormato) {
+                        supabase.from('mensagens_semanais')
+                            .update({ mensagem_ia: iaData.mensagemFormato })
+                            .eq('id', msgDb.id)
+                            .then(() => console.log(`✅ IA gerada (retrofit) para ${resumoData.cliente.nome}`));
+                    }
+                });
+            });
 
             setResumosData([...formataResumos]);
 
@@ -363,6 +505,15 @@ export function ResumosSistemaTab() {
             setLoadingAi(false);
         }
     }
+
+    // Abre o modal e gera IA imediatamente se ainda não tiver versão IA
+    const abrirModalComIA = async (resumoData: any) => {
+        setMensagemSelecionada(resumoData);
+        const msgDb = resumoData.mensagens.length > 0 ? resumoData.mensagens[0] : null;
+        if (msgDb && !msgDb.mensagem_ia) {
+            await gerarVersaoIA(resumoData);
+        }
+    };
 
     const marcarEnvio = async (resumoData: any, enviado: boolean) => {
         try {
@@ -952,7 +1103,7 @@ export function ResumosSistemaTab() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <Button variant="outline" size="sm" onClick={() => setMensagemSelecionada(resumoData)} title="Visualizar mensagem">
+                                                    <Button variant="outline" size="sm" onClick={() => abrirModalComIA(resumoData)} title="Visualizar mensagem">
                                                         <Eye className="h-4 w-4" />
                                                     </Button>
                                                     <Button variant="outline" size="sm" onClick={() => handleCopiarResumo(resumoData)} title="Copiar resumo">
@@ -1066,29 +1217,55 @@ export function ResumosSistemaTab() {
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-sm font-semibold text-primary flex items-center gap-2">
                                                 <Wand2 className="h-4 w-4" />
-                                                Assistente IA de Resumos
+                                                Mensagem para o Cliente (IA)
                                             </h3>
                                             <Button
-                                                variant="default"
+                                                variant="outline"
                                                 size="sm"
                                                 onClick={() => gerarVersaoIA(mensagemSelecionada)}
                                                 disabled={loadingAi}
-                                                className="bg-primary text-primary-foreground shadow-sm"
+                                                className="text-primary border-primary/30 hover:bg-primary/10"
                                             >
                                                 {loadingAi ? (
                                                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando...</>
                                                 ) : (
-                                                    <><Wand2 className="h-4 w-4 mr-2" /> {msgDb.mensagem_ia ? "Regerar Texto com IA" : "✨ Gerar Texto com IA"}</>
+                                                    <><Wand2 className="h-4 w-4 mr-2" /> {msgDb.mensagem_ia ? "Regerar" : "✨ Gerar com IA"}</>
                                                 )}
                                             </Button>
                                         </div>
-                                        <p className="text-sm text-muted-foreground mr-4">
-                                            Crie uma mensagem amigável e consolidada para o cliente com a ajuda da Inteligência Artificial. A IA irá transformar a matriz de dados em um texto final otimizado.
-                                        </p>
 
-                                        {msgDb.mensagem_ia && (
-                                            <div className="bg-white dark:bg-zinc-900 p-4 rounded-lg whitespace-pre-wrap text-sm border shadow-sm mt-4">
-                                                {msgDb.mensagem_ia}
+                                        {msgDb.mensagem_ia ? (
+                                            <div className="space-y-3">
+                                                <div className="bg-white dark:bg-zinc-900 p-4 rounded-lg whitespace-pre-wrap text-sm border shadow-sm leading-relaxed">
+                                                    {msgDb.mensagem_ia}
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                                        onClick={() => handleCopiarResumo(mensagemSelecionada)}
+                                                    >
+                                                        <Copy className="h-4 w-4 mr-2" />
+                                                        Copiar para WhatsApp
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={() => gerarVersaoIA(mensagemSelecionada)}
+                                                        disabled={loadingAi}
+                                                        className="text-primary border-primary/30"
+                                                    >
+                                                        {loadingAi ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <><Wand2 className="h-4 w-4 mr-1" /> Reescrever</>
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center py-8 gap-3 text-muted-foreground">
+                                                <Loader2 className="h-8 w-8 animate-spin text-primary/60" />
+                                                <p className="text-sm text-center font-medium">Gerando mensagem com IA...</p>
+                                                <p className="text-xs text-center">Isso leva alguns segundos</p>
                                             </div>
                                         )}
                                     </div>
@@ -1116,8 +1293,8 @@ export function ResumosSistemaTab() {
                             </div>
                         );
                     })()}
-                </DialogContent>
-            </Dialog>
-        </div>
+                </DialogContent >
+            </Dialog >
+        </div >
     );
 }
