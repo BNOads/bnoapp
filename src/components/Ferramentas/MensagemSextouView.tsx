@@ -326,12 +326,34 @@ export function MensagemSextouView() {
                 };
             });
 
-            // Process saves: INSERT new, UPDATE existing non-sextou, skip existing sextou
+            // Process saves: ONLY INSERT new records. NEVER touch existing traffic records.
             const { data: userData } = await supabase.auth.getUser();
             const userId = userData.user?.id;
             const agora = new Date().toISOString();
 
-            const gerarIA = async (msgId: string, clienteNome: string, textoContexto: string) => {
+            // --- CLEANUP: revert any traffic records that were incorrectly tagged as sextou ---
+            // A corrupted record has historico_envios with a sextou tag BUT mensagem_ia looks like traffic
+            // Detection: has sistema_gerado with our specific detalhes AND has other historico entries
+            const corruptedRecords = todasMensagens.filter(x => {
+                const hs = Array.isArray(x.historico_envios) ? x.historico_envios : [];
+                const hasSextouTag = hs.some((h: any) => h.detalhes === 'Mensagem Sextou gerada automaticamente.');
+                const hasOtherEntries = hs.filter((h: any) => h.detalhes !== 'Mensagem Sextou gerada automaticamente.').length > 0;
+                return hasSextouTag && hasOtherEntries; // Only ones that had pre-existing entries
+            });
+
+            for (const corrupted of corruptedRecords) {
+                const cleanedHistorico = (corrupted.historico_envios || []).filter(
+                    (h: any) => h.detalhes !== 'Mensagem Sextou gerada automaticamente.'
+                );
+                await supabase.from('mensagens_semanais')
+                    .update({ historico_envios: cleanedHistorico })
+                    .eq('id', corrupted.id);
+                console.log(`🔧 Revertido registro de tráfego corrompido: ${corrupted.id}`);
+                todasMensagens.splice(todasMensagens.indexOf(corrupted), 1);
+            }
+            // ---
+
+            const gerarIA = (msgId: string, clienteNome: string, textoContexto: string) => {
                 supabase.functions.invoke('formatar-mensagem-semanal', {
                     body: { cliente_nome: clienteNome, rascunho: textoContexto, tipo_resumo: 'sextou' }
                 }).then(({ data: iaData, error: iaError }) => {
@@ -357,36 +379,19 @@ export function MensagemSextouView() {
                     detalhes: 'Mensagem Sextou gerada automaticamente.'
                 };
 
-                if (resumo._hasSextou) {
-                    // Already has sextou record — generate IA if missing
-                    const msgDb = resumo.mensagens[0];
-                    if (msgDb && !msgDb.mensagem_ia) {
-                        await gerarIA(msgDb.id, resumo.cliente.nome, textoBase);
-                    }
-                } else if (resumo._existing) {
-                    // Has a non-sextou record → UPDATE it to tag as sextou and add sextou mensagem
-                    const existing = resumo._existing;
-                    const existingHistorico = Array.isArray(existing.historico_envios) ? existing.historico_envios : [];
-                    const { data: updated, error: updateError } = await supabase
-                        .from('mensagens_semanais')
-                        .update({
-                            mensagem: textoBase,
-                            historico_envios: [...existingHistorico, sextouHistEntry],
-                        })
-                        .eq('id', existing.id)
-                        .select()
-                        .single();
+                // Reload the sextou status after cleanup
+                const existingAllNow = todasMensagens.filter(x => x.cliente_id === resumo.cliente.id);
+                const existingSextouNow = existingAllNow.filter(isSextouRecord);
 
-                    if (!updateError && updated) {
-                        resumo.mensagens = [updated];
-                        if (!updated.mensagem_ia) {
-                            await gerarIA(updated.id, resumo.cliente.nome, textoBase);
-                        }
-                    } else {
-                        console.error('Erro ao atualizar registro existente:', updateError);
+                if (existingSextouNow.length > 0) {
+                    // Has existing sextou record — update the resumo.mensagens and generate IA if missing
+                    resumo.mensagens = existingSextouNow;
+                    const msgDb = existingSextouNow[0];
+                    if (!msgDb.mensagem_ia) {
+                        gerarIA(msgDb.id, resumo.cliente.nome, textoBase);
                     }
-                } else {
-                    // No record at all → INSERT
+                } else if (existingAllNow.length === 0) {
+                    // Truly no record for this client + week — do INSERT
                     if (!resumo.alocacao?.gestor?.id) {
                         console.warn(`⚠️ Sem gestor para ${resumo.cliente.nome}, pulando.`);
                         continue;
@@ -409,10 +414,14 @@ export function MensagemSextouView() {
 
                     if (!insertError && inserted) {
                         resumo.mensagens = [inserted];
-                        await gerarIA(inserted.id, resumo.cliente.nome, textoBase);
+                        gerarIA(inserted.id, resumo.cliente.nome, textoBase);
                     } else {
-                        console.error(`Erro ao inserir para ${resumo.cliente.nome}:`, insertError);
+                        console.warn(`⚠️ Não foi possível criar Sextou para ${resumo.cliente.nome}:`, insertError?.message);
                     }
+                } else {
+                    // Has existing traffic record only — SKIP, never corrupt it
+                    console.log(`⏭️ ${resumo.cliente.nome} tem registro de tráfego, pulando Sextou.`);
+                    resumo.mensagens = []; // Keep showing ⚠️ so user knows
                 }
             }
 
