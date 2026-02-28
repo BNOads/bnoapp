@@ -137,6 +137,9 @@ const pickSourceId = (payloadData: JsonRecord): string | null => {
 };
 
 const normalizeRecurrence = (value: unknown): string | null => {
+  const recurrence = asString(value);
+  if (!recurrence || recurrence === "none") return null;
+
   const allowed = new Set([
     "daily",
     "weekly",
@@ -146,9 +149,12 @@ const normalizeRecurrence = (value: unknown): string | null => {
     "yearly",
   ]);
 
-  const recurrence = asString(value);
-  if (!recurrence || recurrence === "none") return null;
-  return allowed.has(recurrence) ? recurrence : null;
+  if (allowed.has(recurrence)) return recurrence;
+
+  // Pass-through custom recurrence (e.g. "custom_week_2_1,3,5")
+  if (recurrence.startsWith("custom_")) return recurrence;
+
+  return null;
 };
 
 const resolveDynamicDate = async (

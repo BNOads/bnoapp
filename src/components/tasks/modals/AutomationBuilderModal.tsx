@@ -8,7 +8,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useCreateTaskAutomation, TaskAutomation, useUpdateTaskAutomation } from "@/hooks/useTaskAutomations";
 import { useTaskLists } from "@/hooks/useTasks";
 import { supabase } from "@/integrations/supabase/client";
-import { Zap, ArrowRight, Activity, PlusCircle, CheckCircle, Bell, ArrowLeft, Trash2, Calendar, RefreshCw, ListTodo, Star, X } from "lucide-react";
+import { PRIORITY_LABELS } from "@/types/tasks";
+import { RecurrenceSelect } from "../details/RecurrenceSelect";
+import { getRecurrenceLabel } from "@/types/tasks";
+import { Zap, ArrowRight, Activity, PlusCircle, CheckCircle, Bell, ArrowLeft, Trash2, Calendar, RefreshCw, ListTodo, Star, X, Copy } from "lucide-react";
 
 interface AutomationBuilderModalProps {
     open: boolean;
@@ -114,7 +117,7 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "new_budget", label: "Novo Orçamento por Funil", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
         { id: "new_challenge", label: "Novo Desafio Criado", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
         { id: "new_traffic_manager", label: "Novo Gestor de Tráfego", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
-        { id: "new_cs", label: "Novo CS Atribuído", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
+        { id: "new_cs", label: "CS Primária Adicionada", icon: <Activity className="w-4 h-4 mr-2 text-rose-500" /> },
         { id: "launch_disabled", label: "Lançamento Desabilitado", icon: <X className="w-4 h-4 mr-2 text-rose-500" /> },
         { id: "client_disabled", label: "Cliente Desabilitado", icon: <X className="w-4 h-4 mr-2 text-rose-500" /> },
     ];
@@ -141,7 +144,10 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
         { id: "none", label: "Sem recorrência" },
         { id: "daily", label: "Diária" },
         { id: "weekly", label: "Semanal" },
+        { id: "biweekly", label: "Quinzenal" },
         { id: "monthly", label: "Mensal" },
+        { id: "semiannual", label: "Semestral" },
+        { id: "yearly", label: "Anual" },
     ];
 
     const RECURRENCE_START_OPTIONS = [
@@ -153,9 +159,9 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
     ];
 
     const PRIORITY_OPTIONS = [
-        { id: "alta", label: "Alta", color: "text-red-600" },
-        { id: "media", label: "Média", color: "text-amber-600" },
-        { id: "baixa", label: "Baixa", color: "text-blue-500" },
+        { id: "alta", label: PRIORITY_LABELS.alta, color: "text-red-600" },
+        { id: "media", label: PRIORITY_LABELS.media, color: "text-amber-600" },
+        { id: "baixa", label: PRIORITY_LABELS.baixa, color: "text-blue-500" },
     ];
 
     const TRIGGER_CONDITION_FIELDS = [
@@ -218,6 +224,20 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
 
     const removeAction = (id: string) => {
         setActions(actions.filter(a => a.id !== id));
+    };
+
+    const duplicateAction = (id: string) => {
+        const idx = actions.findIndex(a => a.id === id);
+        if (idx === -1) return;
+        const original = actions[idx];
+        const copy: ActionDef = {
+            id: crypto.randomUUID(),
+            type: original.type,
+            payload: JSON.parse(JSON.stringify(original.payload)),
+        };
+        const next = [...actions];
+        next.splice(idx + 1, 0, copy);
+        setActions(next);
     };
 
     const updateAction = (id: string, updates: Partial<ActionDef>) => {
@@ -533,9 +553,14 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                 <div className="p-5 flex flex-col gap-4 flex-1 bg-slate-50/50">
                                     {actions.map((act, index) => (
                                         <div key={act.id} className="border border-slate-200 rounded-xl p-4 bg-white relative group shadow-sm">
-                                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 h-7 w-7 text-slate-400 hover:text-red-500 hover:bg-red-50" onClick={() => removeAction(act.id)}>
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
+                                            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50" title="Duplicar ação" onClick={() => duplicateAction(act.id)}>
+                                                    <Copy className="w-4 h-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-500 hover:bg-red-50" onClick={() => removeAction(act.id)}>
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
                                             <div className="space-y-4 pr-6">
                                                 <div className="space-y-1.5">
                                                     <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ação {index + 1}</label>
@@ -688,19 +713,18 @@ export function AutomationBuilderModal({ open, onOpenChange, initialData, mode =
                                                             <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                                                                 <RefreshCw className="w-3 h-3" /> Recorrência
                                                             </label>
-                                                            <Select
+                                                            <RecurrenceSelect
                                                                 value={act.payload?.recurrence || "none"}
-                                                                onValueChange={(val) => updateAction(act.id, { payload: { ...act.payload, recurrence: val, recurrence_start: val === "none" ? null : act.payload?.recurrence_start } })}
+                                                                onValueChange={(val) => updateAction(act.id, { payload: { ...act.payload, recurrence: val === "none" ? null : val, recurrence_start: (!val || val === "none") ? null : act.payload?.recurrence_start } })}
                                                             >
                                                                 <SelectTrigger className="w-full h-10 bg-white border-slate-200">
-                                                                    <SelectValue placeholder="Sem recorrência..." />
+                                                                    <SelectValue>
+                                                                        {act.payload?.recurrence && act.payload.recurrence !== "none"
+                                                                            ? getRecurrenceLabel(act.payload.recurrence)
+                                                                            : "Sem recorrência"}
+                                                                    </SelectValue>
                                                                 </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {RECURRENCE_OPTIONS.map(r => (
-                                                                        <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                            </RecurrenceSelect>
                                                             {/* Recurrence start date — required when recurrence is active */}
                                                             {act.payload?.recurrence && act.payload.recurrence !== "none" && (
                                                                 <div className="space-y-1 mt-1.5">
