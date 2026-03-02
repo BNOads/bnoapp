@@ -6,31 +6,19 @@ import './index.css'
 const setupServiceWorker = () => {
   if (!('serviceWorker' in navigator)) return;
 
-  if (import.meta.env.PROD) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('SW registered: ', registration);
-        })
-        .catch((registrationError) => {
-          console.log('SW registration failed: ', registrationError);
-        });
-    });
-    return;
-  }
-
-  // Keep dev environment free of stale caches and workers that break HMR.
-  navigator.serviceWorker.getRegistrations()
-    .then((registrations) => {
-      registrations.forEach((registration) => {
-        registration.unregister();
+  // Register SW in both PROD and DEV (needed for push notifications)
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('SW registered: ', registration);
+      })
+      .catch((registrationError) => {
+        console.log('SW registration failed: ', registrationError);
       });
-    })
-    .catch((error) => {
-      console.log('SW unregister failed: ', error);
-    });
+  });
 
-  if ('caches' in window) {
+  // In DEV: clear stale caches that can interfere with HMR
+  if (!import.meta.env.PROD && 'caches' in window) {
     caches.keys()
       .then((keys) => {
         keys

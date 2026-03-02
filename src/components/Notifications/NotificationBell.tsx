@@ -510,6 +510,7 @@ function NotificationCard({ notification, onMarkAsRead, onMarkAsUnread, onViewDe
 
 export function PushToggleRow({ compact = false }: { compact?: boolean }) {
   const { isSupported, isSubscribed, permission, isLoading, subscribe, unsubscribe } = usePushNotifications();
+  const [isTesting, setIsTesting] = useState(false);
 
   if (typeof window === 'undefined' || !('Notification' in window)) return null;
 
@@ -525,7 +526,7 @@ export function PushToggleRow({ compact = false }: { compact?: boolean }) {
     } else {
       const result = await subscribe();
       if (result.ok) {
-        toast.success('Notificações push ativadas! 🔔');
+        toast.success('Notificações push ativadas!');
       } else if (result.errorMsg?.includes('denied')) {
         toast.error('Permissão negada. Habilite nas configurações do browser.');
       } else if (result.errorMsg) {
@@ -534,40 +535,78 @@ export function PushToggleRow({ compact = false }: { compact?: boolean }) {
     }
   };
 
+  const handleTestPush = async () => {
+    setIsTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+        body: {
+          titulo: 'Teste Push BNOads',
+          conteudo: 'Se voce esta vendo isso, as notificacoes push estao funcionando!',
+          destinatarios: ['all'],
+        },
+      });
+      if (error) throw error;
+      if (data?.sent > 0) {
+        toast.success(`Push enviado para ${data.sent} dispositivo(s)!`);
+      } else if (data?.errors?.length > 0) {
+        toast.error('Falhou: ' + data.errors[0]);
+      } else {
+        toast.warning('Nenhum dispositivo inscrito.');
+      }
+    } catch (err: any) {
+      toast.error('Erro: ' + (err?.message ?? String(err)));
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   return (
-    <div className={`flex items-center justify-between gap-3 ${compact ? 'px-1 py-1' : 'px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg'}`}>
-      <div className="flex items-center gap-2 min-w-0">
-        <Smartphone className={`h-4 w-4 flex-shrink-0 ${isSubscribed ? 'text-blue-600' : 'text-slate-400'}`} />
-        <div className="min-w-0">
-          <p className={`text-xs font-medium leading-tight ${isSubscribed ? 'text-blue-700' : 'text-slate-600'}`}>
-            Notificações push
-          </p>
-          {!isSupported && isIOS && !isStandalone && (
-            <p className="text-[10px] text-slate-400 leading-tight mt-0.5">Adicione à Tela Inicial para ativar push</p>
-          )}
-          {!isSupported && !isIOS && (
-            <p className="text-[10px] text-slate-400 leading-tight mt-0.5">Instale como PWA para ativar</p>
-          )}
-          {permission === 'denied' && (
-            <p className="text-[10px] text-red-400 leading-tight mt-0.5">Permissão bloqueada. Reative nas config. do navegador</p>
-          )}
+    <div className={`flex flex-col gap-2 ${compact ? 'px-1 py-1' : 'px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg'}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Smartphone className={`h-4 w-4 flex-shrink-0 ${isSubscribed ? 'text-blue-600' : 'text-slate-400'}`} />
+          <div className="min-w-0">
+            <p className={`text-xs font-medium leading-tight ${isSubscribed ? 'text-blue-700' : 'text-slate-600'}`}>
+              Notificações push
+            </p>
+            {!isSupported && isIOS && !isStandalone && (
+              <p className="text-[10px] text-slate-400 leading-tight mt-0.5">Adicione à Tela Inicial para ativar push</p>
+            )}
+            {!isSupported && !isIOS && (
+              <p className="text-[10px] text-slate-400 leading-tight mt-0.5">Instale como PWA para ativar</p>
+            )}
+            {permission === 'denied' && (
+              <p className="text-[10px] text-red-400 leading-tight mt-0.5">Permissão bloqueada. Reative nas config. do navegador</p>
+            )}
+          </div>
         </div>
+
+        {/* Toggle switch */}
+        <button
+          role="switch"
+          aria-checked={isSubscribed}
+          disabled={isLoading || permission === 'denied' || (!isSupported && isIOS && !isStandalone)}
+          onClick={handleToggle}
+          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed ${isSubscribed ? 'bg-blue-600' : 'bg-slate-300'
+            }`}
+        >
+          <span
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${isSubscribed ? 'translate-x-4' : 'translate-x-0'
+              }`}
+          />
+        </button>
       </div>
 
-      {/* Toggle switch */}
-      <button
-        role="switch"
-        aria-checked={isSubscribed}
-        disabled={isLoading || permission === 'denied' || (!isSupported && isIOS && !isStandalone)}
-        onClick={handleToggle}
-        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed ${isSubscribed ? 'bg-blue-600' : 'bg-slate-300'
-          }`}
-      >
-        <span
-          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${isSubscribed ? 'translate-x-4' : 'translate-x-0'
-            }`}
-        />
-      </button>
+      {/* Test push button - visible when subscribed */}
+      {isSubscribed && (
+        <button
+          onClick={handleTestPush}
+          disabled={isTesting}
+          className="text-[11px] text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50 text-left"
+        >
+          {isTesting ? 'Enviando teste...' : 'Enviar push de teste'}
+        </button>
+      )}
     </div>
   );
 }

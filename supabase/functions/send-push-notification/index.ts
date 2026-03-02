@@ -170,9 +170,10 @@ async function encryptPayload(
   const cek = await crypto.subtle.importKey('raw', cekBits, { name: 'AES-GCM' }, false, ['encrypt']);
   const nonce = new Uint8Array(nonceBits);
 
-  // Pad plaintext: pad to nearest record size (4096). Padding: plaintext + 0x02 + zeros
-  const recordSize = 4096;
-  const paddedLen = recordSize - 16; // plaintext must be exactly rs - 16 bytes (RFC 8188)
+  // Pad plaintext: content + 0x02 delimiter (minimal padding to stay under 4096 total)
+  // Total body = header(86) + ciphertext(paddedLen + 16 GCM tag)
+  // Must be < 4096, so paddedLen < 4096 - 86 - 16 = 3994
+  const paddedLen = plaintext.length + 1; // content + delimiter byte
   const padded = new Uint8Array(paddedLen);
   padded.set(plaintext);
   padded[plaintext.length] = 2; // delimiter
@@ -186,7 +187,7 @@ async function encryptPayload(
 
   // Build aes128gcm content body:
   // salt(16) + rs(4, big-endian uint32) + idlen(1) + server_pub(65) + ciphertext
-  const rs = recordSize;
+  const rs = paddedLen + 16; // record size = plaintext + GCM tag
   const header = new Uint8Array(16 + 4 + 1 + serverPublicKeyRaw.length);
   header.set(salt, 0);
   header[16] = (rs >> 24) & 0xff;
