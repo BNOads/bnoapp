@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 // Hardcoded fallback in case the env var isn't injected by Vite (safe — it's a public key)
 const VAPID_PUBLIC_KEY =
     (import.meta.env.VITE_VAPID_PUBLIC_KEY as string) ||
-    'BDdhI3xMyGq-juKkR26VczbxJfCft55PJZKBhpmurOO4HqoychkhB2oFFyes1VlKLY0d9I2CY3hff4yevuUH9tI';
+    'BJmiliFffzY3NOfHn70t0T_YPFFoNLRNqVEsfHMq7GiNlpSPRAooRo7B6whUDWQZx0D8uLFzDvjab7Q9u1-Vdto';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -77,8 +77,8 @@ export function usePushNotifications() {
             const subJson = subscription.toJSON();
             const keys = subJson.keys as { auth: string; p256dh: string };
 
-            // Delete any existing sub for this user, then insert fresh
-            await supabase.from('push_subscriptions').delete().eq('user_id', user.id);
+            // Remove only this endpoint (keeps other devices), then insert fresh
+            await supabase.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint);
 
             const { error } = await supabase.from('push_subscriptions').insert({
                 user_id: user.id,

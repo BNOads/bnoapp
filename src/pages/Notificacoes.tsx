@@ -57,6 +57,11 @@ export function NotificacoesDetalhesView() {
             if (error) throw error;
             if (data?.sent > 0) {
                 toast.success(`Push enviado para ${data.sent} dispositivo(s)!`);
+                if (data.failed > 0) {
+                    toast.warning(`${data.failed} envio(s) falharam.`);
+                }
+            } else if (data?.errors?.length > 0) {
+                toast.error('Push falhou: ' + data.errors[0]);
             } else {
                 toast.warning('Nenhum dispositivo inscrito. Ative as notificações push primeiro.');
             }

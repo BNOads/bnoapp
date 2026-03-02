@@ -860,21 +860,21 @@ export default function LancamentoDetalhes() {
             <Badge variant={totalPercentualVerbas === 100 ? "default" : totalPercentualVerbas > 100 ? "destructive" : "secondary"}>
               Total: {Number(totalPercentualVerbas)}%
             </Badge>
-            <span className="ml-auto flex items-center gap-2 text-sm font-normal">
-              <span className="text-muted-foreground">Verba Total:</span>
+            <span className="ml-auto flex items-center gap-3">
+              <span className="text-sm text-muted-foreground font-medium">Verba Total do Lançamento:</span>
               {editingTab === 'verbas' ? (
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground">R$</span>
+                <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 rounded-lg px-3 py-1">
+                  <span className="text-emerald-700 dark:text-emerald-300 font-bold text-base">R$</span>
                   <Input
                     type="number"
                     value={lancamento.investimento_total}
                     onChange={e => setLancamento({ ...lancamento, investimento_total: Number(e.target.value) })}
-                    className="w-48 h-8 text-sm font-semibold"
+                    className="w-64 h-10 text-lg font-bold border-none bg-transparent text-emerald-800 dark:text-emerald-200 focus-visible:ring-0 p-0"
                     step="1000"
                   />
                 </div>
               ) : (
-                <span className="font-semibold text-green-700 dark:text-green-400">
+                <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-1">
                   R$ {lancamento.investimento_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               )}
@@ -905,39 +905,39 @@ export default function LancamentoDetalhes() {
                   <TableCell>
                     {editingTab === 'verbas' ? <div className="flex items-center gap-2">
                       <Input
-                         type="number"
-                         value={percentual}
-                         min={0}
-                         max={100}
-                         step={0.5}
-                         onChange={e => {
-                           const newVal = Math.min(100, Math.max(0, Number(e.target.value)));
-                           const oldVal = (verbas as any)[fase]?.percentual || 0;
-                           const diff = newVal - oldVal;
-                           const novasVerbas = { ...(verbas as any) };
-                           novasVerbas[fase] = { ...novasVerbas[fase], percentual: newVal };
-                           const otherFases = Object.keys(novasVerbas).filter(f => f !== fase);
-                           const otherTotal = otherFases.reduce((sum, f) => sum + (novasVerbas[f]?.percentual || 0), 0);
-                           if (diff !== 0 && otherFases.length > 0) {
-                             if (otherTotal > 0) {
-                               let distributed = 0;
-                               otherFases.forEach((f, idx) => {
-                                 if (idx === otherFases.length - 1) {
-                                   novasVerbas[f].percentual = Math.max(0, parseFloat((novasVerbas[f].percentual - (diff - distributed)).toFixed(4)));
-                                 } else {
-                                   const share = parseFloat((diff * (novasVerbas[f].percentual / otherTotal)).toFixed(4));
-                                   novasVerbas[f].percentual = Math.max(0, novasVerbas[f].percentual - share);
-                                   distributed += share;
-                                 }
-                               });
-                             } else {
-                               const share = parseFloat(((-diff) / otherFases.length).toFixed(4));
-                               otherFases.forEach(f => { novasVerbas[f].percentual = Math.max(0, share); });
-                             }
-                           }
-                           setLancamento({ ...lancamento, verba_por_fase: novasVerbas });
-                         }}
-                         className="w-20" />
+                        type="number"
+                        value={percentual}
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        onChange={e => {
+                          const newVal = Math.min(100, Math.max(0, Number(e.target.value)));
+                          const oldVal = (verbas as any)[fase]?.percentual || 0;
+                          const diff = newVal - oldVal;
+                          const novasVerbas = { ...(verbas as any) };
+                          novasVerbas[fase] = { ...novasVerbas[fase], percentual: newVal };
+                          const otherFases = Object.keys(novasVerbas).filter(f => f !== fase);
+                          const otherTotal = otherFases.reduce((sum, f) => sum + (novasVerbas[f]?.percentual || 0), 0);
+                          if (diff !== 0 && otherFases.length > 0) {
+                            if (otherTotal > 0) {
+                              let distributed = 0;
+                              otherFases.forEach((f, idx) => {
+                                if (idx === otherFases.length - 1) {
+                                  novasVerbas[f].percentual = Math.max(0, parseFloat((novasVerbas[f].percentual - (diff - distributed)).toFixed(4)));
+                                } else {
+                                  const share = parseFloat((diff * (novasVerbas[f].percentual / otherTotal)).toFixed(4));
+                                  novasVerbas[f].percentual = Math.max(0, novasVerbas[f].percentual - share);
+                                  distributed += share;
+                                }
+                              });
+                            } else {
+                              const share = parseFloat(((-diff) / otherFases.length).toFixed(4));
+                              otherFases.forEach(f => { novasVerbas[f].percentual = Math.max(0, share); });
+                            }
+                          }
+                          setLancamento({ ...lancamento, verba_por_fase: novasVerbas });
+                        }}
+                        className="w-20" />
                       <div className="h-2 rounded-full" style={{
                         width: '60px',
                         background: `linear-gradient(90deg, ${fase === 'captacao' ? '#2563EB' : fase === 'aquecimento' ? '#7C3AED' : fase === 'evento' ? '#10B981' : fase === 'lembrete' ? '#F59E0B' : fase === 'impulsionar' ? '#EF4444' : '#8B5CF6'} ${percentual}%, #E5E7EB ${percentual}%)`
@@ -951,10 +951,51 @@ export default function LancamentoDetalhes() {
                     </div>}
                   </TableCell>
                   <TableCell>
-                    R$ {investimentoTotal.toLocaleString('pt-BR', {
-                      minimumFractionDigits: 2
-                    })}
+                    {editingTab === 'verbas' ? (
+                      <Input
+                        type="number"
+                        value={investimentoTotal.toFixed(2)}
+                        min={0}
+                        step={100}
+                        onChange={e => {
+                          const newInvest = Number(e.target.value);
+                          const total = lancamento.investimento_total;
+                          if (total <= 0) return;
+                          const newPct = Math.min(100, Math.max(0, parseFloat(((newInvest / total) * 100).toFixed(4))));
+                          const oldPct = (verbas as any)[fase]?.percentual || 0;
+                          const diff = newPct - oldPct;
+                          const novasVerbas = { ...(verbas as any) };
+                          novasVerbas[fase] = { ...novasVerbas[fase], percentual: newPct };
+                          const otherFases = Object.keys(novasVerbas).filter(f => f !== fase);
+                          const otherTotal = otherFases.reduce((sum, f) => sum + (novasVerbas[f]?.percentual || 0), 0);
+                          if (diff !== 0 && otherFases.length > 0) {
+                            if (otherTotal > 0) {
+                              let distributed = 0;
+                              otherFases.forEach((f, idx) => {
+                                if (idx === otherFases.length - 1) {
+                                  novasVerbas[f].percentual = Math.max(0, parseFloat((novasVerbas[f].percentual - (diff - distributed)).toFixed(4)));
+                                } else {
+                                  const share = parseFloat((diff * (novasVerbas[f].percentual / otherTotal)).toFixed(4));
+                                  novasVerbas[f].percentual = Math.max(0, novasVerbas[f].percentual - share);
+                                  distributed += share;
+                                }
+                              });
+                            } else {
+                              const share = parseFloat(((-diff) / otherFases.length).toFixed(4));
+                              otherFases.forEach(f => { novasVerbas[f].percentual = Math.max(0, share); });
+                            }
+                          }
+                          setLancamento({ ...lancamento, verba_por_fase: novasVerbas });
+                        }}
+                        className="w-36 h-8 text-sm"
+                      />
+                    ) : (
+                      <span className="text-muted-foreground text-sm">
+                        R$ {investimentoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    )}
                   </TableCell>
+
                   <TableCell>
                     R$ {investimentoDiario.toLocaleString('pt-BR', {
                       minimumFractionDigits: 2

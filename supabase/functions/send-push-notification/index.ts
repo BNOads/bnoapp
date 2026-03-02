@@ -172,7 +172,7 @@ async function encryptPayload(
 
   // Pad plaintext: pad to nearest record size (4096). Padding: plaintext + 0x02 + zeros
   const recordSize = 4096;
-  const paddedLen = recordSize - 16 - 1; // 16 = GCM tag, 1 = delimiter byte
+  const paddedLen = recordSize - 16; // plaintext must be exactly rs - 16 bytes (RFC 8188)
   const padded = new Uint8Array(paddedLen);
   padded.set(plaintext);
   padded[plaintext.length] = 2; // delimiter
@@ -208,10 +208,19 @@ async function encryptPayload(
 async function sendPush(
   subscription: { endpoint: string; auth: string; p256dh: string },
   payload: object
-): Promise<{ ok: boolean; status?: number; error?: string }> {
+): Promise<{ ok: boolean; status?: number; error?: string; statusText?: string }> {
   const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
   const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
-  const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@example.com';
+  const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? '';
+
+  if (!vapidPublicKey || !vapidPrivateKey || !vapidSubject) {
+    const missing = [
+      !vapidPublicKey && 'VAPID_PUBLIC_KEY',
+      !vapidPrivateKey && 'VAPID_PRIVATE_KEY',
+      !vapidSubject && 'VAPID_SUBJECT',
+    ].filter(Boolean).join(', ');
+    return { ok: false, error: `Secrets VAPID ausentes: ${missing}. Configure via: supabase secrets set` };
+  }
 
   try {
     // Determine audience (origin of endpoint)
@@ -233,8 +242,15 @@ async function sendPush(
       body,
     });
 
-    return { ok: response.ok, status: response.status };
+    if (!response.ok) {
+      const respBody = await response.text().catch(() => '');
+      console.error(`Push failed for ${subscription.endpoint.slice(0, 60)}... status=${response.status} body=${respBody}`);
+      return { ok: false, status: response.status, statusText: respBody || response.statusText };
+    }
+
+    return { ok: true, status: response.status };
   } catch (err) {
+    console.error(`Push exception for ${subscription.endpoint.slice(0, 60)}...:`, err);
     return { ok: false, error: String(err) };
   }
 }
@@ -334,6 +350,7 @@ serve(async (req) => {
     let sent = 0;
     let failed = 0;
     const expiredEndpoints: string[] = [];
+    const errors: string[] = [];
 
     results.forEach((result, i) => {
       if (result.status === 'fulfilled') {
@@ -342,6 +359,8 @@ serve(async (req) => {
           sent++;
         } else {
           failed++;
+          const detail = r.error || r.statusText || `status ${r.status}`;
+          errors.push(`sub[${i}]: ${detail}`);
           // 404/410 = subscription expired, should be removed
           if (r.status === 404 || r.status === 410) {
             expiredEndpoints.push(subscriptions[i].endpoint);
@@ -349,6 +368,7 @@ serve(async (req) => {
         }
       } else {
         failed++;
+        errors.push(`sub[${i}]: ${result.reason}`);
       }
     });
 
@@ -360,7 +380,7 @@ serve(async (req) => {
         .in('endpoint', expiredEndpoints);
     }
 
-    return new Response(JSON.stringify({ success: true, sent, failed, total: subscriptions.length }), {
+    return new Response(JSON.stringify({ success: true, sent, failed, total: subscriptions.length, errors: errors.length > 0 ? errors : undefined }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

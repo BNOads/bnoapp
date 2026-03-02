@@ -512,7 +512,10 @@ export function PushToggleRow({ compact = false }: { compact?: boolean }) {
   const { isSupported, isSubscribed, permission, isLoading, subscribe, unsubscribe } = usePushNotifications();
 
   if (typeof window === 'undefined' || !('Notification' in window)) return null;
-  if (permission === 'denied') return null;
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || (navigator as any).standalone === true;
 
   const handleToggle = async () => {
     if (isLoading) return;
@@ -539,8 +542,14 @@ export function PushToggleRow({ compact = false }: { compact?: boolean }) {
           <p className={`text-xs font-medium leading-tight ${isSubscribed ? 'text-blue-700' : 'text-slate-600'}`}>
             Notificações push
           </p>
-          {!isSupported && (
+          {!isSupported && isIOS && !isStandalone && (
+            <p className="text-[10px] text-slate-400 leading-tight mt-0.5">Adicione à Tela Inicial para ativar push</p>
+          )}
+          {!isSupported && !isIOS && (
             <p className="text-[10px] text-slate-400 leading-tight mt-0.5">Instale como PWA para ativar</p>
+          )}
+          {permission === 'denied' && (
+            <p className="text-[10px] text-red-400 leading-tight mt-0.5">Permissão bloqueada. Reative nas config. do navegador</p>
           )}
         </div>
       </div>
@@ -549,7 +558,7 @@ export function PushToggleRow({ compact = false }: { compact?: boolean }) {
       <button
         role="switch"
         aria-checked={isSubscribed}
-        disabled={isLoading}
+        disabled={isLoading || permission === 'denied' || (!isSupported && isIOS && !isStandalone)}
         onClick={handleToggle}
         className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed ${isSubscribed ? 'bg-blue-600' : 'bg-slate-300'
           }`}
