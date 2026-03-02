@@ -157,7 +157,7 @@ export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
                         <div key={col.id} className="flex-shrink-0 w-80 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl flex flex-col max-h-full overflow-hidden">
                             <div className={`p-3 font-medium text-sm flex items-center justify-between border-b ${col.color}`}>
                                 {col.title}
-                                <Badge variant="secondary" className="bg-white/50">{colTasks.length}</Badge>
+                                <Badge variant="secondary" className="bg-white/70 text-slate-700 dark:bg-slate-700/50 dark:text-slate-200 font-semibold">{colTasks.length}</Badge>
                             </div>
                             <div
                                 className="flex-1 overflow-y-auto p-3 h-full mb-12 min-h-[500px]" // Min height for drop zones
