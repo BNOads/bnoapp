@@ -1,8 +1,10 @@
+import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskInsert, TaskUpdate } from "@/types/tasks";
 import { taskKeys } from "./useTasks";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { addDays, addWeeks, addMonths, addYears, parseISO, format, endOfWeek, startOfWeek } from "date-fns";
 
 // Helper to calculate next due date based on recurrence type
@@ -201,13 +203,39 @@ export function useCreateTask() {
 
             return data;
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: taskKeys.all });
-            toast({ title: "Tarefa criada com sucesso" });
+
+            const taskUrl = `${window.location.origin}/tarefas/${data.id}`;
+            const assigneeName = data.assignee ? `${data.assignee} | ` : "";
+
+            toast({
+                title: "✅ Tarefa criada",
+                description: `Sua tarefa ${assigneeName}${data.title} foi criada.`,
+                duration: 8000,
+                className: "p-6 sm:p-8 text-base shadow-xl",
+                action: (
+                    <div className= "flex items-center gap-2" >
+                    <ToastAction altText="Copiar URL" onClick = {() => navigator.clipboard.writeText(taskUrl)
+            } >
+                Copiar URL
+                </ToastAction>
+            < ToastAction altText = "Abrir" onClick = {() => {
+                if(window.location.pathname.startsWith('/tarefas')) {
+                window.dispatchEvent(new CustomEvent('open-task-detail', { detail: data.id }));
+            } else {
+                window.open(`/tarefas/${data.id}`, "_blank");
+            }
+    }} className = "bg-purple-500 text-white hover:bg-purple-600 border-none" >
+        Abrir
+        </ToastAction>
+        </div>
+                )
+            });
         },
-        onError: (error) => {
-            toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" });
-        },
+onError: (error) => {
+    toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" });
+},
     });
 }
 

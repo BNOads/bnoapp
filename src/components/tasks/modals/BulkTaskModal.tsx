@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,34 +6,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCreateBulkTasks } from "@/hooks/useTaskMutations";
 import { useTaskLists } from "@/hooks/useTasks";
 import { supabase } from "@/integrations/supabase/client";
-import { TaskPriority, RecurrenceType, RECURRENCE_LABELS, PRIORITY_LABELS } from "@/types/tasks";
+import { TaskPriority, RecurrenceType, PRIORITY_LABELS } from "@/types/tasks";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { AlertCircle, CalendarIcon } from "lucide-react";
+import { AlertCircle, CalendarIcon, Check, X, Users } from "lucide-react";
 import { RecurrenceSelect } from "../details/RecurrenceSelect";
 import { getRecurrenceLabel } from "@/types/tasks";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 /**
  * Given a date string and a recurrence value, adjust to the next valid day.
- * Returns { adjusted: string | null, wasAdjusted: boolean }
  */
 function adjustToNextValidDay(dateStr: string, recurrence: string): { adjusted: string; wasAdjusted: boolean } {
     const date = parseISO(dateStr);
-    const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+    const dayOfWeek = date.getDay();
 
     let targetDays: number[] | null = null;
 
     if (recurrence.startsWith("custom_week_")) {
-        // format: custom_week_N_d1,d2,...
         const parts = recurrence.split("_");
         if (parts.length >= 4 && parts[3]) {
             targetDays = parts[3].split(",").map(Number);
         }
     } else if (recurrence.startsWith("custom_weekly_")) {
-        // Legacy format
         targetDays = recurrence.replace("custom_weekly_", "").split(",").map(Number);
     }
 
@@ -41,7 +40,6 @@ function adjustToNextValidDay(dateStr: string, recurrence: string): { adjusted: 
         if (targetDays.includes(dayOfWeek)) {
             return { adjusted: dateStr, wasAdjusted: false };
         }
-        // Find next valid day
         for (let i = 1; i <= 7; i++) {
             const candidate = addDays(date, i);
             if (targetDays.includes(candidate.getDay())) {
@@ -53,6 +51,12 @@ function adjustToNextValidDay(dateStr: string, recurrence: string): { adjusted: 
     return { adjusted: dateStr, wasAdjusted: false };
 }
 
+interface Colaborador {
+    nome: string;
+    user_id: string;
+    avatar_url?: string;
+}
+
 interface BulkTaskModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -61,13 +65,15 @@ interface BulkTaskModalProps {
 
 export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskModalProps) {
     const [tasksText, setTasksText] = useState("");
-    const [assignee, setAssignee] = useState<string>(defaultAssignee || "unassigned");
+    const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
     const [priority, setPriority] = useState<TaskPriority>("media");
     const [recurrence, setRecurrence] = useState<RecurrenceType>("none");
     const [listId, setListId] = useState<string>("none");
     const [dueDate, setDueDate] = useState<string>("");
+    const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const [colaboradores, setColaboradores] = useState<{ nome: string, user_id: string }[]>([]);
+    const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
 
     const { mutate: createBulkTasks, isPending } = useCreateBulkTasks();
     const { data: taskLists } = useTaskLists();
@@ -75,18 +81,40 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
 
     useEffect(() => {
         if (open) {
-            supabase.from("colaboradores").select("nome, user_id").order("nome").then(({ data }) => {
+            supabase.from("colaboradores").select("nome, user_id, avatar_url").order("nome").then(({ data }) => {
                 if (data) setColaboradores(data);
             });
-            // Reset values when opened
             setTasksText("");
-            setAssignee(defaultAssignee || "unassigned");
+            setSelectedAssignees(defaultAssignee && defaultAssignee !== "unassigned" ? [defaultAssignee] : []);
             setPriority("media");
             setRecurrence("none");
             setListId("none");
             setDueDate("");
         }
     }, [open, defaultAssignee]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+                setAssigneeDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
+    const toggleAssignee = (nome: string) => {
+        setSelectedAssignees(prev =>
+            prev.includes(nome) ? prev.filter(a => a !== nome) : [...prev, nome]
+        );
+    };
+
+    const removeAssignee = (nome: string) => {
+        setSelectedAssignees(prev => prev.filter(a => a !== nome));
+    };
+
+    const getColaborador = (nome: string) => colaboradores.find(c => c.nome === nome);
 
     const handleSave = () => {
         const titles = tasksText.split("\n").map(t => t.trim()).filter(t => t.length > 0);
@@ -104,20 +132,34 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
             return;
         }
 
-        const tasksToCreate = titles.map(title => ({
-            title,
-            assignee: assignee !== "unassigned" ? assignee : null,
-            priority,
-            list_id: listId !== "none" ? listId : null,
-            recurrence: recurrence !== "none" ? recurrence : null,
-            due_date: dueDate || null,
-        }));
+        // If no assignees selected, create tasks without assignee
+        const assigneeList = selectedAssignees.length > 0 ? selectedAssignees : [null];
+
+        // Create one task per title × per assignee
+        const tasksToCreate = assigneeList.flatMap(assignee =>
+            titles.map(title => ({
+                title,
+                assignee: assignee || null,
+                priority,
+                list_id: listId !== "none" ? listId : null,
+                recurrence: recurrence !== "none" ? recurrence : null,
+                due_date: dueDate || null,
+            }))
+        );
+
+        const totalCount = tasksToCreate.length;
 
         createBulkTasks(
             { tasks: tasksToCreate },
             {
                 onSuccess: () => {
                     onOpenChange(false);
+                    toast({
+                        title: `✅ ${totalCount} tarefa${totalCount > 1 ? "s criadas" : " criada"} com sucesso`,
+                        description: selectedAssignees.length > 1
+                            ? `${titles.length} tarefas × ${selectedAssignees.length} responsáveis`
+                            : undefined,
+                    });
                 }
             }
         );
@@ -143,6 +185,9 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
         }
     };
 
+    const taskCount = tasksText.split("\n").filter(t => t.trim().length > 0).length;
+    const totalTasks = taskCount * Math.max(selectedAssignees.length, 1);
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px]">
@@ -157,24 +202,104 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
                     <Textarea
                         value={tasksText}
                         onChange={(e) => setTasksText(e.target.value)}
-                        placeholder="Ex:\nRevisar contrato\nEnviar email para cliente\nAtualizar planilha"
+                        placeholder={"Ex:\nRevisar contrato\nEnviar email para cliente\nAtualizar planilha"}
                         className="min-h-[150px] resize-y"
                     />
 
                     <div className="grid grid-cols-2 gap-4">
+                        {/* Multi-select Assignee */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Responsável</label>
-                            <Select value={assignee} onValueChange={setAssignee}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="unassigned">Sem responsável</SelectItem>
-                                    {colaboradores.map(c => (
-                                        <SelectItem key={c.user_id || c.nome} value={c.nome}>{c.nome}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="relative" ref={dropdownRef}>
+                                {/* Trigger */}
+                                <button
+                                    type="button"
+                                    onClick={() => setAssigneeDropdownOpen(prev => !prev)}
+                                    className={cn(
+                                        "w-full flex items-center gap-2 px-3 py-2 rounded-md border text-sm text-left bg-background hover:bg-muted/40 transition-colors min-h-[38px]",
+                                        assigneeDropdownOpen && "ring-2 ring-ring border-transparent"
+                                    )}
+                                >
+                                    {selectedAssignees.length === 0 ? (
+                                        <span className="flex items-center gap-2 text-muted-foreground">
+                                            <Users className="w-4 h-4" />
+                                            Sem responsável
+                                        </span>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-1 flex-1">
+                                            {selectedAssignees.map(nome => {
+                                                const col = getColaborador(nome);
+                                                return (
+                                                    <span key={nome} className="flex items-center gap-1 bg-indigo-50 text-indigo-700 rounded-full pl-0.5 pr-2 py-0.5 text-xs font-medium">
+                                                        <Avatar className="w-4 h-4">
+                                                            <AvatarImage src={col?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${nome}`} />
+                                                            <AvatarFallback className="text-[8px]">{nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                        </Avatar>
+                                                        {nome.split(" ")[0]}
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); removeAssignee(nome); }}
+                                                            className="ml-0.5 text-indigo-400 hover:text-indigo-700"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </button>
+
+                                {/* Dropdown */}
+                                {assigneeDropdownOpen && (
+                                    <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-[220px] overflow-y-auto">
+                                        {/* None option */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedAssignees([])}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left"
+                                        >
+                                            <div className="w-4 h-4 rounded-full border border-muted-foreground/30 flex items-center justify-center">
+                                                {selectedAssignees.length === 0 && <Check className="w-2.5 h-2.5 text-indigo-600" />}
+                                            </div>
+                                            <span className="text-muted-foreground">Sem responsável</span>
+                                        </button>
+                                        <div className="border-t border-border" />
+                                        {colaboradores.map(c => {
+                                            const isSelected = selectedAssignees.includes(c.nome);
+                                            return (
+                                                <button
+                                                    key={c.user_id || c.nome}
+                                                    type="button"
+                                                    onClick={() => toggleAssignee(c.nome)}
+                                                    className={cn(
+                                                        "w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left transition-colors",
+                                                        isSelected && "bg-indigo-50"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "w-4 h-4 rounded-full border flex items-center justify-center shrink-0",
+                                                        isSelected ? "bg-indigo-600 border-indigo-600" : "border-muted-foreground/30"
+                                                    )}>
+                                                        {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                                                    </div>
+                                                    <Avatar className="w-6 h-6">
+                                                        <AvatarImage src={c.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.nome}`} />
+                                                        <AvatarFallback className="text-[9px]">{c.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span className={cn(isSelected && "font-medium text-indigo-700")}>{c.nome}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                            {/* Summary hint */}
+                            {selectedAssignees.length > 1 && taskCount > 0 && (
+                                <p className="text-[11px] text-indigo-600 font-medium">
+                                    → {taskCount} tarefa{taskCount > 1 ? "s" : ""} × {selectedAssignees.length} pessoas = {totalTasks} tarefas criadas
+                                </p>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -262,7 +387,7 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
                     </div>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="flex items-center gap-2">
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
                         Cancelar
                     </Button>
@@ -270,7 +395,7 @@ export function BulkTaskModal({ open, onOpenChange, defaultAssignee }: BulkTaskM
                         onClick={handleSave}
                         disabled={isPending || tasksText.trim().length === 0 || (recurrence !== "none" && !dueDate)}
                     >
-                        Criar Tarefas
+                        {totalTasks > 0 ? `Criar ${totalTasks} Tarefa${totalTasks > 1 ? "s" : ""}` : "Criar Tarefas"}
                     </Button>
                 </DialogFooter>
             </DialogContent>
