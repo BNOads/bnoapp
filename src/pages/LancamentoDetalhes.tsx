@@ -923,17 +923,27 @@ export default function LancamentoDetalhes() {
                               let distributed = 0;
                               otherFases.forEach((f, idx) => {
                                 if (idx === otherFases.length - 1) {
-                                  novasVerbas[f].percentual = Math.max(0, parseFloat((novasVerbas[f].percentual - (diff - distributed)).toFixed(4)));
+                                  novasVerbas[f].percentual = Math.max(0, Math.round((novasVerbas[f].percentual || 0) - (diff - distributed)));
                                 } else {
-                                  const share = parseFloat((diff * (novasVerbas[f].percentual / otherTotal)).toFixed(4));
-                                  novasVerbas[f].percentual = Math.max(0, novasVerbas[f].percentual - share);
+                                  const share = Math.round(diff * ((novasVerbas[f].percentual || 0) / otherTotal));
+                                  novasVerbas[f].percentual = Math.max(0, Math.round((novasVerbas[f].percentual || 0) - share));
                                   distributed += share;
                                 }
                               });
                             } else {
-                              const share = parseFloat(((-diff) / otherFases.length).toFixed(4));
+                              const share = Math.round((-diff) / otherFases.length);
                               otherFases.forEach(f => { novasVerbas[f].percentual = Math.max(0, share); });
                             }
+                          }
+                          // Guarantee sum == 100
+                          const allFases2 = Object.keys(novasVerbas);
+                          const currentSum2 = allFases2.reduce((s, f) => s + (novasVerbas[f]?.percentual || 0), 0);
+                          const rem2 = parseFloat((100 - currentSum2).toFixed(2));
+                          if (Math.abs(rem2) > 0.001) {
+                            const adj2 = otherFases.length > 0
+                              ? otherFases.reduce((best, f) => (novasVerbas[f]?.percentual || 0) >= (novasVerbas[best]?.percentual || 0) ? f : best, otherFases[0])
+                              : fase;
+                            novasVerbas[adj2].percentual = Math.round((novasVerbas[adj2]?.percentual || 0) + rem2);
                           }
                           setLancamento({ ...lancamento, verba_por_fase: novasVerbas });
                         }}
@@ -954,10 +964,11 @@ export default function LancamentoDetalhes() {
                     {editingTab === 'verbas' ? (
                       <Input
                         type="number"
-                        value={investimentoTotal.toFixed(2)}
+                        defaultValue={investimentoTotal.toFixed(2)}
+                        key={`${fase}-invest-${Math.round(lancamento.investimento_total)}-${Math.round(percentual*100)}`}
                         min={0}
                         step={100}
-                        onChange={e => {
+                        onBlur={e => {
                           const newInvest = Number(e.target.value);
                           const total = lancamento.investimento_total;
                           if (total <= 0) return;

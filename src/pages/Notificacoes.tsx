@@ -18,6 +18,7 @@ import { User } from "@supabase/supabase-js";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 import { PushToggleRow } from "@/components/Notifications/NotificationBell";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface NotificationRead {
     user_id: string;
@@ -42,6 +43,7 @@ interface AvisoNotification {
 
 export function NotificacoesDetalhesView() {
     const { isAdmin } = useUserPermissions();
+    const { isSubscribed } = usePushNotifications();
     const [isSendingTest, setIsSendingTest] = useState(false);
 
     const sendTestPush = async () => {

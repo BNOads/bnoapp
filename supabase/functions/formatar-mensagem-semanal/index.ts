@@ -11,7 +11,7 @@ serve(async (req) => {
     }
 
     try {
-        const { cliente_nome, rascunho, tipo_resumo } = await req.json();
+        const { cliente_nome, rascunho, tipo_resumo, prompt_customizado } = await req.json();
 
         console.log(`✨ Formatando mensagem semanal (tipo: ${tipo_resumo || 'trafego'}) para:`, cliente_nome);
 
@@ -66,6 +66,10 @@ Retorne APENAS o texto final da mensagem (sem blocos de código markdown como \`
 
         const systemPrompt = isSistema ? systemPromptSistema : systemPromptTrafego;
 
+        const instrucaoExtra = prompt_customizado?.trim()
+            ? `\n\n**Instrução adicional do usuário:** ${prompt_customizado.trim()}`
+            : '';
+
         const userPromptTráfego = `Cliente: **${cliente_nome}**
 
 Texto rascunho fornecido pelo gestor:
@@ -73,7 +77,7 @@ Texto rascunho fornecido pelo gestor:
 ${rascunho}
 ---
 
-Por favor, reescreva este rascunho aplicando a formatação correta para WhatsApp, melhorando o português e inserindo os "Próximos Passos" focado estritamente em otimização de métricas (sem criar falsas promessas ou campanhas novas). Preserve absolutamente todos os valores e dados numéricos informados no rascunho inicial.`;
+Por favor, reescreva este rascunho aplicando a formatação correta para WhatsApp, melhorando o português e inserindo os "Próximos Passos" focado estritamente em otimização de métricas (sem criar falsas promessas ou campanhas novas). Preserve absolutamente todos os valores e dados numéricos informados no rascunho inicial.${instrucaoExtra}`;
 
         const userPromptSistema = `Cliente: **${cliente_nome}**
 
@@ -82,7 +86,7 @@ Relatório de atividades do sistema desta semana:
 ${rascunho}
 ---
 
-Transforme este relatório em uma mensagem de WhatsApp humanizada, bem formatada e que valorize o trabalho realizado. Baseie os "🎯 Próximos Passos" principalmente nas pautas e anotações de reuniões listadas e nas tarefas em andamento. O cliente deve sentir que está sendo muito bem assistido e que tudo está evoluindo.`;
+Transforme este relatório em uma mensagem de WhatsApp humanizada, bem formatada e que valorize o trabalho realizado. Baseie os "🎯 Próximos Passos" principalmente nas pautas e anotações de reuniões listadas e nas tarefas em andamento. O cliente deve sentir que está sendo muito bem assistido e que tudo está evoluindo.${instrucaoExtra}`;
 
         const userPrompt = isSistema ? userPromptSistema : userPromptTráfego;
 

@@ -92,6 +92,7 @@ export function MensagensSemanaisView() {
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const [excluindoMensagem, setExcluindoMensagem] = useState(false);
   const [loadingAi, setLoadingAi] = useState(false);
+  const [promptCustomizado, setPromptCustomizado] = useState("");
 
   const [modalTextoCompleto, setModalTextoCompleto] = useState<{
     mostrar: boolean;
@@ -109,7 +110,7 @@ export function MensagensSemanaisView() {
     isAdmin
   } = useUserPermissions();
 
-  const gerarVersaoIABackground = async (mensagemId: string, textoBase: string, clienteId: string) => {
+  const gerarVersaoIABackground = async (mensagemId: string, textoBase: string, clienteId: string, promptExtra?: string) => {
     try {
       console.log("Iniciando geração de versão IA em background para mensagem:", mensagemId);
       setLoadingAi(true);
@@ -120,7 +121,8 @@ export function MensagensSemanaisView() {
       const { data, error } = await supabase.functions.invoke('formatar-mensagem-semanal', {
         body: {
           cliente_nome: nomeParaIA,
-          rascunho: textoBase
+          rascunho: textoBase,
+          ...(promptExtra?.trim() ? { prompt_customizado: promptExtra.trim() } : {})
         },
       });
 
@@ -1467,31 +1469,61 @@ ${mensagem.mensagem}`;
                         </div>
                       </>}
                     </> : mensagemSelecionada.mensagem_ia}
-                    <div className="flex justify-end mt-4 pt-4 border-t border-blue-100 dark:border-blue-900/30">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => gerarVersaoIABackground(mensagemSelecionada.id, mensagemSelecionada.mensagem, mensagemSelecionada.cliente_id)}
-                        disabled={loadingAi}
-                        className="text-blue-600 hover:text-blue-700 bg-white dark:bg-transparent"
-                      >
-                        <Wand2 className={`h-3 w-3 mr-2 ${loadingAi ? 'animate-spin' : ''}`} />
-                        {loadingAi ? "Refazendo..." : "Refazer com IA"}
-                      </Button>
+                    <div className="mt-4 pt-4 border-t border-blue-100 dark:border-blue-900/30 space-y-2">
+                      <div>
+                        <label className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1 block">Instruções personalizadas (opcional)</label>
+                        <Textarea
+                          placeholder="Ex: Deixe a mensagem mais curta, foque no ROAS e no custo por lead..."
+                          value={promptCustomizado}
+                          onChange={e => setPromptCustomizado(e.target.value)}
+                          rows={2}
+                          className="text-xs resize-none border-blue-100 dark:border-blue-900/30 focus-visible:ring-blue-300"
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            gerarVersaoIABackground(mensagemSelecionada.id, mensagemSelecionada.mensagem, mensagemSelecionada.cliente_id, promptCustomizado);
+                            setPromptCustomizado("");
+                          }}
+                          disabled={loadingAi}
+                          className="text-blue-600 hover:text-blue-700 bg-white dark:bg-transparent"
+                        >
+                          <Wand2 className={`h-3 w-3 mr-2 ${loadingAi ? 'animate-spin' : ''}`} />
+                          {loadingAi ? "Refazendo..." : "Refazer com IA"}
+                        </Button>
+                      </div>
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-80 pt-4 pb-2">
-                    <span className="italic mb-4 text-center">Nenhuma versão de IA gerada para esta mensagem.</span>
-                    <Button
-                      variant="outline"
-                      onClick={() => gerarVersaoIABackground(mensagemSelecionada.id, mensagemSelecionada.mensagem, mensagemSelecionada.cliente_id)}
-                      disabled={loadingAi}
-                      className="border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
-                    >
-                      <Wand2 className={`h-4 w-4 mr-2 ${loadingAi ? 'animate-spin' : ''}`} />
-                      {loadingAi ? "Gerando IA..." : "Gerar com IA"}
-                    </Button>
+                  <div className="flex flex-col h-full text-muted-foreground opacity-80 pt-4 pb-2 space-y-3">
+                    <span className="italic text-center">Nenhuma versão de IA gerada para esta mensagem.</span>
+                    <div>
+                      <label className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1 block">Instruções personalizadas (opcional)</label>
+                      <Textarea
+                        placeholder="Ex: Deixe a mensagem mais curta, foque no ROAS e no custo por lead..."
+                        value={promptCustomizado}
+                        onChange={e => setPromptCustomizado(e.target.value)}
+                        rows={2}
+                        className="text-xs resize-none border-blue-100 dark:border-blue-900/30 focus-visible:ring-blue-300"
+                      />
+                    </div>
+                    <div className="flex justify-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          gerarVersaoIABackground(mensagemSelecionada.id, mensagemSelecionada.mensagem, mensagemSelecionada.cliente_id, promptCustomizado);
+                          setPromptCustomizado("");
+                        }}
+                        disabled={loadingAi}
+                        className="border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                      >
+                        <Wand2 className={`h-4 w-4 mr-2 ${loadingAi ? 'animate-spin' : ''}`} />
+                        {loadingAi ? "Gerando IA..." : "Gerar com IA"}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
