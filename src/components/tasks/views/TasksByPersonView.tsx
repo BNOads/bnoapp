@@ -50,6 +50,7 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
     const { mutate: updateTask } = useUpdateTask();
 
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+    const [expandedPersons, setExpandedPersons] = useState<Record<string, boolean>>({});
     const [colaboradores, setColaboradores] = useState<{ nome: string, avatar_url: string | null, user_id: string }[]>([]);
     const [clientes, setClientes] = useState<{ id: string, nome: string }[]>([]);
     const [inlineCreatePerson, setInlineCreatePerson] = useState<string | null>(null);
@@ -449,7 +450,7 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                         <p className="text-sm text-muted-foreground italic text-center py-4">Nenhuma tarefa</p>
                                     ) : (
                                         <div className="space-y-2">
-                                            {personTasks.slice(0, 10).map(task => (
+                                            {(expandedPersons[person] ? personTasks : personTasks.slice(0, 10)).map(task => (
                                                 <div
                                                     key={task.id}
                                                     className={`group flex items-center justify-between p-2.5 rounded-lg border transition-all cursor-pointer ${task.completed ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" : "bg-background hover:border-primary/50"}`}
@@ -514,10 +515,18 @@ export function TasksByPersonView({ tasks, onTaskClick, selectedTasks,
                                             ))}
                                             {personTasks.length > 10 && (
                                                 <div className="text-center pt-2">
-                                                    <span className="text-xs text-muted-foreground hover:underline cursor-pointer">Ver mais {personTasks.length - 10} tarefas</span>
+                                                    <button
+                                                        className="text-xs text-primary hover:underline cursor-pointer font-medium"
+                                                        onClick={() => setExpandedPersons(prev => ({ ...prev, [person]: !prev[person] }))}
+                                                    >
+                                                        {expandedPersons[person]
+                                                            ? 'Ver menos'
+                                                            : `Ver todas as ${personTasks.length} tarefas`}
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
+
                                     )}
                                 </div>
                             </div>

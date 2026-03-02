@@ -29,7 +29,8 @@ export const NovoAvisoModal: React.FC<NovoAvisoModalProps> = ({ open, onOpenChan
         canais: {
             painel: true,
             slack: false,
-            email: false
+            email: false,
+            push: true
         },
         dataInicio: '',
         dataFim: ''
@@ -58,7 +59,8 @@ export const NovoAvisoModal: React.FC<NovoAvisoModalProps> = ({ open, onOpenChan
                     canais: {
                         painel: true,
                         slack: false,
-                        email: false
+                        email: false,
+                        push: true
                     },
                     dataInicio: '',
                     dataFim: ''
@@ -253,6 +255,17 @@ export const NovoAvisoModal: React.FC<NovoAvisoModalProps> = ({ open, onOpenChan
                                     })}
                                 />
                                 <Label>Email</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    disabled={loading}
+                                    checked={(novoAviso.canais as any).push !== false}
+                                    onCheckedChange={(checked) => setNovoAviso({
+                                        ...novoAviso,
+                                        canais: { ...novoAviso.canais, push: checked } as any
+                                    })}
+                                />
+                                <Label>Push Notification</Label>
                             </div>
                         </div>
                     </div>

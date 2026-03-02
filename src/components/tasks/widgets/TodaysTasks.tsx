@@ -256,6 +256,29 @@ export function TodaysTasks() {
     const { mutate: deleteTask } = useDeleteTask();
     const navigate = useNavigate();
 
+    // Optimistic completion state — flips instantly, rolls back on error
+    const [optimisticCompleted, setOptimisticCompleted] = useState<Record<string, boolean>>({});
+    const getEffectiveCompleted = (task: any) =>
+        task.id in optimisticCompleted ? optimisticCompleted[task.id] : task.completed;
+
+    const handleToggleComplete = ({ id, completed }: { id: string; completed: boolean }) => {
+        // Flip UI immediately
+        setOptimisticCompleted(prev => ({ ...prev, [id]: completed }));
+        toggleComplete(
+            { id, completed },
+            {
+                onSuccess: () => {
+                    // Remove from optimistic map — real data from cache will take over
+                    setOptimisticCompleted(prev => { const n = { ...prev }; delete n[id]; return n; });
+                },
+                onError: () => {
+                    // Rollback
+                    setOptimisticCompleted(prev => { const n = { ...prev }; delete n[id]; return n; });
+                },
+            }
+        );
+    };
+
     const [isInlineCreateOpen, setIsInlineCreateOpen] = useState(false);
     const [inlineTaskTitle, setInlineTaskTitle] = useState("");
     const [filterPriority, setFilterPriority] = useState<string>("all");
@@ -327,7 +350,13 @@ export function TodaysTasks() {
     const getWeight = (p: string | null) => PRIORITY_WEIGHT[p as keyof typeof PRIORITY_WEIGHT] || 0;
     const sortTasksByPriority = (tasksList: any[]) => [...tasksList].sort((a, b) => getWeight(b.priority) - getWeight(a.priority));
 
-    const filteredByPriority = rawTasks.filter(t => filterPriority === "all" || t.priority === filterPriority);
+    // Apply optimistic state to task lists
+    const applyOptimistic = (t: any) => ({
+        ...t,
+        completed: getEffectiveCompleted(t),
+    });
+
+    const filteredByPriority = rawTasks.map(applyOptimistic).filter(t => filterPriority === "all" || t.priority === filterPriority);
 
     const overdueTasks = sortTasksByPriority(filteredByPriority.filter(t => !t.completed && t.due_date && isOverdue(t.due_date, false)));
     const todayCompletedTasks = sortTasksByPriority(filteredByPriority.filter(t => t.completed && t.completed_at && isToday(t.completed_at)));
@@ -347,7 +376,7 @@ export function TodaysTasks() {
         onCommitEdit: commitEdit,
         onEditTitleChange: setEditTitle,
         onTaskClick: handleTaskClick,
-        onToggleComplete: toggleComplete,
+        onToggleComplete: handleToggleComplete,
         onUpdateField: handleUpdateField,
         onDelete: (id: string) => deleteTask(id),
     };
