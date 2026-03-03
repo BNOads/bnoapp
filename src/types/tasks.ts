@@ -38,9 +38,34 @@ export const RECURRENCE_LABELS: Record<string, string> = {
     yearly: "Anual",
 };
 
+const DOW_FULL_NAMES = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+const WEEK_POS_LABELS: Record<string, string> = {
+    "1": "Primeiro(a)",
+    "2": "Segundo(a)",
+    "3": "Terceiro(a)",
+    "4": "Quarto(a)",
+    "last": "Último(a)",
+};
+
+export function getMonthlyDowLabel(weekPos: string, dayNum: number, amount = 1): string {
+    const posLabel = WEEK_POS_LABELS[weekPos] || weekPos;
+    const dayLabel = DOW_FULL_NAMES[dayNum] ?? "dia";
+    const freq = amount === 1 ? "de cada mês" : `a cada ${amount} meses`;
+    return `${posLabel} ${dayLabel} ${freq}`;
+}
+
 export function getRecurrenceLabel(recurrence: string | null | undefined): string {
     if (!recurrence || recurrence === "none") return "Sem recorrência";
     if (RECURRENCE_LABELS[recurrence]) return RECURRENCE_LABELS[recurrence];
+
+    // monthly_dow_{week}_{day}
+    if (recurrence.startsWith("monthly_dow_")) {
+        const parts = recurrence.split("_");
+        // parts: ["monthly","dow","{week}","{day}"]
+        const weekPos = parts[2] || "1";
+        const dayNum = parseInt(parts[3] || "1", 10);
+        return getMonthlyDowLabel(weekPos, dayNum, 1);
+    }
 
     // Legacy format
     if (recurrence.startsWith("custom_weekly_")) {
