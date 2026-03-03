@@ -156,6 +156,28 @@ export function formatarNivelAcesso(nivel: string | null | undefined): string {
   return dict[nivel] || nivel.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+/**
+ * Returns the date of the Nth occurrence of a weekday in a given month.
+ * weekPos: "1","2","3","4","last"
+ * dayOfWeek: 0=Sun, 1=Mon, ..., 6=Sat
+ */
+function getNthWeekdayOfMonth(year: number, month: number, weekPos: string, dayOfWeek: number): Date | null {
+  if (weekPos === "last") {
+    // Find last occurrence: start from end of month and go back
+    const lastDay = new Date(year, month + 1, 0); // last day of month
+    const diff = (lastDay.getDay() - dayOfWeek + 7) % 7;
+    const result = new Date(year, month, lastDay.getDate() - diff);
+    return result.getMonth() === month ? result : null;
+  }
+  const n = parseInt(weekPos, 10);
+  // Find the first occurrence of dayOfWeek in the month
+  const firstDay = new Date(year, month, 1);
+  const firstOccurrence = (dayOfWeek - firstDay.getDay() + 7) % 7;
+  const date = 1 + firstOccurrence + (n - 1) * 7;
+  const result = new Date(year, month, date);
+  return result.getMonth() === month ? result : null;
+}
+
 export function isRecurringDate(
   candidateStr: string | Date | null | undefined,
   recurrence: string | null | undefined,
@@ -198,6 +220,20 @@ export function isRecurringDate(
   }
   if (recurrence === "yearly") {
     return candidateD === baseD && candidateMonth === baseMonth;
+  }
+
+  // monthly_dow_{week}_{day} - e.g. monthly_dow_2_2 = 2nd Tuesday of each month
+  if (recurrence.startsWith("monthly_dow_")) {
+    const parts = recurrence.split("_");
+    const weekPos = parts[2]; // "1","2","3","4","last"
+    const targetDay = parseInt(parts[3] || "1", 10); // 0=Sun…6=Sat
+
+    const monthsDiff = (candidateYear - baseYear) * 12 + (candidateMonth - baseMonth);
+    if (monthsDiff <= 0) return false;
+
+    const expected = getNthWeekdayOfMonth(candidateYear, candidateMonth, weekPos, targetDay);
+    if (!expected) return false;
+    return expected.getDate() === candidateD && expected.getMonth() === candidateMonth;
   }
 
   if (recurrence.startsWith("custom_weekly_")) {

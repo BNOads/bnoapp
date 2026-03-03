@@ -33,7 +33,35 @@ export const calculateNextDueDate = (currentDueDate: string | null, recurrence: 
             nextDate = addYears(date, 1);
             break;
         default:
-            if (recurrence.startsWith("custom_weekly_")) {
+            // monthly_dow_{week}_{day} - e.g. monthly_dow_2_2 = 2nd Tuesday each month
+            if (recurrence.startsWith("monthly_dow_")) {
+                const parts = recurrence.split("_");
+                const weekPos = parts[2]; // "1","2","3","4","last"
+                const targetDay = parseInt(parts[3] || "1", 10); // 0=Sun…6=Sat
+
+                const nextMonth = addMonths(date, 1);
+                const year = nextMonth.getFullYear();
+                const month = nextMonth.getMonth();
+
+                let targetDate: Date | null = null;
+                if (weekPos === "last") {
+                    // Find last occurrence of targetDay in next month
+                    const lastDayOfMonth = new Date(year, month + 1, 0);
+                    const diff = (lastDayOfMonth.getDay() - targetDay + 7) % 7;
+                    targetDate = new Date(year, month, lastDayOfMonth.getDate() - diff);
+                    if (targetDate.getMonth() !== month) targetDate = null;
+                } else {
+                    const n = parseInt(weekPos, 10);
+                    const firstDay = new Date(year, month, 1);
+                    const firstOccurrence = (targetDay - firstDay.getDay() + 7) % 7;
+                    const dayNum = 1 + firstOccurrence + (n - 1) * 7;
+                    targetDate = new Date(year, month, dayNum);
+                    if (targetDate.getMonth() !== month) targetDate = null;
+                }
+
+                if (!targetDate) return null;
+                nextDate = targetDate;
+            } else if (recurrence.startsWith("custom_weekly_")) {
                 const daysStr = recurrence.replace("custom_weekly_", "");
                 const targetDays = daysStr.split(",").map(Number); // 0 = Sun, 1 = Mon, etc.
 
