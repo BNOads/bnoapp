@@ -134,6 +134,15 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
     setLoading(true);
 
     try {
+      // Fetch the current status from DB before saving to avoid stale prop comparison
+      const { data: currentData } = await supabase
+        .from('clientes')
+        .select('status_cliente')
+        .eq('id', cliente.id)
+        .single();
+
+      const statusAnterior = currentData?.status_cliente ?? cliente.status_cliente;
+
       const { error } = await supabase
         .from('clientes')
         .update(formData as any)
@@ -144,18 +153,23 @@ export const EditarClienteModal = ({ open, onOpenChange, cliente, onSuccess }: E
       }
 
       // Execute Automations if status changed to a "disabled" state
-      if (formData.status_cliente !== cliente.status_cliente && ['inativo', 'pausado'].includes(formData.status_cliente)) {
+      if (formData.status_cliente !== statusAnterior && ['inativo', 'pausado'].includes(formData.status_cliente)) {
         try {
-          await supabase.functions.invoke('evaluate-automations', {
+          const { data: invokeData, error: invokeError } = await supabase.functions.invoke('evaluate-automations', {
             body: {
               trigger_type: 'client_disabled',
               data: {
-                cliente: { ...cliente, ...formData },
-                status_anterior: cliente.status_cliente,
+                cliente: { ...cliente, ...formData, id: cliente.id },
+                status_anterior: statusAnterior,
                 status_novo: formData.status_cliente
               }
             }
           });
+          if (invokeError) {
+            console.error("Erro ao invocar evaluate-automations:", invokeError);
+          } else {
+            console.log("Automações de cliente desabilitado avaliadas:", invokeData);
+          }
         } catch (autoErr) {
           console.error("Erro ao avaliar automações de cliente desabilitado", autoErr);
         }
