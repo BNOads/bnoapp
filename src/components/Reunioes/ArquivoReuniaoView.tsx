@@ -14,7 +14,8 @@ import {
   ArrowLeft,
   Building2,
   AlertCircle,
-  Calendar
+  Calendar,
+  CalendarCheck
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -83,7 +84,7 @@ export function ArquivoReuniaoView() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [indicesTitulos, setIndicesTitulos] = useState<{ text: string; tag: string; id: string }[]>([]);
+  const [indicesTitulos, setIndicesTitulos] = useState<{ text: string; tag: string; id: string; eventId?: string }[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [activeTab, setActiveTab] = useState('arquivo');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -680,7 +681,7 @@ export function ArquivoReuniaoView() {
     const editorElement = document.querySelector('.ProseMirror') as any;
     if (editorElement && editorElement.editor) {
       const dataHoje = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
-      let content = `<h1>${dataHoje}</h1><h2>${event.titulo}</h2><p></p>`;
+      let content = `<h1>${dataHoje}</h1><h2 data-event-id="${event.id}">${event.titulo}</h2><p></p>`;
 
       editorElement.editor
         .chain()
@@ -715,7 +716,7 @@ export function ArquivoReuniaoView() {
       let content = `<h1>${dataHoje}</h1>`;
 
       // Construir o conteúdo HTML para todas as pautas de uma vez
-      content += calendarEvents.map(event => `<h2>${event.titulo}</h2><p></p>`).join('');
+      content += calendarEvents.map(event => `<h2 data-event-id="${event.id}">${event.titulo}</h2><p></p>`).join('');
 
       editor.chain().focus('end').insertContent(content).run();
 
@@ -1050,7 +1051,12 @@ export function ArquivoReuniaoView() {
                           }}
                         >
                           <div className="flex flex-col gap-1">
-                            <span>{heading.text}</span>
+                            <div className="flex items-start justify-between gap-2 pr-2">
+                              <span>{heading.text}</span>
+                              {heading.eventId && (
+                                <CalendarCheck className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" title="Vinculada ao Calendar" />
+                              )}
+                            </div>
                             {associatedClient && (
                               <div className="flex items-center gap-1.5 mt-1 text-[10px] font-medium text-muted-foreground bg-muted/60 w-fit px-2 py-0.5 rounded-md border border-border/50 shadow-sm">
                                 {associatedClient.branding_logo_url ? (

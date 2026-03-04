@@ -10,6 +10,8 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Color from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Mention from '@tiptap/extension-mention';
+import Heading from '@tiptap/extension-heading';
+import CustomHeading from './CustomHeading';
 import { suggestion } from './MentionSuggestion';
 import * as Y from 'yjs';
 import { SupabaseYjsProvider } from '@/lib/SupabaseYjsProvider';
@@ -20,7 +22,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { LinkInsertModal } from './LinkInsertModal';
 import { CreateTaskModal } from '@/components/tasks/modals/CreateTaskModal';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarCheck, CalendarMinus } from 'lucide-react';
+import { LinkCalendarEventModal } from './LinkCalendarEventModal';
+import { format, parseISO } from 'date-fns';
 import {
   Bold,
   Italic,
@@ -41,6 +45,7 @@ export interface HeadingInfo {
   text: string;
   tag: 'h1' | 'h2' | 'h3';
   id: string;
+  eventId?: string;
 }
 
 interface ArquivoReuniaoTipTapEditorProps {
@@ -95,10 +100,15 @@ export function ArquivoReuniaoTipTapEditor({
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [taskSelectedText, setTaskSelectedText] = useState('');
 
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+
   // Criar editor UMA vez (sem deps) - mesmo padrão do YjsCollaborativeEditor
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: false,
+      }),
+      CustomHeading,
       Collaboration.configure({
         document: ydoc,
         field: 'arquivo-content',
@@ -228,6 +238,69 @@ export function ArquivoReuniaoTipTapEditor({
     onReady?.();
   }, [editor, isReady, initialContent, ydoc]);
 
+  // Handle auto-creation from Atendimento drawer (URL search parameters)
+  useEffect(() => {
+    if (!editor || !isReady) return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const createEventId = searchParams.get('createForEvent');
+
+    if (createEventId) {
+      const createDateRaw = searchParams.get('date');
+      const createTitle = searchParams.get('title') || 'Nova Reunião';
+
+      let datePrefix = '';
+      if (createDateRaw) {
+        try {
+          datePrefix = format(parseISO(createDateRaw), "dd/MM/yyyy") + ' | ';
+        } catch (e) {
+          // Ignore invalid date strings
+        }
+      }
+
+      const headingText = `${datePrefix}${createTitle}`;
+
+      // Prevent duplicates by checking if the ID or exact heading is already in the document
+      let alreadyExists = false;
+      editor.state.doc.descendants((node) => {
+        if (node.type.name === 'heading') {
+          if (node.attrs.eventId === createEventId) {
+            alreadyExists = true;
+          }
+        }
+      });
+
+      if (!alreadyExists) {
+        // Insert at the VERY bottom of the document
+        const endPos = editor.state.doc.content.size;
+
+        editor.chain().focus()
+          .insertContentAt(endPos, [
+            {
+              type: 'heading',
+              attrs: { level: 1, eventId: createEventId },
+              content: [{ type: 'text', text: headingText }]
+            },
+            {
+              type: 'paragraph',
+              content: []
+            }
+          ])
+          .setTextSelection(endPos + 1) // Set selection so the editor scrolls to it automatically
+          .run();
+
+        toast("Pauta criada", { description: "O bloco da reunião foi gerado com sucesso!" });
+      }
+
+      // Cleanup the URL to prevent re-triggering upon reload
+      searchParams.delete('createForEvent');
+      searchParams.delete('date');
+      searchParams.delete('title');
+      const newUrl = window.location.pathname + (searchParams.toString() ? '?' + searchParams.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [editor, isReady]);
+
   // Extrair headings para o indice
   useEffect(() => {
     if (!editor || !onHeadingsChange) return;
@@ -240,11 +313,13 @@ export function ArquivoReuniaoTipTapEditor({
         if (node.type.name === 'heading') {
           const level = node.attrs.level;
           const text = node.textContent.trim();
+          const eventId = node.attrs.eventId || null;
           if (text && level >= 1 && level <= 3) {
             headings.push({
               text,
               tag: `h${level}` as 'h1' | 'h2' | 'h3',
-              id: `heading-${counter++}`,
+              id: eventId || `heading-${counter++}`,
+              eventId
             });
           }
         }
@@ -283,6 +358,8 @@ export function ArquivoReuniaoTipTapEditor({
       editor.off('update', handleUpdate);
       if (contentChangeTimeoutRef.current) {
         clearTimeout(contentChangeTimeoutRef.current);
+        // Forcar atualizacao caso componente desmonte antes do debounce
+        onContentChange(editor.getJSON());
       }
     };
   }, [editor, onContentChange]);
@@ -370,6 +447,21 @@ export function ArquivoReuniaoTipTapEditor({
 
     setTaskSelectedText(text);
     setTaskModalOpen(true);
+  }, [editor]);
+
+  const handleOpenCalendarModal = useCallback(() => {
+    if (!editor) return;
+    setCalendarModalOpen(true);
+  }, [editor]);
+
+  const handleSelectCalendarEvent = useCallback((event: any) => {
+    if (!editor) return;
+    editor.chain()
+      .focus()
+      .setHeading({ level: 2 })
+      .updateAttributes('heading', { eventId: event.id })
+      .run();
+    toast.success("Pauta vinculada ao evento da agenda!");
   }, [editor]);
 
   if (!editor) {
@@ -512,6 +604,26 @@ export function ArquivoReuniaoTipTapEditor({
           />
         )}
 
+        {/* Vincular/Desvincular Reuniao (Google Calendar) */}
+        {editor.isActive('heading') && editor.getAttributes('heading').eventId ? (
+          <BubbleButton
+            icon={CalendarMinus}
+            isActive={true}
+            onClick={() => {
+              editor.chain().focus().updateAttributes('heading', { eventId: null }).run();
+              toast.success("Pauta desvinculada!");
+            }}
+            tooltip="Desvincular da Agenda"
+          />
+        ) : (
+          <BubbleButton
+            icon={CalendarCheck}
+            isActive={false}
+            onClick={handleOpenCalendarModal}
+            tooltip="Vincular ao Calendar"
+          />
+        )}
+
         <div className="w-px h-6 bg-border mx-1" />
 
         {/* Criar Tarefa */}
@@ -565,6 +677,13 @@ export function ArquivoReuniaoTipTapEditor({
             .insertContent(`<span data-type="mention" class="mention" data-id="${taskPayload.id}" data-label="${taskPayload.title}" data-url="/tarefas/${taskPayload.id}" data-mention-type="tarefa">@${taskPayload.title}</span> `)
             .run();
         }}
+      />
+
+      {/* Calendar Event Modal */}
+      <LinkCalendarEventModal
+        isOpen={calendarModalOpen}
+        onClose={() => setCalendarModalOpen(false)}
+        onSelectEvent={handleSelectCalendarEvent}
       />
     </div>
   );

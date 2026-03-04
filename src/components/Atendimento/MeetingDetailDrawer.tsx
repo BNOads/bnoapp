@@ -12,10 +12,12 @@ import { Separator } from "@/components/ui/separator";
 import { MeetingRatingButtons } from "./MeetingRatingButtons";
 import {
     ExternalLink, Save, Video, FileText, MessageSquare,
-    BookOpen, Loader2, CheckCircle2, Download
+    BookOpen, Loader2, CheckCircle2, Download, RefreshCcw, Plus, Link as LinkIcon, Edit
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useMeetingPauta, useAllMeetingHeadings } from "./useMeetingPauta";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export interface MeetingDetailEvent {
     id: string;
@@ -39,23 +41,8 @@ function parseClientFromTitle(title: string): string | null {
     return match ? match[1].trim() : null;
 }
 
-/** Find cliente by name (case-insensitive partial match) */
-function useClienteByName(clienteName: string | null) {
-    return useQuery({
-        queryKey: ["cliente-by-name", clienteName],
-        enabled: !!clienteName,
-        queryFn: async () => {
-            const { data } = await supabase
-                .from("clientes")
-                .select("id, nome, pasta_drive_url")
-                .ilike("nome", `%${clienteName}%`)
-                .eq("is_active", true)
-                .limit(1);
-            return data?.[0] ?? null;
-        },
-        staleTime: 10 * 60 * 1000,
-    });
-}
+import { useClienteByName } from '@/hooks/useClienteByName';
+
 
 /** Find recordings in gravacoes by cliente_id + event date, with fallback to title */
 function useRecordingsByDateAndClient(
@@ -104,7 +91,7 @@ function useMeetingComments(googleEventId: string | null) {
         queryFn: async () => {
             const { data } = await supabase
                 .from("google_event_ratings")
-                .select("gravacao_url, transcricao, comentarios")
+                .select("gravacao_url, transcricao, comentarios, manual_pauta_text")
                 .eq("google_event_id", googleEventId!)
                 .maybeSingle();
             return data ?? null;
@@ -118,7 +105,7 @@ function useSaveDetails(googleEventId: string | null) {
     return useMutation({
         mutationFn: async (payload: {
             gravacao_url?: string; transcricao?: string; comentarios?: string;
-            titulo?: string; dataEvento?: string;
+            titulo?: string; dataEvento?: string; manual_pauta_text?: string | null;
         }) => {
             const { data: { user } } = await supabase.auth.getUser();
             const { error } = await supabase
@@ -165,6 +152,17 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
     // Manual overrides stored in google_event_ratings
     const { data: stored } = useMeetingComments(event?.id ?? null);
     const saveDetails = useSaveDetails(event?.id ?? null);
+
+    // Fetch pauta from Arquivo de Reuniões
+    const { data: pautaHtml, isLoading: pautaLoading } = useMeetingPauta(
+        event?.id ?? null,
+        event?.summary ?? null,
+        startRaw ?? null,
+        anoReuniao,
+        stored?.manual_pauta_text
+    );
+    const { data: allHeadings = [] } = useAllMeetingHeadings();
+    const queryClient = useQueryClient();
 
     const [gravacaoUrl, setGravacaoUrl] = useState("");
     const [transcricao, setTranscricao] = useState("");
@@ -282,13 +280,95 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
                         <div className="flex items-center gap-2 mb-2">
                             <BookOpen className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm font-semibold">Pauta no Arquivo de Reuniões</span>
+
+                            <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto hover:bg-muted" onClick={() => {
+                                queryClient.invalidateQueries({ queryKey: ["meeting-pauta"] });
+                                toast({ title: "Sincronizado" });
+                            }} title="Forçar atualização">
+                                <RefreshCcw className="h-3 w-3 text-muted-foreground" />
+                            </Button>
                         </div>
-                        <Button variant="outline" size="sm" className="w-full gap-2 justify-start"
-                            onClick={() => { onOpenChange(false); navigate(`/ferramentas/arquivo-reuniao?ano=${anoReuniao}`); }}>
-                            <BookOpen className="h-4 w-4 text-blue-500" />
-                            Abrir Arquivo de Reuniões {anoReuniao}
-                            <ExternalLink className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
-                        </Button>
+
+                        <div className="flex gap-2 mb-3">
+                            <Button variant="outline" size="sm" className="flex-1 gap-2 justify-start"
+                                onClick={() => { onOpenChange(false); navigate(`/arquivo-reuniao?ano=${anoReuniao}`); }}>
+                                <BookOpen className="h-4 w-4 text-blue-500" />
+                                <span className="truncate">Abrir Arquivo</span>
+                            </Button>
+                            {!pautaHtml && !pautaLoading && (
+                                <Button variant="outline" size="sm" className="flex-1 gap-2 border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/30 text-green-700 dark:text-green-400"
+                                    onClick={() => {
+                                        onOpenChange(false);
+                                        navigate(`/arquivo-reuniao?ano=${anoReuniao}&createForEvent=${event.id}&date=${startRaw}&title=${encodeURIComponent(event.summary || '')}`);
+                                    }}>
+                                    <Plus className="h-4 w-4" />
+                                    Criar Pauta Vazia
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Exibir a pauta extraída com os estilos do Tiptap */}
+                        {pautaLoading ? (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 px-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Carregando pauta...
+                            </div>
+                        ) : pautaHtml ? (
+                            <div className="space-y-3">
+                                <div
+                                    className="prose prose-sm dark:prose-invert max-w-none px-3 py-3 border rounded-lg bg-muted/20"
+                                    dangerouslySetInnerHTML={{ __html: pautaHtml }}
+                                />
+                                {stored?.manual_pauta_text && (
+                                    <div className="flex items-center justify-between bg-muted/50 p-2 rounded-md border text-xs text-muted-foreground">
+                                        <div className="flex items-center gap-1.5 overflow-hidden">
+                                            <LinkIcon className="h-3 w-3 shrink-0" />
+                                            <span className="truncate">Vinculado a: <strong title={stored.manual_pauta_text}>{stored.manual_pauta_text.substring(0, 30)}...</strong></span>
+                                        </div>
+                                        <Button variant="ghost" size="sm" className="h-6 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10 px-2"
+                                            onClick={async () => {
+                                                await saveDetails.mutateAsync({ manual_pauta_text: null });
+                                                queryClient.invalidateQueries({ queryKey: ["meeting-detail"] });
+                                                queryClient.invalidateQueries({ queryKey: ["meeting-pauta"] });
+                                                toast({ title: "Vínculo removido" });
+                                            }}>
+                                            Remover Vínculo
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-3 pt-1">
+                                <div className="text-sm text-muted-foreground px-1 mb-2">
+                                    Nenhuma pauta inteligente identificada para a data de hoje.
+                                </div>
+                                <div className="space-y-1.5 p-3 rounded border bg-muted/30">
+                                    <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+                                        <Edit className="h-3.5 w-3.5" />
+                                        Vincular Manualmente a uma Pauta Existente
+                                    </Label>
+                                    <Select
+                                        value={stored?.manual_pauta_text || ""}
+                                        onValueChange={async (value) => {
+                                            await saveDetails.mutateAsync({ manual_pauta_text: value });
+                                            queryClient.invalidateQueries({ queryKey: ["meeting-detail"] });
+                                            queryClient.invalidateQueries({ queryKey: ["meeting-pauta"] });
+                                            toast({ title: "Pauta vinculada manualmente" });
+                                        }}>
+                                        <SelectTrigger className="w-full text-xs h-9">
+                                            <SelectValue placeholder="Selecione um título no arquivo..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <div className="max-h-[250px] overflow-y-auto">
+                                                {allHeadings.map((h, i) => (
+                                                    <SelectItem key={i} value={h} className="text-xs truncate" title={h}>{h}</SelectItem>
+                                                ))}
+                                            </div>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <Separator />

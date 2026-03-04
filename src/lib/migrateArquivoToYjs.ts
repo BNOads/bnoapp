@@ -139,9 +139,15 @@ function convertNode(node: any): any {
       const content = flattenInlineNodes(
         (node.children || []).map(convertInlineNode)
       ).filter(Boolean);
+
+      const attrs: any = { level };
+      if (node.eventId) {
+        attrs.eventId = node.eventId;
+      }
+
       return {
         type: 'heading',
-        attrs: { level },
+        attrs,
         ...(content.length > 0 ? { content } : {}),
       };
     }
