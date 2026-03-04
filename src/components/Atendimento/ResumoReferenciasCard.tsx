@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Search, Copy, FileText } from "lucide-react";
+import { Search, Copy, FileText, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function ResumoReferenciasCard() {
     const { toast } = useToast();
@@ -22,38 +22,42 @@ export function ResumoReferenciasCard() {
     };
 
     return (
-        <div className="w-full flex items-center justify-between gap-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30">
-            <div className="flex items-center gap-3 min-w-0">
-                <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0 shadow-sm">
-                    <FileText className="h-5 w-5 text-amber-600" />
+        <Card className="border-amber-100 dark:border-amber-900/30 overflow-hidden">
+            <CardHeader className="pb-3 px-4 pt-4 bg-amber-50/30 dark:bg-amber-950/10 border-b border-amber-50 dark:border-amber-900/20">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-lg font-bold text-amber-700 dark:text-amber-400">
+                        <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/40">
+                            <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <span>Referências</span>
+                    </CardTitle>
                 </div>
-                <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-amber-900 dark:text-amber-100 leading-none">Resumo e Referências</h4>
-                    <p className="text-xs text-amber-700/80 dark:text-amber-300/60 mt-1 truncate">
-                        Consolide referências e gere resumos rápidos para os clientes.
-                    </p>
-                </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 gap-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-800 dark:text-amber-200 shadow-sm"
-                    onClick={handleCopyLink}
-                >
-                    <Copy className="h-4 w-4" />
-                    <span className="text-xs font-medium">Pegar Link</span>
-                </Button>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 gap-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-800 dark:text-amber-200 shadow-sm"
+            </CardHeader>
+            <CardContent className="space-y-2 p-3 bg-amber-50/10 dark:bg-amber-950/5 pt-3">
+                <div
                     onClick={handleSearchReferences}
+                    className="flex flex-col p-3 rounded-xl border-2 bg-card hover:bg-muted/50 hover:border-amber-400 cursor-pointer transition-all shadow-sm group"
                 >
-                    <Search className="h-4 w-4" />
-                    <span className="text-xs font-medium">Pesquisar Refs</span>
-                </Button>
-            </div>
-        </div>
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="font-extrabold text-[15px] leading-tight text-slate-900 dark:text-slate-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                            Buscar Referências
+                        </span>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-amber-500 transition-colors shrink-0" />
+                    </div>
+                </div>
+
+                <div
+                    onClick={handleCopyLink}
+                    className="flex flex-col p-3 rounded-xl border-2 bg-card hover:bg-muted/50 hover:border-amber-400 cursor-pointer transition-all shadow-sm group"
+                >
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="font-extrabold text-[15px] leading-tight text-slate-900 dark:text-slate-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                            Copiar Link Geral
+                        </span>
+                        <Copy className="h-4 w-4 text-muted-foreground group-hover:text-amber-500 transition-colors shrink-0" />
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     );
 }

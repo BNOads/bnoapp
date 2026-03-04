@@ -55,9 +55,11 @@ export function MensagensSemanaisCard() {
         };
     }, [clientes, mensagens]);
 
-    const filteredClientes = clientes.filter(c =>
-        c.nome.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredClientes = clientes.filter(c => {
+        const matchesSearch = c.nome.toLowerCase().includes(searchTerm.toLowerCase());
+        const hasSentMessage = mensagens.some(m => m.cliente_id === c.id);
+        return matchesSearch && !hasSentMessage;
+    });
 
     return (
         <div className="space-y-4">

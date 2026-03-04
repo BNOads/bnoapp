@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ReferencesEditor } from "@/components/References/ReferencesEditor";
-import { ReferenciasGrid } from "@/components/Referencias/ReferenciasGrid";
+import { ReferenciasList } from "@/components/Referencias/ReferenciasList";
 import { ReferenciasFilters, DEFAULT_FILTERS, ReferenciaFilters } from "@/components/Referencias/ReferenciasFilters";
 import { ReferenciaItem } from "@/components/Referencias/ReferenciaCard";
 
@@ -52,11 +52,115 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
 
       const { data, error } = await query;
       if (error) throw error;
-      setReferencias((data || []) as ReferenciaItem[]);
+
+      let loadedRefs = (data || []) as ReferenciaItem[];
+
+      // Fetch clients for auto-tagging
+      const { data: clientesData } = await supabase
+        .from("clientes")
+        .select("nome, aliases")
+        .eq("is_active", true);
+      const clientes = clientesData || [];
+
+      // Auto-tagging logic based on title/description, existing tags, and clients
+      const allExistingTags = new Set<string>();
+      loadedRefs.forEach((r) => r.tags?.forEach((t) => allExistingTags.add(t.toLowerCase())));
+      const availableTagArray = Array.from(allExistingTags);
+
+      if (availableTagArray.length > 0 || clientes.length > 0) {
+        let hasUpdates = false;
+
+        loadedRefs = loadedRefs.map(ref => {
+          const currentTags = (ref.tags || []).map(t => t.toLowerCase());
+          const textToSearch = `${ref.titulo} ${ref.descricao || ""}`.toLowerCase();
+
+          const newTags = new Set(ref.tags || []);
+          let refUpdated = false;
+
+          availableTagArray.forEach(tag => {
+            if (!currentTags.includes(tag) && textToSearch.includes(tag)) {
+              newTags.add(tag);
+              refUpdated = true;
+              hasUpdates = true;
+            }
+          });
+
+          clientes.forEach(cliente => {
+            const clienteNome = cliente.nome.toLowerCase();
+            // check name
+            if (textToSearch.includes(clienteNome)) {
+              const lowerNewTags = Array.from(newTags).map(t => t.toLowerCase());
+              if (!lowerNewTags.includes(clienteNome)) {
+                newTags.add(cliente.nome);
+                refUpdated = true;
+                hasUpdates = true;
+              }
+            }
+            // check aliases
+            if (cliente.aliases && Array.isArray(cliente.aliases)) {
+              cliente.aliases.forEach((alias: string) => {
+                const lowerAlias = alias.toLowerCase();
+                if (textToSearch.includes(lowerAlias)) {
+                  const lowerNewTags = Array.from(newTags).map(t => t.toLowerCase());
+                  if (!lowerNewTags.includes(lowerAlias)) {
+                    newTags.add(alias);
+                    refUpdated = true;
+                    hasUpdates = true;
+                  }
+                }
+              });
+            }
+          });
+
+          if (refUpdated) {
+            const updatedTagsArray = Array.from(newTags);
+            // Async background update, no await to not block UI
+            supabase
+              .from("referencias_criativos")
+              .update({ tags: updatedTagsArray })
+              .eq("id", ref.id)
+              .then(({ error }) => {
+                if (error) console.error("Auto-tagging update failed", error);
+              });
+
+            return { ...ref, tags: updatedTagsArray };
+          }
+
+          return ref;
+        });
+      }
+
+      setReferencias(loadedRefs);
     } catch (error: any) {
       toast({ title: "Erro", description: "Erro ao carregar referências: " + error.message, variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTagsChange = async (referenciaId: string, newTags: string[]) => {
+    if (!canCreateContent) return;
+
+    try {
+      // Optmistic update
+      setReferencias(prev => prev.map(ref =>
+        ref.id === referenciaId ? { ...ref, tags: newTags } : ref
+      ));
+
+      const { error } = await supabase
+        .from("referencias_criativos")
+        .update({ tags: newTags })
+        .eq("id", referenciaId);
+
+      if (error) throw error;
+
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as tags.",
+        variant: "destructive"
+      });
+      carregarReferencias();
     }
   };
 
@@ -212,17 +316,19 @@ export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => 
         {/* Grid */}
         <div className="flex-1 min-w-0">
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-56 rounded-xl bg-muted animate-pulse" />
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-16 rounded-xl bg-muted animate-pulse border" />
               ))}
             </div>
           ) : (
-            <ReferenciasGrid
+            <ReferenciasList
               referencias={filteredReferencias}
+              availableTags={availableTags}
               onView={handleView}
               onEdit={canCreateContent ? handleEdit : undefined}
               onDelete={canCreateContent ? (ref) => setDeleteDialog({ open: true, referencia: ref }) : undefined}
+              onTagsChange={handleTagsChange}
               canEdit={canCreateContent}
               emptyMessage={hasActiveFilters ? "Nenhuma referência com esses filtros" : "Nenhuma referência criada"}
               emptySubMessage={

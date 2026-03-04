@@ -1,4 +1,4 @@
-import { CalendarDays, BarChart3, MessageSquare, Ticket } from "lucide-react";
+import { CalendarDays, BarChart3, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSearchParams } from "react-router-dom";
@@ -6,10 +6,12 @@ import { EscalaReunioes } from "@/components/Atendimento/EscalaReunioes";
 import { ClientesEmAlerta } from "@/components/Atendimento/ClientesEmAlerta";
 import { AnaliseReunioes } from "@/components/Atendimento/AnaliseReunioes";
 import { LiveMeetingBanner } from "@/components/Atendimento/LiveMeetingBanner";
-import { AtendimentoKPIs } from "@/components/Atendimento/AtendimentoKPIs";
 import { MensagensSemanaisCard } from "@/components/Atendimento/MensagensSemanaisCard";
 import { ResumoReferenciasCard } from "@/components/Atendimento/ResumoReferenciasCard";
-import { TicketsView } from "@/components/Tickets/TicketsView";
+import { ClientesEmOnboarding } from "@/components/Atendimento/ClientesEmOnboarding";
+import { SituacaoClientesChart } from "@/components/Atendimento/SituacaoClientesChart";
+import { MatrizPresencaReunioes } from "@/components/Atendimento/MatrizPresencaReunioes";
+import { DiarioAtendimento } from "@/components/Atendimento/DiarioAtendimento";
 
 function SectionCard({
     icon: Icon,
@@ -49,12 +51,11 @@ export default function Atendimento() {
             <div className="flex flex-col gap-1">
                 <h1 className="text-2xl font-bold text-foreground">Atendimento ao Cliente</h1>
                 <p className="text-sm text-muted-foreground">
-                    Central de reuniões, tickets e análise de saúde dos clientes.
+                    Central de reuniões e análise de saúde dos clientes.
                 </p>
             </div>
 
-            {/* Clientes em Alerta — horizontal strip at the top */}
-            <ClientesEmAlerta />
+            {/* Alertas e Faixas — horizontal strips at the top foram removidos do topo e transferidos para o sidebar */}
 
             <Tabs value={activeTab} onValueChange={handleTabChange}>
                 <TabsList>
@@ -62,25 +63,20 @@ export default function Atendimento() {
                         <CalendarDays className="h-4 w-4" />
                         Reuniões
                     </TabsTrigger>
-                    <TabsTrigger value="tickets" className="gap-2">
-                        <Ticket className="h-4 w-4" />
-                        Tickets
-                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="reunioes" className="mt-6 space-y-6">
-                    {/* Resumo e Referências Badge */}
-                    <ResumoReferenciasCard />
-
-                    {/* Today's meeting KPIs */}
-                    <AtendimentoKPIs />
-
-                    {/* Live Meeting Banner */}
-                    <LiveMeetingBanner />
-
                     {/* Main Content Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         <div className="lg:col-span-4 space-y-6">
+                            {/* Alertas passados para view de Card na sidebar */}
+                            <LiveMeetingBanner />
+                            <ClientesEmAlerta />
+                            <ClientesEmOnboarding />
+                            <ResumoReferenciasCard />
+
+                            <SituacaoClientesChart />
+
                             <SectionCard icon={MessageSquare} title="Mensagens Semanais">
                                 <MensagensSemanaisCard />
                             </SectionCard>
@@ -94,12 +90,16 @@ export default function Atendimento() {
                             <SectionCard icon={CalendarDays} title="Escala de Reuniões">
                                 <EscalaReunioes />
                             </SectionCard>
+
+                            {/* Diário de Atendimento Global */}
+                            <DiarioAtendimento />
                         </div>
                     </div>
-                </TabsContent>
 
-                <TabsContent value="tickets" className="mt-6">
-                    <TicketsView embedded />
+                    {/* Matriz de Presença (Top Level) */}
+                    <div className="pt-2">
+                        <MatrizPresencaReunioes />
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>

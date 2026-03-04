@@ -4,10 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CalendarClock, Ticket, ArrowRight } from "lucide-react";
+import { CalendarClock, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/Auth/AuthContext";
-import { CreateTicketModal } from "@/components/Tickets/CreateTicketModal";
 import { useGoogleCalendar, GoogleCalendarEvent } from "@/hooks/useGoogleCalendar";
 import { useQuery } from "@tanstack/react-query";
 import { parseISO, isValid, isToday, format } from "date-fns";
@@ -138,7 +137,6 @@ interface ReuniaoItem {
 export function ReuniaoHojeCard() {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [ticketClienteId, setTicketClienteId] = useState<string | null>(null);
 
     const { data: userProfile, isLoading: loadingProfile } = useUserProfile(user?.id);
     const isGestorTrafego = userProfile?.nivelAcesso === "gestor_trafego";
@@ -338,32 +336,11 @@ export function ReuniaoHojeCard() {
                                     </div>
                                 )}
 
-                                {/* Row 4: Open Ticket button */}
-                                {reuniao.clienteId && (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 text-xs gap-1.5 border-cyan-300 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 hover:border-cyan-400 w-full"
-                                        onClick={() => setTicketClienteId(reuniao.clienteId)}
-                                    >
-                                        <Ticket className="h-3.5 w-3.5" />
-                                        Abrir Ticket
-                                    </Button>
-                                )}
                             </div>
                         );
                     })}
                 </CardContent>
             </Card>
-
-            {ticketClienteId && (
-                <CreateTicketModal
-                    isOpen={!!ticketClienteId}
-                    onClose={() => setTicketClienteId(null)}
-                    defaultClienteId={ticketClienteId}
-                    defaultOrigem="reuniao"
-                />
-            )}
         </>
     );
 }

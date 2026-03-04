@@ -5,7 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Video } from "lucide-react";
+import { Video, ArrowRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 function getInitials(name?: string, email?: string): string {
     if (name) return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
@@ -98,96 +100,93 @@ export function LiveMeetingBanner() {
     if (liveEvents.length === 0) return null;
 
     return (
-        <div className="flex flex-col gap-3">
-            {liveEvents.map(ev => {
-                const externalAttendees = (ev.attendees ?? []).filter(a => !a.self);
-                const internalParticipants = (participants as any[])
-                    .filter((p: any) => p.google_event_id === ev.id)
-                    .map((p: any) => p.colaboradores)
-                    .filter(Boolean);
+        <Card className="border-red-100 dark:border-red-900/30 overflow-hidden">
+            <CardHeader className="pb-3 px-4 pt-4 bg-red-50/30 dark:bg-red-950/10 border-b border-red-50 dark:border-red-900/20">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-lg font-bold text-red-700 dark:text-red-400">
+                        <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/40">
+                            <Video className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <span>Reuniões ao Vivo</span>
+                    </CardTitle>
+                    <Badge variant="outline" className="bg-red-50/50 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800 animate-pulse flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                        {liveEvents.length} Agora
+                    </Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-2 p-3 bg-red-50/10 dark:bg-red-950/5 pt-3">
+                {liveEvents.map(ev => {
+                    const externalAttendees = (ev.attendees ?? []).filter(a => !a.self);
+                    const internalParticipants = (participants as any[])
+                        .filter((p: any) => p.google_event_id === ev.id)
+                        .map((p: any) => p.colaboradores)
+                        .filter(Boolean);
 
-                const allParticipants = [
-                    ...internalParticipants.map((c: any) => ({ name: c.nome, avatar: c.avatar_url })),
-                    ...externalAttendees.map(a => ({ name: a.displayName ?? a.email ?? "?", avatar: null })),
-                ];
+                    const allParticipants = [
+                        ...internalParticipants.map((c: any) => ({ name: c.nome, avatar: c.avatar_url })),
+                        ...externalAttendees.map(a => ({ name: a.displayName ?? a.email ?? "?", avatar: null })),
+                    ];
 
-                return (
-                    <div
-                        key={ev.id}
-                        className="rounded-xl border border-red-200 dark:border-red-900/50 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/20 px-5 py-4 flex items-center justify-between gap-4 shadow-sm"
-                    >
-                        <div className="flex items-center gap-4 min-w-0">
-                            {/* Live indicator */}
-                            <div className="flex items-center gap-2 shrink-0">
-                                <span className="relative flex h-3 w-3">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
-                                </span>
-                                <span className="text-xs font-bold tracking-widest text-red-600 dark:text-red-400 uppercase">
-                                    Ao Vivo
-                                </span>
-                            </div>
-
-                            <div className="h-5 w-px bg-red-200 dark:bg-red-800 shrink-0" />
-
-                            {/* Event name */}
-                            <div className="min-w-0">
-                                <p className="font-semibold text-sm truncate max-w-[300px]">
+                    return (
+                        <div
+                            key={ev.id}
+                            className="flex flex-col p-3 rounded-xl border-2 bg-card hover:bg-muted/50 hover:border-red-400 cursor-default transition-all gap-2 shadow-sm group"
+                        >
+                            {/* Row 1: Title & Button */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <span className="font-extrabold text-[15px] leading-tight text-slate-900 dark:text-slate-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors line-clamp-2" title={ev.summary}>
                                     {ev.summary || "(sem título)"}
-                                </p>
-                                {allParticipants.length > 0 && (
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                        {allParticipants.map(p => p.name).slice(0, 3).join(", ")}
-                                        {allParticipants.length > 3 && ` +${allParticipants.length - 3}`}
-                                    </p>
+                                </span>
+                                {ev.hangoutLink && (
+                                    <a
+                                        href={ev.hangoutLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-white hover:text-white bg-blue-600 dark:bg-blue-600 px-3 py-1.5 rounded-lg border border-blue-700 shrink-0 hover:bg-blue-700 transition-colors"
+                                    >
+                                        <Video className="h-4 w-4" />
+                                        Entrar
+                                    </a>
                                 )}
                             </div>
-                        </div>
 
-                        {/* Right side: avatars + meet link */}
-                        <div className="flex items-center gap-3 shrink-0">
+                            {/* Row 2: Participants */}
                             {allParticipants.length > 0 && (
-                                <div className="flex -space-x-2">
-                                    {allParticipants.slice(0, 5).map((p, i) => (
-                                        <TooltipProvider key={i}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Avatar className="h-9 w-9 border-2 border-background ring-1 ring-red-200 dark:ring-red-900">
-                                                        <AvatarImage src={p.avatar ?? undefined} />
-                                                        <AvatarFallback className="text-[11px] bg-red-100 text-red-700 font-semibold dark:bg-red-900/60 dark:text-red-300">
-                                                            {getInitials(p.name)}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                </TooltipTrigger>
-                                                <TooltipContent>{p.name}</TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    ))}
-                                    {allParticipants.length > 5 && (
-                                        <Avatar className="h-9 w-9 border-2 border-background">
-                                            <AvatarFallback className="text-[11px] bg-muted font-semibold">
-                                                +{allParticipants.length - 5}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                    )}
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                    <div className="flex -space-x-2">
+                                        {allParticipants.slice(0, 5).map((p, i) => (
+                                            <TooltipProvider key={i}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Avatar className="h-6 w-6 border-2 border-background ring-1 ring-red-200 dark:ring-red-900">
+                                                            <AvatarImage src={p.avatar ?? undefined} />
+                                                            <AvatarFallback className="text-[9px] bg-red-100 text-red-700 font-semibold dark:bg-red-900/60 dark:text-red-300">
+                                                                {getInitials(p.name)}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>{p.name}</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        ))}
+                                        {allParticipants.length > 5 && (
+                                            <Avatar className="h-6 w-6 border-2 border-background">
+                                                <AvatarFallback className="text-[9px] bg-muted font-semibold">
+                                                    +{allParticipants.length - 5}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        )}
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground ml-1">
+                                        Participando
+                                    </span>
                                 </div>
                             )}
-
-                            {ev.hangoutLink && (
-                                <a
-                                    href={ev.hangoutLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800"
-                                >
-                                    <Video className="h-3.5 w-3.5" />
-                                    Entrar
-                                </a>
-                            )}
                         </div>
-                    </div>
-                );
-            })}
-        </div>
+                    );
+                })}
+            </CardContent>
+        </Card>
     );
 }

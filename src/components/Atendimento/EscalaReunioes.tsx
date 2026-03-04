@@ -37,6 +37,7 @@ import { RegistroReuniaoModal } from "@/components/Atendimento/RegistroReuniaoMo
 import { ParticipantesPopover } from "@/components/Atendimento/ParticipantesPopover";
 import { MeetingRatingButtons } from "@/components/Atendimento/MeetingRatingButtons";
 import { MeetingDetailDrawer } from "@/components/Atendimento/MeetingDetailDrawer";
+import { AtendimentoKPIs } from "@/components/Atendimento/AtendimentoKPIs";
 
 const PAGE_SIZE = 5;
 
@@ -305,6 +306,7 @@ export function EscalaReunioes() {
 
     return (
         <div className="space-y-5">
+            <AtendimentoKPIs />
             {/* Toolbar */}
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
                 <div className="flex items-center gap-2 flex-1 flex-wrap">
