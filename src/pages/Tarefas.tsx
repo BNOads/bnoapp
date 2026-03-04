@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag, Filter, ChevronDown, Zap, Building2 } from "lucide-react";
+import { List, Kanban, Users, BarChart3, Plus, Search, Layers, Grid2X2, CalendarIcon, AlertCircle, CheckCircle2, Flag, Filter, ChevronDown, Zap, Building2, ArrowUpDown } from "lucide-react";
 
 import { useTasks, TaskFilters } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -49,6 +49,7 @@ export default function Tarefas() {
     const [minhasViewType, setMinhasViewType] = useState<"tabela" | "kanban">("tabela");
     const [minhasAba, setMinhasAba] = useState<"atribuidas" | "criadas">("atribuidas");
     const [hideCompleted, setHideCompleted] = useState(false);
+    const [sortBy, setSortBy] = useState<string>("vencimento");
 
     // Selection for ByPerson view mainly, but could be global
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
@@ -116,25 +117,51 @@ export default function Tarefas() {
     const { data: rawTasks = [], isLoading } = useTasks(appliedFilters);
 
     // Apply the local date filter
-    const tasks = React.useMemo(() => {
-        if (!filters.date || filters.date === "all") return rawTasks;
+    const PRIORITY_WEIGHT: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
 
-        let preset: DateRangePreset = "all";
-        if (filters.date === "hoje") preset = "today";
-        if (filters.date === "semana") preset = "week";
-        if (filters.date === "mes") preset = "month";
-        if (filters.date === "atrasadas") preset = "overdue";
-        if (filters.date !== "all" && filters.date !== "hoje" && filters.date !== "semana" && filters.date !== "mes" && filters.date !== "atrasadas") {
-            preset = "custom";
+    const tasks = React.useMemo(() => {
+        // Step 1 — date filter
+        let filtered = rawTasks;
+        if (filters.date && filters.date !== "all") {
+            let preset: DateRangePreset = "all";
+            if (filters.date === "hoje") preset = "today";
+            else if (filters.date === "semana") preset = "week";
+            else if (filters.date === "mes") preset = "month";
+            else if (filters.date === "atrasadas") preset = "overdue";
+            else preset = "custom";
+
+            filtered = filtered.filter(task => {
+                if (preset === "custom") {
+                    return isInDateRange(task.due_date, preset, task.completed, new Date(`${filters.date}T12:00:00`), new Date(`${filters.date}T12:00:00`));
+                }
+                return isInDateRange(task.due_date, preset, task.completed);
+            });
         }
 
-        return rawTasks.filter(task => {
-            if (preset === "custom") {
-                return isInDateRange(task.due_date, preset, task.completed, new Date(`${filters.date}T12:00:00`), new Date(`${filters.date}T12:00:00`));
+        // Step 2 — sort
+        return [...filtered].sort((a, b) => {
+            switch (sortBy) {
+                case "vencimento": {
+                    if (!a.due_date && !b.due_date) return 0;
+                    if (!a.due_date) return 1;
+                    if (!b.due_date) return -1;
+                    return a.due_date.localeCompare(b.due_date);
+                }
+                case "criacao":
+                    return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+                case "prioridade":
+                    return (PRIORITY_WEIGHT[b.priority || ""] || 0) - (PRIORITY_WEIGHT[a.priority || ""] || 0);
+                case "alfabetica":
+                    return (a.title || "").localeCompare(b.title || "", "pt-BR");
+                case "responsavel":
+                    return (a.assignee || "").localeCompare(b.assignee || "", "pt-BR");
+                case "reagendamentos":
+                    return (b.reschedule_count || 0) - (a.reschedule_count || 0);
+                default:
+                    return 0;
             }
-            return isInDateRange(task.due_date, preset, task.completed);
         });
-    }, [rawTasks, filters.date]);
+    }, [rawTasks, filters.date, sortBy]);
 
     const pendingCount = tasks.filter(t => !t.completed).length;
     const completedCount = tasks.filter(t => t.completed).length;
@@ -408,6 +435,20 @@ export default function Tarefas() {
                         </div>
 
                         <div className="flex items-center gap-2 w-full lg:w-auto">
+                            <Select value={sortBy} onValueChange={setSortBy}>
+                                <SelectTrigger className="h-10 bg-background border-border/50 rounded-xl shadow-sm gap-2 font-medium w-full lg:w-auto px-4">
+                                    <ArrowUpDown className="h-4 w-4 text-slate-500" />
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent align="start">
+                                    <SelectItem value="vencimento">Vencimento ↑</SelectItem>
+                                    <SelectItem value="criacao">Criação (recente)</SelectItem>
+                                    <SelectItem value="prioridade">Prioridade ↓</SelectItem>
+                                    <SelectItem value="alfabetica">Alfabética (A→Z)</SelectItem>
+                                    <SelectItem value="responsavel">Responsável</SelectItem>
+                                    <SelectItem value="reagendamentos">Mais reagendadas</SelectItem>
+                                </SelectContent>
+                            </Select>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className="h-10 bg-background border-border/50 rounded-xl shadow-sm gap-2 font-medium w-full lg:w-auto">
