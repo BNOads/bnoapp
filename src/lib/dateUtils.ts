@@ -196,9 +196,20 @@ export function isRecurringDate(
   // Future dates only
   if (candidateTimestamp <= baseTimestamp) return false;
 
-  const diffDays = Math.round((candidateTimestamp - baseTimestamp) / (1000 * 3600 * 24));
+  if (recurrence === "daily") {
+    // Standard daily recurrence skips weekends
+    const dayOfWeek = candidate.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+    return true;
+  }
 
-  if (recurrence === "daily") return true;
+  if (["weekly", "biweekly", "monthly", "semiannual", "yearly"].includes(recurrence)) {
+    // Weekends skipped for all standard recurrences during generation,
+    // so if the candidate is a weekend it shouldn't be valid
+    const dayOfWeek = candidate.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+  }
+
   if (recurrence === "weekly") return diffDays % 7 === 0;
   if (recurrence === "biweekly") return diffDays % 14 === 0;
 

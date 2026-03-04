@@ -9,6 +9,21 @@ Deno.serve(async (req: Request) => {
 
         const today = new Date().toISOString().split("T")[0];
 
+        function getNthWeekdayOfMonth(year: number, month: number, weekPos: string, dayOfWeek: number): Date | null {
+            if (weekPos === "last") {
+                const lastDay = new Date(year, month + 1, 0); // last day of month
+                const diff = (lastDay.getDay() - dayOfWeek + 7) % 7;
+                const result = new Date(year, month, lastDay.getDate() - diff);
+                return result.getMonth() === month ? result : null;
+            }
+            const n = parseInt(weekPos, 10);
+            const firstDay = new Date(year, month, 1);
+            const firstOccurrence = (dayOfWeek - firstDay.getDay() + 7) % 7;
+            const date = 1 + firstOccurrence + (n - 1) * 7;
+            const result = new Date(year, month, date);
+            return result.getMonth() === month ? result : null;
+        }
+
         // 1. Busca todas as tarefas completadas, com recorrência válida, e devido no passado/hoje
         const { data: tasks, error } = await supabaseClient
             .from("tasks")
@@ -33,8 +48,23 @@ Deno.serve(async (req: Request) => {
 
             const dueDateTimestamp = new Date(`${task.due_date}T00:00:00`);
             let nextDate = new Date(dueDateTimestamp);
+            let incremented = false;
 
-            if (task.recurrence.startsWith("custom_weekly_")) {
+            if (task.recurrence.startsWith("monthly_dow_")) {
+                const parts = task.recurrence.split("_");
+                const weekPos = parts[2]; // "1","2","3","4","last"
+                const targetDay = parseInt(parts[3] || "1", 10); // 0=Sun…6=Sat
+
+                nextDate.setMonth(nextDate.getMonth() + 1);
+                let expected = getNthWeekdayOfMonth(nextDate.getFullYear(), nextDate.getMonth(), weekPos, targetDay);
+
+                while (!expected) {
+                    nextDate.setMonth(nextDate.getMonth() + 1);
+                    expected = getNthWeekdayOfMonth(nextDate.getFullYear(), nextDate.getMonth(), weekPos, targetDay);
+                }
+                nextDate = expected;
+                incremented = true;
+            } else if (task.recurrence.startsWith("custom_weekly_")) {
                 const daysStr = task.recurrence.replace("custom_weekly_", "");
                 const targetDays = daysStr.split(",").map(Number);
                 if (targetDays.length > 0) {
@@ -55,6 +85,46 @@ Deno.serve(async (req: Request) => {
                     }
 
                     nextDate.setDate(nextDate.getDate() + daysToAdd);
+                    incremented = true;
+                }
+            } else if (task.recurrence.startsWith("custom_")) {
+                const parts = task.recurrence.split("_");
+                if (parts.length >= 3) {
+                    const interval = parts[1]; // day, week, month, year
+                    const amount = parseInt(parts[2] || "1", 10);
+                    const daysStr = parts[3];
+
+                    if (interval === "day") {
+                        nextDate.setDate(nextDate.getDate() + amount);
+                    } else if (interval === "month") {
+                        nextDate.setMonth(nextDate.getMonth() + amount);
+                    } else if (interval === "year") {
+                        nextDate.setFullYear(nextDate.getFullYear() + amount);
+                    } else if (interval === "week") {
+                        if (!daysStr) {
+                            nextDate.setDate(nextDate.getDate() + (amount * 7));
+                        } else {
+                            const targetDays = daysStr.split(",").map(Number);
+                            const currentDayOfWeek = nextDate.getDay();
+                            let daysToAdd = -1;
+                            targetDays.sort((a, b) => a - b);
+
+                            for (const d of targetDays) {
+                                if (d > currentDayOfWeek) {
+                                    daysToAdd = d - currentDayOfWeek;
+                                    break;
+                                }
+                            }
+
+                            if (daysToAdd !== -1) {
+                                nextDate.setDate(nextDate.getDate() + daysToAdd);
+                            } else {
+                                const firstTargetDay = targetDays[0];
+                                nextDate.setDate(nextDate.getDate() + (7 - currentDayOfWeek) + (amount - 1) * 7 + firstTargetDay);
+                            }
+                        }
+                    }
+                    incremented = true;
                 }
             } else {
                 switch (task.recurrence) {
@@ -76,7 +146,11 @@ Deno.serve(async (req: Request) => {
                     case "yearly":
                         nextDate.setFullYear(nextDate.getFullYear() + 1);
                         break;
+                    default:
+                        // Unknown recurrence, skip safely to avoid infinite loops
+                        continue;
                 }
+                incremented = true;
 
                 // Aplica lógica de pular finais de semana APENAS para recorrências padrão
                 const dayOfWeek = nextDate.getDay();
@@ -86,6 +160,8 @@ Deno.serve(async (req: Request) => {
                     nextDate.setDate(nextDate.getDate() + 1);
                 }
             }
+
+            if (!incremented) continue;
 
             const nextDateString = nextDate.toISOString().split("T")[0];
 

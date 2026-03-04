@@ -13,124 +13,130 @@ export const calculateNextDueDate = (currentDueDate: string | null, recurrence: 
     const date = parseISO(currentDueDate);
     let nextDate = date;
 
-    switch (recurrence) {
-        case "daily":
-            nextDate = addDays(date, 1);
-            break;
-        case "weekly":
-            nextDate = addWeeks(date, 1);
-            break;
-        case "biweekly":
-            nextDate = addWeeks(date, 2);
-            break;
-        case "monthly":
-            nextDate = addMonths(date, 1);
-            break;
-        case "semiannual":
-            nextDate = addMonths(date, 6);
-            break;
-        case "yearly":
-            nextDate = addYears(date, 1);
-            break;
-        default:
-            // monthly_dow_{week}_{day} - e.g. monthly_dow_2_2 = 2nd Tuesday each month
-            if (recurrence.startsWith("monthly_dow_")) {
-                const parts = recurrence.split("_");
-                const weekPos = parts[2]; // "1","2","3","4","last"
-                const targetDay = parseInt(parts[3] || "1", 10); // 0=Sun…6=Sat
+    if (["daily", "weekly", "biweekly", "monthly", "semiannual", "yearly"].includes(recurrence)) {
+        switch (recurrence) {
+            case "daily":
+                nextDate = addDays(date, 1);
+                break;
+            case "weekly":
+                nextDate = addWeeks(date, 1);
+                break;
+            case "biweekly":
+                nextDate = addWeeks(date, 2);
+                break;
+            case "monthly":
+                nextDate = addMonths(date, 1);
+                break;
+            case "semiannual":
+                nextDate = addMonths(date, 6);
+                break;
+            case "yearly":
+                nextDate = addYears(date, 1);
+                break;
+        }
 
-                const nextMonth = addMonths(date, 1);
-                const year = nextMonth.getFullYear();
-                const month = nextMonth.getMonth();
+        const dayOfWeek = nextDate.getDay();
+        if (dayOfWeek === 6) { // Sábado -> Segunda
+            nextDate = addDays(nextDate, 2);
+        } else if (dayOfWeek === 0) { // Domingo -> Segunda
+            nextDate = addDays(nextDate, 1);
+        }
+    } else if (recurrence.startsWith("monthly_dow_")) {
+        const parts = recurrence.split("_");
+        const weekPos = parts[2]; // "1","2","3","4","last"
+        const targetDay = parseInt(parts[3] || "1", 10); // 0=Sun…6=Sat
 
-                let targetDate: Date | null = null;
-                if (weekPos === "last") {
-                    // Find last occurrence of targetDay in next month
-                    const lastDayOfMonth = new Date(year, month + 1, 0);
-                    const diff = (lastDayOfMonth.getDay() - targetDay + 7) % 7;
-                    targetDate = new Date(year, month, lastDayOfMonth.getDate() - diff);
-                    if (targetDate.getMonth() !== month) targetDate = null;
+        const nextMonth = addMonths(date, 1);
+        const year = nextMonth.getFullYear();
+        const month = nextMonth.getMonth();
+
+        let targetDate: Date | null = null;
+        if (weekPos === "last") {
+            // Find last occurrence of targetDay in next month
+            const lastDayOfMonth = new Date(year, month + 1, 0);
+            const diff = (lastDayOfMonth.getDay() - targetDay + 7) % 7;
+            targetDate = new Date(year, month, lastDayOfMonth.getDate() - diff);
+            if (targetDate.getMonth() !== month) targetDate = null;
+        } else {
+            const n = parseInt(weekPos, 10);
+            const firstDay = new Date(year, month, 1);
+            const firstOccurrence = (targetDay - firstDay.getDay() + 7) % 7;
+            const dayNum = 1 + firstOccurrence + (n - 1) * 7;
+            targetDate = new Date(year, month, dayNum);
+            if (targetDate.getMonth() !== month) targetDate = null;
+        }
+
+        if (!targetDate) return null;
+        nextDate = targetDate;
+    } else if (recurrence.startsWith("custom_weekly_")) {
+        const daysStr = recurrence.replace("custom_weekly_", "");
+        const targetDays = daysStr.split(",").map(Number); // 0 = Sun, 1 = Mon, etc.
+
+        let found = false;
+        for (let i = 1; i <= 7; i++) {
+            const candidateDate = addDays(date, i);
+            if (targetDays.includes(candidateDate.getDay())) {
+                nextDate = candidateDate;
+                found = true;
+                break;
+            }
+        }
+        if (!found) return null;
+    } else if (recurrence.startsWith("custom_")) {
+        const parts = recurrence.split("_");
+        if (parts.length >= 3) {
+            const interval = parts[1]; // day, week, month, year
+            const amount = parseInt(parts[2] || "1", 10);
+            const daysStr = parts[3];
+
+            if (interval === "day") {
+                nextDate = addDays(date, amount);
+            } else if (interval === "month") {
+                nextDate = addMonths(date, amount);
+            } else if (interval === "year") {
+                nextDate = addYears(date, amount);
+            } else if (interval === "week") {
+                if (!daysStr) {
+                    nextDate = addWeeks(date, amount);
                 } else {
-                    const n = parseInt(weekPos, 10);
-                    const firstDay = new Date(year, month, 1);
-                    const firstOccurrence = (targetDay - firstDay.getDay() + 7) % 7;
-                    const dayNum = 1 + firstOccurrence + (n - 1) * 7;
-                    targetDate = new Date(year, month, dayNum);
-                    if (targetDate.getMonth() !== month) targetDate = null;
-                }
+                    const targetDays = daysStr.split(",").map(Number);
+                    const endOfCurrentWeek = endOfWeek(date, { weekStartsOn: 1 });
+                    let foundSameWeek = false;
 
-                if (!targetDate) return null;
-                nextDate = targetDate;
-            } else if (recurrence.startsWith("custom_weekly_")) {
-                const daysStr = recurrence.replace("custom_weekly_", "");
-                const targetDays = daysStr.split(",").map(Number); // 0 = Sun, 1 = Mon, etc.
+                    for (let i = 1; i <= 7; i++) {
+                        const candidate = addDays(date, i);
+                        // Set candidate time to 0 to compare correctly with endOfWeek
+                        candidate.setHours(0, 0, 0, 0);
+                        const endWeekComparable = new Date(endOfCurrentWeek);
+                        endWeekComparable.setHours(23, 59, 59, 999);
 
-                let found = false;
-                for (let i = 1; i <= 7; i++) {
-                    const candidateDate = addDays(date, i);
-                    if (targetDays.includes(candidateDate.getDay())) {
-                        nextDate = candidateDate;
-                        found = true;
-                        break;
+                        if (candidate > endWeekComparable) break;
+
+                        if (targetDays.includes(candidate.getDay())) {
+                            nextDate = candidate;
+                            foundSameWeek = true;
+                            break;
+                        }
                     }
-                }
-                if (!found) return null;
-            } else if (recurrence.startsWith("custom_")) {
-                const parts = recurrence.split("_");
-                if (parts.length >= 3) {
-                    const interval = parts[1]; // day, week, month, year
-                    const amount = parseInt(parts[2] || "1", 10);
-                    const daysStr = parts[3];
 
-                    if (interval === "day") {
-                        nextDate = addDays(date, amount);
-                    } else if (interval === "month") {
-                        nextDate = addMonths(date, amount);
-                    } else if (interval === "year") {
-                        nextDate = addYears(date, amount);
-                    } else if (interval === "week") {
-                        if (!daysStr) {
-                            nextDate = addWeeks(date, amount);
-                        } else {
-                            const targetDays = daysStr.split(",").map(Number);
-                            const endOfCurrentWeek = endOfWeek(date, { weekStartsOn: 1 });
-                            let foundSameWeek = false;
-
-                            for (let i = 1; i <= 7; i++) {
-                                const candidate = addDays(date, i);
-                                // Set candidate time to 0 to compare correctly with endOfWeek
-                                candidate.setHours(0, 0, 0, 0);
-                                const endWeekComparable = new Date(endOfCurrentWeek);
-                                endWeekComparable.setHours(23, 59, 59, 999);
-
-                                if (candidate > endWeekComparable) break;
-
-                                if (targetDays.includes(candidate.getDay())) {
-                                    nextDate = candidate;
-                                    foundSameWeek = true;
-                                    break;
-                                }
-                            }
-
-                            if (!foundSameWeek) {
-                                // Jump to `amount` weeks later
-                                const nextCycleStart = addWeeks(startOfWeek(date, { weekStartsOn: 1 }), amount);
-                                for (let i = 0; i < 7; i++) {
-                                    const candidate = addDays(nextCycleStart, i);
-                                    if (targetDays.includes(candidate.getDay())) {
-                                        nextDate = candidate;
-                                        break;
-                                    }
-                                }
+                    if (!foundSameWeek) {
+                        // Jump to `amount` weeks later
+                        const nextCycleStart = addWeeks(startOfWeek(date, { weekStartsOn: 1 }), amount);
+                        for (let i = 0; i < 7; i++) {
+                            const candidate = addDays(nextCycleStart, i);
+                            if (targetDays.includes(candidate.getDay())) {
+                                nextDate = candidate;
+                                break;
                             }
                         }
                     }
-                } else {
-                    return null;
                 }
-            } else {
-                return null;
             }
+        } else {
+            return null;
+        }
+    } else {
+        return null;
     }
 
     return format(nextDate, 'yyyy-MM-dd');
