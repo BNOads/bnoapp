@@ -9,6 +9,7 @@ import { useToggleTaskComplete, useUpdateTask, useCreateTask, useDeleteTask } fr
 import { PRIORITY_LABELS, TaskPriority, RecurrenceType, RECURRENCE_LABELS, getRecurrenceLabel } from "@/types/tasks";
 import { CheckCircleIcon, CalendarIcon, Flag, Clock, User, RepeatIcon, Users, List, Plus, Trash2, AlertCircle, ChevronRight, FileText, Check, SkipForward, Maximize2, Minimize2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { TaskDetailDialog } from "../details/TaskDetailDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Progress } from "@/components/ui/progress";
@@ -255,6 +256,7 @@ export function TodaysTasks() {
     const { mutate: createTask } = useCreateTask();
     const { mutate: deleteTask } = useDeleteTask();
     const navigate = useNavigate();
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
     // Optimistic completion state — flips instantly, rolls back on error
     const [optimisticCompleted, setOptimisticCompleted] = useState<Record<string, boolean>>({});
@@ -317,7 +319,7 @@ export function TodaysTasks() {
                 return;
             }
         }
-        navigate(`/tarefas/${id}`);
+        setSelectedTaskId(id);
     };
 
     const handleAdiarTodasAtrasadas = (e: React.MouseEvent) => {
@@ -406,140 +408,148 @@ export function TodaysTasks() {
     }
 
     return (
-        <Card className={`w-full h-auto flex flex-col shadow-sm border p-6 transition-all duration-300 ${isExpanded ? "min-h-[500px]" : "min-h-[500px] max-h-[700px] overflow-hidden"}`}>
-            <div className="flex items-center justify-between mb-2">
-                <div>
-                    <h2 className="text-xl font-bold tracking-tight">Minhas Tarefas</h2>
-                    <p className="text-muted-foreground text-sm mt-0.5">
-                        {completedTasksNum} de {totalTasks} tarefas concluídas
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Select value={filterPriority} onValueChange={setFilterPriority}>
-                        <SelectTrigger className="h-9 px-3 gap-2 w-auto border-dashed shadow-none focus:ring-0 rounded-md text-muted-foreground font-medium bg-background">
-                            <Flag className="w-4 h-4" />
-                            <span className="hidden sm:inline">
-                                {filterPriority === "all" ? "Prioridade" : PRIORITY_LABELS[filterPriority as keyof typeof PRIORITY_LABELS]}
-                            </span>
-                        </SelectTrigger>
-                        <SelectContent align="end">
-                            <SelectItem value="all">Todas</SelectItem>
-                            <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
-                            <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
-                            <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button onClick={() => setIsInlineCreateOpen(!isInlineCreateOpen)} className="bg-amber-500 hover:bg-amber-600 text-white font-medium border-0 h-9 px-4 gap-1.5 shadow-none rounded-md transition-all">
-                        <Plus className="w-4 h-4 text-white" />
-                        Nova Tarefa
-                    </Button>
-                    <Button variant="outline" onClick={() => navigate('/tarefas')} className="h-9 px-4 gap-1.5 rounded-md text-muted-foreground font-medium bg-background hidden md:flex">
-                        <FileText className="w-4 h-4" />
-                        Ver Todas
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        className="h-9 w-9 rounded-md text-muted-foreground bg-background border-dashed hover:border-solid transition-all"
-                        title={isExpanded ? "Reduzir" : "Expandir"}
-                    >
-                        {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                    </Button>
-                </div>
-            </div>
-
-            {isInlineCreateOpen && (
-                <div className="mt-4 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+        <>
+            <Card className={`w-full h-auto flex flex-col shadow-sm border p-6 transition-all duration-300 ${isExpanded ? "min-h-[500px]" : "min-h-[500px] max-h-[700px] overflow-hidden"}`}>
+                <div className="flex items-center justify-between mb-2">
+                    <div>
+                        <h2 className="text-xl font-bold tracking-tight">Minhas Tarefas</h2>
+                        <p className="text-muted-foreground text-sm mt-0.5">
+                            {completedTasksNum} de {totalTasks} tarefas concluídas
+                        </p>
+                    </div>
                     <div className="flex items-center gap-2">
-                        <Input
-                            autoFocus
-                            placeholder="O que você precisa fazer hoje?"
-                            value={inlineTaskTitle}
-                            onChange={(e) => setInlineTaskTitle(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleInlineCreate()}
-                            className="h-10 text-sm"
-                        />
-                        <Button onClick={handleInlineCreate} disabled={!inlineTaskTitle.trim()} className="h-10 px-4 shrink-0 shadow-none border-0 font-medium">
-                            <Check className="w-4 h-4 mr-1.5" /> Adicionar
+                        <Select value={filterPriority} onValueChange={setFilterPriority}>
+                            <SelectTrigger className="h-9 px-3 gap-2 w-auto border-dashed shadow-none focus:ring-0 rounded-md text-muted-foreground font-medium bg-background">
+                                <Flag className="w-4 h-4" />
+                                <span className="hidden sm:inline">
+                                    {filterPriority === "all" ? "Prioridade" : PRIORITY_LABELS[filterPriority as keyof typeof PRIORITY_LABELS]}
+                                </span>
+                            </SelectTrigger>
+                            <SelectContent align="end">
+                                <SelectItem value="all">Todas</SelectItem>
+                                <SelectItem value="baixa">{PRIORITY_LABELS.baixa}</SelectItem>
+                                <SelectItem value="media">{PRIORITY_LABELS.media}</SelectItem>
+                                <SelectItem value="alta">{PRIORITY_LABELS.alta}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button onClick={() => setIsInlineCreateOpen(!isInlineCreateOpen)} className="bg-amber-500 hover:bg-amber-600 text-white font-medium border-0 h-9 px-4 gap-1.5 shadow-none rounded-md transition-all">
+                            <Plus className="w-4 h-4 text-white" />
+                            Nova Tarefa
+                        </Button>
+                        <Button variant="outline" onClick={() => navigate('/tarefas')} className="h-9 px-4 gap-1.5 rounded-md text-muted-foreground font-medium bg-background hidden md:flex">
+                            <FileText className="w-4 h-4" />
+                            Ver Todas
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="h-9 w-9 rounded-md text-muted-foreground bg-background border-dashed hover:border-solid transition-all"
+                            title={isExpanded ? "Reduzir" : "Expandir"}
+                        >
+                            {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                         </Button>
                     </div>
                 </div>
-            )}
 
-            <div className="mb-6 mt-6">
-                <div className="flex items-center justify-between text-sm font-semibold mb-2">
-                    <span>Progresso geral</span>
-                    <span className="text-amber-500">{progress}%</span>
+                {isInlineCreateOpen && (
+                    <div className="mt-4 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center gap-2">
+                            <Input
+                                autoFocus
+                                placeholder="O que você precisa fazer hoje?"
+                                value={inlineTaskTitle}
+                                onChange={(e) => setInlineTaskTitle(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleInlineCreate()}
+                                className="h-10 text-sm"
+                            />
+                            <Button onClick={handleInlineCreate} disabled={!inlineTaskTitle.trim()} className="h-10 px-4 shrink-0 shadow-none border-0 font-medium">
+                                <Check className="w-4 h-4 mr-1.5" /> Adicionar
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="mb-6 mt-6">
+                    <div className="flex items-center justify-between text-sm font-semibold mb-2">
+                        <span>Progresso geral</span>
+                        <span className="text-amber-500">{progress}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2.5 bg-muted rounded-full [&>div]:bg-amber-500" />
                 </div>
-                <Progress value={progress} className="h-2.5 bg-muted rounded-full [&>div]:bg-amber-500" />
-            </div>
 
-            <div className={`flex-1 pr-2 pb-4 -mr-2 ${isExpanded ? "" : "overflow-y-auto"}`}>
-                <Accordion type="multiple" defaultValue={["overdue", "upcoming", "completed"]} className="w-full space-y-4">
+                <div className={`flex-1 pr-2 pb-4 -mr-2 ${isExpanded ? "" : "overflow-y-auto"}`}>
+                    <Accordion type="multiple" defaultValue={["overdue", "upcoming", "completed"]} className="w-full space-y-4">
 
-                    {overdueTasks.length > 0 && (
-                        <AccordionItem value="overdue" className="border-none">
-                            <div className="flex items-center justify-between pr-2">
-                                <AccordionTrigger className="hover:no-underline py-2 flex-1 justify-start gap-2 text-destructive">
-                                    <AlertCircle className="w-4 h-4" />
-                                    <span className="font-semibold text-sm">Em atraso ({overdueTasks.length})</span>
-                                </AccordionTrigger>
-                                {overdueTasks.length > 0 && (
-                                    <Button
-                                        size="sm"
-                                        className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 rounded-md px-3 font-medium transition-all shadow-sm"
-                                        onClick={handleAdiarTodasAtrasadas}
-                                    >
-                                        <SkipForward className="w-3.5 h-3.5" />
-                                        Adiar para Hoje
-                                    </Button>
-                                )}
-                            </div>
-                            <AccordionContent className="pt-2 pb-0">
-                                {overdueTasks.map(t => <TaskItem key={t.id} task={t} {...taskItemSharedProps} />)}
-                            </AccordionContent>
-                        </AccordionItem>
-                    )}
+                        {overdueTasks.length > 0 && (
+                            <AccordionItem value="overdue" className="border-none">
+                                <div className="flex items-center justify-between pr-2">
+                                    <AccordionTrigger className="hover:no-underline py-2 flex-1 justify-start gap-2 text-destructive">
+                                        <AlertCircle className="w-4 h-4" />
+                                        <span className="font-semibold text-sm">Em atraso ({overdueTasks.length})</span>
+                                    </AccordionTrigger>
+                                    {overdueTasks.length > 0 && (
+                                        <Button
+                                            size="sm"
+                                            className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 rounded-md px-3 font-medium transition-all shadow-sm"
+                                            onClick={handleAdiarTodasAtrasadas}
+                                        >
+                                            <SkipForward className="w-3.5 h-3.5" />
+                                            Adiar para Hoje
+                                        </Button>
+                                    )}
+                                </div>
+                                <AccordionContent className="pt-2 pb-0">
+                                    {overdueTasks.map(t => <TaskItem key={t.id} task={t} {...taskItemSharedProps} />)}
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
 
-                    <AccordionItem value="upcoming" className="border-none">
-                        <AccordionTrigger className="hover:no-underline py-2 justify-start gap-2 text-primary">
-                            <CalendarIcon className="w-4 h-4" />
-                            <span className="font-semibold text-sm text-foreground">Hoje ({upcomingTasks.length})</span>
-                        </AccordionTrigger>
-                        <AccordionContent className="pt-2 pb-0">
-                            {upcomingTasks.length > 0 ? upcomingTasks.map(t => <TaskItem key={t.id} task={t} {...taskItemSharedProps} />) : (
-                                <p className="text-xs text-muted-foreground italic px-2">Nenhuma tarefa para hoje.</p>
-                            )}
-                        </AccordionContent>
-                    </AccordionItem>
-
-                    {futureTasks.length > 0 && (
-                        <AccordionItem value="future" className="border-none">
-                            <AccordionTrigger className="hover:no-underline py-2 justify-start gap-2 text-muted-foreground">
-                                <Clock className="w-4 h-4" />
-                                <span className="font-semibold text-sm text-foreground">Próximas e Sem Prazo ({futureTasks.length})</span>
+                        <AccordionItem value="upcoming" className="border-none">
+                            <AccordionTrigger className="hover:no-underline py-2 justify-start gap-2 text-primary">
+                                <CalendarIcon className="w-4 h-4" />
+                                <span className="font-semibold text-sm text-foreground">Hoje ({upcomingTasks.length})</span>
                             </AccordionTrigger>
                             <AccordionContent className="pt-2 pb-0">
-                                {futureTasks.map(t => <TaskItem key={t.id} task={t} {...taskItemSharedProps} />)}
+                                {upcomingTasks.length > 0 ? upcomingTasks.map(t => <TaskItem key={t.id} task={t} {...taskItemSharedProps} />) : (
+                                    <p className="text-xs text-muted-foreground italic px-2">Nenhuma tarefa para hoje.</p>
+                                )}
                             </AccordionContent>
                         </AccordionItem>
-                    )}
 
-                    <AccordionItem value="completed" className="border-none">
-                        <AccordionTrigger className="hover:no-underline py-2 justify-start gap-2 text-emerald-500">
-                            <CheckCircleIcon className="w-4 h-4" />
-                            <span className="font-semibold text-sm">Concluídas hoje ({todayCompletedTasks.length})</span>
-                        </AccordionTrigger>
-                        <AccordionContent className="pt-2 pb-0">
-                            {todayCompletedTasks.length > 0 ? todayCompletedTasks.map(t => <TaskItem key={t.id} task={t} {...taskItemSharedProps} />) : (
-                                <p className="text-xs text-muted-foreground italic px-2">Nenhuma tarefa concluída hoje.</p>
-                            )}
-                        </AccordionContent>
-                    </AccordionItem>
+                        {futureTasks.length > 0 && (
+                            <AccordionItem value="future" className="border-none">
+                                <AccordionTrigger className="hover:no-underline py-2 justify-start gap-2 text-muted-foreground">
+                                    <Clock className="w-4 h-4" />
+                                    <span className="font-semibold text-sm text-foreground">Próximas e Sem Prazo ({futureTasks.length})</span>
+                                </AccordionTrigger>
+                                <AccordionContent className="pt-2 pb-0">
+                                    {futureTasks.map(t => <TaskItem key={t.id} task={t} {...taskItemSharedProps} />)}
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
 
-                </Accordion>
-            </div>
-        </Card>
+                        <AccordionItem value="completed" className="border-none">
+                            <AccordionTrigger className="hover:no-underline py-2 justify-start gap-2 text-emerald-500">
+                                <CheckCircleIcon className="w-4 h-4" />
+                                <span className="font-semibold text-sm">Concluídas hoje ({todayCompletedTasks.length})</span>
+                            </AccordionTrigger>
+                            <AccordionContent className="pt-2 pb-0">
+                                {todayCompletedTasks.length > 0 ? todayCompletedTasks.map(t => <TaskItem key={t.id} task={t} {...taskItemSharedProps} />) : (
+                                    <p className="text-xs text-muted-foreground italic px-2">Nenhuma tarefa concluída hoje.</p>
+                                )}
+                            </AccordionContent>
+                        </AccordionItem>
+
+                    </Accordion>
+                </div>
+            </Card>
+
+            <TaskDetailDialog
+                taskId={selectedTaskId}
+                open={!!selectedTaskId}
+                onOpenChange={(open) => { if (!open) setSelectedTaskId(null); }}
+            />
+        </>
     );
 }

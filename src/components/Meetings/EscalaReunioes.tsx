@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Users, UserPlus, RefreshCw, Plus, Search, Check } from "lucide-react";
+import { Clock, Users, UserPlus, RefreshCw, Plus, Search, Check, Edit2, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -10,12 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Calendar as CalendarIcon, 
-  MapPin, 
-  Play, 
-  Square, 
-  CheckCircle, 
+import {
+  Calendar as CalendarIcon,
+  MapPin,
+  Play,
+  Square,
+  CheckCircle,
   XCircle,
   UserCheck,
   UserX,
@@ -78,6 +78,21 @@ export const EscalaReunioes: React.FC = () => {
     linkMeet: ''
   });
 
+  // Edit / Delete state
+  const [editModal, setEditModal] = useState(false);
+  const [editData, setEditData] = useState({
+    id: '',
+    titulo: '',
+    descricao: '',
+    dataHora: '',
+    duracaoPrevista: 60,
+    linkMeet: '',
+    isAutoImported: false,
+    originalData: null as Reuniao | null,
+  });
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; reuniao?: Reuniao }>({ open: false });
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     carregarReunioes();
     loadColaboradores();
@@ -86,19 +101,19 @@ export const EscalaReunioes: React.FC = () => {
 
   const carregarReunioes = async () => {
     if (!selectedDate) return;
-    
+
     try {
       setLoading(true);
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       console.log('Carregando reuniões para:', dateStr);
-      
+
       // Buscar eventos do Google Calendar (mesma estratégia da aba Calendar)
       const startDate = new Date(selectedDate);
       startDate.setHours(0, 0, 0, 0);
-      
+
       const endDate = new Date(selectedDate);
       endDate.setHours(23, 59, 59, 999);
-      
+
       console.log('Buscando eventos do Google Calendar...');
       const { data: calendarData, error: calendarError } = await supabase.functions.invoke('google-calendar', {
         body: {
@@ -107,7 +122,7 @@ export const EscalaReunioes: React.FC = () => {
           timeMax: endDate.toISOString()
         }
       });
-      
+
       const events = calendarData?.items || [];
       console.log('Eventos encontrados:', events.length);
 
@@ -118,7 +133,7 @@ export const EscalaReunioes: React.FC = () => {
           const startTime = new Date(event.start.dateTime);
           const endTime = event.end?.dateTime ? new Date(event.end.dateTime) : new Date(startTime.getTime() + 60 * 60 * 1000);
           const duracao = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
-          
+
           return {
             id: event.id,
             titulo: event.summary || 'Reunião sem título',
@@ -133,7 +148,7 @@ export const EscalaReunioes: React.FC = () => {
             presencas_reunioes: []
           };
         });
-      
+
       // Buscar reuniões já salvas no banco
       const { data: reunioesBanco, error: bancoError } = await supabase
         .from('reunioes_agendadas')
@@ -141,7 +156,7 @@ export const EscalaReunioes: React.FC = () => {
         .gte('data_hora', startDate.toISOString())
         .lt('data_hora', endDate.toISOString())
         .order('data_hora');
-      
+
       // Buscar participantes de todas as reuniões
       const { data: todasPresencas } = await supabase
         .from('presencas_reunioes')
@@ -150,12 +165,12 @@ export const EscalaReunioes: React.FC = () => {
           user_id,
           status
         `);
-      
+
       // Buscar dados dos colaboradores
       const { data: colaboradoresData } = await supabase
         .from('colaboradores')
         .select('user_id, nome, avatar_url');
-      
+
       // Mapear reuniões do banco com participantes
       const reunioesFormatadas = (reunioesBanco || []).map(reuniao => {
         const participantes = (todasPresencas || [])
@@ -171,24 +186,24 @@ export const EscalaReunioes: React.FC = () => {
               }
             };
           });
-        
+
         return {
           ...reuniao,
           presencas_reunioes: participantes
         };
       });
-      
+
       // Filtrar reuniões do Google Calendar que já não estejam salvas no banco
       // Verificamos por título e data_hora para identificar duplicatas
       const reunioesGoogleFiltradas = reunioesDoCalendar.filter(reuniaoGoogle => {
         const googleDateTime = new Date(reuniaoGoogle.data_hora).toISOString();
         return !reunioesFormatadas.some(reuniaoBanco => {
           const bancoDateTime = new Date(reuniaoBanco.data_hora).toISOString();
-          return reuniaoBanco.titulo === reuniaoGoogle.titulo && 
-                 Math.abs(new Date(bancoDateTime).getTime() - new Date(googleDateTime).getTime()) < 60000; // 1 minuto de tolerância
+          return reuniaoBanco.titulo === reuniaoGoogle.titulo &&
+            Math.abs(new Date(bancoDateTime).getTime() - new Date(googleDateTime).getTime()) < 60000; // 1 minuto de tolerância
         });
       });
-      
+
       // Adicionar participantes às reuniões do Google Calendar que não estão no banco
       const reunioesGoogleComParticipantes = reunioesGoogleFiltradas.map(reuniao => {
         const participantes = (todasPresencas || [])
@@ -204,18 +219,18 @@ export const EscalaReunioes: React.FC = () => {
               }
             };
           });
-        
+
         return {
           ...reuniao,
           presencas_reunioes: participantes
         };
       });
-      
+
       // Combinar reuniões sem duplicatas
       const todasReunioes = [...reunioesFormatadas, ...reunioesGoogleComParticipantes];
       console.log('Total de reuniões:', todasReunioes.length);
       setReunioes(todasReunioes);
-      
+
     } catch (error) {
       console.error('Erro ao carregar reuniões:', error);
       toast({
@@ -225,6 +240,77 @@ export const EscalaReunioes: React.FC = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Helper: persists a Google Calendar event to DB and returns the new UUID
+  const ensureReuniaoInDB = async (reuniao: Reuniao): Promise<string> => {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reuniao.id);
+    if (isUUID) return reuniao.id;
+    const { data, error } = await supabase
+      .from('reunioes_agendadas')
+      .insert({
+        titulo: reuniao.titulo,
+        descricao: reuniao.descricao || '',
+        data_hora: reuniao.data_hora,
+        duracao_prevista: reuniao.duracao_prevista || 60,
+        tipo: 'reuniao',
+        status: 'agendada',
+        organizador_id: user?.id,
+        link_meet: reuniao.link_meet || ''
+      })
+      .select('id')
+      .single();
+    if (error) throw error;
+    return data.id;
+  };
+
+  const abrirEditar = (reuniao: Reuniao) => {
+    const isAutoImported = !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reuniao.id);
+    const localDate = new Date(reuniao.data_hora);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dataHoraLocal = `${localDate.getFullYear()}-${pad(localDate.getMonth() + 1)}-${pad(localDate.getDate())}T${pad(localDate.getHours())}:${pad(localDate.getMinutes())}`;
+    setEditData({ id: reuniao.id, titulo: reuniao.titulo, descricao: reuniao.descricao || '', dataHora: dataHoraLocal, duracaoPrevista: reuniao.duracao_prevista || 60, linkMeet: reuniao.link_meet || '', isAutoImported, originalData: reuniao });
+    setEditModal(true);
+  };
+
+  const salvarEdicao = async () => {
+    if (!editData.titulo.trim()) {
+      toast({ title: 'Erro', description: 'O título é obrigatório.', variant: 'destructive' });
+      return;
+    }
+    try {
+      setSaving(true);
+      let id = editData.id;
+      if (editData.isAutoImported && editData.originalData) id = await ensureReuniaoInDB(editData.originalData);
+      const { error } = await supabase.from('reunioes_agendadas').update({ titulo: editData.titulo, descricao: editData.descricao, data_hora: new Date(editData.dataHora).toISOString(), duracao_prevista: editData.duracaoPrevista, link_meet: editData.linkMeet }).eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Reunião atualizada!', description: 'Alterações salvas com sucesso.' });
+      setEditModal(false);
+      carregarReunioes();
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message || 'Falha ao salvar.', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const excluirReuniao = async (reuniao: Reuniao) => {
+    try {
+      setSaving(true);
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reuniao.id);
+      if (isUUID) {
+        const { error } = await supabase.from('reunioes_agendadas').update({ status: 'cancelada' }).eq('id', reuniao.id);
+        if (error) throw error;
+      }
+      setReunioes(prev => prev.filter(r => r.id !== reuniao.id));
+      setDeleteDialog({ open: false });
+      toast({ title: 'Reunião removida', description: 'Reunião removida da escala.' });
+      if (isUUID) carregarReunioes();
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message || 'Falha ao excluir.', variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -380,19 +466,19 @@ export const EscalaReunioes: React.FC = () => {
   const addParticipantsToMeeting = async (reuniaoId: string, participantes: string[]) => {
     try {
       console.log('Adicionando participantes:', participantes, 'à reunião:', reuniaoId);
-      
+
       // Verificar se a reunião é do Google Calendar (não é UUID)
       const isGoogleCalendarEvent = !reuniaoId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-      
+
       let finalReuniaoId = reuniaoId;
-      
+
       if (isGoogleCalendarEvent) {
         // Se for evento do Google Calendar, primeiro criar na tabela reunioes_agendadas
         const reuniaoSelecionadaData = reunioes.find(r => r.id === reuniaoId);
-        
+
         if (reuniaoSelecionadaData) {
           console.log('Salvando reunião do Google Calendar no banco...');
-          
+
           const { data: novaReuniao, error: insertError } = await supabase
             .from('reunioes_agendadas')
             .insert({
@@ -407,40 +493,40 @@ export const EscalaReunioes: React.FC = () => {
             })
             .select()
             .single();
-          
+
           if (insertError) {
             console.error('Erro ao salvar reunião:', insertError);
             throw insertError;
           }
-          
+
           finalReuniaoId = novaReuniao.id;
           console.log('Reunião salva com ID:', finalReuniaoId);
         }
       }
-      
+
       // Adicionar participantes à reunião
       const participantesData = participantes.map(userId => ({
         reuniao_id: finalReuniaoId,
         user_id: userId,
         status: 'ausente'
       }));
-      
+
       const { error } = await supabase
         .from('presencas_reunioes')
         .upsert(participantesData, {
           onConflict: 'reuniao_id,user_id'
         });
-      
+
       if (error) {
         console.error('Erro ao adicionar participantes:', error);
         throw error;
       }
-      
+
       console.log('Participantes adicionados com sucesso');
-      
+
       // Recarregar reuniões para atualizar a interface
       await carregarReunioes();
-      
+
       toast({
         title: "Sucesso",
         description: "Participantes adicionados à reunião"
@@ -524,16 +610,16 @@ export const EscalaReunioes: React.FC = () => {
             Gerencie reuniões e controle de presença
           </p>
         </div>
-        
+
         <div className="flex gap-2">
-          <Button 
+          <Button
             onClick={criarNovaReuniao}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             Nova Reunião
           </Button>
-          <Button 
+          <Button
             onClick={carregarReunioes}
             variant="outline"
             disabled={loading}
@@ -574,7 +660,7 @@ export const EscalaReunioes: React.FC = () => {
                 {reunioes.length} reunião(ões) agendada(s)
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               {loading ? (
                 <div className="space-y-4">
@@ -613,30 +699,50 @@ export const EscalaReunioes: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        
-                        <div className="flex items-center gap-2">
+
+                        <div className="flex items-center gap-1.5">
                           {getStatusBadge(reuniao.status)}
-                          
+
                           {reuniao.status === 'agendada' && (
                             <Button size="sm" onClick={() => startMeeting(reuniao.id)}>
                               <Play className="h-4 w-4 mr-1" />
                               Iniciar
                             </Button>
                           )}
-                          
+
                           {reuniao.status === 'em_andamento' && (
                             <Button size="sm" variant="destructive" onClick={() => endMeeting(reuniao.id)}>
                               <Square className="h-4 w-4 mr-1" />
                               Finalizar
                             </Button>
                           )}
+
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                            onClick={() => abrirEditar(reuniao)}
+                            title="Editar reunião"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => setDeleteDialog({ open: true, reuniao })}
+                            title="Excluir reunião"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </div>
-                      
+
                       {reuniao.descricao && (
                         <p className="text-sm text-muted-foreground">{reuniao.descricao}</p>
                       )}
-                      
+
                       {reuniao.link_meet && (
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4" />
@@ -650,7 +756,7 @@ export const EscalaReunioes: React.FC = () => {
                           </a>
                         </div>
                       )}
-                      
+
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h4 className="font-medium text-sm">Participantes:</h4>
@@ -666,7 +772,7 @@ export const EscalaReunioes: React.FC = () => {
                             Gerenciar
                           </Button>
                         </div>
-                        
+
                         {reuniao.presencas_reunioes && reuniao.presencas_reunioes.length > 0 ? (
                           <div className="grid grid-cols-1 gap-2">
                             {reuniao.presencas_reunioes.map((presenca) => (
@@ -687,10 +793,10 @@ export const EscalaReunioes: React.FC = () => {
                                     )}
                                   </div>
                                 </div>
-                                
+
                                 <div className="flex items-center gap-2">
                                   {getStatusIcon(presenca.status)}
-                                  
+
                                   {reuniao.status === 'em_andamento' && (
                                     <div className="flex gap-1">
                                       <Button
@@ -725,7 +831,7 @@ export const EscalaReunioes: React.FC = () => {
                             Nenhum participante adicionado ainda
                           </div>
                         )}
-                        
+
                         {reuniao.status === 'em_andamento' && (
                           <div className="flex gap-2 pt-2 border-t">
                             <Button size="sm" onClick={() => markAttendance(reuniao.id, 'presente')}>
@@ -744,6 +850,73 @@ export const EscalaReunioes: React.FC = () => {
         </div>
       </div>
 
+      {/* Modal de Edição */}
+      <Dialog open={editModal} onOpenChange={setEditModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Reunião</DialogTitle>
+            {editData.isAutoImported && (
+              <DialogDescription className="text-amber-600">
+                ⚠ Reunião importada do Google Calendar — será salva no sistema ao confirmar.
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-titulo">Título</Label>
+              <Input id="edit-titulo" value={editData.titulo} onChange={e => setEditData(prev => ({ ...prev, titulo: e.target.value }))} placeholder="Título da reunião" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-descricao">Descrição / Pauta</Label>
+              <Textarea id="edit-descricao" value={editData.descricao} onChange={e => setEditData(prev => ({ ...prev, descricao: e.target.value }))} placeholder="Pauta ou descrição..." rows={3} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-data">Data e Hora</Label>
+                <Input id="edit-data" type="datetime-local" value={editData.dataHora} onChange={e => setEditData(prev => ({ ...prev, dataHora: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-duracao">Duração (min)</Label>
+                <Input id="edit-duracao" type="number" min={5} step={5} value={editData.duracaoPrevista} onChange={e => setEditData(prev => ({ ...prev, duracaoPrevista: Number(e.target.value) }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-link">Link Meet</Label>
+              <Input id="edit-link" value={editData.linkMeet} onChange={e => setEditData(prev => ({ ...prev, linkMeet: e.target.value }))} placeholder="https://meet.google.com/..." />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="outline" onClick={() => setEditModal(false)}>Cancelar</Button>
+            <Button onClick={salvarEdicao} disabled={saving}>
+              {saving ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <Dialog open={deleteDialog.open} onOpenChange={open => setDeleteDialog({ open })}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Excluir Reunião</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja remover{' '}
+              <strong>"{deleteDialog.reuniao?.titulo}"</strong> da escala?
+              {deleteDialog.reuniao && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deleteDialog.reuniao.id) && (
+                <span className="block mt-1 text-amber-600 text-xs">Reunião do Google Calendar — será removida apenas da escala, não do calendário original.</span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false })}>Cancelar</Button>
+            <Button variant="destructive" disabled={saving} onClick={() => deleteDialog.reuniao && excluirReuniao(deleteDialog.reuniao)}>
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              {saving ? 'Removendo...' : 'Excluir'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal para Gerenciar Participantes */}
       <Dialog open={participantesModal} onOpenChange={setParticipantesModal}>
         <DialogContent className="max-w-md">
@@ -753,7 +926,7 @@ export const EscalaReunioes: React.FC = () => {
               Adicione ou remova participantes da reunião
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Campo de busca */}
             <div className="relative">
@@ -763,14 +936,14 @@ export const EscalaReunioes: React.FC = () => {
                 className="pl-10"
               />
             </div>
-            
+
             {/* Lista de colaboradores */}
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {colaboradores.map((colaborador) => {
                 const isParticipating = reunioes
                   .find(r => r.id === reuniaoSelecionada)
                   ?.presencas_reunioes?.some(p => p.user_id === colaborador.user_id);
-                
+
                 return (
                   <div key={colaborador.user_id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
                     <div className="flex items-center space-x-3">
@@ -808,7 +981,7 @@ export const EscalaReunioes: React.FC = () => {
                 );
               })}
             </div>
-            
+
             {/* Opção de convidar por email */}
             <div className="border-t pt-4">
               <Button variant="ghost" className="w-full justify-start text-muted-foreground">
@@ -817,7 +990,7 @@ export const EscalaReunioes: React.FC = () => {
               </Button>
             </div>
           </div>
-          
+
           <div className="flex justify-end">
             <Button variant="outline" onClick={() => setParticipantesModal(false)}>
               Fechar

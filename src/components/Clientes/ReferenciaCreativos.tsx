@@ -1,952 +1,301 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { FileText, Image, Video, Link2, Copy, Eye, Edit2, Plus, Calendar, ExternalLink, FileCode, Share2, Search, Trash2, Upload, Download } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Upload, Download, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { ReferencesEditor } from "@/components/References/ReferencesEditor";
-interface ConteudoBloco {
-  id: string;
-  tipo: 'texto' | 'imagem' | 'video' | 'link';
-  conteudo: string;
-  titulo?: string;
-  descricao?: string;
-  url?: string;
-}
-interface ReferenciaCreativo {
-  id: string;
-  titulo: string;
-  conteudo: any;
-  link_publico: string;
-  categoria: 'criativos' | 'pagina';
-  created_at: string;  
-  updated_at: string;
-  is_template: boolean;
-  links_externos: any;
-  is_public?: boolean;
-  public_slug?: string;
-  public_token?: string;
-}
+import { ReferenciasGrid } from "@/components/Referencias/ReferenciasGrid";
+import { ReferenciasFilters, DEFAULT_FILTERS, ReferenciaFilters } from "@/components/Referencias/ReferenciasFilters";
+import { ReferenciaItem } from "@/components/Referencias/ReferenciaCard";
+
 interface ReferenciaCriativosProps {
   clienteId: string;
 }
-export const ReferenciaCreativos = ({
-  clienteId
-}: ReferenciaCriativosProps) => {
-  const [referencias, setReferencias] = useState<ReferenciaCreativo[]>([]);
-  const [referenciasFiltradas, setReferenciasFiltradas] = useState<ReferenciaCreativo[]>([]);
+
+export const ReferenciaCreativos = ({ clienteId }: ReferenciaCriativosProps) => {
+  const [referencias, setReferencias] = useState<ReferenciaItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [showVisualizacao, setShowVisualizacao] = useState(false);
+  const [filters, setFilters] = useState<ReferenciaFilters>(DEFAULT_FILTERS);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNotionEditor, setShowNotionEditor] = useState(false);
-  const [selectedReferencia, setSelectedReferencia] = useState<ReferenciaCreativo | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filtroCategoria, setFiltroCategoria] = useState<'todas' | 'criativos' | 'pagina'>('todas');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    titulo: "",
-    categoria: "criativos" as "criativos" | "pagina",
-    is_template: false,
-    is_public: false,
-    public_slug: ""
-  });
-  const [blocos, setBlocos] = useState<ConteudoBloco[]>([]);
-  const [linksExternos, setLinksExternos] = useState<{
-    url: string;
-    titulo: string;
-  }[]>([]);
-  const {
-    toast
-  } = useToast();
-  const {
-    canCreateContent
-  } = useUserPermissions();
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; referencia?: ReferenciaItem }>({ open: false });
+  const [confirmTitle, setConfirmTitle] = useState("");
+
+  const { toast } = useToast();
+  const { canCreateContent } = useUserPermissions();
+
   useEffect(() => {
     carregarReferencias();
   }, [clienteId]);
-  useEffect(() => {
-    filtrarReferencias();
-  }, [searchTerm, filtroCategoria, referencias]);
-  const filtrarReferencias = () => {
-    let filtered = referencias;
 
-    // Filtrar por categoria
-    if (filtroCategoria !== 'todas') {
-      filtered = filtered.filter(ref => ref.categoria === filtroCategoria);
-    }
-
-    // Filtrar por termo de busca
-    if (searchTerm.trim()) {
-      filtered = filtered.filter(ref => ref.titulo.toLowerCase().includes(searchTerm.toLowerCase()));
-    }
-    setReferenciasFiltradas(filtered);
-  };
   const carregarReferencias = async () => {
     try {
-      let query = supabase.from('referencias_criativos')
-        .select('*, is_public, public_slug, public_token')
-        .eq('ativo', true)
-        .order('created_at', { ascending: false });
+      setLoading(true);
+      let query = supabase
+        .from("referencias_criativos")
+        .select("id, titulo, categoria, tipo_cliente, tipo_funil, tags, thumbnail_url, descricao, is_public, public_slug, link_url, links_externos, conteudo, is_template, created_at, updated_at")
+        .eq("ativo", true)
+        .order("created_at", { ascending: false });
 
-      // Se clienteId for "geral", buscar referências gerais (cliente_id null)
-      // Senão, filtrar por cliente específico
       if (clienteId === "geral") {
-        query = query.is('cliente_id', null);
+        query = query.is("cliente_id", null);
       } else {
-        query = query.eq('cliente_id', clienteId);
+        query = query.eq("cliente_id", clienteId);
       }
-      
+
       const { data, error } = await query;
-      
-      if (error) {
-        console.error('Erro ao carregar referências:', error);
-        throw error;
-      }
-      
-      console.log('Referências carregadas:', data);
-      setReferencias((data || []) as ReferenciaCreativo[]);
-      setReferenciasFiltradas((data || []) as ReferenciaCreativo[]);
+      if (error) throw error;
+      setReferencias((data || []) as ReferenciaItem[]);
     } catch (error: any) {
-      console.error('Erro detalhado ao carregar referências:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar referências: " + error.message,
-        variant: "destructive"
-      });
+      toast({ title: "Erro", description: "Erro ao carregar referências: " + error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
-  const adicionarBloco = (tipo: ConteudoBloco['tipo']) => {
-    const novoBloco: ConteudoBloco = {
-      id: Date.now().toString(),
-      tipo,
-      conteudo: "",
-      titulo: "",
-      descricao: ""
-    };
-    setBlocos([...blocos, novoBloco]);
-  };
-  const atualizarBloco = (id: string, campo: string, valor: string) => {
-    setBlocos(blocos.map(bloco => bloco.id === id ? {
-      ...bloco,
-      [campo]: valor
-    } : bloco));
-  };
-  const removerBloco = (id: string) => {
-    setBlocos(blocos.filter(bloco => bloco.id !== id));
-  };
-  const salvarReferencia = async () => {
-    try {
-      if (!formData.titulo.trim()) {
-        toast({
-          title: "Erro",
-          description: "Título é obrigatório",
-          variant: "destructive"
-        });
-        return;
+
+  // Tags disponíveis
+  const availableTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    referencias.forEach((r) => r.tags?.forEach((t) => tagSet.add(t)));
+    return Array.from(tagSet).sort();
+  }, [referencias]);
+
+  // Filtro
+  const filteredReferencias = useMemo(() => {
+    return referencias.filter((ref) => {
+      if (filters.categoria !== "todas" && ref.categoria !== filters.categoria) return false;
+      if (filters.tipo_funil !== "todos" && ref.tipo_funil !== filters.tipo_funil) return false;
+      if (filters.tag && !(ref.tags ?? []).includes(filters.tag)) return false;
+      if (filters.search.trim()) {
+        const term = filters.search.toLowerCase();
+        if (!ref.titulo.toLowerCase().includes(term) && !(ref.descricao ?? "").toLowerCase().includes(term)) return false;
       }
-
-      // Verificar se o usuário está autenticado
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Erro",
-          description: "Usuário não autenticado",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (editingId) {
-        // Editar existente
-        const { error } = await supabase
-          .from('referencias_criativos')
-          .update({
-            titulo: formData.titulo.trim(),
-            categoria: formData.categoria,
-            conteudo: blocos.length > 0 ? JSON.stringify(blocos) : '[]',
-            is_template: formData.is_template,
-            is_public: formData.is_public || false,
-            public_slug: formData.is_public ? (formData.public_slug || null) : null,
-            links_externos: linksExternos || []
-          })
-          .eq('id', editingId);
-
-        if (error) throw error;
-
-        toast({
-          title: "Sucesso",
-          description: "Referência atualizada com sucesso!"
-        });
-      } else {
-        // Criar nova
-        const { error } = await supabase
-          .from('referencias_criativos')
-          .insert({
-            cliente_id: clienteId === "geral" ? null : clienteId,
-            titulo: formData.titulo.trim(),
-            categoria: formData.categoria,
-            conteudo: blocos.length > 0 ? JSON.stringify(blocos) : '[]',
-            is_template: formData.is_template,
-            is_public: formData.is_public || false,
-            public_slug: formData.is_public ? (formData.public_slug || null) : null,
-            links_externos: linksExternos || [],
-            created_by: user.id,
-            ativo: true
-          });
-
-        if (error) throw error;
-
-        toast({
-          title: "Sucesso",
-          description: "Referência criada com sucesso!"
-        });
-      }
-
-      resetarForm();
-      setShowModal(false);
-      carregarReferencias();
-    } catch (error: any) {
-      console.error('Erro ao salvar referência:', error);
-      toast({
-        title: "Erro",
-        description: `Erro ao salvar referência: ${error.message || 'Erro desconhecido'}`,
-        variant: "destructive"
-      });
-    }
-  };
-  const resetarForm = () => {
-    setFormData({
-      titulo: "",
-      categoria: "criativos",
-      is_template: false,
-      is_public: false,
-      public_slug: ""
+      return true;
     });
-    setBlocos([]);
-    setLinksExternos([]);
-    setEditingId(null);
+  }, [referencias, filters]);
+
+  const handleView = (ref: ReferenciaItem) => {
+    window.open(`/referencia/${ref.id}`, "_blank");
   };
-  const abrirEdicao = (referencia: ReferenciaCreativo) => {
-    setEditingId(referencia.id);
-    setFormData({
-      titulo: referencia.titulo,
-      categoria: referencia.categoria || "criativos",
-      is_template: referencia.is_template,
-      is_public: (referencia as any).is_public || false,
-      public_slug: (referencia as any).public_slug || ""
-    });
-    setBlocos(typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || []);
-    setLinksExternos(referencia.links_externos || []);
-    setShowModal(true);
+
+  const handleEdit = (ref: ReferenciaItem) => {
+    setEditingId(ref.id);
+    setShowNotionEditor(true);
   };
-  const abrirVisualizacao = (referencia: ReferenciaCreativo) => {
-    // Parse do conteúdo JSON para array
-    const conteudoParsed = typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || [];
-    setSelectedReferencia({
-      ...referencia,
-      conteudo: conteudoParsed
-    });
-    setShowVisualizacao(true);
-  };
-  const copiarLink = (link: string) => {
-    navigator.clipboard.writeText(link);
-    toast({
-      title: "Copiado!",
-      description: "Link copiado para a área de transferência"
-    });
-  };
-  const duplicarTemplate = async (referencia: ReferenciaCreativo) => {
-    try {
-      const {
-        error
-      } = await supabase.from('referencias_criativos').insert({
-        cliente_id: clienteId === "geral" ? null : clienteId,
-        titulo: `${referencia.titulo} (Cópia)`,
-        categoria: referencia.categoria,
-        conteudo: referencia.conteudo,
-        is_template: false,
-        links_externos: referencia.links_externos,
-        created_by: (await supabase.auth.getUser()).data.user?.id
-      });
-      if (error) throw error;
-      toast({
-        title: "Sucesso",
-        description: "Template duplicado com sucesso!"
-      });
-      carregarReferencias();
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: "Erro ao duplicar template: " + error.message,
-        variant: "destructive"
-      });
-    }
-  };
-  const adicionarLinkExterno = () => {
-    setLinksExternos([...linksExternos, {
-      url: "",
-      titulo: ""
-    }]);
-  };
-  const atualizarLinkExterno = (index: number, campo: string, valor: string) => {
-    const novosLinks = [...linksExternos];
-    novosLinks[index] = {
-      ...novosLinks[index],
-      [campo]: valor
-    };
-    setLinksExternos(novosLinks);
-  };
-  const excluirReferencia = async (referencia: ReferenciaCreativo) => {
-    if (!confirm('Tem certeza que deseja excluir esta referência? Esta ação não pode ser desfeita.')) {
+
+  const excluirReferencia = async () => {
+    if (!deleteDialog.referencia) return;
+    if (confirmTitle !== deleteDialog.referencia.titulo) {
+      toast({ title: "Erro", description: "O título digitado não corresponde.", variant: "destructive" });
       return;
     }
-    
     try {
-      // Usar a função RPC para soft delete
-      const { error } = await supabase.rpc('soft_delete_referencia', {
-        _id: referencia.id
-      });
-      
+      const { error } = await supabase.rpc("soft_delete_referencia", { _id: deleteDialog.referencia.id });
       if (error) throw error;
-      
-      toast({
-        title: "Sucesso",
-        description: "Referência excluída com sucesso!"
-      });
+      toast({ title: "Sucesso", description: "Referência excluída com sucesso!" });
+      setDeleteDialog({ open: false });
+      setConfirmTitle("");
       carregarReferencias();
     } catch (error: any) {
-      console.error('Erro ao excluir referência:', error);
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao excluir referência",
-        variant: "destructive"
-      });
+      toast({ title: "Erro", description: error.message || "Erro ao excluir", variant: "destructive" });
     }
   };
+
   const processarImportacaoCSV = async () => {
     if (!csvFile) return;
     setImportLoading(true);
     try {
       const text = await csvFile.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-
-      // Esperado: titulo,categoria,is_template,links_externos
-      const referencesData = lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-        let linksExternos = [];
+      const lines = text.split("\n").filter((l) => l.trim());
+      const referencesData = lines.slice(1).map((line) => {
+        const values = line.split(",").map((v) => v.trim().replace(/"/g, ""));
+        let linksExternos: any[] = [];
         if (values[3]) {
-          try {
-            // Tenta parsear como JSON primeiro
-            linksExternos = JSON.parse(values[3]);
-          } catch {
-            // Se falhar, trata como URL simples
-            linksExternos = [{
-              titulo: values[3],
-              url: values[3]
-            }];
-          }
+          try { linksExternos = JSON.parse(values[3]); } catch { linksExternos = [{ titulo: values[3], url: values[3] }]; }
         }
         return {
-          titulo: values[0] || '',
-          categoria: (['criativos', 'pagina'].includes(values[1]) ? values[1] : 'criativos') as 'criativos' | 'pagina',
-          is_template: values[2] === 'true' || values[2] === 'TRUE',
-          links_externos: linksExternos
+          titulo: values[0] || "",
+          categoria: (["criativos", "pagina"].includes(values[1]) ? values[1] : "criativos") as "criativos" | "pagina",
+          is_template: values[2] === "true" || values[2] === "TRUE",
+          links_externos: linksExternos,
         };
       });
       for (const refData of referencesData) {
         if (refData.titulo) {
-          await supabase.from('referencias_criativos').insert({
+          await supabase.from("referencias_criativos").insert({
             cliente_id: clienteId === "geral" ? null : clienteId,
             titulo: refData.titulo,
             categoria: refData.categoria,
             conteudo: JSON.stringify([]),
             is_template: refData.is_template,
             links_externos: refData.links_externos,
-            created_by: (await supabase.auth.getUser()).data.user?.id
+            created_by: (await supabase.auth.getUser()).data.user?.id,
           });
         }
       }
-      toast({
-        title: "Sucesso",
-        description: `${referencesData.filter(r => r.titulo).length} referências importadas com sucesso!`
-      });
+      toast({ title: "Sucesso", description: `${referencesData.filter((r) => r.titulo).length} referências importadas!` });
       setShowImportModal(false);
       setCsvFile(null);
       carregarReferencias();
     } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: "Erro ao processar arquivo CSV: " + error.message,
-        variant: "destructive"
-      });
+      toast({ title: "Erro", description: "Erro ao processar CSV: " + error.message, variant: "destructive" });
     } finally {
       setImportLoading(false);
     }
   };
+
   const downloadTemplateCSV = () => {
-    const template = `titulo,categoria,is_template,links_externos
-"Exemplo Referência","criativos","false","[]"
-"Template Página","pagina","true","[{""url"":""https://example.com"",""titulo"":""Link Exemplo""}]"
-"Exemplo Página 2","pagina","false","https://example.com/pagina"`;
-    const blob = new Blob([template], {
-      type: 'text/csv;charset=utf-8;'
-    });
-    const link = document.createElement('a');
+    const template = `titulo,categoria,is_template,links_externos\n"Exemplo Referência","criativos","false","[]"\n"Template Página","pagina","true","[{\"url\":\"https://example.com\",\"titulo\":\"Link Exemplo\"}]"`;
+    const blob = new Blob([template], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = 'template_referencias.csv';
+    link.download = "template_referencias.csv";
     link.click();
   };
-  const removerLinkExterno = (index: number) => {
-    setLinksExternos(linksExternos.filter((_, i) => i !== index));
-  };
-  const renderizarBloco = (bloco: ConteudoBloco) => {
-    switch (bloco.tipo) {
-      case 'texto':
-        return <div>
-            {bloco.titulo && <h4 className="font-semibold mb-2">{bloco.titulo}</h4>}
-            <p className="whitespace-pre-wrap">{bloco.conteudo}</p>
-          </div>;
-      case 'imagem':
-        return <div>
-            {bloco.titulo && <h4 className="font-semibold mb-2">{bloco.titulo}</h4>}
-            <img src={bloco.conteudo} alt={bloco.descricao || ""} className="max-w-full h-auto rounded-lg" />
-            {bloco.descricao && <p className="text-sm text-muted-foreground mt-2">{bloco.descricao}</p>}
-          </div>;
-      case 'video':
-        return <div>
-            {bloco.titulo && <h4 className="font-semibold mb-2">{bloco.titulo}</h4>}
-            <video src={bloco.conteudo} controls className="max-w-full h-auto rounded-lg" />
-            {bloco.descricao && <p className="text-sm text-muted-foreground mt-2">{bloco.descricao}</p>}
-          </div>;
-      case 'link':
-        return <div>
-            {bloco.titulo && <h4 className="font-semibold mb-2">{bloco.titulo}</h4>}
-            <a href={bloco.conteudo} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-2">
-              <ExternalLink className="h-4 w-4" />
-              {bloco.descricao || bloco.conteudo}
-            </a>
-          </div>;
-      default:
-        return null;
-    }
-  };
-  if (loading) {
-    return <div className="flex justify-center items-center h-32">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>;
-  }
-  return <div className="space-y-6">
+
+  const hasActiveFilters =
+    filters.search !== "" ||
+    filters.categoria !== "todas" ||
+    filters.tipo_funil !== "todos" ||
+    filters.tag !== "";
+
+  return (
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Referência de Criativos</h2>
-          <p className="text-muted-foreground">
-            Crie documentos multimídia para referência e compartilhamento
-          </p>
+          <h2 className="text-lg font-semibold">Referências de Criativos</h2>
+          <p className="text-sm text-muted-foreground">Documentos multimídia para referência e compartilhamento</p>
         </div>
-        <div className="flex gap-2">
-          {canCreateContent && <>
-              <Button variant="outline" onClick={() => setShowImportModal(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Importar CSV
-              </Button>
-              <Button onClick={() => setShowNotionEditor(true)} className="bg-gradient-primary text-primary-foreground hover:opacity-90">
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Referência
-              </Button>
-              
-            </>}
+        {canCreateContent && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)}>
+              <Upload className="h-4 w-4 mr-1.5" />
+              Importar CSV
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingId(null);
+                setShowNotionEditor(true);
+              }}
+              className="bg-gradient-primary text-primary-foreground hover:opacity-90"
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Nova Referência
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Layout: sidebar + grid */}
+      <div className="flex gap-5">
+        {/* Sidebar filtros — só mostra se houver referências ou filtros ativos */}
+        {(referencias.length > 0 || hasActiveFilters) && (
+          <ReferenciasFilters
+            filters={filters}
+            onChange={setFilters}
+            availableTags={availableTags}
+            showTipoCliente={false}
+            totalCount={referencias.length}
+            filteredCount={filteredReferencias.length}
+          />
+        )}
+
+        {/* Grid */}
+        <div className="flex-1 min-w-0">
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-56 rounded-xl bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <ReferenciasGrid
+              referencias={filteredReferencias}
+              onView={handleView}
+              onEdit={canCreateContent ? handleEdit : undefined}
+              onDelete={canCreateContent ? (ref) => setDeleteDialog({ open: true, referencia: ref }) : undefined}
+              canEdit={canCreateContent}
+              emptyMessage={hasActiveFilters ? "Nenhuma referência com esses filtros" : "Nenhuma referência criada"}
+              emptySubMessage={
+                hasActiveFilters
+                  ? "Tente ajustar os filtros."
+                  : canCreateContent
+                    ? "Clique em 'Nova Referência' para criar a primeira."
+                    : "As referências serão exibidas aqui quando criadas."
+              }
+            />
+          )}
         </div>
       </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input placeholder="Pesquisar referências..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
-              </div>
-            </div>
-            <div className="w-48">
-              <Label>Categoria</Label>
-              <Select value={filtroCategoria} onValueChange={(value: 'todas' | 'criativos' | 'pagina') => setFiltroCategoria(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  <SelectItem value="criativos">Criativos</SelectItem>
-                  <SelectItem value="pagina">Página</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Editor Notion */}
+      <ReferencesEditor
+        isOpen={showNotionEditor}
+        onClose={() => { setShowNotionEditor(false); setEditingId(null); }}
+        referenceId={editingId}
+        clienteId={clienteId}
+        onSave={() => carregarReferencias()}
+      />
 
-      {/* Tabela de Referências */}
-      <Card>
-        <CardContent className="p-0">
-          {referenciasFiltradas.length > 0 ? <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Blocos</TableHead>
-                  <TableHead>Criado em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {referenciasFiltradas.map(referencia => <TableRow key={referencia.id}>
-                    <TableCell className="font-medium">
-                      {referencia.titulo}
-                    </TableCell>
-                     <TableCell>
-                       <Badge variant="outline">
-                         {referencia.categoria === 'criativos' ? 'Criativos' : 'Página'}
-                       </Badge>
-                     </TableCell>
-                    <TableCell>
-                      {referencia.is_template ? <Badge variant="secondary">
-                          <FileCode className="h-3 w-3 mr-1" />
-                          Template
-                        </Badge> : <Badge variant="outline">Referência</Badge>}
-                    </TableCell>
-                     <TableCell>
-                       {(() => {
-                   const conteudoParsed = typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || [];
-                   const arrayBlocks = Array.isArray(conteudoParsed) ? conteudoParsed.length : 0;
-                   const hasMarkdown = (referencia as any).conteudo_markdown && (referencia as any).conteudo_markdown.trim().length > 0;
-                   
-                   if (hasMarkdown && arrayBlocks === 0) {
-                     return "Conteúdo Markdown";
-                   }
-                   return `${arrayBlocks} bloco(s)`;
-                 })()}
-                     </TableCell>
-                    <TableCell>
-                      {format(new Date(referencia.created_at), "dd/MM/yyyy", {
-                  locale: ptBR
-                })}
-                    </TableCell>
-                     <TableCell className="text-right">
-                       <div className="flex gap-1 justify-end">
-                         {/* Botão de abrir link externo - só aparece se houver links externos */}
-                         {referencia.links_externos && referencia.links_externos.length > 0 && <Button variant="ghost" size="sm" onClick={() => {
-                    const firstLink = referencia.links_externos[0];
-                    const url = typeof firstLink === 'string' ? firstLink : firstLink.url;
-                    window.open(url, '_blank');
-                  }} title="Abrir primeiro link externo">
-                             <ExternalLink className="h-4 w-4" />
-                           </Button>}
-                           {/* Verificar se há conteúdo (array ou markdown) */}
-                           {(() => {
-                     const conteudoParsed = typeof referencia.conteudo === 'string' ? JSON.parse(referencia.conteudo) : referencia.conteudo || [];
-                     const hasArrayContent = Array.isArray(conteudoParsed) && conteudoParsed.length > 0;
-                     const hasMarkdownContent = (referencia as any).conteudo_markdown && (referencia as any).conteudo_markdown.trim().length > 0;
-                     const hasContent = hasArrayContent || hasMarkdownContent;
-                     
-                     return hasContent && <Button variant="ghost" size="sm" onClick={() => window.open(`/referencia/${referencia.id}`, '_blank')} title="Visualizar em nova aba">
-                                 <Eye className="h-4 w-4" />
-                               </Button>;
-                   })()}
-                           {referencia.is_public && referencia.public_slug ? (
-                             <Button 
-                               variant="ghost" 
-                               size="sm" 
-                               onClick={() => {
-                                 const fullLink = `${window.location.origin}/r/${referencia.public_slug}`;
-                                 copiarLink(fullLink);
-                               }} 
-                               title="Copiar link público"
-                               className="text-primary hover:text-primary"
-                             >
-                               <Share2 className="h-4 w-4" />
-                             </Button>
-                           ) : (
-                             <Button 
-                               variant="ghost" 
-                               size="sm" 
-                               onClick={() => {
-                                 const fullLink = `${window.location.origin}/referencia/${referencia.id}`;
-                                 copiarLink(fullLink);
-                               }} 
-                               title="Copiar link"
-                             >
-                               <Copy className="h-4 w-4" />
-                             </Button>
-                           )}
-                        {canCreateContent && <>
-                             <Button variant="ghost" size="sm" onClick={() => {
-                      setEditingId(referencia.id);
-                      setShowNotionEditor(true);
-                    }} title="Editar com Editor Notion">
-                               <Edit2 className="h-4 w-4" />
-                             </Button>
-                            {referencia.is_template && <Button variant="ghost" size="sm" onClick={() => duplicarTemplate(referencia)}>
-                                <FileCode className="h-4 w-4" />
-                              </Button>}
-                             <Button variant="ghost" size="sm" onClick={() => excluirReferencia(referencia)} className="text-destructive hover:text-destructive" title="Excluir referência">
-                               <Trash2 className="h-4 w-4" />
-                             </Button>
-                          </>}
-                      </div>
-                    </TableCell>
-                  </TableRow>)}
-              </TableBody>
-            </Table> : <div className="py-8 text-center">
-              {searchTerm ? <>
-                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium">Nenhuma referência encontrada</h3>
-                  <p className="text-muted-foreground">
-                    Tente pesquisar com outros termos ou limpe o filtro.
-                  </p>
-                </> : <>
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium">Nenhuma referência criada</h3>
-                  <p className="text-muted-foreground">
-                    {canCreateContent ? "Clique em 'Nova Referência' para criar a primeira." : "As referências serão exibidas aqui quando criadas."}
-                  </p>
-                </>}
-            </div>}
-        </CardContent>
-      </Card>
-
-      {/* Modal de Edição */}
-      <Dialog open={showModal} onOpenChange={open => {
-      if (!open) resetarForm();
-      setShowModal(open);
-    }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      {/* Delete Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => { setDeleteDialog({ open }); if (!open) setConfirmTitle(""); }}
+      >
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>
-              {editingId ? "Editar Referência" : "Nova Referência"}
-            </DialogTitle>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Informações Básicas */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="titulo">Título</Label>
-                <Input id="titulo" value={formData.titulo} onChange={e => setFormData({
-                ...formData,
-                titulo: e.target.value
-              })} placeholder="Título da referência" />
-              </div>
-              <div>
-                <Label htmlFor="categoria">Categoria</Label>
-                <Select value={formData.categoria} onValueChange={(value: "criativos" | "pagina") => setFormData({
-                ...formData,
-                categoria: value
-              })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="criativos">Criativos</SelectItem>
-                    <SelectItem value="pagina">Página</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="is_template" checked={formData.is_template} onChange={e => setFormData({
-              ...formData,
-              is_template: e.target.checked
-            })} className="rounded" />
-              <Label htmlFor="is_template">Salvar como template</Label>
-            </div>
-
-            {/* Controles de Publicação */}
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">Compartilhamento Público</h3>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="checkbox" 
-                    id="is_public" 
-                    checked={formData.is_public || false} 
-                    onChange={e => setFormData({
-                      ...formData,
-                      is_public: e.target.checked
-                    })} 
-                    className="rounded" 
-                  />
-                  <Label htmlFor="is_public">Tornar público</Label>
-                </div>
-              </div>
-              
-              {formData.is_public && (
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="public_slug">URL Pública (Slug)</Label>
-                    <div className="flex gap-2">
-                      <div className="flex-1 flex">
-                        <span className="px-3 py-2 bg-muted border border-r-0 rounded-l-md text-sm text-muted-foreground">
-                          /referencia/publica/
-                        </span>
-                        <Input 
-                          id="public_slug"
-                          value={formData.public_slug || ''}
-                          onChange={e => setFormData({
-                            ...formData,
-                            public_slug: e.target.value
-                          })}
-                          placeholder="slug-da-referencia"
-                          className="rounded-l-none"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const slug = formData.titulo
-                            ? formData.titulo.toLowerCase()
-                                .normalize('NFD')
-                                .replace(/[\u0300-\u036f]/g, '')
-                                .replace(/[^a-z0-9\s-]/g, '')
-                                .replace(/\s+/g, '-')
-                                .trim()
-                            : '';
-                          setFormData({
-                            ...formData,
-                            public_slug: slug
-                          });
-                        }}
-                      >
-                        Gerar
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      URL amigável para compartilhamento público
-                    </p>
-                  </div>
-
-                  {editingId && formData.is_public && (
-                    <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/20">
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-primary mb-1">🔗 Link Público Ativo</p>
-                        <p className="text-xs text-muted-foreground break-all">
-                          {formData.public_slug 
-                            ? `${window.location.origin}/r/${formData.public_slug}`
-                            : 'Salve para gerar o link público'
-                          }
-                        </p>
-                      </div>
-                      <div className="flex gap-2 ml-4">
-                        <Button
-                          type="button"
-                          variant="default"
-                          size="sm"
-                          onClick={() => {
-                            if (formData.public_slug) {
-                              const link = `${window.location.origin}/r/${formData.public_slug}`;
-                              navigator.clipboard.writeText(link);
-                              toast({
-                                title: "Link copiado!",
-                                description: "Link público copiado para a área de transferência.",
-                                duration: 3000
-                              });
-                            }
-                          }}
-                          disabled={!formData.public_slug}
-                          className="gap-2"
-                        >
-                          <Copy className="h-4 w-4" />
-                          Copiar Link
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={async () => {
-                            if (editingId) {
-                              try {
-                                const { data, error } = await supabase
-                                  .from('referencias_criativos')
-                                  .update({ public_token: null }) // Trigger will generate new token
-                                  .eq('id', editingId)
-                                  .select('public_token')
-                                  .single();
-
-                                if (error) throw error;
-
-                                toast({
-                                  title: "Token regenerado!",
-                                  description: "Novo token de acesso gerado com sucesso."
-                                });
-                                carregarReferencias(); // Refresh the list
-                              } catch (error) {
-                                console.error('Erro ao regenerar token:', error);
-                                toast({
-                                  title: "Erro",
-                                  description: "Não foi possível regenerar o token.",
-                                  variant: "destructive"
-                                });
-                              }
-                            }
-                          }}
-                        >
-                          Regenerar Token
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="text-xs text-muted-foreground p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
-                    <p><strong>💡 Dica:</strong> Referências públicas podem ser acessadas por qualquer pessoa com o link, mesmo sem login.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Links Externos */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Links Externos</h3>
-                <Button type="button" variant="outline" size="sm" onClick={adicionarLinkExterno}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Link
-                </Button>
-              </div>
-              
-              {linksExternos.map((link, index) => <div key={index} className="grid grid-cols-2 gap-2 mb-2">
-                  <Input placeholder="Título do link" value={link.titulo} onChange={e => atualizarLinkExterno(index, 'titulo', e.target.value)} />
-                  <div className="flex gap-2">
-                    <Input placeholder="URL" value={link.url} onChange={e => atualizarLinkExterno(index, 'url', e.target.value)} />
-                    <Button type="button" variant="outline" size="sm" onClick={() => removerLinkExterno(index)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>)}
-            </div>
-
-            <Separator />
-
-            {/* Blocos de Conteúdo */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Conteúdo</h3>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => adicionarBloco('texto')}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Texto
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => adicionarBloco('imagem')}>
-                    <Image className="h-4 w-4 mr-2" />
-                    Imagem
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => adicionarBloco('video')}>
-                    <Video className="h-4 w-4 mr-2" />
-                    Vídeo
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => adicionarBloco('link')}>
-                    <Link2 className="h-4 w-4 mr-2" />
-                    Link
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                {blocos.map(bloco => <Card key={bloco.id}>
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-center">
-                        <Badge variant="outline">{bloco.tipo}</Badge>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => removerBloco(bloco.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
-                        <Label>Título (opcional)</Label>
-                        <Input value={bloco.titulo || ""} onChange={e => atualizarBloco(bloco.id, 'titulo', e.target.value)} placeholder="Título do bloco" />
-                      </div>
-                      
-                      {bloco.tipo === 'texto' ? <div>
-                          <Label>Conteúdo</Label>
-                          <Textarea value={bloco.conteudo} onChange={e => atualizarBloco(bloco.id, 'conteudo', e.target.value)} placeholder="Digite o texto..." rows={4} />
-                        </div> : <div>
-                          <Label>URL</Label>
-                          <Input value={bloco.conteudo} onChange={e => atualizarBloco(bloco.id, 'conteudo', e.target.value)} placeholder={`URL da ${bloco.tipo}`} />
-                        </div>}
-                      
-                      {bloco.tipo !== 'texto' && <div>
-                          <Label>Descrição (opcional)</Label>
-                          <Input value={bloco.descricao || ""} onChange={e => atualizarBloco(bloco.id, 'descricao', e.target.value)} placeholder="Descrição do conteúdo" />
-                        </div>}
-                    </CardContent>
-                  </Card>)}
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowModal(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={salvarReferencia}>
-                {editingId ? "Salvar Alterações" : "Criar Referência"}
-              </Button>
-            </div>
+          <p className="text-sm text-muted-foreground">
+            Digite o título para confirmar a exclusão de:{" "}
+            <strong>{deleteDialog.referencia?.titulo}</strong>
+          </p>
+          <Input
+            value={confirmTitle}
+            onChange={(e) => setConfirmTitle(e.target.value)}
+            placeholder="Digite o título exato"
+          />
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false })}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={excluirReferencia}>
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Excluir
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Importação CSV */}
+      {/* Import CSV Modal */}
       <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Importar Referências via CSV</DialogTitle>
+            <DialogTitle>Importar via CSV</DialogTitle>
           </DialogHeader>
-          
           <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">
-              <p>Formato esperado: titulo,categoria,is_template,links_externos</p>
-              <p>Categorias válidas: infoproduto, negocio_local, pagina</p>
-            </div>
-            
+            <p className="text-sm text-muted-foreground">Formato: titulo,categoria,is_template,links_externos</p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={downloadTemplateCSV} className="flex-1">
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-4 w-4 mr-1.5" />
                 Baixar Template
               </Button>
             </div>
-            
             <div>
-              <Label htmlFor="csv-file">Arquivo CSV</Label>
-              <Input id="csv-file" type="file" accept=".csv" onChange={e => setCsvFile(e.target.files?.[0] || null)} />
+              <Label htmlFor="csv-file-cliente">Arquivo CSV</Label>
+              <Input id="csv-file-cliente" type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files?.[0] || null)} />
             </div>
-            
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowImportModal(false)}>
-                Cancelar
-              </Button>
+              <Button variant="outline" onClick={() => setShowImportModal(false)}>Cancelar</Button>
               <Button onClick={processarImportacaoCSV} disabled={!csvFile || importLoading}>
                 {importLoading ? "Importando..." : "Importar"}
               </Button>
@@ -954,37 +303,6 @@ export const ReferenciaCreativos = ({
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Modal de Visualização - Agora só para compatibilidade */}
-      <Dialog open={showVisualizacao} onOpenChange={setShowVisualizacao}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Abrindo referência...</DialogTitle>
-          </DialogHeader>
-          <div className="text-center py-8">
-            <p className="text-muted-foreground mb-4">
-              A referência será aberta em uma nova aba para melhor visualização.
-            </p>
-            <Button onClick={() => setShowVisualizacao(false)}>
-              Fechar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Editor estilo Notion */}
-      <ReferencesEditor 
-        isOpen={showNotionEditor} 
-        onClose={() => {
-          setShowNotionEditor(false);
-          setEditingId(null);
-        }} 
-        referenceId={editingId} 
-        clienteId={clienteId} 
-        onSave={() => {
-          // Apenas recarregar as referências, NÃO fechar o modal
-          carregarReferencias();
-        }} 
-      />
-    </div>;
+    </div>
+  );
 };

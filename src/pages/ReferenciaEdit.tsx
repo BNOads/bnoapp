@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Save, Edit2, Eye, Trash2, Copy, ArrowLeft, Share2, Globe } from "lucide-react";
+import { Save, Edit2, Eye, Trash2, ArrowLeft, Share2, Globe, X, Tag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { TIPO_CLIENTE_LABELS, TIPO_FUNIL_LABELS } from "@/components/Referencias/ReferenciaCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,8 +57,15 @@ export default function ReferenciaEdit() {
     updated_at: "",
     created_by: "",
     is_public: false,
-    public_slug: ""
+    public_slug: "",
+    tipo_cliente: "",
+    tipo_funil: "",
+    tags: [] as string[],
+    thumbnail_url: "",
+    descricao: "",
   });
+  const [tagInput, setTagInput] = useState("");
+  const tagInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
 
@@ -98,7 +106,12 @@ export default function ReferenciaEdit() {
         updated_at: data.updated_at,
         created_by: data.created_by,
         is_public: data.is_public || false,
-        public_slug: data.public_slug || ""
+        public_slug: data.public_slug || "",
+        tipo_cliente: (data as any).tipo_cliente || "",
+        tipo_funil: (data as any).tipo_funil || "",
+        tags: (data as any).tags || [],
+        thumbnail_url: (data as any).thumbnail_url || "",
+        descricao: (data as any).descricao || "",
       });
     } catch (error: any) {
       toast({
@@ -134,7 +147,12 @@ export default function ReferenciaEdit() {
         cliente_id: null,
         created_by: user.data.user?.id,
         is_public: formData.is_public,
-        public_slug: formData.is_public ? formData.public_slug : null
+        public_slug: formData.is_public ? formData.public_slug : null,
+        tipo_cliente: formData.tipo_cliente || null,
+        tipo_funil: formData.tipo_funil || null,
+        tags: formData.tags.length > 0 ? formData.tags : null,
+        thumbnail_url: formData.thumbnail_url || null,
+        descricao: formData.descricao || null,
       };
 
       let result;
@@ -174,7 +192,12 @@ export default function ReferenciaEdit() {
             updated_at: result.data.updated_at,
             created_by: result.data.created_by,
             is_public: result.data.is_public || false,
-            public_slug: result.data.public_slug || ""
+            public_slug: result.data.public_slug || "",
+            tipo_cliente: (result.data as any).tipo_cliente || "",
+            tipo_funil: (result.data as any).tipo_funil || "",
+            tags: (result.data as any).tags || [],
+            thumbnail_url: (result.data as any).thumbnail_url || "",
+            descricao: (result.data as any).descricao || "",
           });
         }
 
@@ -259,7 +282,7 @@ export default function ReferenciaEdit() {
 
       try {
         setSaving(true);
-        
+
         // Salvar alteração is_public=true - o trigger vai gerar public_slug/token
         const { data, error } = await supabase
           .from('referencias_criativos')
@@ -269,7 +292,7 @@ export default function ReferenciaEdit() {
           .single();
 
         if (error) throw error;
-        
+
         if (!data.public_slug) {
           throw new Error('Slug público não foi gerado pelo sistema');
         }
@@ -283,7 +306,12 @@ export default function ReferenciaEdit() {
           updated_at: data.updated_at,
           created_by: data.created_by,
           is_public: data.is_public || false,
-          public_slug: data.public_slug || ""
+          public_slug: data.public_slug || "",
+          tipo_cliente: (data as any).tipo_cliente || "",
+          tipo_funil: (data as any).tipo_funil || "",
+          tags: (data as any).tags || [],
+          thumbnail_url: (data as any).thumbnail_url || "",
+          descricao: (data as any).descricao || "",
         });
 
         // Copiar link público
@@ -348,11 +376,10 @@ export default function ReferenciaEdit() {
 
       {/* Save Status Banner */}
       {saveStatus && (
-        <div className={`px-4 py-2 rounded-md text-sm ${
-          saveStatus === 'saved' ? 'bg-green-50 text-green-800 border border-green-200' :
-          saveStatus === 'saving' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
-          'bg-red-50 text-red-800 border border-red-200'
-        }`}>
+        <div className={`px-4 py-2 rounded-md text-sm ${saveStatus === 'saved' ? 'bg-green-50 text-green-800 border border-green-200' :
+            saveStatus === 'saving' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+              'bg-red-50 text-red-800 border border-red-200'
+          }`}>
           {saveStatus === 'saved' && `✔ Salvo às ${format(lastSaved!, 'HH:mm', { locale: ptBR })}`}
           {saveStatus === 'saving' && 'Salvando…'}
           {saveStatus === 'error' && '❗Erro ao salvar'}
@@ -376,7 +403,7 @@ export default function ReferenciaEdit() {
             <h1 className="text-2xl font-bold">{formData.titulo}</h1>
           )}
         </div>
-        
+
         <div className="flex gap-2">
           {!isNewRef && (
             <Button
@@ -397,7 +424,7 @@ export default function ReferenciaEdit() {
               )}
             </Button>
           )}
-          
+
           <Button
             onClick={handleSave}
             disabled={saving || !hasChanges}
@@ -406,7 +433,7 @@ export default function ReferenciaEdit() {
             <Save className="w-4 h-4 mr-2" />
             Salvar
           </Button>
-          
+
           {!isNewRef && (
             <>
               <Button
@@ -425,7 +452,7 @@ export default function ReferenciaEdit() {
                   </>
                 )}
               </Button>
-              
+
               <Button variant="outline" onClick={() => setDeleteDialog(true)}>
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -438,14 +465,15 @@ export default function ReferenciaEdit() {
         {/* Sidebar - Metadados */}
         <Card>
           <CardContent className="pt-6 space-y-4">
-            <div className="space-y-2">
-              <Label>Categoria</Label>
+            {/* Categoria */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Categoria</Label>
               {mode === 'edit' ? (
-                <Select 
-                  value={formData.categoria} 
+                <Select
+                  value={formData.categoria}
                   onValueChange={(value: any) => handleFieldChange('categoria', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -460,14 +488,131 @@ export default function ReferenciaEdit() {
               )}
             </div>
 
+            {/* Descrição */}
+            {mode === 'edit' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Descrição breve</Label>
+                <Textarea
+                  value={formData.descricao}
+                  onChange={(e) => handleFieldChange('descricao', e.target.value)}
+                  placeholder="Resumo para aparecer no card..."
+                  rows={2}
+                  className="text-sm resize-none"
+                />
+              </div>
+            )}
+
+            {/* Tipo de Funil */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Etapa do Funil</Label>
+              {mode === 'edit' ? (
+                <Select
+                  value={formData.tipo_funil || "none"}
+                  onValueChange={(v) => handleFieldChange('tipo_funil', v === 'none' ? '' : v)}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {Object.entries(TIPO_FUNIL_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : formData.tipo_funil ? (
+                <Badge variant="outline" className="text-xs">
+                  {TIPO_FUNIL_LABELS[formData.tipo_funil] ?? formData.tipo_funil}
+                </Badge>
+              ) : <p className="text-xs text-muted-foreground">—</p>}
+            </div>
+
+            {/* Tipo de Cliente */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Cliente</Label>
+              {mode === 'edit' ? (
+                <Select
+                  value={formData.tipo_cliente || "none"}
+                  onValueChange={(v) => handleFieldChange('tipo_cliente', v === 'none' ? '' : v)}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {Object.entries(TIPO_CLIENTE_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : formData.tipo_cliente ? (
+                <Badge variant="outline" className="text-xs">
+                  {TIPO_CLIENTE_LABELS[formData.tipo_cliente] ?? formData.tipo_cliente}
+                </Badge>
+              ) : <p className="text-xs text-muted-foreground">—</p>}
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Tag className="w-3 h-3 inline mr-1" />
+                Tags
+              </Label>
+              <div className="flex flex-wrap gap-1 mb-1">
+                {formData.tags.map((tag) => (
+                  <span key={tag} className="inline-flex items-center gap-0.5 text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">
+                    #{tag}
+                    {mode === 'edit' && (
+                      <button
+                        onClick={() => handleFieldChange('tags', formData.tags.filter((t) => t !== tag))}
+                        className="ml-0.5 hover:text-destructive"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+              {mode === 'edit' && (
+                <Input
+                  ref={tagInputRef}
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                      e.preventDefault();
+                      const newTag = tagInput.trim().toLowerCase().replace(/\s+/g, '-');
+                      if (!formData.tags.includes(newTag)) {
+                        handleFieldChange('tags', [...formData.tags, newTag]);
+                      }
+                      setTagInput('');
+                    }
+                  }}
+                  placeholder="Digite e pressione Enter"
+                  className="h-7 text-xs"
+                />
+              )}
+            </div>
+
+            {/* Thumbnail URL */}
+            {mode === 'edit' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Imagem de capa (URL)</Label>
+                <Input
+                  value={formData.thumbnail_url}
+                  onChange={(e) => handleFieldChange('thumbnail_url', e.target.value)}
+                  placeholder="https://..."
+                  className="h-8 text-xs"
+                />
+              </div>
+            )}
+
             {/* Status do Compartilhamento */}
             {!isNewRef && formData.is_public && (
-              <div className="space-y-3 p-4 border rounded-lg bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+              <div className="space-y-2 p-3 border rounded-lg bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
                 <div className="flex items-center gap-2">
                   <Globe className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <Label className="text-sm font-medium text-green-700 dark:text-green-300">
-                    Público
-                  </Label>
+                  <Label className="text-sm font-medium text-green-700 dark:text-green-300">Público</Label>
                 </div>
                 <p className="text-xs text-green-600 dark:text-green-400 break-all">
                   {window.location.origin}/r/{formData.public_slug}
@@ -483,7 +628,6 @@ export default function ReferenciaEdit() {
                     {format(new Date(formData.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                   </p>
                 </div>
-
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Atualizado em</Label>
                   <p className="text-sm">
