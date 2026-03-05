@@ -96,7 +96,8 @@ export const NovoAvisoModal: React.FC<NovoAvisoModalProps> = ({ open, onOpenChan
                 canais: {
                     painel: true,
                     slack: false,
-                    email: false
+                    email: false,
+                    push: false
                 },
                 dataInicio: '',
                 dataFim: ''

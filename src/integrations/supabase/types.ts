@@ -1258,6 +1258,7 @@ export type Database = {
       }
       colaboradores: {
         Row: {
+          aliases: string[] | null
           ativo: boolean
           avatar_url: string | null
           campo_pos_x: number | null
@@ -1281,6 +1282,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          aliases?: string[] | null
           ativo?: boolean
           avatar_url?: string | null
           campo_pos_x?: number | null
@@ -1304,6 +1306,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          aliases?: string[] | null
           ativo?: boolean
           avatar_url?: string | null
           campo_pos_x?: number | null
@@ -2362,6 +2365,64 @@ export type Database = {
           },
         ]
       }
+      diario_atendimento: {
+        Row: {
+          autor_id: string
+          cliente_id: string
+          created_at: string
+          id: string
+          lancamento_id: string | null
+          parent_id: string | null
+          reacoes: Json | null
+          texto: string
+          updated_at: string
+        }
+        Insert: {
+          autor_id: string
+          cliente_id: string
+          created_at?: string
+          id?: string
+          lancamento_id?: string | null
+          parent_id?: string | null
+          reacoes?: Json | null
+          texto: string
+          updated_at?: string
+        }
+        Update: {
+          autor_id?: string
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          lancamento_id?: string | null
+          parent_id?: string | null
+          reacoes?: Json | null
+          texto?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diario_atendimento_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diario_atendimento_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diario_atendimento_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "diario_atendimento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       diario_bordo: {
         Row: {
           autor_id: string
@@ -3177,42 +3238,48 @@ export type Database = {
       google_event_ratings: {
         Row: {
           avaliado_por: string | null
-          classificacao: string
+          classificacao: string | null
           comentarios: string | null
           created_at: string | null
           data_evento: string | null
           google_event_id: string
           gravacao_url: string | null
           id: string
+          manual_pauta_text: string | null
           notas: string | null
+          pauta_html: string | null
           titulo: string | null
           transcricao: string | null
           updated_at: string | null
         }
         Insert: {
           avaliado_por?: string | null
-          classificacao: string
+          classificacao?: string | null
           comentarios?: string | null
           created_at?: string | null
           data_evento?: string | null
           google_event_id: string
           gravacao_url?: string | null
           id?: string
+          manual_pauta_text?: string | null
           notas?: string | null
+          pauta_html?: string | null
           titulo?: string | null
           transcricao?: string | null
           updated_at?: string | null
         }
         Update: {
           avaliado_por?: string | null
-          classificacao?: string
+          classificacao?: string | null
           comentarios?: string | null
           created_at?: string | null
           data_evento?: string | null
           google_event_id?: string
           gravacao_url?: string | null
           id?: string
+          manual_pauta_text?: string | null
           notas?: string | null
+          pauta_html?: string | null
           titulo?: string | null
           transcricao?: string | null
           updated_at?: string | null
@@ -4899,6 +4966,7 @@ export type Database = {
       notas: {
         Row: {
           conteudo: string | null
+          conteudo_json: Json | null
           created_at: string
           id: string
           titulo: string
@@ -4907,6 +4975,7 @@ export type Database = {
         }
         Insert: {
           conteudo?: string | null
+          conteudo_json?: Json | null
           created_at?: string
           id?: string
           titulo: string
@@ -4915,10 +4984,41 @@ export type Database = {
         }
         Update: {
           conteudo?: string | null
+          conteudo_json?: Json | null
           created_at?: string
           id?: string
           titulo?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notas_backup: {
+        Row: {
+          conteudo: string | null
+          conteudo_json: Json | null
+          id: string
+          nota_id: string
+          saved_at: string
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          conteudo?: string | null
+          conteudo_json?: Json | null
+          id?: string
+          nota_id: string
+          saved_at?: string
+          titulo: string
+          user_id: string
+        }
+        Update: {
+          conteudo?: string | null
+          conteudo_json?: Json | null
+          id?: string
+          nota_id?: string
+          saved_at?: string
+          titulo?: string
           user_id?: string
         }
         Relationships: []
@@ -5232,6 +5332,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pauta_colaboracao_google_events: {
+        Row: {
+          atualizado_em: string | null
+          conteudo_json: Json | null
+          conteudo_yjs: string | null
+          created_at: string | null
+          google_event_id: string
+          id: string
+          versao: number | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          conteudo_json?: Json | null
+          conteudo_yjs?: string | null
+          created_at?: string | null
+          google_event_id: string
+          id?: string
+          versao?: number | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          conteudo_json?: Json | null
+          conteudo_yjs?: string | null
+          created_at?: string | null
+          google_event_id?: string
+          id?: string
+          versao?: number | null
+        }
+        Relationships: []
       }
       pauta_historico: {
         Row: {
@@ -5743,6 +5873,8 @@ export type Database = {
           endpoint: string
           id: string
           p256dh: string
+          updated_at: string | null
+          user_agent: string | null
           user_id: string
         }
         Insert: {
@@ -5751,6 +5883,8 @@ export type Database = {
           endpoint: string
           id?: string
           p256dh: string
+          updated_at?: string | null
+          user_agent?: string | null
           user_id: string
         }
         Update: {
@@ -5759,6 +5893,8 @@ export type Database = {
           endpoint?: string
           id?: string
           p256dh?: string
+          updated_at?: string | null
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
@@ -5828,6 +5964,7 @@ export type Database = {
           created_at: string
           created_by: string
           data_expiracao: string | null
+          descricao: string | null
           id: string
           is_public: boolean | null
           is_template: boolean
@@ -5839,6 +5976,10 @@ export type Database = {
           public_slug: string | null
           public_token: string | null
           published_at: string | null
+          tags: string[] | null
+          thumbnail_url: string | null
+          tipo_cliente: string | null
+          tipo_funil: string | null
           titulo: string
           updated_at: string
           versao_editor: number | null
@@ -5854,6 +5995,7 @@ export type Database = {
           created_at?: string
           created_by: string
           data_expiracao?: string | null
+          descricao?: string | null
           id?: string
           is_public?: boolean | null
           is_template?: boolean
@@ -5865,6 +6007,10 @@ export type Database = {
           public_slug?: string | null
           public_token?: string | null
           published_at?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          tipo_cliente?: string | null
+          tipo_funil?: string | null
           titulo: string
           updated_at?: string
           versao_editor?: number | null
@@ -5880,6 +6026,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           data_expiracao?: string | null
+          descricao?: string | null
           id?: string
           is_public?: boolean | null
           is_template?: boolean
@@ -5891,6 +6038,10 @@ export type Database = {
           public_slug?: string | null
           public_token?: string | null
           published_at?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          tipo_cliente?: string | null
+          tipo_funil?: string | null
           titulo?: string
           updated_at?: string
           versao_editor?: number | null
@@ -7095,7 +7246,7 @@ export type Database = {
           sla_limite: string | null
           solucao_descricao: string | null
           status: string
-          tempo_resolucao: unknown
+          tempo_resolucao: string | null
           updated_at: string
         }
         Insert: {
@@ -7115,7 +7266,7 @@ export type Database = {
           sla_limite?: string | null
           solucao_descricao?: string | null
           status?: string
-          tempo_resolucao?: unknown
+          tempo_resolucao?: string | null
           updated_at?: string
         }
         Update: {
@@ -7135,7 +7286,7 @@ export type Database = {
           sla_limite?: string | null
           solucao_descricao?: string | null
           status?: string
-          tempo_resolucao?: unknown
+          tempo_resolucao?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -7472,6 +7623,51 @@ export type Database = {
         }
         Relationships: []
       }
+      utm_redirects: {
+        Row: {
+          click_count: number
+          created_at: string
+          created_by: string | null
+          custom_script: string | null
+          destination_url: string
+          fb_pixel_event: string | null
+          fb_pixel_id: string | null
+          gtm_id: string | null
+          id: string
+          slug: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          click_count?: number
+          created_at?: string
+          created_by?: string | null
+          custom_script?: string | null
+          destination_url: string
+          fb_pixel_event?: string | null
+          fb_pixel_id?: string | null
+          gtm_id?: string | null
+          id?: string
+          slug: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          click_count?: number
+          created_at?: string
+          created_by?: string | null
+          custom_script?: string | null
+          destination_url?: string
+          fb_pixel_event?: string | null
+          fb_pixel_id?: string | null
+          gtm_id?: string | null
+          id?: string
+          slug?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       workspace_document_folders: {
         Row: {
           color: string
@@ -7672,6 +7868,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_redirect_click: { Args: { p_slug: string }; Returns: undefined }
       is_admin_with_valid_reason: {
         Args: { _user_id: string }
         Returns: boolean

@@ -96,12 +96,12 @@ export const DiarioAtendimento = () => {
         try {
             const { data, error } = await supabase
                 .from('colaboradores')
-                .select('user_id, nome, situacao')
+                .select('user_id, nome, ativo')
                 .order('nome');
 
             if (error) throw error;
             // Filtra só os ativos 
-            const ativos = data?.filter(c => c.situacao === 'Ativo') || [];
+            const ativos = data?.filter(c => c.ativo) || [];
             setAutores(ativos.map(a => ({ id: a.user_id, nome: a.nome })));
         } catch (error) {
             console.error('Erro ao carregar autores:', error);
