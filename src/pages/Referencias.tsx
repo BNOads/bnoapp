@@ -57,7 +57,7 @@ export default function Referencias() {
 
       if (error) throw error;
 
-      let loadedRefs = (data || []) as ReferenciaItem[];
+      let loadedRefs = (data || []) as unknown as ReferenciaItem[];
 
       // Fetch clients for auto-tagging
       const { data: clientesData } = await supabase

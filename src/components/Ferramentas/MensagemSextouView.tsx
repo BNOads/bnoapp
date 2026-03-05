@@ -342,7 +342,7 @@ export function MensagemSextouView() {
             });
 
             for (const corrupted of corruptedRecords) {
-                const cleanedHistorico = (corrupted.historico_envios || []).filter(
+                const cleanedHistorico = ((corrupted.historico_envios || []) as any[]).filter(
                     (h: any) => h.detalhes !== 'Mensagem Sextou gerada automaticamente.'
                 );
                 await supabase.from('mensagens_semanais')

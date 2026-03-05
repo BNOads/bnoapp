@@ -210,6 +210,9 @@ export function isRecurringDate(
     if (dayOfWeek === 0 || dayOfWeek === 6) return false;
   }
 
+  const diffMs = candidateTimestamp - baseTimestamp;
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
   if (recurrence === "weekly") return diffDays % 7 === 0;
   if (recurrence === "biweekly") return diffDays % 14 === 0;
 

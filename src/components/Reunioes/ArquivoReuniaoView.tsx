@@ -1054,7 +1054,7 @@ export function ArquivoReuniaoView() {
                             <div className="flex items-start justify-between gap-2 pr-2">
                               <span>{heading.text}</span>
                               {heading.eventId && (
-                                <CalendarCheck className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" title="Vinculada ao Calendar" />
+                                <CalendarCheck className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
                               )}
                             </div>
                             {associatedClient && (
