@@ -249,9 +249,10 @@ export function EscalaContatos() {
                                     [...list]
                                         .map(cliente => {
                                             const late = isClientLate(cliente);
-                                            // determine if contacted today
-                                            const contactedToday = cliente.ultimo_contato_at
-                                                ? startOfDay(new Date(cliente.ultimo_contato_at)).getTime() === startOfDay(new Date()).getTime()
+                                            // determine if contacted today FOR THIS specific day
+                                            const dayEntry = cliente.contatos_semana?.[String(day.value)];
+                                            const contactedToday = dayEntry
+                                                ? startOfDay(new Date(dayEntry)).getTime() === startOfDay(new Date()).getTime()
                                                 : false;
                                             return { cliente, late, contactedToday };
                                         })
@@ -292,8 +293,8 @@ export function EscalaContatos() {
                                                     className={`flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3.5 rounded-xl border-l-4 border transition-all hover:shadow-sm ${late
                                                         ? "border-l-red-500 bg-card border-red-100 dark:bg-card dark:border-red-900/20"
                                                         : contactedToday
-                                                            ? "border-l-green-500 bg-green-50/30 border-green-100 dark:bg-green-950/10 opacity-70"
-                                                            : "border-l-slate-400 bg-card border-border"
+                                                            ? "border-l-green-500 bg-green-50/30 border-green-100 dark:bg-green-950/10 dark:border-green-900/20 opacity-70"
+                                                            : "border-l-slate-400 bg-card border-border/40 dark:border-border/20"
                                                         }`}
                                                 >
                                                     <div className="min-w-0 flex-1 space-y-1.5">
@@ -337,7 +338,7 @@ export function EscalaContatos() {
                                                                         size="sm"
                                                                         variant="outline"
                                                                         className={`h-8 gap-1.5 w-[140px] border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-400 dark:hover:bg-green-900/50`}
-                                                                        onClick={() => marcarContato(cliente.id)}
+                                                                        onClick={() => marcarContato(cliente.id, day.value)}
                                                                         disabled={isMarcandoContato || contactedToday}
                                                                     >
                                                                         <CheckCircle2 className="h-4 w-4" />

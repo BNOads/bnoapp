@@ -481,7 +481,7 @@ export function EscalaReunioes() {
                                         return (
                                             <div
                                                 key={ev.id}
-                                                className={`rounded-xl border border-l-4 ${color.border} ${color.bg} px-4 py-2 transition-all hover:shadow-sm`}
+                                                className={`rounded-xl border border-border/40 border-l-4 ${color.border} ${color.bg} px-4 py-2 transition-all hover:shadow-sm dark:border-border/20`}
                                             >
                                                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                                                     <div className="flex items-start lg:items-center gap-3 min-w-0 flex-1">

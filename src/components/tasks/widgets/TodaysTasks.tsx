@@ -259,23 +259,24 @@ export function TodaysTasks() {
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
     // Optimistic completion state — flips instantly, rolls back on error
-    const [optimisticCompleted, setOptimisticCompleted] = useState<Record<string, boolean>>({});
+    const [optimisticOverrides, setOptimisticOverrides] = useState<Record<string, { completed: boolean; completed_at: string | null }>>({});
     const getEffectiveCompleted = (task: any) =>
-        task.id in optimisticCompleted ? optimisticCompleted[task.id] : task.completed;
+        task.id in optimisticOverrides ? optimisticOverrides[task.id].completed : task.completed;
 
     const handleToggleComplete = ({ id, completed }: { id: string; completed: boolean }) => {
-        // Flip UI immediately
-        setOptimisticCompleted(prev => ({ ...prev, [id]: completed }));
+        // Flip UI immediately — include completed_at so task moves to correct section instantly
+        const now = new Date().toISOString();
+        setOptimisticOverrides(prev => ({ ...prev, [id]: { completed, completed_at: completed ? now : null } }));
         toggleComplete(
             { id, completed },
             {
                 onSuccess: () => {
                     // Remove from optimistic map — real data from cache will take over
-                    setOptimisticCompleted(prev => { const n = { ...prev }; delete n[id]; return n; });
+                    setOptimisticOverrides(prev => { const n = { ...prev }; delete n[id]; return n; });
                 },
                 onError: () => {
                     // Rollback
-                    setOptimisticCompleted(prev => { const n = { ...prev }; delete n[id]; return n; });
+                    setOptimisticOverrides(prev => { const n = { ...prev }; delete n[id]; return n; });
                 },
             }
         );
@@ -353,10 +354,11 @@ export function TodaysTasks() {
     const sortTasksByPriority = (tasksList: any[]) => [...tasksList].sort((a, b) => getWeight(b.priority) - getWeight(a.priority));
 
     // Apply optimistic state to task lists
-    const applyOptimistic = (t: any) => ({
-        ...t,
-        completed: getEffectiveCompleted(t),
-    });
+    const applyOptimistic = (t: any) => {
+        const override = optimisticOverrides[t.id];
+        if (!override) return t;
+        return { ...t, completed: override.completed, completed_at: override.completed_at ?? t.completed_at };
+    };
 
     const filteredByPriority = rawTasks.map(applyOptimistic).filter(t => filterPriority === "all" || t.priority === filterPriority);
 
