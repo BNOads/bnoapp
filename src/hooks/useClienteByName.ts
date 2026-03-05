@@ -9,7 +9,7 @@ export function useClienteByName(clienteName: string | null) {
         queryFn: async () => {
             const { data } = await supabase
                 .from("clientes")
-                .select("id, nome, pasta_drive_url")
+                .select("id, nome, pasta_drive_url, aliases")
                 .ilike("nome", `%${clienteName}%`)
                 .eq("is_active", true)
                 .limit(1);

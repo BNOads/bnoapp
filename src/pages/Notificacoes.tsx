@@ -74,7 +74,7 @@ export function NotificacoesDetalhesView() {
         }
     };
     const [user, setUser] = useState<User | null>(null);
-    const [notifications, setNotifications] = useState<AvisoAvisoNotification[]>([]);
+    const [notifications, setNotifications] = useState<AvisoNotification[]>([]);
     const [selectedNotification, setSelectedNotification] = useState<AvisoNotification | null>(null);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -199,7 +199,7 @@ export function NotificacoesDetalhesView() {
         }
     };
 
-    const handleResend = (notification: Notification) => {
+    const handleResend = (notification: AvisoNotification) => {
         setResendData(notification);
         setIsNovoAvisoOpen(true);
     };

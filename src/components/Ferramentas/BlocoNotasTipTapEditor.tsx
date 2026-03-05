@@ -83,7 +83,7 @@ export function BlocoNotasTipTapEditor({
         const currentJSON = JSON.stringify(editor.getJSON());
         const newJSON = JSON.stringify(content);
         if (currentJSON !== newJSON) {
-            editor.commands.setContent(content, false);
+            editor.commands.setContent(content, false as any);
         }
     }, [content, editor]);
 

@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, X, Check, Loader2, Tag as TagIcon } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ReferenciaItem } from "./ReferenciaCard";
 import { cn } from "@/lib/utils";
 
