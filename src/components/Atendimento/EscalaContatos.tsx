@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const WEEKDAYS = [
     { value: 1, label: "Segunda", short: "Seg" },
@@ -207,171 +208,178 @@ export function EscalaContatos() {
     const getClientesDoDia = (dia: number) => clientes.filter(c => c.escala_contato && c.escala_contato.includes(dia));
 
     return (
-        <div className="space-y-4">
-            <div className="flex justify-end items-center mb-2">
-                <BulkSerieConfig clientes={clientes} bulkAlterar={bulkAlterarEscalaSerie} isLoading={isBulkUpdating} />
-            </div>
+        <Card>
+            <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    Escala de Contatos
+                </CardTitle>
+                <div className="!mt-0">
+                    <BulkSerieConfig clientes={clientes} bulkAlterar={bulkAlterarEscalaSerie} isLoading={isBulkUpdating} />
+                </div>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="grid w-full grid-cols-5 h-auto overflow-hidden">
+                        {WEEKDAYS.map(day => (
+                            <TabsTrigger
+                                key={day.value}
+                                value={String(day.value)}
+                                className="py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                            >
+                                <span className="hidden sm:inline">{day.label}</span>
+                                <span className="sm:hidden">{day.label.substring(0, 3)}</span>
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-5 h-auto overflow-hidden">
-                    {WEEKDAYS.map(day => (
-                        <TabsTrigger
-                            key={day.value}
-                            value={String(day.value)}
-                            className="py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
-                        >
-                            <span className="hidden sm:inline">{day.label}</span>
-                            <span className="sm:hidden">{day.label.substring(0, 3)}</span>
-                        </TabsTrigger>
-                    ))}
-                </TabsList>
+                    {WEEKDAYS.map(day => {
+                        const list = getClientesDoDia(day.value);
+                        const isCurrentDay = Number(activeTab) === day.value;
 
-                {WEEKDAYS.map(day => {
-                    const list = getClientesDoDia(day.value);
-                    const isCurrentDay = Number(activeTab) === day.value;
+                        if (!isCurrentDay) return null;
 
-                    if (!isCurrentDay) return null;
+                        return (
+                            <TabsContent key={day.value} value={String(day.value)} className="mt-4 space-y-3">
+                                {list.length === 0 ? (
+                                    <div className="rounded-xl border-2 border-dashed py-8 text-center text-sm text-muted-foreground">
+                                        Nenhum cliente escalado para este dia.
+                                    </div>
+                                ) : (
+                                    [...list]
+                                        .map(cliente => {
+                                            const late = isClientLate(cliente);
+                                            // determine if contacted today
+                                            const contactedToday = cliente.ultimo_contato_at
+                                                ? startOfDay(new Date(cliente.ultimo_contato_at)).getTime() === startOfDay(new Date()).getTime()
+                                                : false;
+                                            return { cliente, late, contactedToday };
+                                        })
+                                        .sort((a, b) => {
+                                            // 1. Late always comes first
+                                            if (a.late && !b.late) return -1;
+                                            if (!a.late && b.late) return 1;
 
-                    return (
-                        <TabsContent key={day.value} value={String(day.value)} className="mt-4 space-y-3">
-                            {list.length === 0 ? (
-                                <div className="rounded-xl border-2 border-dashed py-8 text-center text-sm text-muted-foreground">
-                                    Nenhum cliente escalado para este dia.
-                                </div>
-                            ) : (
-                                [...list]
-                                    .map(cliente => {
-                                        const late = isClientLate(cliente);
-                                        // determine if contacted today
-                                        const contactedToday = cliente.ultimo_contato_at
-                                            ? startOfDay(new Date(cliente.ultimo_contato_at)).getTime() === startOfDay(new Date()).getTime()
-                                            : false;
-                                        return { cliente, late, contactedToday };
-                                    })
-                                    .sort((a, b) => {
-                                        // 1. Late always comes first
-                                        if (a.late && !b.late) return -1;
-                                        if (!a.late && b.late) return 1;
+                                            // 2. Contacted today goes to bottom
+                                            if (!a.contactedToday && b.contactedToday) return -1;
+                                            if (a.contactedToday && !b.contactedToday) return 1;
 
-                                        // 2. Contacted today goes to bottom
-                                        if (!a.contactedToday && b.contactedToday) return -1;
-                                        if (a.contactedToday && !b.contactedToday) return 1;
+                                            // 3. Alphabetical fallback
+                                            return a.cliente.nome.localeCompare(b.cliente.nome);
+                                        })
+                                        .map(({ cliente, late, contactedToday }) => {
 
-                                        // 3. Alphabetical fallback
-                                        return a.cliente.nome.localeCompare(b.cliente.nome);
-                                    })
-                                    .map(({ cliente, late, contactedToday }) => {
-
-                                        // Determine Situacao colors
-                                        let situacaoClasses = "border-slate-200 text-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-slate-400";
-                                        if (cliente.situacao_cliente) {
-                                            const sc = cliente.situacao_cliente.toLowerCase();
-                                            if (sc === 'alerta' || sc === 'atrasado' || sc === 'critico') {
-                                                situacaoClasses = "border-red-400 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-400";
-                                            } else if (sc === 'ponto_de_atencao' || sc === 'atencao') {
-                                                situacaoClasses = "border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950 dark:text-amber-400";
-                                            } else if (sc === 'indo_bem' || sc === 'ok') {
-                                                situacaoClasses = "border-green-400 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400";
-                                            } else if (sc === 'resultados_normais' || sc === 'normal') {
-                                                situacaoClasses = "border-blue-400 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-400";
-                                            } else if (sc === 'nao_iniciado') {
-                                                situacaoClasses = "border-slate-400 text-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-slate-400";
+                                            // Determine Situacao colors
+                                            let situacaoClasses = "border-slate-200 text-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-slate-400";
+                                            if (cliente.situacao_cliente) {
+                                                const sc = cliente.situacao_cliente.toLowerCase();
+                                                if (sc === 'alerta' || sc === 'atrasado' || sc === 'critico') {
+                                                    situacaoClasses = "border-red-400 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-400";
+                                                } else if (sc === 'ponto_de_atencao' || sc === 'atencao') {
+                                                    situacaoClasses = "border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950 dark:text-amber-400";
+                                                } else if (sc === 'indo_bem' || sc === 'ok') {
+                                                    situacaoClasses = "border-green-400 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400";
+                                                } else if (sc === 'resultados_normais' || sc === 'normal') {
+                                                    situacaoClasses = "border-blue-400 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-400";
+                                                } else if (sc === 'nao_iniciado') {
+                                                    situacaoClasses = "border-slate-400 text-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-slate-400";
+                                                }
                                             }
-                                        }
 
-                                        return (
-                                            <div
-                                                key={cliente.id}
-                                                className={`flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3.5 rounded-xl border-l-4 border transition-all hover:shadow-sm ${late
+                                            return (
+                                                <div
+                                                    key={cliente.id}
+                                                    className={`flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3.5 rounded-xl border-l-4 border transition-all hover:shadow-sm ${late
                                                         ? "border-l-red-500 bg-card border-red-100 dark:bg-card dark:border-red-900/20"
                                                         : contactedToday
                                                             ? "border-l-green-500 bg-green-50/30 border-green-100 dark:bg-green-950/10 opacity-70"
                                                             : "border-l-slate-400 bg-card border-border"
-                                                    }`}
-                                            >
-                                                <div className="min-w-0 flex-1 space-y-1.5">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <span className="font-semibold text-[15px] truncate max-w-[200px] sm:max-w-xs">{cliente.nome}</span>
-                                                        {cliente.serie && (
-                                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                                                                {cliente.serie}
-                                                            </Badge>
-                                                        )}
-                                                        {cliente.situacao_cliente && (
-                                                            <Badge variant="outline" className={`text-[10px] px-2 py-0 h-5 font-medium tracking-wide ${situacaoClasses}`}>
-                                                                {cliente.situacao_cliente.replace(/_/g, " ")}
-                                                            </Badge>
-                                                        )}
-                                                        {late && (
-                                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-red-300 text-red-600 bg-red-50 dark:border-red-800 dark:text-red-400 dark:bg-red-950/50 gap-1 font-bold uppercase">
-                                                                <AlertCircle className="h-3 w-3" />
-                                                                Atrasado
-                                                            </Badge>
-                                                        )}
+                                                        }`}
+                                                >
+                                                    <div className="min-w-0 flex-1 space-y-1.5">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="font-semibold text-[15px] truncate max-w-[200px] sm:max-w-xs">{cliente.nome}</span>
+                                                            {cliente.serie && (
+                                                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                                                                    {cliente.serie}
+                                                                </Badge>
+                                                            )}
+                                                            {cliente.situacao_cliente && (
+                                                                <Badge variant="outline" className={`text-[10px] px-2 py-0 h-5 font-medium tracking-wide ${situacaoClasses}`}>
+                                                                    {cliente.situacao_cliente.replace(/_/g, " ")}
+                                                                </Badge>
+                                                            )}
+                                                            {late && (
+                                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-red-300 text-red-600 bg-red-50 dark:border-red-800 dark:text-red-400 dark:bg-red-950/50 gap-1 font-bold uppercase">
+                                                                    <AlertCircle className="h-3 w-3" />
+                                                                    Atrasado
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                            <span className="flex items-center gap-1">
+                                                                <CalendarIcon className="h-3.5 w-3.5" />
+                                                                Últ. contato: {cliente.ultimo_contato_at ? format(new Date(cliente.ultimo_contato_at), "dd/MM/yyyy", { locale: ptBR }) : "Nunca"}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
-                                                        <span className="flex items-center gap-1">
-                                                            <CalendarIcon className="h-3.5 w-3.5" />
-                                                            Últ. contato: {cliente.ultimo_contato_at ? format(new Date(cliente.ultimo_contato_at), "dd/MM/yyyy", { locale: ptBR }) : "Nunca"}
-                                                        </span>
+
+                                                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+                                                        <DiasSelector
+                                                            dias={cliente.escala_contato || []}
+                                                            onChange={(novosDias) => alterarEscala(cliente.id, novosDias)}
+                                                        />
+
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className={`h-8 gap-1.5 w-[140px] border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-400 dark:hover:bg-green-900/50`}
+                                                                        onClick={() => marcarContato(cliente.id)}
+                                                                        disabled={isMarcandoContato || contactedToday}
+                                                                    >
+                                                                        <CheckCircle2 className="h-4 w-4" />
+                                                                        <span className="">{contactedToday ? "Contatado" : "Marcar Contato"}</span>
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>Registrar que você entrou em contato com o cliente hoje</TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     </div>
                                                 </div>
+                                            );
+                                        })
+                                )}
+                            </TabsContent>
+                        );
+                    })}
+                </Tabs>
 
-                                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-                                                    <DiasSelector
-                                                        dias={cliente.escala_contato || []}
-                                                        onChange={(novosDias) => alterarEscala(cliente.id, novosDias)}
-                                                    />
+                {clientesSemEscala.length > 0 && (
+                    <div className="mt-8">
+                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-muted-foreground justify-between">
+                            <span>Clientes sem escala definida ({clientesSemEscala.length})</span>
+                        </h4>
+                        <div className="space-y-2">
+                            {clientesSemEscala.map(cliente => (
+                                <div key={cliente.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border border-dashed bg-muted/30 hover:bg-muted/50 transition-colors">
+                                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                        <span className="font-medium text-sm truncate">{cliente.nome}</span>
+                                        {cliente.serie && <Badge variant="secondary" className="text-[10px]">{cliente.serie}</Badge>}
+                                    </div>
 
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className={`h-8 gap-1.5 w-[140px] border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-400 dark:hover:bg-green-900/50`}
-                                                                    onClick={() => marcarContato(cliente.id)}
-                                                                    disabled={isMarcandoContato || contactedToday}
-                                                                >
-                                                                    <CheckCircle2 className="h-4 w-4" />
-                                                                    <span className="">{contactedToday ? "Contatado" : "Marcar Contato"}</span>
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>Registrar que você entrou em contato com o cliente hoje</TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                            )}
-                        </TabsContent>
-                    );
-                })}
-            </Tabs>
-
-            {clientesSemEscala.length > 0 && (
-                <div className="mt-8">
-                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-muted-foreground justify-between">
-                        <span>Clientes sem escala definida ({clientesSemEscala.length})</span>
-                    </h4>
-                    <div className="space-y-2">
-                        {clientesSemEscala.map(cliente => (
-                            <div key={cliente.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border border-dashed bg-muted/30 hover:bg-muted/50 transition-colors">
-                                <div className="flex flex-wrap items-center gap-2 min-w-0">
-                                    <span className="font-medium text-sm truncate">{cliente.nome}</span>
-                                    {cliente.serie && <Badge variant="secondary" className="text-[10px]">{cliente.serie}</Badge>}
+                                    <DiasSelector
+                                        dias={cliente.escala_contato || []}
+                                        onChange={(novosDias) => alterarEscala(cliente.id, novosDias)}
+                                    />
                                 </div>
-
-                                <DiasSelector
-                                    dias={cliente.escala_contato || []}
-                                    onChange={(novosDias) => alterarEscala(cliente.id, novosDias)}
-                                />
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }

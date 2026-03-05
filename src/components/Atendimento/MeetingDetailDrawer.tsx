@@ -91,7 +91,7 @@ function useMeetingComments(googleEventId: string | null) {
         queryFn: async () => {
             const { data } = await supabase
                 .from("google_event_ratings")
-                .select("gravacao_url, transcricao, comentarios, manual_pauta_text, pauta_html")
+                .select("gravacao_url, transcricao, comentarios, manual_pauta_text, pauta_html, cliente_id")
                 .eq("google_event_id", googleEventId!)
                 .maybeSingle();
             return data ?? null;
@@ -140,12 +140,26 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
 
     // Client detection from event title
     const clienteNameFromTitle = event?.summary ? parseClientFromTitle(event.summary) : null;
-    const { data: cliente } = useClienteByName(clienteNameFromTitle);
+    const { data: automaticCliente } = useClienteByName(clienteNameFromTitle);
+
+    // Fetch all active clients for the manual override dropdown
+    const { data: allClientes } = useQuery({
+        queryKey: ["clientes-ativos-basico"],
+        queryFn: async () => {
+            const { data } = await supabase
+                .from("clientes")
+                .select("id, nome")
+                .eq("is_active", true)
+                .order("nome");
+            return data ?? [];
+        },
+        staleTime: 5 * 60 * 1000,
+    });
 
     // Recordings: primary by cliente_id + date, fallback by title
     const { data: matchedRecordings = [] } = useRecordingsByDateAndClient(
         event?.start.dateTime ?? event?.start.date,
-        cliente?.id,
+        automaticCliente?.id,
         event?.summary,
         open
     );
@@ -158,6 +172,7 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
     const [gravacaoUrl, setGravacaoUrl] = useState("");
     const [transcricao, setTranscricao] = useState("");
     const [comentarios, setComentarios] = useState("");
+    const [clienteIdManual, setClienteIdManual] = useState<string>("auto");
     const [loadingGemini, setLoadingGemini] = useState(false);
     const savePautaTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -165,6 +180,7 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
         setGravacaoUrl(stored?.gravacao_url ?? "");
         setTranscricao(stored?.transcricao ?? "");
         setComentarios(stored?.comentarios ?? "");
+        setClienteIdManual(stored?.cliente_id ?? "auto");
     }, [stored, event?.id]);
 
     const handleLoadGeminiContent = async () => {
@@ -231,7 +247,8 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
             comentarios: comentarios || undefined,
             titulo: event.summary ?? undefined,
             dataEvento: startRaw ?? undefined,
-        });
+            cliente_id: clienteIdManual === "auto" ? null : clienteIdManual,
+        } as any);
         toast({ title: "✅ Salvo com sucesso" });
     };
 
@@ -244,12 +261,34 @@ export function MeetingDetailDrawer({ event, open, onOpenChange }: Props) {
                         {event.summary || "(sem título)"}
                     </SheetTitle>
                     {dateLabel && <p className="text-sm text-muted-foreground">{dateLabel}</p>}
-                    {cliente && (
-                        <p className="text-xs text-muted-foreground">
-                            Cliente: <span className="font-medium text-foreground">{cliente.nome}</span>
-                        </p>
-                    )}
-                    <div className="flex items-center gap-3 pt-1 flex-wrap">
+
+                    <div className="pt-2 flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">Associação:</span>
+                        <Select value={clienteIdManual} onValueChange={(v) => {
+                            setClienteIdManual(v);
+                            // Auto-save the manual association change right away
+                            saveDetails.mutate({
+                                cliente_id: v === "auto" ? null : v,
+                            } as any);
+                        }}>
+                            <SelectTrigger className="h-8 text-xs max-w-[280px]">
+                                <SelectValue placeholder="Automática (Pelo título)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="auto">
+                                    Automática {automaticCliente ? `(${automaticCliente.nome})` : '(Não encontrada)'}
+                                </SelectItem>
+                                <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Sobrescrever Manualmente
+                                </div>
+                                {allClientes?.map(c => (
+                                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2 flex-wrap">
                         {event.htmlLink && (
                             <a href={event.htmlLink} target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline">

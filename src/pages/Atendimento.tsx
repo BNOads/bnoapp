@@ -77,14 +77,10 @@ export default function Atendimento() {
                     </SectionCard>
                 </div>
 
-                <div className="lg:col-span-8 space-y-6">
-                    <SectionCard icon={CalendarDays} title="Escala de Reuniões">
-                        <EscalaReunioes />
-                    </SectionCard>
+                <div className="lg:col-span-8 space-y-4">
+                    <EscalaReunioes />
 
-                    <SectionCard icon={PhoneCall} title="Escala de Contatos">
-                        <EscalaContatos />
-                    </SectionCard>
+                    <EscalaContatos />
 
                     {/* Diário de Atendimento Global */}
                     <DiarioAtendimento />

@@ -21,7 +21,7 @@ function useEventRating(googleEventId: string) {
                 .eq("google_event_id", googleEventId)
                 .maybeSingle();
             if (error) throw error;
-            return data?.classificacao as Classificacao | null;
+            return (data?.classificacao ?? null) as Classificacao | null;
         },
         staleTime: 5 * 60 * 1000,
     });

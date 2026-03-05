@@ -978,6 +978,7 @@ export type Database = {
           descricao_breve: string | null
           drive_folder_id: string | null
           drive_sync_error: string | null
+          escala_contato: number[] | null
           etapa_atual: string | null
           etapa_onboarding: string | null
           etapa_trafego: string | null
@@ -1011,6 +1012,7 @@ export type Database = {
           total_acessos: number | null
           traffic_manager_id: string | null
           ultimo_acesso: string | null
+          ultimo_contato_at: string | null
           updated_at: string
           whatsapp_cliente: string | null
           whatsapp_grupo_url: string | null
@@ -1036,6 +1038,7 @@ export type Database = {
           descricao_breve?: string | null
           drive_folder_id?: string | null
           drive_sync_error?: string | null
+          escala_contato?: number[] | null
           etapa_atual?: string | null
           etapa_onboarding?: string | null
           etapa_trafego?: string | null
@@ -1069,6 +1072,7 @@ export type Database = {
           total_acessos?: number | null
           traffic_manager_id?: string | null
           ultimo_acesso?: string | null
+          ultimo_contato_at?: string | null
           updated_at?: string
           whatsapp_cliente?: string | null
           whatsapp_grupo_url?: string | null
@@ -1094,6 +1098,7 @@ export type Database = {
           descricao_breve?: string | null
           drive_folder_id?: string | null
           drive_sync_error?: string | null
+          escala_contato?: number[] | null
           etapa_atual?: string | null
           etapa_onboarding?: string | null
           etapa_trafego?: string | null
@@ -1127,6 +1132,7 @@ export type Database = {
           total_acessos?: number | null
           traffic_manager_id?: string | null
           ultimo_acesso?: string | null
+          ultimo_contato_at?: string | null
           updated_at?: string
           whatsapp_cliente?: string | null
           whatsapp_grupo_url?: string | null
@@ -3239,6 +3245,7 @@ export type Database = {
         Row: {
           avaliado_por: string | null
           classificacao: string | null
+          cliente_id: string | null
           comentarios: string | null
           created_at: string | null
           data_evento: string | null
@@ -3255,6 +3262,7 @@ export type Database = {
         Insert: {
           avaliado_por?: string | null
           classificacao?: string | null
+          cliente_id?: string | null
           comentarios?: string | null
           created_at?: string | null
           data_evento?: string | null
@@ -3271,6 +3279,7 @@ export type Database = {
         Update: {
           avaliado_por?: string | null
           classificacao?: string | null
+          cliente_id?: string | null
           comentarios?: string | null
           created_at?: string | null
           data_evento?: string | null
@@ -3284,7 +3293,15 @@ export type Database = {
           transcricao?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "google_event_ratings_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       google_sheets_logs: {
         Row: {
