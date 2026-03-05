@@ -91,16 +91,6 @@ export function AtendimentoKPIs() {
             } catch { return false; }
             if (!isToday) return false;
 
-            // 2. Client filter: If it looks like a client meeting, must be an active client
-            const clientName = parseClientFromTitle(ev.summary ?? "");
-            if (clientName) {
-                // It has the "CLIENT | ..." format
-                return activeNameSet.has(clientName.toLowerCase());
-            }
-
-            // If it doesn't have the "CLIENT |" format, we assume it's an internal meeting or something else
-            // but the user wants "Atendimento" to be about clients.
-            // Usually, these are the meetings they care about.
             return true;
         });
 
@@ -122,25 +112,25 @@ export function AtendimentoKPIs() {
             icon: CalendarClock,
             label: "Reuniões hoje",
             value: totalHoje,
-            color: "text-blue-600 dark:text-blue-400",
-            bg: "bg-blue-50 dark:bg-blue-950/30",
-            border: "border-blue-200 dark:border-blue-800",
+            color: "text-slate-700 dark:text-slate-300",
+            bg: "bg-slate-50 dark:bg-slate-900/50",
+            border: "border-slate-200 dark:border-slate-800",
         },
         {
             icon: CalendarCheck2,
             label: "Já realizadas",
             value: jaFeitas,
-            color: "text-green-600 dark:text-green-400",
-            bg: "bg-green-50 dark:bg-green-950/30",
-            border: "border-green-200 dark:border-green-800",
+            color: "text-slate-700 dark:text-slate-300",
+            bg: "bg-slate-50 dark:bg-slate-900/50",
+            border: "border-slate-200 dark:border-slate-800",
         },
         {
             icon: UserCheck,
             label: "Você está escalado",
             value: escalado,
-            color: "text-purple-600 dark:text-purple-400",
-            bg: "bg-purple-50 dark:bg-purple-950/30",
-            border: "border-purple-200 dark:border-purple-800",
+            color: "text-slate-700 dark:text-slate-300",
+            bg: "bg-slate-50 dark:bg-slate-900/50",
+            border: "border-slate-200 dark:border-slate-800",
         },
     ];
 

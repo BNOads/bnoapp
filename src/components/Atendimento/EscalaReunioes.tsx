@@ -43,18 +43,14 @@ const PAGE_SIZE = 5;
 
 type DateFilter = "hoje" | "ontem" | "amanha" | "proximos7" | "ultimos7" | "ultimos30" | "ultimos90" | "custom";
 
-const EVENT_COLORS = [
-    { bg: "bg-blue-50 dark:bg-blue-950/40", border: "border-l-blue-500", dot: "bg-blue-500" },
-    { bg: "bg-purple-50 dark:bg-purple-950/40", border: "border-l-purple-500", dot: "bg-purple-500" },
-    { bg: "bg-green-50 dark:bg-green-950/40", border: "border-l-green-500", dot: "bg-green-500" },
-    { bg: "bg-amber-50 dark:bg-amber-950/40", border: "border-l-amber-500", dot: "bg-amber-500" },
-    { bg: "bg-pink-50 dark:bg-pink-950/40", border: "border-l-pink-500", dot: "bg-pink-500" },
-];
+const DEFAULT_EVENT_COLOR = {
+    bg: "bg-card hover:bg-muted/30 dark:bg-card dark:hover:bg-muted/10",
+    border: "border-l-slate-300 dark:border-l-slate-700",
+    dot: "bg-slate-400 dark:bg-slate-500"
+};
 
 function getEventColor(id: string) {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) hash = (hash + id.charCodeAt(i)) % EVENT_COLORS.length;
-    return EVENT_COLORS[hash];
+    return DEFAULT_EVENT_COLOR;
 }
 
 function getEventDate(event: GoogleCalendarEvent): Date | null {
@@ -150,21 +146,38 @@ function matchClientFromTitle(title: string, clientes: { id: string; nome: strin
     const sep = title.indexOf('|');
     const candidate = sep > 0 ? title.slice(0, sep).trim() : title.trim();
     if (!candidate) return null;
-    const norm = normStr(candidate);
+
+    const normLine = normStr(candidate);
+
+    // Split into tokens for whole-word matching
+    const tokens = normLine.split(/\s+/).filter(t => t.length > 0);
+
     let best: { id: string; nome: string } | null = null;
     let bestScore = 0;
+
     for (const c of clientes) {
-        // Check nome
-        if (normStr(c.nome) === norm) return { id: c.id, nome: c.nome };
-        const nomeScore = normStr(c.nome).includes(norm) || norm.includes(normStr(c.nome)) ? 0.8 : 0;
-        // Check aliases
-        let aliasScore = 0;
+        let currentScore = 0;
+        const normName = normStr(c.nome);
+
+        // Check exact or partial name match
+        if (normName === normLine) return { id: c.id, nome: c.nome };
+        if (normLine.includes(normName) || normName.includes(normLine)) currentScore = 0.8;
+
+        // Check aliases against tokens or substring
         for (const a of (c.aliases ?? [])) {
-            if (normStr(a) === norm) return { id: c.id, nome: c.nome };
-            if (normStr(a).includes(norm) || norm.includes(normStr(a))) aliasScore = 0.8;
+            const normAlias = normStr(a);
+            if (normAlias === normLine) return { id: c.id, nome: c.nome };
+
+            // Allow substring match for aliases, or token exact match
+            if (normLine.includes(normAlias) || tokens.includes(normAlias)) {
+                currentScore = Math.max(currentScore, 0.9);
+            }
         }
-        const score = Math.max(nomeScore, aliasScore);
-        if (score > bestScore) { bestScore = score; best = { id: c.id, nome: c.nome }; }
+
+        if (currentScore > bestScore) {
+            bestScore = currentScore;
+            best = { id: c.id, nome: c.nome };
+        }
     }
     return bestScore >= 0.8 ? best : null;
 }
@@ -436,13 +449,13 @@ export function EscalaReunioes() {
                                     return (
                                         <div
                                             key={ev.id}
-                                            className={`rounded-xl border border-l-4 ${color.border} ${color.bg} px-4 py-3.5 transition-all hover:shadow-sm`}
+                                            className={`rounded-xl border border-l-4 ${color.border} ${color.bg} px-4 py-2 transition-all hover:shadow-sm`}
                                         >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="flex items-start gap-3 min-w-0 flex-1">
-                                                    <span className={`mt-2 h-2.5 w-2.5 rounded-full flex-shrink-0 ${color.dot}`} />
+                                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                                                <div className="flex items-start lg:items-center gap-3 min-w-0 flex-1">
+                                                    <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${color.dot} mt-1 lg:mt-0`} />
 
-                                                    <div className="min-w-0 flex-1 space-y-1.5">
+                                                    <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                                                         {/* Title + badge */}
                                                         <div className="flex flex-wrap items-center gap-2">
                                                             <button
@@ -451,9 +464,6 @@ export function EscalaReunioes() {
                                                             >
                                                                 {ev.summary || "(sem título)"}
                                                             </button>
-                                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                                                                Reunião
-                                                            </Badge>
                                                             {(() => {
                                                                 const matched = matchClientFromTitle(ev.summary ?? "", clientes);
                                                                 if (!matched) return null;
@@ -465,61 +475,73 @@ export function EscalaReunioes() {
                                                             })()}
                                                         </div>
 
-                                                        {/* Time + location + meet */}
-                                                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                                            <span className="flex items-center gap-1 font-medium">
-                                                                <Clock className="h-3.5 w-3.5" />
+                                                        {/* Time + location */}
+                                                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mt-0.5">
+                                                            <span className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
+                                                                <Clock className="h-4 w-4 text-slate-400" />
                                                                 {time}
                                                             </span>
                                                             {location && (
-                                                                <span className="flex items-center gap-1 truncate max-w-[200px]">
+                                                                <span className="flex items-center gap-1 truncate max-w-[200px] text-xs">
                                                                     <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
                                                                     {location}
                                                                 </span>
                                                             )}
-                                                            {ev.hangoutLink && (
-                                                                <a
-                                                                    href={ev.hangoutLink}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="flex items-center gap-1 text-blue-600 hover:underline"
-                                                                    onClick={e => e.stopPropagation()}
-                                                                >
-                                                                    <Video className="h-3.5 w-3.5" />
-                                                                    Google Meet
-                                                                </a>
-                                                            )}
                                                         </div>
-
-                                                        {/* Internal BNOapp Participants only */}
-                                                        <div className="flex items-center gap-3 pt-0.5">
-                                                            <ParticipantesPopover googleEventId={ev.id} />
-                                                        </div>
-
-                                                        {/* Rating buttons for past events */}
-                                                        {isEventInPast(ev) && (
-                                                            <div className="pt-1">
-                                                                <MeetingRatingButtons
-                                                                    googleEventId={ev.id}
-                                                                    titulo={ev.summary}
-                                                                    dataEvento={ev.start.dateTime ?? ev.start.date ?? undefined}
-                                                                />
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 </div>
 
-                                                {ev.htmlLink && (
-                                                    <a
-                                                        href={ev.htmlLink}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-muted-foreground hover:text-foreground flex-shrink-0 mt-0.5"
-                                                        onClick={e => e.stopPropagation()}
-                                                    >
-                                                        <ExternalLink className="h-3.5 w-3.5" />
-                                                    </a>
-                                                )}
+                                                <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto shrink-0 pl-5 lg:pl-0">
+                                                    <div className="flex items-center gap-3">
+                                                        {/* Internal BNOapp Participants only */}
+                                                        <ParticipantesPopover googleEventId={ev.id} />
+
+                                                        <div className="flex items-center gap-1.5 border-l pl-3 ml-1 dark:border-slate-800">
+                                                            {ev.hangoutLink && (
+                                                                <TooltipProvider delayDuration={0}>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <a
+                                                                                href={ev.hangoutLink}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors"
+                                                                                onClick={e => e.stopPropagation()}
+                                                                            >
+                                                                                <Video className="h-4 w-4" />
+                                                                            </a>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>Entrar no Google Meet</TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )}
+
+                                                            {ev.htmlLink && (
+                                                                <a
+                                                                    href={ev.htmlLink}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-muted-foreground hover:text-foreground flex-shrink-0 hidden lg:flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted transition-colors"
+                                                                    onClick={e => e.stopPropagation()}
+                                                                >
+                                                                    <ExternalLink className="h-4 w-4" />
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Rating buttons for past events */}
+                                                    {isEventInPast(ev) && (
+                                                        <div className="flex-shrink-0">
+                                                            <MeetingRatingButtons
+                                                                googleEventId={ev.id}
+                                                                titulo={ev.summary}
+                                                                dataEvento={ev.start.dateTime ?? ev.start.date ?? undefined}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+
                                             </div>
                                         </div>
                                     );

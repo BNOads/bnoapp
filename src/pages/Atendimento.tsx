@@ -7,11 +7,12 @@ import { ClientesEmAlerta } from "@/components/Atendimento/ClientesEmAlerta";
 import { AnaliseReunioes } from "@/components/Atendimento/AnaliseReunioes";
 import { LiveMeetingBanner } from "@/components/Atendimento/LiveMeetingBanner";
 import { MensagensSemanaisCard } from "@/components/Atendimento/MensagensSemanaisCard";
-import { ResumoReferenciasCard } from "@/components/Atendimento/ResumoReferenciasCard";
 import { ClientesEmOnboarding } from "@/components/Atendimento/ClientesEmOnboarding";
 import { SituacaoClientesChart } from "@/components/Atendimento/SituacaoClientesChart";
 import { MatrizPresencaReunioes } from "@/components/Atendimento/MatrizPresencaReunioes";
 import { DiarioAtendimento } from "@/components/Atendimento/DiarioAtendimento";
+import { EscalaContatos } from "@/components/Atendimento/EscalaContatos";
+import { PhoneCall } from "lucide-react";
 
 function SectionCard({
     icon: Icon,
@@ -57,51 +58,43 @@ export default function Atendimento() {
 
             {/* Alertas e Faixas — horizontal strips at the top foram removidos do topo e transferidos para o sidebar */}
 
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
-                <TabsList>
-                    <TabsTrigger value="reunioes" className="gap-2">
-                        <CalendarDays className="h-4 w-4" />
-                        Reuniões
-                    </TabsTrigger>
-                </TabsList>
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
+                <div className="lg:col-span-4 space-y-6">
+                    {/* Alertas passados para view de Card na sidebar */}
+                    <LiveMeetingBanner />
+                    <ClientesEmAlerta />
+                    <ClientesEmOnboarding />
 
-                <TabsContent value="reunioes" className="mt-6 space-y-6">
-                    {/* Main Content Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        <div className="lg:col-span-4 space-y-6">
-                            {/* Alertas passados para view de Card na sidebar */}
-                            <LiveMeetingBanner />
-                            <ClientesEmAlerta />
-                            <ClientesEmOnboarding />
-                            <ResumoReferenciasCard />
+                    <SituacaoClientesChart />
 
-                            <SituacaoClientesChart />
+                    <SectionCard icon={MessageSquare} title="Mensagens Semanais">
+                        <MensagensSemanaisCard />
+                    </SectionCard>
 
-                            <SectionCard icon={MessageSquare} title="Mensagens Semanais">
-                                <MensagensSemanaisCard />
-                            </SectionCard>
+                    <SectionCard icon={BarChart3} title="Análise de Reuniões">
+                        <AnaliseReunioes />
+                    </SectionCard>
+                </div>
 
-                            <SectionCard icon={BarChart3} title="Análise de Reuniões">
-                                <AnaliseReunioes />
-                            </SectionCard>
-                        </div>
+                <div className="lg:col-span-8 space-y-6">
+                    <SectionCard icon={CalendarDays} title="Escala de Reuniões">
+                        <EscalaReunioes />
+                    </SectionCard>
 
-                        <div className="lg:col-span-8 space-y-6">
-                            <SectionCard icon={CalendarDays} title="Escala de Reuniões">
-                                <EscalaReunioes />
-                            </SectionCard>
+                    <SectionCard icon={PhoneCall} title="Escala de Contatos">
+                        <EscalaContatos />
+                    </SectionCard>
 
-                            {/* Diário de Atendimento Global */}
-                            <DiarioAtendimento />
-                        </div>
-                    </div>
+                    {/* Diário de Atendimento Global */}
+                    <DiarioAtendimento />
+                </div>
+            </div>
 
-                    {/* Matriz de Presença (Top Level) */}
-                    <div className="pt-2">
-                        <MatrizPresencaReunioes />
-                    </div>
-                </TabsContent>
-            </Tabs>
+            {/* Matriz de Presença (Top Level) */}
+            <div className="pt-2">
+                <MatrizPresencaReunioes />
+            </div>
         </div>
     );
 }

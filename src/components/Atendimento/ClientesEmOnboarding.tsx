@@ -52,25 +52,23 @@ export function ClientesEmOnboarding() {
                         <div
                             key={c.id}
                             onClick={() => navigate(`/clientes?id=${c.id}`)}
-                            className="flex flex-col p-3 rounded-xl border-2 bg-card hover:bg-muted/50 hover:border-blue-400 cursor-pointer transition-all gap-2 shadow-sm group"
+                            className="flex items-center justify-between p-3 rounded-xl border-2 bg-card hover:bg-muted/50 hover:border-blue-400 cursor-pointer transition-all gap-3 shadow-sm group"
                         >
-                            {/* Row 1: Title */}
-                            <div className="flex items-center justify-between gap-2">
-                                <span className="font-extrabold text-[15px] leading-tight text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2" title={c.nome}>
+                            <div className="flex items-center gap-2 min-w-0">
+                                <span className="relative flex h-2 w-2 shrink-0">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                                </span>
+                                <span className="font-extrabold text-[15px] leading-tight text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate" title={c.nome}>
                                     {c.nome}
                                 </span>
-                                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-blue-500 transition-colors shrink-0" />
                             </div>
 
-                            {/* Row 2: Status indicator */}
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="relative flex h-1.5 w-1.5 shrink-0">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
-                                </span>
-                                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wide">
+                            <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wide max-sm:hidden">
                                     Em Progresso
                                 </span>
+                                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-blue-500 transition-colors shrink-0" />
                             </div>
                         </div>
                     ))
