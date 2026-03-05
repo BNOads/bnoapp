@@ -53,6 +53,7 @@ import FerramentaProjecaoView from "@/components/Ferramentas/FerramentaProjecaoV
 import { MensagemSextouView } from "@/components/Ferramentas/MensagemSextouView";
 import { NotificacoesDetalhesView } from "./pages/Notificacoes";
 import RedirectPage from "./pages/RedirectPage";
+import PautaView from "./pages/PautaView";
 
 
 const queryClient = new QueryClient({
@@ -83,6 +84,7 @@ function App() {
                   <Route path="/d/:slug" element={<RedirectPage />} />
                   <Route path="/r/:slug" element={<ReferenciaPublica />} />
                   <Route path="/referencia/publica/:slug" element={<ReferenciaPublica />} />
+                  <Route path="/pauta/:id" element={<PautaView />} />
                   <Route path="/painel-publico/:token" element={<PublicDashboard />} />
                   <Route path="/admin/meta-ads" element={
                     <ProtectedRoute>

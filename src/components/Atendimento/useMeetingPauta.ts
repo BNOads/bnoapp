@@ -11,6 +11,11 @@ import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
 import ListItem from '@tiptap/extension-list-item';
 import Link from '@tiptap/extension-link';
+import Underline from '@tiptap/extension-underline';
+import Strike from '@tiptap/extension-strike';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import Highlight from '@tiptap/extension-highlight';
 import CustomHeading from '@/components/Reunioes/CustomHeading';
 import { useClienteByName } from '@/hooks/useClienteByName';
 import { parseClientFromTitle } from '@/utils/parseClientFromTitle';
@@ -27,12 +32,17 @@ const extensions = [
     BulletList,
     OrderedList,
     ListItem,
-    Link
+    Link,
+    Underline,
+    Strike,
+    TaskList,
+    TaskItem,
+    Highlight
 ];
 
 function normStr(str?: string | null) {
     if (!str) return '';
-    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '');
 }
 
 function extractText(node: any): string {
@@ -153,59 +163,6 @@ export function useMeetingPauta(
                     let score = 0;
                     let hasDateMatch = false;
 
-                    // Override Manual via Atendimento Drawer
-                    if (manualPautaText && normHeading === normStr(manualPautaText)) {
-                        targetHeadingNode = node;
-                        startLevel = node.attrs?.level || 1;
-                        break;
-                    }
-
-                    // Match por ID com tratamento para série recorrente
-                    if (eventId && node.attrs?.eventId) {
-                        const nodeEventIdStr = String(node.attrs.eventId);
-
-                        // Prioridade máxima absoluta: Vínculo manual da ocorrência exata
-                        if (nodeEventIdStr === eventId) {
-                            targetHeadingNode = node;
-                            startLevel = node.attrs?.level || 1;
-                            break;
-                        }
-
-                        // Prioridade alta: Série recorrente (mesmo Master ID)
-                        const cleanTargetId = String(eventId).split('_')[0];
-                        const cleanNodeId = nodeEventIdStr.split('_')[0];
-                        if (cleanTargetId === cleanNodeId) {
-                            score += 100;
-                        }
-                    }
-
-                    // Match por partes do título (ex: "Alinhamento")
-                    if (titleParts.length > 0) {
-                        for (const part of titleParts) {
-                            if (part.length > 2 && normHeading.includes(part)) {
-                                score += 10;
-                            }
-                        }
-                    }
-
-                    // Match Inteligente de Cliente (Nome ou Aliases)
-                    if (clientMatch) {
-                        let hasClientInHeading = false;
-                        if (normHeading.includes(normStr(clientMatch.nome))) {
-                            hasClientInHeading = true;
-                        } else {
-                            for (const alias of (clientMatch.aliases || [])) {
-                                if (alias && normStr(alias).length > 2 && normHeading.includes(normStr(alias))) {
-                                    hasClientInHeading = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (hasClientInHeading) {
-                            score += 20;
-                        }
-                    }
-
                     // Match de Data (Exata ou Parcial)
                     if (eventDateFormatted && (headingText.includes(eventDateFormatted) || currentH1DateScan.includes(eventDateFormatted))) {
                         score += 50; // Aumentar bonus de data
@@ -215,13 +172,25 @@ export function useMeetingPauta(
                         hasDateMatch = true;
                     }
 
+                    // Override Manual via Atendimento Drawer: Passe Livre Absoluto
+                    if (manualPautaText) {
+                        const isMatch = normHeading.includes(normStr(manualPautaText)) || normStr(manualPautaText).includes(normHeading);
+                        if (isMatch) {
+                            console.log("Matched Manual Pauta!", manualPautaText, headingText);
+                            targetHeadingNode = node;
+                            startLevel = node.attrs?.level || 1;
+                            break;
+                        }
+                    }
+
                     // Se não tiver ao menos um cruzamento de data E não for uma busca vazia
                     if (!hasDateMatch) {
-                        continue; // Evita que puxemos pauta da semana passada por causa de ID Base Mestre igual
+                        continue; // Evita que puxemos pauta da semana passada por causa de ID Base Mestre igual na Adivinhação
                     }
 
                     // Se a pontuação for boa o suficiente e melhor que a anterior, substitui
-                    if (score > 15 && score > bestScore) {
+                    // Precisa de no mínimo Match de Data (30/50) + Match de Cliente (20) ou Título (10) para adivinhar
+                    if (score > 35 && score > bestScore) {
                         bestScore = score;
                         targetHeadingNode = node;
                         startLevel = node.attrs?.level || 1;
