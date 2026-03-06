@@ -52,7 +52,7 @@ export function ClientesEmAlerta() {
                         <div
                             key={c.id}
                             onClick={() => navigate(`/clientes?id=${c.id}`)}
-                            className="flex items-center justify-between p-3 rounded-xl border-2 bg-card hover:bg-muted/50 hover:border-red-400 cursor-pointer transition-all gap-3 shadow-sm group"
+                            className="flex items-center justify-between p-3 rounded-xl border border-border/30 dark:border-border/15 bg-card hover:bg-muted/50 hover:border-red-400 dark:hover:border-red-700/50 cursor-pointer transition-all gap-3 shadow-sm group"
                         >
                             <div className="flex items-center gap-2 min-w-0">
                                 <span className="relative flex h-2 w-2 shrink-0">

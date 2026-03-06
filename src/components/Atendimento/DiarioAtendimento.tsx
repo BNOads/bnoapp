@@ -277,7 +277,7 @@ export const DiarioAtendimento = () => {
         return { name: authorName || 'Usuário', avatar: authorAvatar };
     };
 
-    const InnerContent = () => (
+    const renderInnerContent = () => (
         <>
             {/* Form Section */}
             {canWrite && (
@@ -447,7 +447,7 @@ export const DiarioAtendimento = () => {
                 </CardHeader>
 
                 <CardContent className="flex-1 overflow-hidden p-0 flex flex-col bg-background/50">
-                    <InnerContent />
+                    {renderInnerContent()}
                 </CardContent>
             </Card>
 
@@ -459,7 +459,7 @@ export const DiarioAtendimento = () => {
                         <h2 className="text-lg font-semibold">Diário de Atendimento</h2>
                     </div>
                     <div className="flex-1 overflow-hidden flex flex-col bg-background relative">
-                        <InnerContent />
+                        {renderInnerContent()}
                     </div>
                 </DialogContent>
             </Dialog>
